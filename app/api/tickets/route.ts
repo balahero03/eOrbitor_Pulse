@@ -1,0 +1,96 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+async function verifyAuth(req: NextRequest) {
+  const token = req.headers.get('authorization')?.replace('Bearer ', '');
+  if (!token) throw new Error('Unauthorized');
+
+  try {
+    return jwt.verify(token, JWT_SECRET) as { userId: string };
+  } catch {
+    throw new Error('Invalid token');
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    await verifyAuth(req);
+
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const status = searchParams.get('status');
+    const priority = searchParams.get('priority');
+    const search = searchParams.get('search');
+    const customerId = searchParams.get('customerId');
+
+    const skip = (page - 1) * limit;
+    const where: any = {};
+
+    if (status) where.status = status;
+    if (priority) where.priority = priority;
+    if (customerId) where.customerId = customerId;
+    if (search) {
+      where.OR = [
+        { subject: { contains: search, mode: 'insensitive' } },
+        { ticketNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [tickets, total] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        include: { customer: true, assignedTo: true, createdBy: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      tickets,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await verifyAuth(req);
+    const body = await req.json();
+
+    const { customerId, dealId, type, priority, subject, description } = body;
+
+    if (!customerId || !type || !priority || !subject || !description) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const ticketNumber = `TKT-${Date.now()}`;
+
+    const ticket = await prisma.ticket.create({
+      data: {
+        ticketNumber,
+        customerId,
+        dealId: dealId || null,
+        type,
+        priority,
+        subject,
+        description,
+        assignedToId: auth.userId,
+        createdById: auth.userId,
+      },
+      include: { customer: true, assignedTo: true, createdBy: true },
+    });
+
+    return NextResponse.json(ticket, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ error: 'Failed to create ticket' }, { status: 500 });
+  }
+}
