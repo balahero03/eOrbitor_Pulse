@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { companyName, industry, website, annualRevenue, employeeCount } = body;
+    const { companyName, industry, website, annualRevenue, yearEstablished } = body;
 
     const customer = await prisma.customer.update({
       where: { id: params.id },
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         ...(industry && { industry }),
         ...(website && { website }),
         ...(annualRevenue && { annualRevenue }),
-        ...(employeeCount && { employeeCount }),
+        ...(yearEstablished && { yearEstablished }),
       },
     });
 

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
           industry: true,
           website: true,
           annualRevenue: true,
-          employeeCount: true,
+          yearEstablished: true,
           deals: { where: { status: { not: 'CLOSED_WON' } } },
           contacts: { take: 2 },
           createdAt: true,
@@ -80,25 +80,30 @@ export async function POST(req: NextRequest) {
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { companyName, industry, website, annualRevenue, employeeCount } = body;
+    const { companyName, industry, website, annualRevenue, gstNumber, yearEstablished } = body;
 
     if (!companyName) {
       return NextResponse.json({ message: 'Company name is required' }, { status: 400 });
     }
 
+    if (!gstNumber) {
+      return NextResponse.json({ message: 'GST number is required' }, { status: 400 });
+    }
+
     const customer = await prisma.customer.create({
       data: {
         companyName,
+        gstNumber: gstNumber.trim(),
         industry: industry || 'Other',
         website: website || null,
         annualRevenue: annualRevenue || null,
-        employeeCount: employeeCount || null,
+        yearEstablished: yearEstablished || null,
       },
     });
 
     return NextResponse.json(customer, { status: 201 });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Customer POST error:', error?.message, error?.code, error?.meta);
+    return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

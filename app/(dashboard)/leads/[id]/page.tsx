@@ -15,24 +15,37 @@ interface LeadDetail {
   leadScore: number;
   qualificationNotes?: string;
   assignedTo: { id: string; firstName: string; lastName: string };
-  linkedCustomer?: any;
-  followUps: Array<{ id: string; type: string; scheduledDate: string; outcome: string }>;
+  linkedCustomer?: { id: string; companyName: string };
+  followUps?: Array<{ id: string; type: string; scheduledDate: string; outcome?: string; notes?: string }>;
   createdAt: string;
 }
+
+const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'DEMO', 'PROPOSAL', 'NEGOTIATION', 'OTHER'];
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    status: '',
-    qualificationNotes: '',
-  });
+  const [converting, setConverting] = useState(false);
 
-  useEffect(() => {
-    fetchLead();
-  }, [params.id]);
+  // Convert modal
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertForm, setConvertForm] = useState({ gstNumber: '', industry: 'Technology' });
+
+  // Follow-up modal
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpForm, setFollowUpForm] = useState({
+    type: 'CALL',
+    scheduledDate: '',
+    notes: '',
+    outcome: '',
+  });
+  const [savingFollowUp, setSavingFollowUp] = useState(false);
+
+  const [editData, setEditData] = useState({ status: '', qualificationNotes: '' });
+
+  useEffect(() => { fetchLead(); }, [params.id]);
 
   const fetchLead = async () => {
     try {
@@ -40,15 +53,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       const res = await fetch(`/api/leads/${params.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!res.ok) throw new Error('Failed to fetch lead');
-
       const data = await res.json();
       setLead(data);
-      setEditData({
-        status: data.status,
-        qualificationNotes: data.qualificationNotes || '',
-      });
+      setEditData({ status: data.status, qualificationNotes: data.qualificationNotes || '' });
     } catch (err) {
       console.error(err);
     } finally {
@@ -61,20 +69,137 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/leads/${params.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(editData),
       });
-
       if (!res.ok) throw new Error('Failed to update lead');
-
       const updated = await res.json();
-      setLead(updated);
+      setLead(prev => prev ? { ...prev, ...updated, followUps: prev.followUps } : null);
       setEditing(false);
     } catch (err) {
       console.error(err);
+      alert('Failed to save changes.');
+    }
+  };
+
+  const handleConvertToCustomer = async () => {
+    if (!lead || !convertForm.gstNumber.trim()) {
+      alert('GST Number is required.');
+      return;
+    }
+    setConverting(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          companyName: lead.company,
+          gstNumber: convertForm.gstNumber.trim(),
+          industry: convertForm.industry,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Failed to convert: ${err.message || 'Unknown error'}`);
+        return;
+      }
+
+      const customer = await res.json();
+
+      await fetch(`/api/leads/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'CONVERTED', linkedCustomerId: customer.id }),
+      });
+
+      setShowConvertModal(false);
+      alert('Lead successfully converted to customer!');
+      router.push('/customers');
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred during conversion.');
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const handleAddFollowUp = async () => {
+    if (!followUpForm.scheduledDate) {
+      alert('Please select a scheduled date.');
+      return;
+    }
+    setSavingFollowUp(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // FollowUp requires a dealId in the schema.
+      // Look for an existing deal, or auto-create one if lead has a linked customer.
+      let dealId: string | null = null;
+
+      // Search existing deals
+      const dealsRes = await fetch(`/api/deals?search=${encodeURIComponent(lead?.company || '')}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (dealsRes.ok) {
+        const dealsData = await dealsRes.json();
+        if (dealsData.deals?.length > 0) dealId = dealsData.deals[0].id;
+      }
+
+      // Auto-create a stub deal if lead has a linked customer
+      if (!dealId && lead?.linkedCustomer?.id) {
+        const dealRes = await fetch('/api/deals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            name: `${lead.name} - Lead Follow-up`,
+            customerId: lead.linkedCustomer.id,
+            value: 0,
+            stage: 'SUSPECT',
+            expectedClosureDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        });
+        if (dealRes.ok) {
+          const deal = await dealRes.json();
+          dealId = deal.id;
+        }
+      }
+
+      if (!dealId) {
+        alert('To add a follow-up, please first convert this lead to a customer (so a deal can be created), or create a deal manually in the Pipeline module.');
+        return;
+      }
+
+      const res = await fetch('/api/followups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          dealId,
+          leadId: params.id,
+          type: followUpForm.type,
+          scheduledDate: new Date(followUpForm.scheduledDate).toISOString(),
+          notes: followUpForm.notes,
+          outcome: followUpForm.outcome,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Failed to add follow-up: ${err.message || 'Unknown error'}`);
+        return;
+      }
+
+      setShowFollowUpModal(false);
+      setFollowUpForm({ type: 'CALL', scheduledDate: '', notes: '', outcome: '' });
+      fetchLead(); // Refresh to show new follow-up
+      alert('Follow-up added successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while adding follow-up.');
+    } finally {
+      setSavingFollowUp(false);
     }
   };
 
@@ -84,6 +209,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       case 'CONTACTED': return 'bg-yellow-100 text-yellow-800';
       case 'QUALIFIED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
+      case 'CONVERTED': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -101,7 +227,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       <div className="grid grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="col-span-2 space-y-4">
-          {/* Quick Info */}
           <div className="card p-6">
             <h2 className="text-lg font-bold mb-4">Lead Information</h2>
             <div className="grid grid-cols-2 gap-6">
@@ -128,10 +253,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Status & Qualification</h2>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="btn btn-secondary text-sm"
-              >
+              <button onClick={() => setEditing(!editing)} className="btn btn-secondary text-sm">
                 {editing ? 'Cancel' : 'Edit'}
               </button>
             </div>
@@ -151,7 +273,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium mb-1">Qualification Notes (BANT)</label>
                   <textarea
@@ -159,22 +280,18 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     onChange={(e) => setEditData({ ...editData, qualificationNotes: e.target.value })}
                     placeholder="Budget, Authority, Need, Timeline..."
                     className="w-full h-24"
-                  ></textarea>
+                  />
                 </div>
-
-                <button onClick={handleUpdate} className="btn btn-primary w-full">
-                  Save Changes
-                </button>
+                <button onClick={handleUpdate} className="btn btn-primary w-full">Save Changes</button>
               </div>
             ) : (
               <>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Status</p>
-                  <span className={`badge px-3 py-1 rounded font-medium ${getStatusColor(lead.status)}`}>
+                  <span className={`px-3 py-1 rounded font-medium text-sm ${getStatusColor(lead.status)}`}>
                     {lead.status}
                   </span>
                 </div>
-
                 {lead.qualificationNotes && (
                   <div className="mt-4">
                     <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Qualification Notes</p>
@@ -188,22 +305,19 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           {/* Recent Follow-ups */}
           <div className="card p-6">
             <h2 className="text-lg font-bold mb-4">Recent Follow-ups</h2>
-            {lead.followUps.length === 0 ? (
+            {!lead.followUps || lead.followUps.length === 0 ? (
               <p className="text-gray-600">No follow-ups yet</p>
             ) : (
               <div className="space-y-3">
-                {lead.followUps.map((followUp) => (
-                  <div key={followUp.id} className="flex items-start gap-4 p-3 bg-gray-50 rounded">
+                {lead.followUps.map((fu) => (
+                  <div key={fu.id} className="flex items-start gap-4 p-3 bg-gray-50 rounded">
                     <div className="flex-1">
-                      <p className="font-medium">{followUp.type}</p>
-                      <p className="text-sm text-gray-600">
-                        {new Date(followUp.scheduledDate).toLocaleDateString()}
-                      </p>
+                      <p className="font-medium">{fu.type}</p>
+                      <p className="text-sm text-gray-600">{new Date(fu.scheduledDate).toLocaleDateString()}</p>
+                      {fu.notes && <p className="text-sm text-gray-500 mt-1">{fu.notes}</p>}
                     </div>
-                    {followUp.outcome && (
-                      <div className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
-                        {followUp.outcome}
-                      </div>
+                    {fu.outcome && (
+                      <div className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded">{fu.outcome}</div>
                     )}
                   </div>
                 ))}
@@ -214,52 +328,169 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Lead Score */}
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Lead Score</h3>
             <div className="flex items-end gap-4">
               <div className="flex-1">
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full"
-                    style={{ width: `${lead.leadScore}%` }}
-                  ></div>
+                  <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${lead.leadScore}%` }} />
                 </div>
               </div>
               <div className="text-3xl font-bold">{lead.leadScore}</div>
             </div>
           </div>
 
-          {/* Assigned To */}
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-2">Assigned To</h3>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
                 {lead.assignedTo.firstName.charAt(0)}{lead.assignedTo.lastName.charAt(0)}
               </div>
-              <div>
-                <p className="font-medium">
-                  {lead.assignedTo.firstName} {lead.assignedTo.lastName}
-                </p>
-              </div>
+              <p className="font-medium">{lead.assignedTo.firstName} {lead.assignedTo.lastName}</p>
             </div>
           </div>
 
-          {/* Created */}
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-2">Created</h3>
-            <p className="text-sm">
-              {new Date(lead.createdAt).toLocaleDateString()}
-            </p>
+            <p className="text-sm">{new Date(lead.createdAt).toLocaleDateString()}</p>
           </div>
 
-          {/* Actions */}
           <div className="space-y-2">
-            <button className="btn btn-primary w-full">+ Add Follow-up</button>
-            <button className="btn btn-secondary w-full">Convert to Customer</button>
+            <button onClick={() => setShowFollowUpModal(true)} className="btn btn-primary w-full">
+              + Add Follow-up
+            </button>
+            {lead.linkedCustomer ? (
+              <Link href={`/customers/${lead.linkedCustomer.id}`} className="btn btn-secondary w-full block text-center">
+                View Customer
+              </Link>
+            ) : (
+              <button
+                onClick={() => setShowConvertModal(true)}
+                className="btn btn-secondary w-full"
+              >
+                Convert to Customer
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Convert to Customer Modal */}
+      {showConvertModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-lg font-bold mb-4">Convert to Customer</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Converting <strong>{lead.name}</strong> ({lead.company}) to a customer.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">GST Number <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={convertForm.gstNumber}
+                  onChange={(e) => setConvertForm({ ...convertForm, gstNumber: e.target.value })}
+                  placeholder="e.g. 29ABCDE1234F1Z5"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Industry</label>
+                <select
+                  value={convertForm.industry}
+                  onChange={(e) => setConvertForm({ ...convertForm, industry: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  {['Technology', 'Manufacturing', 'Healthcare', 'Finance', 'Retail', 'Education', 'Construction', 'Other'].map(i => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowConvertModal(false)}
+                className="btn btn-secondary flex-1"
+                disabled={converting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConvertToCustomer}
+                className="btn btn-primary flex-1 disabled:opacity-50"
+                disabled={converting}
+              >
+                {converting ? 'Converting...' : 'Convert'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Follow-up Modal */}
+      {showFollowUpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-lg font-bold mb-4">Add Follow-up</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Type</label>
+                <select
+                  value={followUpForm.type}
+                  onChange={(e) => setFollowUpForm({ ...followUpForm, type: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  {FOLLOWUP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Scheduled Date <span className="text-red-500">*</span></label>
+                <input
+                  type="datetime-local"
+                  value={followUpForm.scheduledDate}
+                  onChange={(e) => setFollowUpForm({ ...followUpForm, scheduledDate: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <textarea
+                  value={followUpForm.notes}
+                  onChange={(e) => setFollowUpForm({ ...followUpForm, notes: e.target.value })}
+                  placeholder="What will you discuss?"
+                  className="w-full border rounded px-3 py-2 h-20"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Outcome (optional)</label>
+                <input
+                  type="text"
+                  value={followUpForm.outcome}
+                  onChange={(e) => setFollowUpForm({ ...followUpForm, outcome: e.target.value })}
+                  placeholder="e.g. Interested, Call back next week"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowFollowUpModal(false)}
+                className="btn btn-secondary flex-1"
+                disabled={savingFollowUp}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFollowUp}
+                className="btn btn-primary flex-1 disabled:opacity-50"
+                disabled={savingFollowUp}
+              >
+                {savingFollowUp ? 'Saving...' : 'Add Follow-up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

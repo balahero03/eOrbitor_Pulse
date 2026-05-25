@@ -49,7 +49,7 @@ export async function PATCH(
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { name, email, phone, company, source, status, leadScore, assignedToId } = body;
+    const { name, email, phone, company, source, status, leadScore, assignedToId, linkedCustomerId, qualificationNotes } = body;
 
     const lead = await prisma.lead.update({
       where: { id: params.id },
@@ -62,6 +62,8 @@ export async function PATCH(
         ...(status && { status }),
         ...(leadScore !== undefined && { leadScore }),
         ...(assignedToId && { assignedToId }),
+        ...(linkedCustomerId && { linkedCustomerId }),
+        ...(qualificationNotes !== undefined && { qualificationNotes }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },
