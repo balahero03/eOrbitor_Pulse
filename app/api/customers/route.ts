@@ -1,0 +1,104 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+
+const prisma = new PrismaClient();
+
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const search = searchParams.get('search');
+    const industry = searchParams.get('industry');
+
+    const skip = (page - 1) * limit;
+    const where: any = { deletedAt: null };
+
+    if (search) {
+      where.OR = [
+        { companyName: { contains: search, mode: 'insensitive' } },
+        { industry: { contains: search, mode: 'insensitive' } },
+        { contacts: { some: { email: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+    if (industry) where.industry = industry;
+
+    const [customers, total] = await Promise.all([
+      prisma.customer.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          companyName: true,
+          industry: true,
+          website: true,
+          annualRevenue: true,
+          employeeCount: true,
+          deals: { where: { status: { not: 'CLOSED_WON' } } },
+          contacts: { take: 2 },
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.customer.count({ where }),
+    ]);
+
+    const customersWithStats = customers.map(c => ({
+      ...c,
+      activeDealCount: c.deals.length,
+      contactCount: c.contacts.length,
+      deals: undefined,
+      contacts: undefined,
+    }));
+
+    return NextResponse.json({
+      customers: customersWithStats,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+
+    const body = await req.json();
+    const { companyName, industry, website, annualRevenue, employeeCount } = body;
+
+    if (!companyName) {
+      return NextResponse.json({ message: 'Company name is required' }, { status: 400 });
+    }
+
+    const customer = await prisma.customer.create({
+      data: {
+        companyName,
+        industry: industry || 'Other',
+        website: website || null,
+        annualRevenue: annualRevenue || null,
+        employeeCount: employeeCount || null,
+      },
+    });
+
+    return NextResponse.json(customer, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}

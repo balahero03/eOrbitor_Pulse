@@ -70,20 +70,20 @@
 - [ ] Bulk operations
 
 ### Phase 2: Customers Module
-- [ ] Customer list with search/filter
-- [ ] Create customer form
-- [ ] Customer detail view
-- [ ] Contact management (add, edit, delete)
-- [ ] Customer timeline
-- [ ] Customer KPIs
+- [x] Customer list with search/filter ✅
+- [x] Create customer form ✅
+- [x] Customer detail view ✅
+- [x] Contact management (add, edit, delete) ✅
+- [x] Customer KPIs (deals, revenue) ✅
+- [ ] Customer timeline (activity logs)
 
 ### Phase 3: Sales Pipeline
-- [ ] Kanban board (SPANCO stages)
-- [ ] Deal cards with drag-drop
-- [ ] Deal creation form
-- [ ] Deal detail view
-- [ ] Probability/forecast tracking
-- [ ] Pipeline filtering & grouping
+- [x] Kanban board (SPANCO stages) ✅
+- [x] Deal cards with drag-drop ✅
+- [x] Deal creation form ✅
+- [x] Deal detail view ✅
+- [x] Probability/forecast tracking ✅
+- [x] Pipeline filtering & grouping ✅
 
 ### Phase 4: Quotations
 - [ ] Quotation list with status filters
@@ -380,10 +380,10 @@ For local/on-premise deployment:
 
 ---
 
-**Version:** 1.0.0  
+**Version:** 1.2.0  
 **Last Updated:** 2026-05-25  
-**Status:** UI Foundation Complete ✅  
-**Next Phase:** Leads Module Implementation  
+**Status:** Phase 1 (Leads), Phase 2 (Customers), Phase 3 (Pipeline) Complete ✅  
+**Next Phase:** Quotations Module  
 
 ---
 
