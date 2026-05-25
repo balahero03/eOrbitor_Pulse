@@ -1,0 +1,534 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(SALES_EXEC)
+  department    String?
+  assignedTerritory String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  leads         Lead[]
+  deals         Deal[]
+  followUps     FollowUp[]
+  tasks         Task[]
+  quotations    Quotation[]
+  assignedTasks Task[] @relation("assignedTo")
+  createdTickets Ticket[] @relation("createdBy")
+  assignedTickets Ticket[] @relation("assignedTo")
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+enum UserRole {
+  ADMIN
+  SALES_MANAGER
+  SALES_EXEC
+  SUPPORT
+  VIEWER
+}
+
+// Lead Management
+model Lead {
+  id              String    @id @default(cuid())
+  name            String
+  email           String
+  phone           String?
+  company         String
+  source          LeadSource
+  status          LeadStatus @default(NEW)
+  leadScore       Int       @default(0)
+  qualificationNotes String?
+  assignedToId    String
+  assignedTo      User      @relation(fields: [assignedToId], references: [id])
+  nextFollowUp    DateTime?
+  linkedCustomerId String?
+  linkedCustomer  Customer? @relation(fields: [linkedCustomerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  followUps       FollowUp[]
+  deals           Deal[]
+  activityLogs    ActivityLog[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  WALKIN
+  CALL
+  EMAIL
+  ADVERTISEMENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  REJECTED
+  CONVERTED
+}
+
+// Customer Master
+model Customer {
+  id              String    @id @default(cuid())
+  companyName     String
+  gstNumber       String    @unique
+  industry        String?
+  website         String?
+  annualRevenue   Decimal?
+  yearEstablished Int?
+  billingAddress  Json?
+  shippingAddress Json?
+  customerCategory CustomerCategory @default(PROSPECT)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  contacts        Contact[]
+  deals           Deal[]
+  quotations      Quotation[]
+  orders          Order[]
+  tickets         Ticket[]
+  leads           Lead[]
+  activityLogs    ActivityLog[]
+
+  @@index([gstNumber])
+  @@index([createdAt])
+}
+
+enum CustomerCategory {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  LOST
+}
+
+model Contact {
+  id          String    @id @default(cuid())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name        String
+  email       String
+  phone       String?
+  designation String?
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([customerId])
+}
+
+// Sales Pipeline
+model Deal {
+  id                String    @id @default(cuid())
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id])
+  leadId            String?
+  lead              Lead?     @relation(fields: [leadId], references: [id])
+  dealName          String
+  dealValue         Decimal
+  stage             DealStage @default(SUSPECT)
+  winProbability    Int       @default(0)
+  expectedCloseDate DateTime?
+  assignedToId      String
+  assignedTo        User      @relation(fields: [assignedToId], references: [id])
+  nextAction        String?
+  lostReason        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  closedAt          DateTime?
+
+  // Relations
+  followUps         FollowUp[]
+  quotations        Quotation[]
+  orders            Order[]
+  tasks             Task[]
+  tickets           Ticket[]
+  activityLogs      ActivityLog[]
+
+  @@index([stage])
+  @@index([customerId])
+  @@index([assignedToId])
+}
+
+enum DealStage {
+  SUSPECT
+  PROSPECT
+  APPROACH
+  NEGOTIATION
+  CLOSURE
+  ONGOING
+}
+
+// Follow-ups
+model FollowUp {
+  id          String    @id @default(cuid())
+  dealId      String
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  type        FollowUpType
+  scheduledDate DateTime
+  actualDate  DateTime?
+  durationMinutes Int?
+  notes       String?
+  outcome     String?
+  nextAction  String?
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  reminderSentAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  tasks       Task[]
+
+  @@index([dealId])
+  @@index([createdById])
+  @@index([scheduledDate])
+}
+
+enum FollowUpType {
+  CALL
+  EMAIL
+  MEETING
+  WHATSAPP
+  SITE_VISIT
+}
+
+// Tasks
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+  dueDate       DateTime?
+  assignedToId  String
+  assignedTo    User      @relation("assignedTo", fields: [assignedToId], references: [id])
+  relatedDealId String?
+  relatedDeal   Deal?     @relation(fields: [relatedDealId], references: [id], onDelete: SetNull)
+  relatedFollowUpId String?
+  relatedFollowUp FollowUp? @relation(fields: [relatedFollowUpId], references: [id], onDelete: SetNull)
+  createdById   String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+  tags          String[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([dueDate])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Quotations
+model Quotation {
+  id            String    @id @default(cuid())
+  dealId        String
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  quotationNumber String @unique
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  status        QuotationStatus @default(DRAFT)
+  issueDate     DateTime
+  expiryDate    DateTime?
+  items         Json      // Array of {productId, quantity, unitPrice, tax}
+  subtotal      Decimal
+  taxAmount     Decimal
+  discountAmount Decimal
+  totalAmount   Decimal
+  notes         String?
+  pdfUrl        String?
+  sentAt        DateTime?
+  approvedById  String?
+  approvedAt    DateTime?
+  createdById   String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  revision      Int       @default(1)
+
+  // Relations
+  orders        Order[]
+  activityLogs  ActivityLog[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([dealId])
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+// Orders
+model Order {
+  id            String    @id @default(cuid())
+  quotationId   String?
+  quotation     Quotation? @relation(fields: [quotationId], references: [id])
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  dealId        String?
+  deal          Deal?     @relation(fields: [dealId], references: [id])
+  orderNumber   String    @unique
+  poNumber      String?
+  poDate        DateTime?
+  status        OrderStatus @default(PENDING)
+  deliveryDate  DateTime?
+  invoiceUrl    String?
+  paymentStatus PaymentStatus @default(PENDING)
+  totalAmount   Decimal
+  amountPaid    Decimal   @default(0)
+  createdAt     DateTime  @default(now())
+  deliveredAt   DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([customerId])
+  @@index([paymentStatus])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  FULFILLED
+  INVOICED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
+}
+
+// Inventory
+model Product {
+  id          String    @id @default(cuid())
+  sku         String    @unique
+  name        String
+  category    String?
+  description String?
+  basePrice   Decimal
+  tax         Decimal   // percentage
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  inventory   Inventory?
+  vendorProducts VendorProduct[]
+
+  @@index([sku])
+}
+
+model Inventory {
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity        Int       @default(0)
+  reorderLevel    Int?
+  warehouseLocation String?
+  lastRestockDate DateTime?
+  lastRestockQuantity Int?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([productId])
+}
+
+// Vendors
+model Vendor {
+  id          String    @id @default(cuid())
+  vendorName  String
+  gstNumber   String    @unique
+  email       String?
+  phone       String?
+  website     String?
+  paymentTerms String?
+  rating      Int?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  products    VendorProduct[]
+
+  @@index([vendorName])
+}
+
+model VendorProduct {
+  id          String    @id @default(cuid())
+  vendorId    String
+  vendor      Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendorSku   String
+  vendorPrice Decimal
+  leadTime    Int?      // days
+  minimumOrder Int?
+
+  @@unique([vendorId, productId])
+  @@index([vendorId])
+}
+
+// Support Tickets
+model Ticket {
+  id          String    @id @default(cuid())
+  ticketNumber String  @unique
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  dealId      String?
+  deal        Deal?     @relation(fields: [dealId], references: [id])
+  type        TicketType
+  priority    TicketPriority
+  status      TicketStatus @default(OPEN)
+  subject     String
+  description String
+  assignedToId String
+  assignedTo  User      @relation("assignedTo", fields: [assignedToId], references: [id])
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  slaBreached Boolean   @default(false)
+  resolutionNotes String?
+  customerSatisfactionRating Int?
+  createdById String
+  createdBy   User      @relation("createdBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([customerId])
+}
+
+enum TicketType {
+  TECHNICAL
+  BILLING
+  GENERAL
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// Activity Logging
+model ActivityLog {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  action      ActivityAction
+  entityType  String
+  entityId    String
+  changes     Json?     // {field, oldValue, newValue}
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  // Relations for specific entities
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  dealId      String?
+  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  quotationId String?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  EXPORT
+  SEND_EMAIL
+}
+
+// Notifications
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            NotificationType
+  title           String
+  message         String
+  relatedEntityType String?
+  relatedEntityId String?
+  isRead          Boolean   @default(false)
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+enum NotificationType {
+  FOLLOW_UP_REMINDER
+  TASK_DUE
+  DEAL_UPDATED
+  LEAD_ASSIGNED
+  QUOTATION_APPROVED
+  ORDER_CONFIRMED
+  PAYMENT_RECEIVED
+  TICKET_ASSIGNED
+}
