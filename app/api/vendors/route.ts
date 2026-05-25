@@ -26,34 +26,35 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '20', 10);
-  const category = searchParams.get('category');
   const search = searchParams.get('search');
   const isActive = searchParams.get('isActive') !== 'false';
 
   const where: any = { isActive };
-  if (category) where.category = category;
   if (search) {
     where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { sku: { contains: search, mode: 'insensitive' } },
+      { vendorName: { contains: search, mode: 'insensitive' } },
+      { gstNumber: { contains: search } },
+      { email: { contains: search, mode: 'insensitive' } },
     ];
   }
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
+  const [vendors, total] = await Promise.all([
+    prisma.vendor.findMany({
       where,
       include: {
-        inventory: { select: { quantity: true, reorderLevel: true, warehouseLocation: true, lastRestockDate: true } },
+        products: {
+          select: { productId: true },
+        },
       },
-      orderBy: { name: 'asc' },
+      orderBy: { vendorName: 'asc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.product.count({ where }),
+    prisma.vendor.count({ where }),
   ]);
 
   return NextResponse.json({
-    products,
+    vendors,
     pagination: {
       page,
       limit,
@@ -70,38 +71,29 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { sku, name, category, description, basePrice, tax, initialQuantity, reorderLevel, warehouseLocation } = body;
+  const { vendorName, gstNumber, email, phone, website, paymentTerms, rating } = body;
 
-  if (!sku || !name || !basePrice) {
-    return NextResponse.json({ message: 'SKU, name, and basePrice are required' }, { status: 400 });
+  if (!vendorName || !gstNumber) {
+    return NextResponse.json({ message: 'Vendor name and GST number are required' }, { status: 400 });
   }
 
-  const existingSku = await prisma.product.findUnique({ where: { sku } });
-  if (existingSku) {
-    return NextResponse.json({ message: 'SKU already exists' }, { status: 400 });
+  const existingGst = await prisma.vendor.findUnique({ where: { gstNumber } });
+  if (existingGst) {
+    return NextResponse.json({ message: 'GST number already exists' }, { status: 400 });
   }
 
-  const product = await prisma.product.create({
+  const vendor = await prisma.vendor.create({
     data: {
-      sku,
-      name,
-      category: category || null,
-      description: description || null,
-      basePrice: parseFloat(basePrice),
-      tax: parseFloat(tax) || 0,
+      vendorName,
+      gstNumber,
+      email: email || null,
+      phone: phone || null,
+      website: website || null,
+      paymentTerms: paymentTerms || null,
+      rating: rating ? parseInt(rating) : null,
       isActive: true,
-      inventory: {
-        create: {
-          quantity: initialQuantity ? parseInt(initialQuantity) : 0,
-          reorderLevel: reorderLevel ? parseInt(reorderLevel) : null,
-          warehouseLocation: warehouseLocation || null,
-        },
-      },
-    },
-    include: {
-      inventory: true,
     },
   });
 
-  return NextResponse.json(product, { status: 201 });
+  return NextResponse.json(vendor, { status: 201 });
 }
