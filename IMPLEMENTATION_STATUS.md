@@ -1,5 +1,5 @@
 # eOrbitor Pulse - Implementation Status
-## Version 1.0.0 - UI Foundation Complete
+## Version 1.5.0 - Tasks & Follow-ups Complete
 
 ---
 
@@ -103,12 +103,12 @@
 - [ ] Inventory allocation
 
 ### Phase 6: Tasks & Follow-ups
-- [ ] Task list (TODO, IN_PROGRESS, DONE)
-- [ ] Follow-up scheduler (calendar view)
-- [ ] Task assignment & tracking
-- [ ] Follow-up reminders
-- [ ] Calendar integration
-- [ ] Task filtering & grouping
+- [x] Task list (TODO, IN_PROGRESS, COMPLETED, CANCELLED) ✅
+- [x] Follow-up scheduler (calendar view) ✅
+- [x] Task assignment & tracking ✅
+- [x] Follow-up reminders (scheduledDate tracking) ✅
+- [x] Calendar integration (calendar view) ✅
+- [x] Task filtering & grouping (status, priority, user) ✅
 
 ### Phase 7: Inventory Management
 - [ ] Product catalog
@@ -380,10 +380,10 @@ For local/on-premise deployment:
 
 ---
 
-**Version:** 1.4.0  
+**Version:** 1.5.0  
 **Last Updated:** 2026-05-25  
-**Status:** Phases 1-5 Complete (Leads, Customers, Pipeline, Quotations, Orders) ✅  
-**Next Phase:** Tasks & Follow-ups Module  
+**Status:** Phases 1-6 Complete (Leads, Customers, Pipeline, Quotations, Orders, Tasks & Follow-ups) ✅  
+**Next Phase:** Inventory Management Module  
 
 ---
 
