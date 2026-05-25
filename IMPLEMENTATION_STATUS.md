@@ -86,13 +86,13 @@
 - [x] Pipeline filtering & grouping ✅
 
 ### Phase 4: Quotations
-- [ ] Quotation list with status filters
-- [ ] Create quotation form
-- [ ] Product selection with pricing
-- [ ] Tax calculation (GST %)
-- [ ] Approval workflow
+- [x] Quotation list with status filters ✅
+- [x] Create quotation form ✅
+- [x] Product selection with pricing ✅
+- [x] Tax calculation (GST %) ✅
+- [x] Approval workflow ✅
 - [ ] PDF generation & distribution
-- [ ] Version history & revisions
+- [x] Version history & revisions ✅
 
 ### Phase 5: Orders
 - [ ] Order creation from quotation
@@ -380,10 +380,10 @@ For local/on-premise deployment:
 
 ---
 
-**Version:** 1.2.0  
+**Version:** 1.3.0  
 **Last Updated:** 2026-05-25  
-**Status:** Phase 1 (Leads), Phase 2 (Customers), Phase 3 (Pipeline) Complete ✅  
-**Next Phase:** Quotations Module  
+**Status:** Phase 1 (Leads), Phase 2 (Customers), Phase 3 (Pipeline), Phase 4 (Quotations) Complete ✅  
+**Next Phase:** Orders Module  
 
 ---
 
