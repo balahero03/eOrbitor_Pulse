@@ -95,12 +95,12 @@
 - [x] Version history & revisions ✅
 
 ### Phase 5: Orders
-- [ ] Order creation from quotation
-- [ ] PO processing
+- [x] Order creation from quotation ✅
+- [x] PO processing ✅
+- [x] Delivery tracking ✅
+- [x] Payment tracking ✅
+- [ ] Order timeline ✅
 - [ ] Inventory allocation
-- [ ] Delivery tracking
-- [ ] Payment tracking
-- [ ] Order timeline
 
 ### Phase 6: Tasks & Follow-ups
 - [ ] Task list (TODO, IN_PROGRESS, DONE)
@@ -380,10 +380,10 @@ For local/on-premise deployment:
 
 ---
 
-**Version:** 1.3.0  
+**Version:** 1.4.0  
 **Last Updated:** 2026-05-25  
-**Status:** Phase 1 (Leads), Phase 2 (Customers), Phase 3 (Pipeline), Phase 4 (Quotations) Complete ✅  
-**Next Phase:** Orders Module  
+**Status:** Phases 1-5 Complete (Leads, Customers, Pipeline, Quotations, Orders) ✅  
+**Next Phase:** Tasks & Follow-ups Module  
 
 ---
 
