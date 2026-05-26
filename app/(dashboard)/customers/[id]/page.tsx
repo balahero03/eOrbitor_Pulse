@@ -1,25 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Contact {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   phone?: string;
-  role: string;
-  isDecisionMaker: boolean;
+  designation?: string;
+  isPrimary: boolean;
   createdAt: string;
 }
 
 interface Deal {
   id: string;
-  name: string;
+  dealName: string;
   stage: string;
-  value: number;
+  dealValue: number;
   probability: number;
 }
 
@@ -29,36 +28,35 @@ interface CustomerDetail {
   industry: string;
   website?: string;
   annualRevenue?: number;
-  employeeCount?: number;
   contacts: Contact[];
   deals: Deal[];
   activityLogs: any[];
   createdAt: string;
 }
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
+export default function CustomerDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     email: '',
     phone: '',
-    role: 'Other',
-    isDecisionMaker: false,
+    designation: '',
+    isPrimary: false,
   });
 
   useEffect(() => {
     fetchCustomer();
-  }, [params.id]);
+  }, [id]);
 
   const fetchCustomer = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/customers/${params.id}`, {
+      const res = await fetch(`/api/customers/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -74,8 +72,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   };
 
   const handleAddContact = async () => {
-    if (!contactForm.firstName || !contactForm.email) {
-      alert('First name and email are required');
+    if (!contactForm.name || !contactForm.email) {
+      alert('Name and email are required');
       return;
     }
 
@@ -83,8 +81,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       const token = localStorage.getItem('token');
       const method = editingId ? 'PATCH' : 'POST';
       const url = editingId
-        ? `/api/customers/${params.id}/contacts/${editingId}`
-        : `/api/customers/${params.id}/contacts`;
+        ? `/api/customers/${id}/contacts/${editingId}`
+        : `/api/customers/${id}/contacts`;
 
       const res = await fetch(url, {
         method,
@@ -97,7 +95,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
       if (!res.ok) throw new Error('Failed to save contact');
 
-      setContactForm({ firstName: '', lastName: '', email: '', phone: '', role: 'Other', isDecisionMaker: false });
+      setContactForm({ name: '', email: '', phone: '', designation: '', isPrimary: false });
       setShowContactForm(false);
       setEditingId(null);
       fetchCustomer();
@@ -111,7 +109,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/customers/${params.id}/contacts/${contactId}`, {
+      const res = await fetch(`/api/customers/${id}/contacts/${contactId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -126,12 +124,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleEditContact = (contact: Contact) => {
     setContactForm({
-      firstName: contact.firstName,
-      lastName: contact.lastName,
+      name: contact.name,
       email: contact.email,
       phone: contact.phone || '',
-      role: contact.role,
-      isDecisionMaker: contact.isDecisionMaker,
+      designation: contact.designation || '',
+      isPrimary: contact.isPrimary,
     });
     setEditingId(contact.id);
     setShowContactForm(true);
@@ -149,7 +146,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   if (loading) return <div className="p-6 text-center">Loading...</div>;
   if (!customer) return <div className="p-6 text-center">Customer not found</div>;
 
-  const totalDealValue = customer.deals.reduce((sum, d) => sum + d.value, 0);
+  const totalDealValue = customer.deals.reduce((sum, d) => sum + (d.dealValue || 0), 0);
 
   return (
     <div className="p-6">
@@ -183,10 +180,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <p className="text-xs text-gray-500 uppercase font-semibold">Annual Revenue</p>
                 <p className="text-lg font-medium">{formatCurrency(customer.annualRevenue)}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Employees</p>
-                <p className="text-lg font-medium">{customer.employeeCount || 'N/A'}</p>
-              </div>
             </div>
           </div>
 
@@ -198,7 +191,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 onClick={() => {
                   setShowContactForm(!showContactForm);
                   setEditingId(null);
-                  setContactForm({ firstName: '', lastName: '', email: '', phone: '', role: 'Other', isDecisionMaker: false });
+                  setContactForm({ name: '', email: '', phone: '', designation: '', isPrimary: false });
                 }}
                 className="btn btn-secondary text-sm"
               >
@@ -210,49 +203,39 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <div className="mb-6 p-4 bg-blue-50 rounded border border-blue-200 space-y-3">
                 <input
                   type="text"
-                  placeholder="First Name"
-                  value={contactForm.firstName}
-                  onChange={(e) => setContactForm({ ...contactForm, firstName: e.target.value })}
-                  className="w-full"
-                />
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  value={contactForm.lastName}
-                  onChange={(e) => setContactForm({ ...contactForm, lastName: e.target.value })}
-                  className="w-full"
+                  placeholder="Full Name *"
+                  value={contactForm.name}
+                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
                 />
                 <input
                   type="email"
-                  placeholder="Email"
+                  placeholder="Email *"
                   value={contactForm.email}
                   onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                  className="w-full"
+                  className="w-full border rounded px-3 py-2"
                 />
                 <input
                   type="tel"
                   placeholder="Phone"
                   value={contactForm.phone}
                   onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                  className="w-full"
+                  className="w-full border rounded px-3 py-2"
                 />
-                <select
-                  value={contactForm.role}
-                  onChange={(e) => setContactForm({ ...contactForm, role: e.target.value })}
-                  className="w-full"
-                >
-                  <option value="Other">Other</option>
-                  <option value="Decision Maker">Decision Maker</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Team Member">Team Member</option>
-                </select>
+                <input
+                  type="text"
+                  placeholder="Designation (e.g. Purchase Manager)"
+                  value={contactForm.designation}
+                  onChange={(e) => setContactForm({ ...contactForm, designation: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={contactForm.isDecisionMaker}
-                    onChange={(e) => setContactForm({ ...contactForm, isDecisionMaker: e.target.checked })}
+                    checked={contactForm.isPrimary}
+                    onChange={(e) => setContactForm({ ...contactForm, isPrimary: e.target.checked })}
                   />
-                  <span className="text-sm font-medium">Is Decision Maker</span>
+                  <span className="text-sm font-medium">Primary Contact</span>
                 </label>
                 <button onClick={handleAddContact} className="btn btn-primary w-full">
                   {editingId ? 'Update Contact' : 'Add Contact'}
@@ -267,13 +250,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 {customer.contacts.map((contact) => (
                   <div key={contact.id} className="flex items-start gap-4 p-3 bg-gray-50 rounded">
                     <div className="flex-1">
-                      <p className="font-medium">{contact.firstName} {contact.lastName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{contact.name}</p>
+                        {contact.isPrimary && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Primary</span>}
+                      </div>
                       <p className="text-sm text-gray-600">{contact.email}</p>
                       {contact.phone && <p className="text-sm text-gray-600">{contact.phone}</p>}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {contact.role}
-                        {contact.isDecisionMaker && ' • Decision Maker'}
-                      </p>
+                      {contact.designation && <p className="text-xs text-gray-500 mt-1">{contact.designation}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -326,8 +309,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <div className="space-y-2 text-xs">
                 {customer.deals.map((deal) => (
                   <div key={deal.id} className="p-2 bg-gray-50 rounded">
-                    <p className="font-medium">{deal.name}</p>
-                    <p className="text-gray-600">{deal.stage}</p>
+                    <p className="font-medium">{deal.dealName}</p>
+                    <div className="flex justify-between text-gray-500">
+                      <span>{deal.stage}</span>
+                      {deal.dealValue ? <span>₹{Number(deal.dealValue).toLocaleString('en-IN')}</span> : null}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -15,10 +15,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const customer = await prisma.customer.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
-        contacts: { where: { deletedAt: null } },
-        deals: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
+        contacts: { orderBy: { createdAt: 'desc' } },
+        deals: {
+          select: { id: true, dealName: true, stage: true, dealValue: true, probability: true },
+          orderBy: { createdAt: 'desc' },
+        },
         activityLogs: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
     });

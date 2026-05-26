@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 async function verifyAuth(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '');
@@ -50,8 +50,9 @@ export async function GET(req: NextRequest) {
           department: true,
           isActive: true,
           createdAt: true,
+          manager: { select: { firstName: true, lastName: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ role: 'asc' }, { firstName: 'asc' }],
         skip,
         take: limit,
       }),
@@ -72,10 +73,10 @@ export async function POST(req: NextRequest) {
     await verifyAuth(req);
     const body = await req.json();
 
-    const { email, firstName, lastName, role, department, password } = body;
+    const { email, firstName, lastName, role, department, password, managerId } = body;
 
-    if (!email || !firstName || !lastName || !role || !password) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!email || !firstName || !role || !password) {
+      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
     const bcrypt = require('bcryptjs');
@@ -85,10 +86,11 @@ export async function POST(req: NextRequest) {
       data: {
         email,
         firstName,
-        lastName,
+        lastName: lastName || '',
         role,
         department: department || null,
         passwordHash,
+        ...(managerId && { managerId }),
       },
       select: {
         id: true,
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(user, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ message: err?.message || 'Failed to create user' }, { status: 500 });
   }
 }

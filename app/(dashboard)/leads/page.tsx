@@ -169,6 +169,7 @@ export default function LeadsPage() {
       const res = await fetch(`/api/leads?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login'; return; }
       if (!res.ok) throw new Error('Failed to fetch leads');
       const data = await res.json();
       setLeads(data.leads);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface VendorProduct {
@@ -27,8 +27,9 @@ interface Vendor {
   products: VendorProduct[];
 }
 
-export default function VendorDetailPage({ params }: { params: { id: string } }) {
+export default function VendorDetailPage() {
   const router = useRouter();
+  const { id } = useParams() as { id: string };
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -44,12 +45,12 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     fetchVendor();
-  }, [params.id]);
+  }, [id]);
 
   const fetchVendor = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/vendors/${params.id}`, {
+      const res = await fetch(`/api/vendors/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -76,7 +77,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/vendors/${params.id}`, {
+      const res = await fetch(`/api/vendors/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -109,7 +110,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/vendors/${params.id}`, {
+      const res = await fetch(`/api/vendors/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

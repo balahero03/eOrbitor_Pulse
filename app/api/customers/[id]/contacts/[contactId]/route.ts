@@ -4,27 +4,24 @@ import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string; contactId: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; contactId: string }> }) {
   try {
+    const { contactId } = await params;
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
+    if (!authHeader) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { firstName, lastName, email, phone, role, isDecisionMaker } = body;
+    const { name, email, phone, designation, isPrimary } = body;
 
     const contact = await prisma.contact.update({
-      where: { id: params.contactId },
+      where: { id: contactId },
       data: {
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
+        ...(name && { name }),
         ...(email && { email }),
-        ...(phone && { phone }),
-        ...(role && { role }),
-        ...(isDecisionMaker !== undefined && { isDecisionMaker }),
+        ...(phone !== undefined && { phone }),
+        ...(designation !== undefined && { designation }),
+        ...(isPrimary !== undefined && { isPrimary }),
       },
     });
 
@@ -35,19 +32,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string; contactId: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; contactId: string }> }) {
   try {
+    const { contactId } = await params;
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
+    if (!authHeader) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
-    await prisma.contact.update({
-      where: { id: params.contactId },
-      data: { deletedAt: new Date() },
-    });
+    await prisma.contact.delete({ where: { id: contactId } });
 
     return NextResponse.json({ message: 'Contact deleted successfully' });
   } catch (error) {

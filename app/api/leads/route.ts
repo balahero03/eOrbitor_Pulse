@@ -12,7 +12,13 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    } catch {
+      return NextResponse.json({ message: 'Invalid or expired token — please log out and log in again' }, { status: 401 });
+    }
+    console.log('LEADS GET - role:', decoded.role, 'id:', decoded.id);
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -24,14 +30,43 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = { deletedAt: null };
+
+    // Role-based visibility
+    if (decoded.role === 'SALES_EXEC') {
+      // Salesperson sees only leads assigned to them or brought by them
+      where.OR = [
+        { assignedToId: decoded.id },
+        { broughtById: decoded.id },
+      ];
+    } else if (decoded.role === 'SALES_MANAGER') {
+      // Manager sees all leads belonging to their subordinates + their own
+      const subordinates = await prisma.user.findMany({
+        where: { managerId: decoded.id },
+        select: { id: true },
+      });
+      const teamIds = [decoded.id, ...subordinates.map((u: any) => u.id)];
+      where.OR = [
+        { assignedToId: { in: teamIds } },
+        { broughtById: { in: teamIds } },
+      ];
+    }
+    // ADMIN sees all — no extra filter
+
     if (status) where.status = status;
     if (source) where.source = source;
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { company: { contains: search, mode: 'insensitive' } },
       ];
+      // Merge search with any existing OR (role filter)
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchConditions }];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const [leads, total] = await Promise.all([
@@ -74,7 +109,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('LEADS GET ERROR:', error?.message, error?.code);
+    console.error('LEADS GET ERROR:', error?.message, error?.code, error?.meta);
     return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
@@ -105,7 +140,7 @@ export async function POST(req: NextRequest) {
         phone: phone || null,
         company,
         source: source || 'EMAIL',
-        status: status || 'NEW',
+        status: status || 'SUSPECT',
         leadScore: 0,
         assignedToId: assignedToId || decoded.id,
         ...(broughtById && { broughtById }),
