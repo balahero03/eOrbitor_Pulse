@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { deliveryDate } = body;
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!order) {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const updated = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: 'FULFILLED',
         deliveryDate: deliveryDate ? new Date(deliveryDate) : new Date(),

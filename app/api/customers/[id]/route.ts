@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         contacts: { where: { deletedAt: null } },
         deals: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
@@ -33,8 +34,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -46,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const { companyName, industry, website, annualRevenue, yearEstablished } = body;
 
     const customer = await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(companyName && { companyName }),
         ...(industry && { industry }),
@@ -63,8 +65,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -73,7 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { deletedAt: new Date() },
     });
 

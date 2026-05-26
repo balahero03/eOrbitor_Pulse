@@ -16,12 +16,13 @@ async function verifyAuth(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
 
     const notification = await prisma.notification.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { isRead: true, readAt: new Date() },
     });
 

@@ -17,14 +17,14 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const followUp = await prisma.followUp.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },
       lead: { select: { id: true, name: true } },
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(followUp);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { type, scheduledDate, actualDate, durationMinutes, notes, outcome, nextAction } = body;
 
   const followUp = await prisma.followUp.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       ...(type !== undefined && { type }),
       ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
@@ -69,13 +69,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(followUp);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  await prisma.followUp.delete({ where: { id: params.id } });
+  await prisma.followUp.delete({ where: { id: id } });
 
   return NextResponse.json({ message: 'Follow-up deleted' });
 }

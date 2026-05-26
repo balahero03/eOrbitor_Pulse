@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface LeadDetail {
@@ -22,7 +22,8 @@ interface LeadDetail {
 
 const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'DEMO', 'PROPOSAL', 'NEGOTIATION', 'OTHER'];
 
-export default function LeadDetailPage({ params }: { params: { id: string } }) {
+export default function LeadDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,12 +46,12 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
   const [editData, setEditData] = useState({ status: '', qualificationNotes: '' });
 
-  useEffect(() => { fetchLead(); }, [params.id]);
+  useEffect(() => { fetchLead(); }, [id]);
 
   const fetchLead = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/leads/${params.id}`, {
+      const res = await fetch(`/api/leads/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch lead');
@@ -67,7 +68,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/leads/${params.id}`, {
+      const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(editData),
@@ -109,7 +110,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
       const customer = await res.json();
 
-      await fetch(`/api/leads/${params.id}`, {
+      await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: 'CONVERTED', linkedCustomerId: customer.id }),
@@ -135,49 +136,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     try {
       const token = localStorage.getItem('token');
 
-      // FollowUp requires a dealId in the schema.
-      // Look for an existing deal, or auto-create one if lead has a linked customer.
-      let dealId: string | null = null;
-
-      // Search existing deals
-      const dealsRes = await fetch(`/api/deals?search=${encodeURIComponent(lead?.company || '')}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (dealsRes.ok) {
-        const dealsData = await dealsRes.json();
-        if (dealsData.deals?.length > 0) dealId = dealsData.deals[0].id;
-      }
-
-      // Auto-create a stub deal if lead has a linked customer
-      if (!dealId && lead?.linkedCustomer?.id) {
-        const dealRes = await fetch('/api/deals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            name: `${lead.name} - Lead Follow-up`,
-            customerId: lead.linkedCustomer.id,
-            value: 0,
-            stage: 'SUSPECT',
-            expectedClosureDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          }),
-        });
-        if (dealRes.ok) {
-          const deal = await dealRes.json();
-          dealId = deal.id;
-        }
-      }
-
-      if (!dealId) {
-        alert('To add a follow-up, please first convert this lead to a customer (so a deal can be created), or create a deal manually in the Pipeline module.');
-        return;
-      }
-
-      const res = await fetch('/api/followups', {
+      const res = await fetch(`/api/leads/${id}/followups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          dealId,
-          leadId: params.id,
           type: followUpForm.type,
           scheduledDate: new Date(followUpForm.scheduledDate).toISOString(),
           notes: followUpForm.notes,
@@ -193,8 +155,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
       setShowFollowUpModal(false);
       setFollowUpForm({ type: 'CALL', scheduledDate: '', notes: '', outcome: '' });
-      fetchLead(); // Refresh to show new follow-up
-      alert('Follow-up added successfully!');
+      fetchLead();
     } catch (err) {
       console.error(err);
       alert('An error occurred while adding follow-up.');
@@ -356,7 +317,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           </div>
 
           <div className="space-y-2">
-            <button onClick={() => setShowFollowUpModal(true)} className="btn btn-primary w-full">
+            <button
+              onClick={() => setShowFollowUpModal(true)}
+              className="btn btn-primary w-full"
+            >
               + Add Follow-up
             </button>
             {lead.linkedCustomer ? (
@@ -364,10 +328,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 View Customer
               </Link>
             ) : (
-              <button
-                onClick={() => setShowConvertModal(true)}
-                className="btn btn-secondary w-full"
-              >
+              <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full">
                 Convert to Customer
               </button>
             )}

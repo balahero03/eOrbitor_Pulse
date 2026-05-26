@@ -17,7 +17,7 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const existingLink = await prisma.vendorProduct.findUnique({
-    where: { vendorId_productId: { vendorId: params.id, productId } },
+    where: { vendorId_productId: { vendorId: id, productId } },
   });
 
   if (existingLink) {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const vendorProduct = await prisma.vendorProduct.create({
     data: {
-      vendorId: params.id,
+      vendorId: id,
       productId,
       vendorSku,
       vendorPrice: parseFloat(vendorPrice),
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(vendorProduct, { status: 201 });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -73,7 +73,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 
   await prisma.vendorProduct.delete({
-    where: { vendorId_productId: { vendorId: params.id, productId } },
+    where: { vendorId_productId: { vendorId: id, productId } },
   });
 
   return NextResponse.json({ message: 'Product removed from vendor' });

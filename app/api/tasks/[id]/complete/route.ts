@@ -17,14 +17,14 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const task = await prisma.task.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       status: 'COMPLETED',
       completedAt: new Date(),

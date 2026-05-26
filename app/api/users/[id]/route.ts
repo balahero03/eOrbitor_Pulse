@@ -16,12 +16,13 @@ async function verifyAuth(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
 
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       select: {
         id: true,
         email: true,
@@ -45,8 +46,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
     const body = await req.json();
 
@@ -62,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (isActive !== undefined) updateData.isActive = isActive;
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       select: {
         id: true,
@@ -81,12 +83,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
 
     await prisma.user.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { isActive: false },
     });
 

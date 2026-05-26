@@ -17,14 +17,14 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const product = await prisma.product.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       inventory: true,
       vendorProducts: {
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(product);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { name, category, description, basePrice, tax, isActive } = body;
 
   const product = await prisma.product.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       ...(name !== undefined && { name }),
       ...(category !== undefined && { category }),
@@ -74,14 +74,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(product);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   await prisma.product.update({
-    where: { id: params.id },
+    where: { id: id },
     data: { isActive: false },
   });
 

@@ -17,14 +17,14 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const vendor = await prisma.vendor.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       products: {
         include: {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(vendor);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { vendorName, email, phone, website, paymentTerms, rating, isActive } = body;
 
   const vendor = await prisma.vendor.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       ...(vendorName !== undefined && { vendorName }),
       ...(email !== undefined && { email }),
@@ -73,14 +73,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(vendor);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   await prisma.vendor.update({
-    where: { id: params.id },
+    where: { id: id },
     data: { isActive: false },
   });
 

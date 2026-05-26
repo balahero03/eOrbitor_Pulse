@@ -6,8 +6,9 @@ const prisma = new PrismaClient();
 
 const STAGES = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE', 'ONGOING'];
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const deal = await prisma.deal.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { stage: newStage },
     });
 

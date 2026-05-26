@@ -17,14 +17,14 @@ function verifyToken(token: string): DecodedToken | null {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const task = await prisma.task.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } },
       relatedDeal: { select: { id: true, dealName: true } },
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(task);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags, completedAt } = body;
 
   const task = await prisma.task.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
@@ -70,13 +70,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(task);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !verifyToken(token)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  await prisma.task.delete({ where: { id: params.id } });
+  await prisma.task.delete({ where: { id: id } });
 
   return NextResponse.json({ message: 'Task deleted' });
 }

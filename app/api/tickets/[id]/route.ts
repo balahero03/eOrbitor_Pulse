@@ -16,12 +16,13 @@ async function verifyAuth(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
 
     const ticket = await prisma.ticket.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { customer: true, assignedTo: true, createdBy: true, deal: true },
     });
 
@@ -35,8 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
     const body = await req.json();
 
@@ -59,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (customerSatisfactionRating !== undefined) updateData.customerSatisfactionRating = customerSatisfactionRating;
 
     const ticket = await prisma.ticket.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       include: { customer: true, assignedTo: true, createdBy: true },
     });
@@ -70,12 +72,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await verifyAuth(req);
 
     await prisma.ticket.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: 'Ticket deleted' });
