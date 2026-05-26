@@ -21,8 +21,9 @@ export async function GET(
       where: { id },
       include: {
         assignedTo: { select: { id: true, firstName: true, lastName: true } },
-        linkedCustomer: true,
-        followUps: { select: { id: true, type: true, scheduledDate: true, outcome: true }, take: 5, orderBy: { createdAt: 'desc' } },
+        broughtBy: { select: { id: true, firstName: true, lastName: true } },
+        linkedCustomer: { select: { id: true, companyName: true } },
+        followUps: { select: { id: true, type: true, scheduledDate: true, outcome: true, notes: true }, take: 10, orderBy: { createdAt: 'desc' } },
       },
     });
 
@@ -51,7 +52,29 @@ export async function PATCH(
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { name, email, phone, company, source, status, leadScore, assignedToId, linkedCustomerId, qualificationNotes } = body;
+    const { name, email, phone, company, source, status, leadScore, assignedToId, broughtById, linkedCustomerId, qualificationNotes, remarks } = body;
+
+    // Auto-convert to customer when status advances to a positive stage
+    const CUSTOMER_STAGES = ['PROSPECT', 'NEGOTIATION', 'WON'];
+    let resolvedCustomerId = linkedCustomerId;
+
+    if (status && CUSTOMER_STAGES.includes(status) && !linkedCustomerId) {
+      const existing = await prisma.lead.findUnique({ where: { id }, select: { linkedCustomerId: true, company: true } });
+      if (existing && !existing.linkedCustomerId) {
+        try {
+          const customer = await prisma.customer.create({
+            data: {
+              companyName: existing.company,
+              gstNumber: `PENDING-${Date.now()}`,
+              industry: 'Other',
+            },
+          });
+          resolvedCustomerId = customer.id;
+        } catch {
+          // customer may already exist — continue without linking
+        }
+      }
+    }
 
     const lead = await prisma.lead.update({
       where: { id },
@@ -64,11 +87,14 @@ export async function PATCH(
         ...(status && { status }),
         ...(leadScore !== undefined && { leadScore }),
         ...(assignedToId && { assignedToId }),
-        ...(linkedCustomerId && { linkedCustomerId }),
+        ...(broughtById !== undefined && { broughtById }),
+        ...(resolvedCustomerId && { linkedCustomerId: resolvedCustomerId }),
         ...(qualificationNotes !== undefined && { qualificationNotes }),
+        ...(remarks !== undefined && { remarks }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },
+        linkedCustomer: { select: { id: true, companyName: true } },
       },
     });
 

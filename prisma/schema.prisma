@@ -26,7 +26,8 @@ model User {
   deletedAt     DateTime?
 
   // Relations
-  leads         Lead[]
+  leads         Lead[]   @relation("LeadAssignedTo")
+  broughtLeads  Lead[]   @relation("LeadBroughtBy")
   deals         Deal[]
   followUps     FollowUp[]
   tasks         Task[]
@@ -61,8 +62,16 @@ model Lead {
   status          LeadStatus @default(NEW)
   leadScore       Int       @default(0)
   qualificationNotes String?
+  remarks         String?
+  quoteValue      Decimal?
+  quoteNo         String?
+  rfqDate         DateTime?
+  followUpDate    DateTime?
+  poReceivedDate  DateTime?
+  broughtById     String?
+  broughtBy       User?     @relation("LeadBroughtBy", fields: [broughtById], references: [id])
   assignedToId    String
-  assignedTo      User      @relation(fields: [assignedToId], references: [id])
+  assignedTo      User      @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
   nextFollowUp    DateTime?
   linkedCustomerId String?
   linkedCustomer  Customer? @relation(fields: [linkedCustomerId], references: [id])
@@ -95,6 +104,14 @@ enum LeadStatus {
   QUALIFIED
   REJECTED
   CONVERTED
+  WON
+  LOST
+  SUSPECT
+  PROSPECT
+  NEGOTIATION
+  COMMIT
+  DROPPED
+  ON_HOLD
 }
 
 // Customer Master

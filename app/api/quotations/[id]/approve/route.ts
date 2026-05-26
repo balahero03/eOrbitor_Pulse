@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: {
         status: 'ACCEPTED',
         approvedAt: new Date(),
-        approvedById: decoded.userId,
+        approvedById: decoded.id,
       },
       include: {
         customer: { select: { companyName: true } },

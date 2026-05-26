@@ -1,22 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+// New leads always start as Suspect
+const INITIAL_STATUS = 'SUSPECT';
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
 
 export default function NewLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    company: '',
     email: '',
     phone: '',
-    company: '',
-    source: 'WEBSITE',
+    source: 'EMAIL',
+    status: INITIAL_STATUS,
+    quoteNo: '',
+    quoteValue: '',
+    rfqDate: '',
+    followUpDate: '',
+    remarks: '',
+    assignedToId: '',
+    broughtById: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setUsers(d.users || d))
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -28,13 +54,24 @@ export default function NewLeadPage() {
 
     try {
       const token = localStorage.getItem('token');
+      const payload: any = { ...formData };
+      if (!payload.email) delete payload.email;
+      if (!payload.phone) delete payload.phone;
+      if (!payload.quoteNo) delete payload.quoteNo;
+      if (!payload.quoteValue) delete payload.quoteValue;
+      if (!payload.rfqDate) delete payload.rfqDate;
+      if (!payload.followUpDate) delete payload.followUpDate;
+      if (!payload.remarks) delete payload.remarks;
+      if (!payload.assignedToId) delete payload.assignedToId;
+      if (!payload.broughtById) delete payload.broughtById;
+
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -54,11 +91,11 @@ export default function NewLeadPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Create New Lead</h1>
+        <h1 className="text-3xl font-bold">New Lead</h1>
         <Link href="/leads" className="btn btn-secondary">Back to Leads</Link>
       </div>
 
-      <div className="card p-8 max-w-2xl">
+      <div className="card p-8 max-w-3xl">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
@@ -66,34 +103,161 @@ export default function NewLeadPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
+          {/* Opportunity & Customer */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
-            <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Opportunity Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Full Name *</label>
+                <label className="block text-sm font-medium mb-1">Opportunity Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="John Doe"
+                  placeholder="e.g. Solar Panel Supply - Phase 1"
                   required
+                  className="w-full border rounded px-3 py-2"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">Email *</label>
+                <label className="block text-sm font-medium mb-1">Customer / Company *</label>
+                <input
+                  type="text"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  placeholder="e.g. ABC Industries"
+                  required
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <div className="flex items-center gap-2 border rounded px-3 py-2 bg-indigo-50">
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-800">Suspect</span>
+                  <span className="text-xs text-gray-500">All new leads start as Suspect</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Source</label>
+                <select
+                  name="source"
+                  value={formData.source}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="EMAIL">Email</option>
+                  <option value="REFERRAL">Referral</option>
+                  <option value="WALKIN">Walk-in</option>
+                  <option value="CALL">Phone Call</option>
+                  <option value="WEBSITE">Website</option>
+                  <option value="ADVERTISEMENT">Advertisement</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Quote Details */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Quote Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Quote No (S.NO)</label>
+                <input
+                  type="text"
+                  name="quoteNo"
+                  value={formData.quoteNo}
+                  onChange={handleChange}
+                  placeholder="e.g. Q-2024-001"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Quote Value (₹)</label>
+                <input
+                  type="number"
+                  name="quoteValue"
+                  value={formData.quoteValue}
+                  onChange={handleChange}
+                  placeholder="e.g. 500000"
+                  min="0"
+                  step="0.01"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">RFQ Date</label>
+                <input
+                  type="date"
+                  name="rfqDate"
+                  value={formData.rfqDate}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Follow-up Date</label>
+                <input
+                  type="date"
+                  name="followUpDate"
+                  value={formData.followUpDate}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Team */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Team Assignment</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Account Manager (Assigned To)</label>
+                <select
+                  name="assignedToId"
+                  value={formData.assignedToId}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">— Current User —</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Sourced By (Brought By)</label>
+                <select
+                  name="broughtById"
+                  value={formData.broughtById}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">— Same as Account Manager —</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Contact Info (Optional)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="john@company.com"
-                  required
+                  placeholder="contact@company.com"
+                  className="w-full border rounded px-3 py-2"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium mb-1">Phone</label>
                 <input
@@ -102,45 +266,23 @@ export default function NewLeadPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+91 98765 43210"
+                  className="w-full border rounded px-3 py-2"
                 />
               </div>
             </div>
           </div>
 
-          {/* Company Info */}
+          {/* Remarks */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Company Information</h3>
-            <div>
-              <label className="block text-sm font-medium mb-1">Company Name *</label>
-              <input
-                type="text"
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-                placeholder="ABC Corporation"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Lead Source */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Lead Source</h3>
-            <label className="block text-sm font-medium mb-1">How did they find you? *</label>
-            <select
-              name="source"
-              value={formData.source}
+            <label className="block text-sm font-medium mb-1">Remarks / Notes</label>
+            <textarea
+              name="remarks"
+              value={formData.remarks}
               onChange={handleChange}
-              className="w-full"
-              required
-            >
-              <option value="WEBSITE">Website</option>
-              <option value="REFERRAL">Referral</option>
-              <option value="WALKIN">Walk-in</option>
-              <option value="CALL">Phone Call</option>
-              <option value="EMAIL">Email</option>
-              <option value="ADVERTISEMENT">Advertisement</option>
-            </select>
+              placeholder="Any additional notes about this lead..."
+              rows={3}
+              className="w-full border rounded px-3 py-2"
+            />
           </div>
 
           {/* Actions */}
@@ -157,14 +299,6 @@ export default function NewLeadPage() {
             </Link>
           </div>
         </form>
-
-        {/* Help Section */}
-        <div className="mt-8 p-4 bg-blue-50 rounded border border-blue-200">
-          <h4 className="font-semibold text-blue-900 mb-2">💡 Tip</h4>
-          <p className="text-sm text-blue-800">
-            Make sure the lead information is accurate. You can update it later from the lead detail page.
-          </p>
-        </div>
       </div>
     </div>
   );

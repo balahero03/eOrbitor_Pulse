@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         probability: probability || 50,
         stage: stage || 'SUSPECT',
         expectedClosureDate: expectedClosureDate ? new Date(expectedClosureDate) : null,
-        createdById: decoded.userId,
+        createdById: decoded.id,
       },
       include: {
         customer: { select: { companyName: true } },

@@ -48,8 +48,16 @@ export async function GET(req: NextRequest) {
           source: true,
           status: true,
           leadScore: true,
+          quoteNo: true,
+          quoteValue: true,
+          rfqDate: true,
+          followUpDate: true,
+          remarks: true,
           assignedTo: { select: { firstName: true, lastName: true } },
+          broughtBy: { select: { firstName: true, lastName: true } },
+          linkedCustomer: { select: { id: true, companyName: true } },
           createdAt: true,
+          updatedAt: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -65,9 +73,9 @@ export async function GET(req: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('LEADS GET ERROR:', error?.message, error?.code);
+    return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -81,11 +89,11 @@ export async function POST(req: NextRequest) {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
 
-    const { name, email, phone, company, source, assignedToId } = await req.json();
+    const { name, email, phone, company, source, assignedToId, broughtById, status, quoteNo, quoteValue, rfqDate, followUpDate, remarks } = await req.json();
 
-    if (!name || !email || !company) {
+    if (!name || !company) {
       return NextResponse.json(
-        { message: 'Name, email, and company are required' },
+        { message: 'Opportunity name and company are required' },
         { status: 400 }
       );
     }
@@ -93,13 +101,19 @@ export async function POST(req: NextRequest) {
     const lead = await prisma.lead.create({
       data: {
         name,
-        email,
-        phone,
+        email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
+        phone: phone || null,
         company,
-        source: source || 'WEBSITE',
-        status: 'NEW',
+        source: source || 'EMAIL',
+        status: status || 'NEW',
         leadScore: 0,
         assignedToId: assignedToId || decoded.id,
+        ...(broughtById && { broughtById }),
+        ...(quoteNo && { quoteNo }),
+        ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
+        ...(rfqDate && { rfqDate: new Date(rfqDate) }),
+        ...(followUpDate && { followUpDate: new Date(followUpDate) }),
+        ...(remarks && { remarks }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },

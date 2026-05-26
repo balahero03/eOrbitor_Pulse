@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       dueDate: dueDate ? new Date(dueDate) : null,
       assignedToId,
       relatedDealId: relatedDealId || null,
-      createdById: decoded.userId,
+      createdById: decoded.id,
       tags: tags || [],
     },
     include: {

@@ -42,10 +42,13 @@ export async function GET(req: NextRequest) {
           industry: true,
           website: true,
           annualRevenue: true,
-          yearEstablished: true,
-          deals: { where: { status: { not: 'CLOSED_WON' } } },
-          contacts: { take: 2 },
           createdAt: true,
+          _count: {
+            select: {
+              deals: true,
+              contacts: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -53,11 +56,14 @@ export async function GET(req: NextRequest) {
     ]);
 
     const customersWithStats = customers.map(c => ({
-      ...c,
-      activeDealCount: c.deals.length,
-      contactCount: c.contacts.length,
-      deals: undefined,
-      contacts: undefined,
+      id: c.id,
+      companyName: c.companyName,
+      industry: c.industry,
+      website: c.website,
+      annualRevenue: c.annualRevenue,
+      createdAt: c.createdAt,
+      activeDealCount: c._count.deals,
+      contactCount: c._count.contacts,
     }));
 
     return NextResponse.json({

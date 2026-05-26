@@ -22,7 +22,7 @@ export async function POST(
     const decoded = jwt.verify(
       authHeader.split(' ')[1],
       process.env.JWT_SECRET || 'dev-secret'
-    ) as { userId: string };
+    ) as { id: string };
 
     const body = await req.json();
     const { type, scheduledDate, notes, outcome } = body;
@@ -84,7 +84,7 @@ export async function POST(
           stage: 'SUSPECT',
           customerId,
           leadId,
-          assignedToId: decoded.userId,
+          assignedToId: decoded.id,
         },
       });
       dealId = deal.id;
@@ -99,7 +99,7 @@ export async function POST(
         scheduledDate: new Date(scheduledDate),
         notes: notes || null,
         outcome: outcome || null,
-        createdById: decoded.userId,
+        createdById: decoded.id,
       },
       select: {
         id: true,

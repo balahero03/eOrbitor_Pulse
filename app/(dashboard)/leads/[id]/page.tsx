@@ -14,7 +14,13 @@ interface LeadDetail {
   status: string;
   leadScore: number;
   qualificationNotes?: string;
+  remarks?: string;
+  quoteNo?: string;
+  quoteValue?: number;
+  rfqDate?: string;
+  followUpDate?: string;
   assignedTo: { id: string; firstName: string; lastName: string };
+  broughtBy?: { id: string; firstName: string; lastName: string };
   linkedCustomer?: { id: string; companyName: string };
   followUps?: Array<{ id: string; type: string; scheduledDate: string; outcome?: string; notes?: string }>;
   createdAt: string;
@@ -32,7 +38,6 @@ export default function LeadDetailPage() {
 
   // Convert modal
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [convertForm, setConvertForm] = useState({ gstNumber: '', industry: 'Technology' });
 
   // Follow-up modal
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
@@ -84,10 +89,7 @@ export default function LeadDetailPage() {
   };
 
   const handleConvertToCustomer = async () => {
-    if (!lead || !convertForm.gstNumber.trim()) {
-      alert('GST Number is required.');
-      return;
-    }
+    if (!lead) return;
     setConverting(true);
     try {
       const token = localStorage.getItem('token');
@@ -97,8 +99,8 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           companyName: lead.company,
-          gstNumber: convertForm.gstNumber.trim(),
-          industry: convertForm.industry,
+          gstNumber: `PENDING-${Date.now()}`,
+          industry: 'Other',
         }),
       });
 
@@ -117,7 +119,8 @@ export default function LeadDetailPage() {
       });
 
       setShowConvertModal(false);
-      alert('Lead successfully converted to customer!');
+      fetchLead();
+      alert(`"${lead.company}" has been converted to a customer successfully!`);
       router.push('/customers');
     } catch (err) {
       console.error(err);
@@ -166,12 +169,19 @@ export default function LeadDetailPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'NEW': return 'bg-blue-100 text-blue-800';
-      case 'CONTACTED': return 'bg-yellow-100 text-yellow-800';
-      case 'QUALIFIED': return 'bg-green-100 text-green-800';
-      case 'REJECTED': return 'bg-red-100 text-red-800';
+      case 'WON': return 'bg-green-100 text-green-800';
+      case 'LOST': return 'bg-red-100 text-red-800';
       case 'CONVERTED': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'NEGOTIATION': return 'bg-orange-100 text-orange-800';
+      case 'COMMIT': return 'bg-blue-100 text-blue-800';
+      case 'PROSPECT': return 'bg-cyan-100 text-cyan-800';
+      case 'SUSPECT': return 'bg-indigo-100 text-indigo-800';
+      case 'QUALIFIED': return 'bg-teal-100 text-teal-800';
+      case 'CONTACTED': return 'bg-yellow-100 text-yellow-800';
+      case 'DROPPED': return 'bg-gray-100 text-gray-600';
+      case 'ON_HOLD': return 'bg-amber-100 text-amber-800';
+      case 'REJECTED': return 'bg-red-200 text-red-900';
+      default: return 'bg-blue-50 text-blue-700';
     }
   };
 
@@ -190,23 +200,33 @@ export default function LeadDetailPage() {
         <div className="col-span-2 space-y-4">
           <div className="card p-6">
             <h2 className="text-lg font-bold mb-4">Lead Information</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Email</p>
-                <p className="text-lg font-medium">{lead.email}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Phone</p>
-                <p className="text-lg font-medium">{lead.phone || 'Not provided'}</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Opportunity</p>
+                <p className="font-medium">{lead.name}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold">Company</p>
-                <p className="text-lg font-medium">{lead.company}</p>
+                <p className="font-medium">{lead.company}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Email</p>
+                <p className="font-medium">{lead.email}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Phone</p>
+                <p className="font-medium">{lead.phone || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold">Source</p>
-                <p className="text-lg font-medium">{lead.source}</p>
+                <p className="font-medium">{lead.source}</p>
               </div>
+              {lead.remarks && (
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Remarks</p>
+                  <p className="font-medium text-gray-700">{lead.remarks}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -226,21 +246,25 @@ export default function LeadDetailPage() {
                   <select
                     value={editData.status}
                     onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                    className="w-full"
+                    className="w-full border rounded px-3 py-2"
                   >
-                    <option value="NEW">New</option>
-                    <option value="CONTACTED">Contacted</option>
-                    <option value="QUALIFIED">Qualified</option>
+                    <option value="SUSPECT">Suspect</option>
+                    <option value="PROSPECT">Prospect</option>
+                    <option value="NEGOTIATION">Negotiation</option>
+                    <option value="WON">Won</option>
+                    <option value="LOST">Lost</option>
+                    <option value="DROPPED">Dropped</option>
+                    <option value="ON_HOLD">On Hold</option>
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Qualification Notes (BANT)</label>
+                  <label className="block text-sm font-medium mb-1">Qualification Notes</label>
                   <textarea
                     value={editData.qualificationNotes}
                     onChange={(e) => setEditData({ ...editData, qualificationNotes: e.target.value })}
                     placeholder="Budget, Authority, Need, Timeline..."
-                    className="w-full h-24"
+                    className="w-full h-20 border rounded px-3 py-2"
                   />
                 </div>
                 <button onClick={handleUpdate} className="btn btn-primary w-full">Save Changes</button>
@@ -311,26 +335,83 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
+          {/* Lead Manager Card */}
+          <div className="card p-6">
+            <h3 className="text-sm font-semibold text-gray-600 mb-3">Lead Management</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-400 uppercase mb-1">Sourced By</p>
+                {lead.broughtBy ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {lead.broughtBy.firstName.charAt(0)}{lead.broughtBy.lastName.charAt(0)}
+                    </div>
+                    <span className="text-sm font-medium">{lead.broughtBy.firstName} {lead.broughtBy.lastName}</span>
+                  </div>
+                ) : <p className="text-sm text-gray-400">Not assigned</p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase mb-1">Assigned To</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {lead.assignedTo.firstName.charAt(0)}{lead.assignedTo.lastName.charAt(0)}
+                  </div>
+                  <span className="text-sm font-medium">{lead.assignedTo.firstName} {lead.assignedTo.lastName}</span>
+                </div>
+              </div>
+              {lead.quoteNo && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase mb-1">Quote No</p>
+                  <p className="text-sm font-mono font-medium">{lead.quoteNo}</p>
+                </div>
+              )}
+              {lead.quoteValue && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase mb-1">Quote Value</p>
+                  <p className="text-sm font-semibold text-green-700">₹{Number(lead.quoteValue).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              {lead.rfqDate && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase mb-1">RFQ Date</p>
+                  <p className="text-sm">{new Date(lead.rfqDate).toLocaleDateString('en-IN')}</p>
+                </div>
+              )}
+              {lead.followUpDate && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase mb-1">Follow-up Date</p>
+                  <p className="text-sm">{new Date(lead.followUpDate).toLocaleDateString('en-IN')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-2">Created</h3>
-            <p className="text-sm">{new Date(lead.createdAt).toLocaleDateString()}</p>
+            <p className="text-sm">{new Date(lead.createdAt).toLocaleDateString('en-IN')}</p>
           </div>
 
           <div className="space-y-2">
-            <button
-              onClick={() => setShowFollowUpModal(true)}
-              className="btn btn-primary w-full"
-            >
+            <button onClick={() => setShowFollowUpModal(true)} className="btn btn-primary w-full">
               + Add Follow-up
             </button>
             {lead.linkedCustomer ? (
-              <Link href={`/customers/${lead.linkedCustomer.id}`} className="btn btn-secondary w-full block text-center">
-                View Customer
-              </Link>
-            ) : (
+              <div className="space-y-2">
+                <Link href={`/customers/${lead.linkedCustomer.id}`} className="btn btn-secondary w-full block text-center">
+                  View Customer
+                </Link>
+                <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full text-sm">
+                  Re-convert / Update Customer
+                </button>
+              </div>
+            ) : ['PROSPECT', 'NEGOTIATION', 'WON'].includes(lead.status) ? (
               <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full">
                 Convert to Customer
               </button>
+            ) : (
+              <div className="text-xs text-gray-400 text-center px-2 py-2 bg-gray-50 rounded border border-gray-200">
+                Advance to <strong>Prospect</strong> to convert to customer
+              </div>
             )}
           </div>
         </div>
@@ -339,36 +420,19 @@ export default function LeadDetailPage() {
       {/* Convert to Customer Modal */}
       {showConvertModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-lg font-bold mb-4">Convert to Customer</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Converting <strong>{lead.name}</strong> ({lead.company}) to a customer.
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold mb-3">Convert to Customer?</h2>
+            <p className="text-sm text-gray-600 mb-1">
+              This will create a new customer record for:
             </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">GST Number <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={convertForm.gstNumber}
-                  onChange={(e) => setConvertForm({ ...convertForm, gstNumber: e.target.value })}
-                  placeholder="e.g. 29ABCDE1234F1Z5"
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Industry</label>
-                <select
-                  value={convertForm.industry}
-                  onChange={(e) => setConvertForm({ ...convertForm, industry: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  {['Technology', 'Manufacturing', 'Healthcare', 'Finance', 'Retail', 'Education', 'Construction', 'Other'].map(i => (
-                    <option key={i} value={i}>{i}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="bg-gray-50 rounded p-3 mb-5">
+              <p className="font-semibold text-gray-800">{lead.company}</p>
+              <p className="text-sm text-gray-500">{lead.name} · {lead.email}</p>
             </div>
-            <div className="flex gap-3 mt-6">
+            <p className="text-xs text-gray-400 mb-5">
+              The lead status will be updated to <strong>CONVERTED</strong> and linked to the new customer.
+            </p>
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowConvertModal(false)}
                 className="btn btn-secondary flex-1"
@@ -381,7 +445,7 @@ export default function LeadDetailPage() {
                 className="btn btn-primary flex-1 disabled:opacity-50"
                 disabled={converting}
               >
-                {converting ? 'Converting...' : 'Convert'}
+                {converting ? 'Converting...' : 'Yes, Convert'}
               </button>
             </div>
           </div>

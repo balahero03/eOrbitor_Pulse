@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       type,
       scheduledDate: new Date(scheduledDate),
       notes: notes || null,
-      createdById: decoded.userId,
+      createdById: decoded.id,
     },
     include: {
       deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },

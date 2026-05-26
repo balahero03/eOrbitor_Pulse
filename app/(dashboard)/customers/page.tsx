@@ -9,7 +9,6 @@ interface Customer {
   industry: string;
   website?: string;
   annualRevenue?: number;
-  employeeCount?: number;
   activeDealCount: number;
   contactCount: number;
   createdAt: string;
@@ -152,7 +151,6 @@ export default function CustomersPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Company</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Industry</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Annual Revenue</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Employees</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Contacts</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Active Deals</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Actions</th>
@@ -168,7 +166,6 @@ export default function CustomersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{formatCurrency(customer.annualRevenue)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{customer.employeeCount || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
                           {customer.contactCount}

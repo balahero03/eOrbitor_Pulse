@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         totalAmount: totalAmount.toString(),
         issueDate: new Date(),
         notes,
-        createdById: decoded.userId,
+        createdById: decoded.id,
       },
       include: {
         customer: { select: { companyName: true } },
