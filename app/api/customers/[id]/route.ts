@@ -48,16 +48,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { companyName, industry, website, annualRevenue, yearEstablished } = body;
+    const { companyName, gstNumber, industry, website, annualRevenue, yearEstablished } = body;
 
     const customer = await prisma.customer.update({
       where: { id: id },
       data: {
         ...(companyName && { companyName }),
-        ...(industry && { industry }),
-        ...(website && { website }),
-        ...(annualRevenue && { annualRevenue }),
-        ...(yearEstablished && { yearEstablished }),
+        ...(gstNumber && { gstNumber }),
+        ...(industry !== undefined && { industry }),
+        ...(website !== undefined && { website }),
+        ...(annualRevenue !== undefined && { annualRevenue }),
+        ...(yearEstablished !== undefined && { yearEstablished }),
       },
     });
 
