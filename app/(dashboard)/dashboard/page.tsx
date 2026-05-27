@@ -315,7 +315,17 @@ function SalesExecDashboard({ data, user }: { data: any; user: any }) {
 }
 
 // ─── Admin / Manager Dashboard ──────────────────────────────────────────────
-function AdminDashboard({ data }: { data: any }) {
+function AdminDashboard({ data, user }: { data: any; user: any }) {
+  if (!data?.kpis) {
+    return (
+      <div className="p-6">
+        <div className="card p-6 bg-yellow-50 border border-yellow-200">
+          <p className="text-yellow-700">Dashboard data not available</p>
+        </div>
+      </div>
+    );
+  }
+
   const kpis = [
     { label: 'Total Leads',     value: data.kpis.totalLeads,     icon: '🎯', href: '/leads' },
     { label: 'Customers',       value: data.kpis.totalCustomers, icon: '🏢', href: '/customers' },
@@ -323,6 +333,16 @@ function AdminDashboard({ data }: { data: any }) {
     { label: 'Open Tickets',    value: data.kpis.openTickets,    icon: '🎫', href: '/support' },
     { label: 'Overdue Tasks',   value: data.kpis.overdueTasks,   icon: '⏰', href: '/tasks' },
   ];
+
+  const quickActions = [
+    { label: '+ New Lead',     href: '/leads/new' },
+    { label: '+ New Customer', href: '/customers/new' },
+    { label: 'View Pipeline',  href: '/pipeline' },
+  ];
+
+  if (user?.role === 'ADMIN') {
+    quickActions.push({ label: 'Manage Users', href: '/users' });
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -369,10 +389,11 @@ function AdminDashboard({ data }: { data: any }) {
       <div className="card p-6">
         <h2 className="font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Link href="/leads/new"     className="btn btn-primary text-center">+ New Lead</Link>
-          <Link href="/customers/new" className="btn btn-primary text-center">+ New Customer</Link>
-          <Link href="/pipeline"      className="btn btn-secondary text-center">View Pipeline</Link>
-          <Link href="/users"         className="btn btn-secondary text-center">Manage Users</Link>
+          {quickActions.map((action) => (
+            <Link key={action.href} href={action.href} className="btn btn-primary text-center">
+              {action.label}
+            </Link>
+          ))}
         </div>
       </div>
     </div>
@@ -384,6 +405,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -393,9 +415,16 @@ export default function DashboardPage() {
       fetch('/api/auth/me',           { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch('/api/reports/dashboard', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
     ]).then(([me, dash]) => {
+      if (dash.error) {
+        setError(dash.error);
+        return;
+      }
       setUser(me);
       setData(dash);
-    }).catch(console.error)
+    }).catch(err => {
+      console.error(err);
+      setError('Failed to load dashboard');
+    })
       .finally(() => setLoading(false));
   }, []);
 
@@ -407,11 +436,29 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data || !user) return null;
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="card p-6 bg-red-50 border border-red-200">
+          <p className="text-red-700">Failed to load dashboard: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || !user) {
+    return (
+      <div className="p-6">
+        <div className="card p-6 bg-yellow-50 border border-yellow-200">
+          <p className="text-yellow-700">Dashboard data not available</p>
+        </div>
+      </div>
+    );
+  }
 
   if (user.role === 'SALES_EXEC') {
     return <SalesExecDashboard data={data} user={user} />;
   }
 
-  return <AdminDashboard data={data} />;
+  return <AdminDashboard data={data} user={user} />;
 }

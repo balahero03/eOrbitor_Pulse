@@ -40,6 +40,8 @@ model User {
   assignedTickets Ticket[] @relation("assignedTo")
   activityLogs  ActivityLog[]
   notifications Notification[]
+  approvalsRequested ApprovalRequest[] @relation("ApprovalRequestedBy")
+  approvalsApproved  ApprovalRequest[] @relation("ApprovalApprovedBy")
 
   @@index([email])
   @@index([role])
@@ -86,6 +88,7 @@ model Lead {
   followUps       FollowUp[]
   deals           Deal[]
   activityLogs    ActivityLog[]
+  approvalRequests ApprovalRequest[]
 
   @@index([status])
   @@index([assignedToId])
@@ -551,4 +554,37 @@ enum NotificationType {
   ORDER_CONFIRMED
   PAYMENT_RECEIVED
   TICKET_ASSIGNED
+}
+
+// Approval Requests
+model ApprovalRequest {
+  id              String    @id @default(cuid())
+  type            ApprovalType // LEAD_DELETE
+  entityType      String    // "LEAD"
+  entityId        String    // lead id
+  lead            Lead?     @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  requestedBy     String
+  requestedByUser User      @relation("ApprovalRequestedBy", fields: [requestedBy], references: [id])
+  approvedBy      String?
+  approvedByUser  User?     @relation("ApprovalApprovedBy", fields: [approvedBy], references: [id])
+  status          ApprovalStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+  reason          String?   // reason for deletion request
+  rejectionReason String?   // reason for rejection
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([entityType])
+  @@index([requestedBy])
+  @@index([approvedBy])
+}
+
+enum ApprovalType {
+  LEAD_DELETE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

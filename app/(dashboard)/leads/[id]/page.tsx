@@ -39,6 +39,11 @@ export default function LeadDetailPage() {
   // Convert modal
   const [showConvertModal, setShowConvertModal] = useState(false);
 
+  // Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   // Follow-up modal
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpForm, setFollowUpForm] = useState({
@@ -143,6 +148,32 @@ export default function LeadDetailPage() {
       alert('An error occurred during conversion.');
     } finally {
       setConverting(false);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: deleteReason }),
+      });
+
+      if (res.ok) {
+        alert('Deletion request submitted for approval.');
+        router.push('/leads');
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to submit deletion request');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while submitting deletion request');
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -478,6 +509,9 @@ export default function LeadDetailPage() {
                 Advance to <strong>Prospect</strong> to convert to customer
               </div>
             )}
+            <button onClick={() => setShowDeleteModal(true)} className="btn btn-error w-full">
+              🗑️ Request Deletion
+            </button>
           </div>
         </div>
       </div>
@@ -576,6 +610,46 @@ export default function LeadDetailPage() {
                 disabled={savingFollowUp}
               >
                 {savingFollowUp ? 'Saving...' : 'Add Follow-up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Request Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold mb-3 text-red-600">Request Lead Deletion?</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              This request will be sent to your manager and admin for approval. They will review and decide whether to delete this lead.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Reason for deletion (optional)</label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="e.g. Duplicate, Wrong contact, No longer interested..."
+                className="w-full border rounded px-3 py-2 h-20 text-sm"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteReason('');
+                }}
+                className="btn btn-secondary flex-1"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRequest}
+                className="btn btn-error flex-1 disabled:opacity-50"
+                disabled={deleting}
+              >
+                {deleting ? 'Submitting...' : 'Submit for Approval'}
               </button>
             </div>
           </div>

@@ -78,10 +78,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
-    await prisma.customer.update({
-      where: { id: id },
-      data: { deletedAt: new Date() },
-    });
+    await Promise.all([
+      prisma.customer.update({
+        where: { id: id },
+        data: { deletedAt: new Date() },
+      }),
+      prisma.lead.updateMany({
+        where: { linkedCustomerId: id },
+        data: { linkedCustomerId: null },
+      }),
+    ]);
 
     return NextResponse.json({ message: 'Customer deleted successfully' });
   } catch (error) {

@@ -120,14 +120,28 @@ export async function DELETE(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret') as any;
 
-    await prisma.lead.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const body = await req.json().catch(() => ({}));
+    const { reason } = body;
+
+    const approvalRequest = await prisma.approvalRequest.create({
+      data: {
+        type: 'LEAD_DELETE',
+        entityType: 'LEAD',
+        entityId: id,
+        requestedBy: decoded.id,
+        reason,
+      },
+      include: {
+        lead: { select: { name: true, company: true } },
+      },
     });
 
-    return NextResponse.json({ message: 'Lead deleted successfully' });
+    return NextResponse.json({
+      message: 'Deletion request submitted for approval',
+      requestId: approvalRequest.id,
+    }, { status: 202 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

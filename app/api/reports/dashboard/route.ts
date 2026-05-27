@@ -158,25 +158,28 @@ export async function GET(req: NextRequest) {
     if (role === 'SALES_MANAGER') {
       const subs = await prisma.user.findMany({ where: { managerId: userId }, select: { id: true } });
       const teamIds = [userId, ...subs.map((u: any) => u.id)];
-      leadWhere.assignedToId = { in: teamIds };
+      leadWhere.OR = [
+        { assignedToId: { in: teamIds } },
+        { broughtById: { in: teamIds } },
+      ];
     }
 
     const [totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks, pipelineByStage] = await Promise.all([
       prisma.lead.count({ where: leadWhere }),
       prisma.customer.count({ where: { deletedAt: null } }),
-      prisma.deal.count({ where: { stage: { notIn: ['CLOSURE', 'LOST'] } } }),
+      prisma.deal.count({ where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
       prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
       prisma.task.count({ where: { status: { not: 'COMPLETED' }, dueDate: { lt: new Date() } } }),
-      prisma.deal.groupBy({ by: ['stage'], _sum: { dealValue: true }, _count: true }),
+      prisma.deal.groupBy({ by: ['stage'], _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
     ]);
 
     return NextResponse.json({
       role,
       kpis: { totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks },
-      pipeline: pipelineByStage.map(s => ({
+      pipeline: (pipelineByStage || []).map(s => ({
         stage: s.stage,
-        value: s._sum.dealValue || 0,
-        count: s._count,
+        value: s._sum?.dealValue || 0,
+        count: s._count?.id || 0,
       })),
     });
   } catch (err) {

@@ -39,6 +39,7 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({
@@ -60,12 +61,21 @@ export default function CustomerDetailPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error('Failed to fetch customer');
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError('Customer not found or has been deleted');
+          setTimeout(() => router.push('/customers'), 2000);
+        } else {
+          setError('Failed to fetch customer');
+        }
+        return;
+      }
 
       const data = await res.json();
       setCustomer(data);
     } catch (err) {
       console.error(err);
+      setError('Error loading customer');
     } finally {
       setLoading(false);
     }
@@ -144,6 +154,18 @@ export default function CustomerDetailPage() {
   };
 
   if (loading) return <div className="p-6 text-center">Loading...</div>;
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="card p-6 bg-red-50 border border-red-200">
+          <p className="text-red-700">{error}</p>
+          {error.includes('deleted') && <p className="text-sm text-red-600 mt-2">Redirecting to customers list...</p>}
+        </div>
+      </div>
+    );
+  }
+
   if (!customer) return <div className="p-6 text-center">Customer not found</div>;
 
   const totalDealValue = customer.deals.reduce((sum, d) => sum + (d.dealValue || 0), 0);
