@@ -32,6 +32,7 @@ export default function LeadDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [converting, setConverting] = useState(false);

@@ -39,32 +39,9 @@ export async function GET(req: NextRequest) {
 
     const where: any = { deletedAt: null };
 
-    // Role-based visibility
-    if (decoded.role === 'SALES_EXEC') {
-      where.OR = [
-        { assignedToId: decoded.id },
-        { broughtById: decoded.id },
-      ];
-    } else if (decoded.role === 'SALES_MANAGER') {
-      const subordinates = await prisma.user.findMany({
-        where: { managerId: decoded.id },
-        select: { id: true },
-      });
-      const teamIds = [decoded.id, ...subordinates.map((u: any) => u.id)];
-      where.OR = [
-        { assignedToId: { in: teamIds } },
-        { broughtById: { in: teamIds } },
-      ];
-    }
-    // ADMIN sees all — no extra filter
+    // All roles see all leads — edit access is controlled on the frontend
 
     const andConditions: any[] = [];
-
-    // Role filter already in where.OR — move to AND if we need to add more filters
-    if (where.OR) {
-      andConditions.push({ OR: where.OR });
-      delete where.OR;
-    }
 
     if (status) where.status = status;
     if (source) where.source = source;

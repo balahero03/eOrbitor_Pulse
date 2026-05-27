@@ -23,7 +23,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Support',      href: '/support',         icon: '🆘' },
   { label: 'Activity',     href: '/daily-activity',  icon: '📝' },
   { label: 'Team Activity', href: '/team-activity',  icon: '👥', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Attendance',   href: '/attendance',      icon: '📅', roles: ['ADMIN', 'SALES_MANAGER'] },
+  { label: 'Attendance',   href: '/attendance',      icon: '📅', roles: ['ADMIN'] },
   { label: 'Reports',      href: '/reports',         icon: '📊', roles: ['ADMIN', 'SALES_MANAGER'] },
   { label: 'Approvals',    href: '/approvals',       icon: '✅', roles: ['ADMIN', 'SALES_MANAGER'] },
   { label: 'Announcements', href: '/announcements',  icon: '📢', roles: ['ADMIN'] },

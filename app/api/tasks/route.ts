@@ -32,10 +32,18 @@ export async function GET(req: NextRequest) {
   const assignedToId = searchParams.get('assignedToId');
   const search = searchParams.get('search');
 
+  const decoded = verifyToken(token!)!;
+
   const where: any = {};
+
+  // Tasks are private — each user sees only their own assigned tasks. Admin sees all.
+  if (decoded.role !== 'ADMIN') {
+    where.assignedToId = decoded.id;
+  }
+
   if (status) where.status = status;
   if (priority) where.priority = priority;
-  if (assignedToId) where.assignedToId = assignedToId;
+  if (assignedToId && decoded.role === 'ADMIN') where.assignedToId = assignedToId;
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
