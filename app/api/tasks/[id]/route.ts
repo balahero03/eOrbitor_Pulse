@@ -5,13 +5,9 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-interface DecodedToken {
-  userId: string;
-}
-
-function verifyToken(token: string): DecodedToken | null {
+function verifyToken(token: string) {
   try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
+    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
   } catch {
     return null;
   }
@@ -23,8 +19,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const task = await prisma.task.findUnique({
-    where: { id: id },
+    where: { id },
     include: {
       assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } },
       relatedDeal: { select: { id: true, dealName: true } },
@@ -45,11 +42,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const body = await req.json();
   const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags, completedAt } = body;
 
   const task = await prisma.task.update({
-    where: { id: id },
+    where: { id },
     data: {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
@@ -76,7 +74,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  await prisma.task.delete({ where: { id: id } });
+  const { id } = await params;
+  await prisma.task.delete({ where: { id } });
 
   return NextResponse.json({ message: 'Task deleted' });
 }

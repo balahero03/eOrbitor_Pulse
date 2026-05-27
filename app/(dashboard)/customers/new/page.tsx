@@ -10,10 +10,11 @@ export default function NewCustomerPage() {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     companyName: '',
+    gstNumber: '',
     industry: 'Other',
     website: '',
     annualRevenue: '',
-    employeeCount: '',
+    yearEstablished: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -36,10 +37,11 @@ export default function NewCustomerPage() {
         },
         body: JSON.stringify({
           companyName: formData.companyName,
+          gstNumber: formData.gstNumber,
           industry: formData.industry,
           website: formData.website || undefined,
           annualRevenue: formData.annualRevenue ? parseInt(formData.annualRevenue) : undefined,
-          employeeCount: formData.employeeCount ? parseInt(formData.employeeCount) : undefined,
+          yearEstablished: formData.yearEstablished ? parseInt(formData.yearEstablished) : undefined,
         }),
       });
 
@@ -72,7 +74,6 @@ export default function NewCustomerPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Company Information</h3>
             <div className="space-y-4">
@@ -84,6 +85,18 @@ export default function NewCustomerPage() {
                   value={formData.companyName}
                   onChange={handleChange}
                   placeholder="ABC Corporation"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">GST Number *</label>
+                <input
+                  type="text"
+                  name="gstNumber"
+                  value={formData.gstNumber}
+                  onChange={handleChange}
+                  placeholder="22AAAAA0000A1Z5"
                   required
                 />
               </div>
@@ -120,12 +133,11 @@ export default function NewCustomerPage() {
             </div>
           </div>
 
-          {/* Business Info */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Business Details</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Annual Revenue</label>
+                <label className="block text-sm font-medium mb-1">Annual Revenue (₹)</label>
                 <input
                   type="number"
                   name="annualRevenue"
@@ -136,19 +148,20 @@ export default function NewCustomerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Employee Count</label>
+                <label className="block text-sm font-medium mb-1">Year Established</label>
                 <input
                   type="number"
-                  name="employeeCount"
-                  value={formData.employeeCount}
+                  name="yearEstablished"
+                  value={formData.yearEstablished}
                   onChange={handleChange}
-                  placeholder="50"
+                  placeholder="2010"
+                  min="1900"
+                  max={new Date().getFullYear()}
                 />
               </div>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-4 pt-4 border-t border-gray-200">
             <button
               type="submit"

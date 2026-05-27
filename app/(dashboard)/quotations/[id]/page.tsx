@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Quotation {
@@ -24,7 +24,8 @@ interface Quotation {
   orders: any[];
 }
 
-export default function QuotationDetailPage({ params }: { params: { id: string } }) {
+export default function QuotationDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,12 +33,12 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
   useEffect(() => {
     fetchQuotation();
-  }, [params.id]);
+  }, [id]);
 
   const fetchQuotation = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/quotations/${params.id}`, {
+      const res = await fetch(`/api/quotations/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -56,7 +57,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/quotations/${params.id}/send`, {
+      const res = await fetch(`/api/quotations/${id}/send`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -76,7 +77,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/quotations/${params.id}/approve`, {
+      const res = await fetch(`/api/quotations/${id}/approve`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -97,7 +98,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/quotations/${params.id}`, {
+      const res = await fetch(`/api/quotations/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -239,7 +240,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                   >
                     {updating ? 'Sending...' : 'Send Quotation'}
                   </button>
-                  <Link href={`/quotations/${params.id}/edit`} className="btn btn-secondary w-full text-center">
+                  <Link href={`/quotations/${id}/edit`} className="btn btn-secondary w-full text-center">
                     Edit
                   </Link>
                 </>

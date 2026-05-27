@@ -1,19 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Deal {
   id: string;
-  name: string;
+  dealName: string;
   stage: string;
-  value: number;
-  probability: number;
-  notes?: string;
-  expectedClosureDate?: string;
+  dealValue: number;
+  winProbability: number;
+  nextAction?: string;
+  expectedCloseDate?: string;
   customer: { id: string; companyName: string };
-  createdBy: { firstName: string; lastName: string };
+  assignedTo: { firstName: string; lastName: string };
   activityLogs: any[];
   createdAt: string;
 }
@@ -27,16 +27,17 @@ const STAGES = [
   { key: 'ONGOING', label: 'Ongoing' },
 ];
 
-export default function DealDetailPage({ params }: { params: { id: string } }) {
+export default function DealDetailPage() {
   const router = useRouter();
+  const params = useParams() as { id: string };
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: '',
-    probability: 50,
-    notes: '',
-    expectedClosureDate: '',
+    dealName: '',
+    winProbability: 50,
+    nextAction: '',
+    expectedCloseDate: '',
   });
 
   useEffect(() => {
@@ -55,10 +56,10 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
       const data = await res.json();
       setDeal(data);
       setEditData({
-        name: data.name,
-        probability: data.probability,
-        notes: data.notes || '',
-        expectedClosureDate: data.expectedClosureDate?.split('T')[0] || '',
+        dealName: data.dealName,
+        winProbability: data.winProbability,
+        nextAction: data.nextAction || '',
+        expectedCloseDate: data.expectedCloseDate?.split('T')[0] || '',
       });
     } catch (err) {
       console.error(err);
@@ -77,10 +78,10 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: editData.name,
-          probability: editData.probability,
-          notes: editData.notes,
-          expectedClosureDate: editData.expectedClosureDate || undefined,
+          dealName: editData.dealName,
+          winProbability: editData.winProbability,
+          nextAction: editData.nextAction,
+          expectedCloseDate: editData.expectedCloseDate || undefined,
         }),
       });
 
@@ -97,19 +98,19 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
   const handleStageChange = async (newStage: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/deals/${params.id}/move`, {
-        method: 'POST',
+      const res = await fetch(`/api/deals/${params.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ newStage }),
+        body: JSON.stringify({ stage: newStage }),
       });
 
-      if (!res.ok) throw new Error('Failed to move deal');
+      if (!res.ok) throw new Error('Failed to update stage');
 
       const updated = await res.json();
-      setDeal(updated);
+      setDeal(prev => prev ? { ...prev, stage: updated.stage } : prev);
     } catch (err) {
       console.error(err);
     }
@@ -154,7 +155,7 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{deal.name}</h1>
+        <h1 className="text-3xl font-bold">{deal.dealName}</h1>
         <Link href="/pipeline" className="btn btn-secondary">Back to Pipeline</Link>
       </div>
 
@@ -179,8 +180,8 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
                   <label className="block text-sm font-medium mb-1">Deal Name</label>
                   <input
                     type="text"
-                    value={editData.name}
-                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    value={editData.dealName}
+                    onChange={(e) => setEditData({ ...editData, dealName: e.target.value })}
                     className="w-full"
                   />
                 </div>
@@ -190,8 +191,8 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
                     <label className="block text-sm font-medium mb-1">Win Probability %</label>
                     <input
                       type="number"
-                      value={editData.probability}
-                      onChange={(e) => setEditData({ ...editData, probability: parseInt(e.target.value) })}
+                      value={editData.winProbability}
+                      onChange={(e) => setEditData({ ...editData, winProbability: parseInt(e.target.value) })}
                       min="0"
                       max="100"
                       className="w-full"
@@ -202,19 +203,19 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
                     <label className="block text-sm font-medium mb-1">Closure Date</label>
                     <input
                       type="date"
-                      value={editData.expectedClosureDate}
-                      onChange={(e) => setEditData({ ...editData, expectedClosureDate: e.target.value })}
+                      value={editData.expectedCloseDate}
+                      onChange={(e) => setEditData({ ...editData, expectedCloseDate: e.target.value })}
                       className="w-full"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <label className="block text-sm font-medium mb-1">Next Action</label>
                   <textarea
-                    value={editData.notes}
-                    onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
-                    placeholder="Deal notes, conditions, requirements..."
+                    value={editData.nextAction}
+                    onChange={(e) => setEditData({ ...editData, nextAction: e.target.value })}
+                    placeholder="Next steps, action items..."
                     className="w-full h-24"
                   />
                 </div>
@@ -231,25 +232,25 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold">Deal Value</p>
-                  <p className="text-lg font-medium">{formatCurrency(deal.value)}</p>
+                  <p className="text-lg font-medium">{formatCurrency(deal.dealValue)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold">Win Probability</p>
-                  <span className={`badge px-3 py-1 rounded font-medium ${getProbabilityColor(deal.probability)}`}>
-                    {deal.probability}%
+                  <span className={`badge px-3 py-1 rounded font-medium ${getProbabilityColor(deal.winProbability)}`}>
+                    {deal.winProbability}%
                   </span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold">Closure Date</p>
                   <p className="text-lg font-medium">
-                    {deal.expectedClosureDate ? new Date(deal.expectedClosureDate).toLocaleDateString() : 'Not set'}
+                    {deal.expectedCloseDate ? new Date(deal.expectedCloseDate).toLocaleDateString() : 'Not set'}
                   </p>
                 </div>
 
-                {deal.notes && (
+                {deal.nextAction && (
                   <div className="col-span-2">
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Notes</p>
-                    <p className="text-gray-700">{deal.notes}</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Next Action</p>
+                    <p className="text-gray-700">{deal.nextAction}</p>
                   </div>
                 )}
               </div>
@@ -296,7 +297,7 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
             <div className="space-y-3 text-sm">
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Created By</p>
-                <p className="font-medium">{deal.createdBy.firstName} {deal.createdBy.lastName}</p>
+                <p className="font-medium">{deal.assignedTo.firstName} {deal.assignedTo.lastName}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Created Date</p>
@@ -305,7 +306,7 @@ export default function DealDetailPage({ params }: { params: { id: string } }) {
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Expected Revenue</p>
                 <p className="font-medium text-lg">
-                  {formatCurrency(Math.round(deal.value * (deal.probability / 100)))}
+                  {formatCurrency(Math.round(deal.dealValue * (deal.winProbability / 100)))}
                 </p>
               </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface FollowUp {
@@ -19,7 +19,8 @@ interface FollowUp {
   createdAt: string;
 }
 
-export default function FollowUpDetailPage({ params }: { params: { id: string } }) {
+export default function FollowUpDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,12 +38,12 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     fetchFollowUp();
-  }, [params.id]);
+  }, [id]);
 
   const fetchFollowUp = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/followups/${params.id}`, {
+      const res = await fetch(`/api/followups/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -76,7 +77,7 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
         : null;
 
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/followups/${params.id}`, {
+      const res = await fetch(`/api/followups/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -109,7 +110,7 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/followups/${params.id}`, {
+      const res = await fetch(`/api/followups/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

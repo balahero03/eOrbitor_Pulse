@@ -10,7 +10,7 @@ async function verifyAuth(req: NextRequest) {
   if (!token) throw new Error('Unauthorized');
 
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
   } catch {
     throw new Error('Invalid token');
   }
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const unreadOnly = searchParams.get('unread') === 'true';
 
     const skip = (page - 1) * limit;
-    const where: any = { userId: auth.userId };
+    const where: any = { userId: auth.id };
 
     if (unreadOnly) where.isRead = false;
 

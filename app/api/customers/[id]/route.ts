@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       include: {
         contacts: { orderBy: { createdAt: 'desc' } },
         deals: {
-          select: { id: true, dealName: true, stage: true, dealValue: true, probability: true },
+          select: { id: true, dealName: true, stage: true, dealValue: true, winProbability: true },
           orderBy: { createdAt: 'desc' },
         },
         activityLogs: { orderBy: { createdAt: 'desc' }, take: 20 },

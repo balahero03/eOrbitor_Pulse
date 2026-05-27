@@ -19,7 +19,7 @@ interface Deal {
   dealName: string;
   stage: string;
   dealValue: number;
-  probability: number;
+  winProbability: number;
 }
 
 interface CustomerDetail {

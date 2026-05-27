@@ -20,12 +20,12 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search');
 
     const skip = (page - 1) * limit;
-    const where: any = { deletedAt: null };
+    const where: any = {};
 
     if (stage) where.stage = stage;
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
+        { dealName: { contains: search, mode: 'insensitive' } },
         { customer: { companyName: { contains: search, mode: 'insensitive' } } },
       ];
     }
@@ -37,13 +37,13 @@ export async function GET(req: NextRequest) {
         take: limit,
         select: {
           id: true,
-          name: true,
+          dealName: true,
           stage: true,
-          value: true,
-          probability: true,
+          dealValue: true,
+          winProbability: true,
           customer: { select: { id: true, companyName: true } },
-          createdBy: { select: { firstName: true, lastName: true } },
-          expectedClosureDate: true,
+          assignedTo: { select: { firstName: true, lastName: true } },
+          expectedCloseDate: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
@@ -72,25 +72,25 @@ export async function POST(req: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
 
     const body = await req.json();
-    const { name, customerId, value, probability, stage, expectedClosureDate } = body;
+    const { dealName, customerId, dealValue, winProbability, stage, expectedCloseDate } = body;
 
-    if (!name || !customerId || !value) {
-      return NextResponse.json({ message: 'Name, customerId, and value are required' }, { status: 400 });
+    if (!dealName || !customerId || !dealValue) {
+      return NextResponse.json({ message: 'Deal name, customerId, and dealValue are required' }, { status: 400 });
     }
 
     const deal = await prisma.deal.create({
       data: {
-        name,
+        dealName,
         customerId,
-        value,
-        probability: probability || 50,
+        dealValue,
+        winProbability: winProbability ?? 50,
         stage: stage || 'SUSPECT',
-        expectedClosureDate: expectedClosureDate ? new Date(expectedClosureDate) : null,
-        createdById: decoded.id,
+        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
+        assignedToId: decoded.id,
       },
       include: {
         customer: { select: { companyName: true } },
-        createdBy: { select: { firstName: true, lastName: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
       },
     });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Ticket {
@@ -23,7 +23,8 @@ interface Ticket {
   customerSatisfactionRating?: number;
 }
 
-export default function TicketDetailPage({ params }: { params: { id: string } }) {
+export default function TicketDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,12 +40,12 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     fetchTicket();
-  }, [params.id]);
+  }, [id]);
 
   const fetchTicket = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tickets/${params.id}`, {
+      const res = await fetch(`/api/tickets/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -71,7 +72,7 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tickets/${params.id}`, {
+      const res = await fetch(`/api/tickets/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +106,7 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tickets/${params.id}/resolve`, {
+      const res = await fetch(`/api/tickets/${id}/resolve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

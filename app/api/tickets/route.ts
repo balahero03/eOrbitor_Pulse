@@ -10,7 +10,7 @@ async function verifyAuth(req: NextRequest) {
   if (!token) throw new Error('Unauthorized');
 
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
   } catch {
     throw new Error('Invalid token');
   }
@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
         priority,
         subject,
         description,
-        assignedToId: auth.userId,
-        createdById: auth.userId,
+        assignedToId: auth.id,
+        createdById: auth.id,
       },
       include: { customer: true, assignedTo: true, createdBy: true },
     });

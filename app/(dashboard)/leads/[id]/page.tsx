@@ -49,7 +49,15 @@ export default function LeadDetailPage() {
   });
   const [savingFollowUp, setSavingFollowUp] = useState(false);
 
-  const [editData, setEditData] = useState({ status: '', qualificationNotes: '' });
+  const [editData, setEditData] = useState({
+    status: '',
+    qualificationNotes: '',
+    remarks: '',
+    quoteNo: '',
+    quoteValue: '',
+    rfqDate: '',
+    followUpDate: '',
+  });
 
   useEffect(() => { fetchLead(); }, [id]);
 
@@ -62,7 +70,15 @@ export default function LeadDetailPage() {
       if (!res.ok) throw new Error('Failed to fetch lead');
       const data = await res.json();
       setLead(data);
-      setEditData({ status: data.status, qualificationNotes: data.qualificationNotes || '' });
+      setEditData({
+        status: data.status,
+        qualificationNotes: data.qualificationNotes || '',
+        remarks: data.remarks || '',
+        quoteNo: data.quoteNo || '',
+        quoteValue: data.quoteValue !== undefined && data.quoteValue !== null ? String(data.quoteValue) : '',
+        rfqDate: data.rfqDate ? data.rfqDate.split('T')[0] : '',
+        followUpDate: data.followUpDate ? data.followUpDate.split('T')[0] : '',
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -265,6 +281,55 @@ export default function LeadDetailPage() {
                     onChange={(e) => setEditData({ ...editData, qualificationNotes: e.target.value })}
                     placeholder="Budget, Authority, Need, Timeline..."
                     className="w-full h-20 border rounded px-3 py-2"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Quote No.</label>
+                    <input
+                      type="text"
+                      value={editData.quoteNo}
+                      onChange={(e) => setEditData({ ...editData, quoteNo: e.target.value })}
+                      placeholder="QT-2024-001"
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Quote Value (₹)</label>
+                    <input
+                      type="number"
+                      value={editData.quoteValue}
+                      onChange={(e) => setEditData({ ...editData, quoteValue: e.target.value })}
+                      placeholder="0"
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">RFQ Date</label>
+                    <input
+                      type="date"
+                      value={editData.rfqDate}
+                      onChange={(e) => setEditData({ ...editData, rfqDate: e.target.value })}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Follow-Up Date</label>
+                    <input
+                      type="date"
+                      value={editData.followUpDate}
+                      onChange={(e) => setEditData({ ...editData, followUpDate: e.target.value })}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Remarks</label>
+                  <textarea
+                    value={editData.remarks}
+                    onChange={(e) => setEditData({ ...editData, remarks: e.target.value })}
+                    placeholder="Any additional notes..."
+                    className="w-full h-16 border rounded px-3 py-2"
                   />
                 </div>
                 <button onClick={handleUpdate} className="btn btn-primary w-full">Save Changes</button>

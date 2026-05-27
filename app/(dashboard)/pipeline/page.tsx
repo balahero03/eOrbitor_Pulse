@@ -5,13 +5,13 @@ import Link from 'next/link';
 
 interface Deal {
   id: string;
-  name: string;
+  dealName: string;
   stage: string;
-  value: number;
-  probability: number;
+  dealValue: number;
+  winProbability: number;
   customer: { id: string; companyName: string };
-  createdBy: { firstName: string; lastName: string };
-  expectedClosureDate?: string;
+  assignedTo: { firstName: string; lastName: string };
+  expectedCloseDate?: string;
   createdAt: string;
 }
 
@@ -153,9 +153,9 @@ export default function PipelinePage() {
         <div className="grid grid-cols-6 gap-4 pb-6">
           {STAGES.map((stage) => {
             const stageDeals = getDealsByStage(stage.key);
-            const stageValue = stageDeals.reduce((sum, d) => sum + d.value, 0);
+            const stageValue = stageDeals.reduce((sum, d) => sum + d.dealValue, 0);
             const stageProbability = stageDeals.length > 0
-              ? Math.round(stageDeals.reduce((sum, d) => sum + d.probability, 0) / stageDeals.length)
+              ? Math.round(stageDeals.reduce((sum, d) => sum + d.winProbability, 0) / stageDeals.length)
               : 0;
 
             return (
@@ -188,21 +188,21 @@ export default function PipelinePage() {
                         className="bg-white p-3 rounded border border-gray-300 cursor-move hover:shadow-md transition-shadow"
                       >
                         <Link href={`/pipeline/${deal.id}`} className="block">
-                          <p className="font-medium text-sm hover:text-blue-600">{deal.name}</p>
+                          <p className="font-medium text-sm hover:text-blue-600">{deal.dealName}</p>
                           <p className="text-xs text-gray-600">{deal.customer.companyName}</p>
                         </Link>
 
                         <div className="mt-2 space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium">{formatCurrency(deal.value)}</span>
-                            <span className={`badge px-2 py-0.5 rounded text-xs font-medium ${getProbabilityColor(deal.probability)}`}>
-                              {deal.probability}%
+                            <span className="text-xs font-medium">{formatCurrency(deal.dealValue)}</span>
+                            <span className={`badge px-2 py-0.5 rounded text-xs font-medium ${getProbabilityColor(deal.winProbability)}`}>
+                              {deal.winProbability}%
                             </span>
                           </div>
 
-                          {deal.expectedClosureDate && (
+                          {deal.expectedCloseDate && (
                             <p className="text-xs text-gray-500">
-                              Due: {new Date(deal.expectedClosureDate).toLocaleDateString()}
+                              Due: {new Date(deal.expectedCloseDate).toLocaleDateString()}
                             </p>
                           )}
                         </div>

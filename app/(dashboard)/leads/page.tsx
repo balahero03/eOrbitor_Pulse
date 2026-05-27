@@ -8,6 +8,7 @@ interface Lead {
   name: string;
   company: string;
   status: string;
+  source: string;
   quoteNo?: string;
   quoteValue?: number;
   rfqDate?: string;
@@ -18,6 +19,13 @@ interface Lead {
   linkedCustomer?: { id: string; companyName: string };
   createdAt: string;
   updatedAt: string;
+}
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
 }
 
 const ALL_STATUSES = [
@@ -31,7 +39,14 @@ const ALL_STATUSES = [
   { value: 'REJECTED',    label: 'Rejected' },
 ];
 
-const EDIT_STATUSES = ALL_STATUSES;
+const ALL_SOURCES = [
+  { value: 'EMAIL',         label: 'Email' },
+  { value: 'WEBSITE',       label: 'Website' },
+  { value: 'REFERRAL',      label: 'Referral' },
+  { value: 'WALKIN',        label: 'Walk-in' },
+  { value: 'CALL',          label: 'Call' },
+  { value: 'ADVERTISEMENT', label: 'Advertisement' },
+];
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -92,7 +107,6 @@ function ActionMenu({
 
       {open && (
         <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-          {/* Change Status submenu trigger */}
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
             onClick={() => setShowStatusMenu(!showStatusMenu)}
@@ -105,7 +119,7 @@ function ActionMenu({
 
           {showStatusMenu && (
             <div className="border-t border-gray-100 py-1">
-              {EDIT_STATUSES.map(s => (
+              {ALL_STATUSES.map(s => (
                 <button
                   key={s.value}
                   onClick={() => { onStatusChange(s.value); setOpen(false); setShowStatusMenu(false); }}
@@ -141,31 +155,54 @@ function ActionMenu({
   );
 }
 
+const EMPTY_FILTERS = {
+  search: '',
+  status: '',
+  source: '',
+  assignedToId: '',
+  rfqFrom: '',
+  rfqTo: '',
+  followUpFrom: '',
+  followUpTo: '',
+  hasFollowUp: '',
+  quoteValueMin: '',
+  quoteValueMax: '',
+};
+
 export default function LeadsPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Convert modal
-  const [convertTarget, setConvertTarget] = useState<Lead | null>(null);
+  const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
+  const [applied, setApplied] = useState({ ...EMPTY_FILTERS });
+
+  const convertTarget = useRef<Lead | null>(null);
+  const [convertModal, setConvertModal] = useState(false);
   const [converting, setConverting] = useState(false);
 
-  useEffect(() => { fetchLeads(); }, [page, status]);
+  const activeFilterCount = Object.values(applied).filter(Boolean).length;
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/users?limit=100', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setUsers(d.users || []));
+  }, []);
+
+  useEffect(() => { fetchLeads(); }, [page, applied]);
 
   const fetchLeads = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '25',
-        ...(status && { status }),
-        ...(search && { search }),
-      });
+      const params = new URLSearchParams({ page: page.toString(), limit: '25' });
+      Object.entries(applied).forEach(([k, v]) => { if (v) params.set(k, v); });
+
       const res = await fetch(`/api/leads?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -180,6 +217,20 @@ export default function LeadsPage() {
       setLoading(false);
     }
   };
+
+  const applyFilters = () => {
+    setApplied({ ...filters });
+    setPage(1);
+    setShowFilters(false);
+  };
+
+  const clearFilters = () => {
+    setFilters({ ...EMPTY_FILTERS });
+    setApplied({ ...EMPTY_FILTERS });
+    setPage(1);
+  };
+
+  const setF = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value }));
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this lead?')) return;
@@ -202,7 +253,7 @@ export default function LeadsPage() {
   };
 
   const handleConvert = async () => {
-    if (!convertTarget) return;
+    if (!convertTarget.current) return;
     setConverting(true);
     try {
       const token = localStorage.getItem('token');
@@ -210,29 +261,34 @@ export default function LeadsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          companyName: convertTarget.company,
+          companyName: convertTarget.current.company,
           gstNumber: `PENDING-${Date.now()}`,
           industry: 'Other',
         }),
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(`Failed to convert: ${err.message || 'Unknown error'}`);
+        alert(`Failed: ${err.message || 'Unknown error'}`);
         return;
       }
       const customer = await res.json();
-      await fetch(`/api/leads/${convertTarget.id}`, {
+      await fetch(`/api/leads/${convertTarget.current.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: 'CONVERTED', linkedCustomerId: customer.id }),
       });
-      setConvertTarget(null);
+      setConvertModal(false);
       router.push(`/customers/${customer.id}`);
     } catch {
       alert('An error occurred during conversion.');
     } finally {
       setConverting(false);
     }
+  };
+
+  const openConvert = (lead: Lead) => {
+    convertTarget.current = lead;
+    setConvertModal(true);
   };
 
   return (
@@ -242,41 +298,199 @@ export default function LeadsPage() {
         <a href="/leads/new" className="btn btn-primary">+ New Lead</a>
       </div>
 
-      {/* Filters */}
+      {/* Search bar + filter toggle */}
       <div className="card p-4 mb-4">
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <input
             type="text"
-            placeholder="Search by name, company..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); fetchLeads(); } }}
-            className="border rounded px-3 py-2 flex-1 min-w-48"
+            placeholder="Search by name, company, quote no, remarks..."
+            value={filters.search}
+            onChange={(e) => setF('search', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+            className="border rounded px-3 py-2 flex-1 min-w-64"
           />
-          <select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-            className="border rounded px-3 py-2"
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-colors ${
+              showFilters || activeFilterCount > 0
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+            }`}
           >
-            <option value="">All Status</option>
-            {ALL_STATUSES.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-          <button onClick={() => { setPage(1); fetchLeads(); }} className="btn btn-primary px-6">
-            Search
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+            </svg>
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="bg-white text-blue-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
+          <button onClick={applyFilters} className="btn btn-primary px-6">Search</button>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-600 underline">
+              Clear all
+            </button>
+          )}
         </div>
+
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => setF('status', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Statuses</option>
+                  {ALL_STATUSES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Source */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Source</label>
+                <select
+                  value={filters.source}
+                  onChange={(e) => setF('source', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Sources</option>
+                  {ALL_SOURCES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Account Manager */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Account Manager</label>
+                <select
+                  value={filters.assignedToId}
+                  onChange={(e) => setF('assignedToId', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Managers</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Follow-up status */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Follow-up</label>
+                <select
+                  value={filters.hasFollowUp}
+                  onChange={(e) => setF('hasFollowUp', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">Any</option>
+                  <option value="yes">Has Follow-up Date</option>
+                  <option value="no">No Follow-up Date</option>
+                </select>
+              </div>
+
+              {/* RFQ Date range */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">RFQ Date From</label>
+                <input
+                  type="date"
+                  value={filters.rfqFrom}
+                  onChange={(e) => setF('rfqFrom', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">RFQ Date To</label>
+                <input
+                  type="date"
+                  value={filters.rfqTo}
+                  onChange={(e) => setF('rfqTo', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Follow-up Date range */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Follow-up From</label>
+                <input
+                  type="date"
+                  value={filters.followUpFrom}
+                  onChange={(e) => setF('followUpFrom', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Follow-up To</label>
+                <input
+                  type="date"
+                  value={filters.followUpTo}
+                  onChange={(e) => setF('followUpTo', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Quote Value range */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Value Min (₹)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 10000"
+                  value={filters.quoteValueMin}
+                  onChange={(e) => setF('quoteValueMin', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Value Max (₹)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 500000"
+                  value={filters.quoteValueMax}
+                  onChange={(e) => setF('quoteValueMax', e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button onClick={applyFilters} className="btn btn-primary px-8">Apply Filters</button>
+              <button onClick={clearFilters} className="btn btn-secondary">Clear All</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Status filter chips */}
+      {/* Status quick-filter chips */}
       <div className="flex gap-2 flex-wrap mb-4">
+        <button
+          onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
+          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+            !applied.status ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+          }`}
+        >
+          All
+        </button>
         {ALL_STATUSES.map(s => (
           <button
             key={s.value}
-            onClick={() => { setStatus(status === s.value ? '' : s.value); setPage(1); }}
+            onClick={() => {
+              const next = applied.status === s.value ? '' : s.value;
+              setFilters(f => ({ ...f, status: next }));
+              setApplied(f => ({ ...f, status: next }));
+              setPage(1);
+            }}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-              status === s.value
+              applied.status === s.value
                 ? getStatusColor(s.value) + ' border-current'
                 : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
             }`}
@@ -286,12 +500,67 @@ export default function LeadsPage() {
         ))}
       </div>
 
+      {/* Active filter tags */}
+      {activeFilterCount > 0 && (
+        <div className="flex gap-2 flex-wrap mb-3">
+          {applied.assignedToId && (
+            <FilterTag
+              label={`Manager: ${users.find(u => u.id === applied.assignedToId)?.firstName || '...'}`}
+              onRemove={() => { setFilters(f => ({ ...f, assignedToId: '' })); setApplied(f => ({ ...f, assignedToId: '' })); }}
+            />
+          )}
+          {applied.source && (
+            <FilterTag
+              label={`Source: ${ALL_SOURCES.find(s => s.value === applied.source)?.label || applied.source}`}
+              onRemove={() => { setFilters(f => ({ ...f, source: '' })); setApplied(f => ({ ...f, source: '' })); }}
+            />
+          )}
+          {applied.hasFollowUp && (
+            <FilterTag
+              label={applied.hasFollowUp === 'yes' ? 'Has Follow-up' : 'No Follow-up'}
+              onRemove={() => { setFilters(f => ({ ...f, hasFollowUp: '' })); setApplied(f => ({ ...f, hasFollowUp: '' })); }}
+            />
+          )}
+          {(applied.rfqFrom || applied.rfqTo) && (
+            <FilterTag
+              label={`RFQ: ${applied.rfqFrom || '…'} → ${applied.rfqTo || '…'}`}
+              onRemove={() => { setFilters(f => ({ ...f, rfqFrom: '', rfqTo: '' })); setApplied(f => ({ ...f, rfqFrom: '', rfqTo: '' })); }}
+            />
+          )}
+          {(applied.followUpFrom || applied.followUpTo) && (
+            <FilterTag
+              label={`Follow-up: ${applied.followUpFrom || '…'} → ${applied.followUpTo || '…'}`}
+              onRemove={() => { setFilters(f => ({ ...f, followUpFrom: '', followUpTo: '' })); setApplied(f => ({ ...f, followUpFrom: '', followUpTo: '' })); }}
+            />
+          )}
+          {(applied.quoteValueMin || applied.quoteValueMax) && (
+            <FilterTag
+              label={`Value: ₹${applied.quoteValueMin || '0'} – ₹${applied.quoteValueMax || '∞'}`}
+              onRemove={() => { setFilters(f => ({ ...f, quoteValueMin: '', quoteValueMax: '' })); setApplied(f => ({ ...f, quoteValueMin: '', quoteValueMax: '' })); }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Summary row */}
+      {pagination && (
+        <p className="text-xs text-gray-500 mb-2">
+          {pagination.total} lead{pagination.total !== 1 ? 's' : ''} found
+          {activeFilterCount > 0 ? ` · ${activeFilterCount} filter${activeFilterCount !== 1 ? 's' : ''} active` : ''}
+        </p>
+      )}
+
       {/* Table */}
       <div className="card overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-500">Loading...</div>
         ) : leads.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">No leads found</div>
+          <div className="p-10 text-center text-gray-500">
+            No leads found
+            {activeFilterCount > 0 && (
+              <button onClick={clearFilters} className="ml-2 text-blue-600 underline">clear filters</button>
+            )}
+          </div>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -302,11 +571,13 @@ export default function LeadsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Opportunity</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Customer</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Source</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Quote Value</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">RFQ Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Follow-up</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Account Manager</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Remarks</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                    <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -341,11 +612,21 @@ export default function LeadsPage() {
                           {lead.status.replace('_', ' ')}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {lead.source ? lead.source.charAt(0) + lead.source.slice(1).toLowerCase() : '—'}
+                      </td>
                       <td className="px-4 py-3 text-gray-700">
                         {lead.quoteValue ? `₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {lead.rfqDate ? new Date(lead.rfqDate).toLocaleDateString('en-IN') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {lead.followUpDate ? (
+                          <span className={`${new Date(lead.followUpDate) < new Date() ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                            {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+                          </span>
+                        ) : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -355,14 +636,14 @@ export default function LeadsPage() {
                           <span className="text-gray-700">{lead.assignedTo.firstName}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs max-w-48 truncate" title={lead.remarks || ''}>
+                      <td className="px-4 py-3 text-gray-500 text-xs max-w-40 truncate" title={lead.remarks || ''}>
                         {lead.remarks || '—'}
                       </td>
                       <td className="px-4 py-3">
                         <ActionMenu
                           lead={lead}
                           onDelete={() => handleDelete(lead.id)}
-                          onConvert={() => setConvertTarget(lead)}
+                          onConvert={() => openConvert(lead)}
                           onStatusChange={(s) => handleStatusChange(lead.id, s)}
                         />
                       </td>
@@ -374,7 +655,9 @@ export default function LeadsPage() {
 
             {pagination && pagination.pages > 1 && (
               <div className="p-4 border-t flex items-center justify-between text-sm text-gray-600">
-                <span>Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of {pagination.total}</span>
+                <span>
+                  Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of {pagination.total}
+                </span>
                 <div className="flex gap-2">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-secondary disabled:opacity-40">Prev</button>
                   <span className="px-3 py-1">{page} / {pagination.pages}</span>
@@ -387,22 +670,20 @@ export default function LeadsPage() {
       </div>
 
       {/* Convert to Customer Modal */}
-      {convertTarget && (
+      {convertModal && convertTarget.current && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold mb-3">Convert to Customer?</h2>
             <p className="text-sm text-gray-600 mb-1">This will create a new customer record for:</p>
             <div className="bg-gray-50 rounded p-3 mb-4">
-              <p className="font-semibold text-gray-800">{convertTarget.company}</p>
-              <p className="text-sm text-gray-500">{convertTarget.name}</p>
+              <p className="font-semibold text-gray-800">{convertTarget.current.company}</p>
+              <p className="text-sm text-gray-500">{convertTarget.current.name}</p>
             </div>
             <p className="text-xs text-gray-400 mb-5">
               The lead status will be updated to <strong>CONVERTED</strong> and linked to the new customer.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setConvertTarget(null)} className="btn btn-secondary flex-1" disabled={converting}>
-                Cancel
-              </button>
+              <button onClick={() => setConvertModal(false)} className="btn btn-secondary flex-1" disabled={converting}>Cancel</button>
               <button onClick={handleConvert} className="btn btn-primary flex-1 disabled:opacity-50" disabled={converting}>
                 {converting ? 'Converting...' : 'Yes, Convert'}
               </button>
@@ -411,5 +692,18 @@ export default function LeadsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function FilterTag({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+      {label}
+      <button onClick={onRemove} className="hover:text-blue-900 ml-0.5">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </span>
   );
 }

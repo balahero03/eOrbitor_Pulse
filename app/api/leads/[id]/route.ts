@@ -52,7 +52,7 @@ export async function PATCH(
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { name, email, phone, company, source, status, leadScore, assignedToId, broughtById, linkedCustomerId, qualificationNotes, remarks } = body;
+    const { name, email, phone, company, source, status, leadScore, assignedToId, broughtById, linkedCustomerId, qualificationNotes, remarks, quoteNo, quoteValue, rfqDate, followUpDate } = body;
 
     // Auto-convert to customer when status advances to a positive stage
     const CUSTOMER_STAGES = ['PROSPECT', 'NEGOTIATION', 'WON'];
@@ -91,6 +91,10 @@ export async function PATCH(
         ...(resolvedCustomerId && { linkedCustomerId: resolvedCustomerId }),
         ...(qualificationNotes !== undefined && { qualificationNotes }),
         ...(remarks !== undefined && { remarks }),
+        ...(quoteNo !== undefined && { quoteNo }),
+        ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
+        ...(rfqDate !== undefined && { rfqDate: rfqDate ? new Date(rfqDate) : null }),
+        ...(followUpDate !== undefined && { followUpDate: followUpDate ? new Date(followUpDate) : null }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },

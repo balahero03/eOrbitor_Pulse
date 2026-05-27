@@ -26,6 +26,14 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const source = searchParams.get('source');
     const search = searchParams.get('search');
+    const assignedToId = searchParams.get('assignedToId');
+    const rfqFrom = searchParams.get('rfqFrom');
+    const rfqTo = searchParams.get('rfqTo');
+    const followUpFrom = searchParams.get('followUpFrom');
+    const followUpTo = searchParams.get('followUpTo');
+    const hasFollowUp = searchParams.get('hasFollowUp');
+    const quoteValueMin = searchParams.get('quoteValueMin');
+    const quoteValueMax = searchParams.get('quoteValueMax');
 
     const skip = (page - 1) * limit;
 
@@ -33,13 +41,11 @@ export async function GET(req: NextRequest) {
 
     // Role-based visibility
     if (decoded.role === 'SALES_EXEC') {
-      // Salesperson sees only leads assigned to them or brought by them
       where.OR = [
         { assignedToId: decoded.id },
         { broughtById: decoded.id },
       ];
     } else if (decoded.role === 'SALES_MANAGER') {
-      // Manager sees all leads belonging to their subordinates + their own
       const subordinates = await prisma.user.findMany({
         where: { managerId: decoded.id },
         select: { id: true },
@@ -52,21 +58,53 @@ export async function GET(req: NextRequest) {
     }
     // ADMIN sees all — no extra filter
 
+    const andConditions: any[] = [];
+
+    // Role filter already in where.OR — move to AND if we need to add more filters
+    if (where.OR) {
+      andConditions.push({ OR: where.OR });
+      delete where.OR;
+    }
+
     if (status) where.status = status;
     if (source) where.source = source;
+    if (assignedToId) where.assignedToId = assignedToId;
+
+    if (rfqFrom || rfqTo) {
+      where.rfqDate = {
+        ...(rfqFrom && { gte: new Date(rfqFrom) }),
+        ...(rfqTo && { lte: new Date(rfqTo + 'T23:59:59') }),
+      };
+    }
+    if (followUpFrom || followUpTo) {
+      where.followUpDate = {
+        ...(followUpFrom && { gte: new Date(followUpFrom) }),
+        ...(followUpTo && { lte: new Date(followUpTo + 'T23:59:59') }),
+      };
+    }
+    if (hasFollowUp === 'yes') where.followUpDate = { not: null };
+    if (hasFollowUp === 'no') where.followUpDate = null;
+
+    if (quoteValueMin || quoteValueMax) {
+      where.quoteValue = {
+        ...(quoteValueMin && { gte: parseFloat(quoteValueMin) }),
+        ...(quoteValueMax && { lte: parseFloat(quoteValueMax) }),
+      };
+    }
+
     if (search) {
       const searchConditions = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { company: { contains: search, mode: 'insensitive' } },
+        { quoteNo: { contains: search, mode: 'insensitive' } },
+        { remarks: { contains: search, mode: 'insensitive' } },
       ];
-      // Merge search with any existing OR (role filter)
-      if (where.OR) {
-        where.AND = [{ OR: where.OR }, { OR: searchConditions }];
-        delete where.OR;
-      } else {
-        where.OR = searchConditions;
-      }
+      andConditions.push({ OR: searchConditions });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [leads, total] = await Promise.all([

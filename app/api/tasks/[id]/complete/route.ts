@@ -5,13 +5,9 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-interface DecodedToken {
-  userId: string;
-}
-
-function verifyToken(token: string): DecodedToken | null {
+function verifyToken(token: string) {
   try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
+    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
   } catch {
     return null;
   }
@@ -23,8 +19,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const task = await prisma.task.update({
-    where: { id: id },
+    where: { id },
     data: {
       status: 'COMPLETED',
       completedAt: new Date(),

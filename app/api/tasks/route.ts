@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 interface DecodedToken {
-  userId: string;
+  id: string;
+  role: string;
 }
 
 function verifyToken(token: string): DecodedToken | null {

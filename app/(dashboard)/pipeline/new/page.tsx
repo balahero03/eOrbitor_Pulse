@@ -15,12 +15,12 @@ export default function NewDealPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
+    dealName: '',
     customerId: '',
-    value: '',
-    probability: '50',
+    dealValue: '',
+    winProbability: '50',
     stage: 'SUSPECT',
-    expectedClosureDate: '',
+    expectedCloseDate: '',
   });
 
   useEffect(() => {
@@ -62,12 +62,12 @@ export default function NewDealPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: formData.name,
+          dealName: formData.dealName,
           customerId: formData.customerId,
-          value: parseInt(formData.value),
-          probability: parseInt(formData.probability),
+          dealValue: parseInt(formData.dealValue),
+          winProbability: parseInt(formData.winProbability),
           stage: formData.stage,
-          expectedClosureDate: formData.expectedClosureDate || undefined,
+          expectedCloseDate: formData.expectedCloseDate || undefined,
         }),
       });
 
@@ -108,8 +108,8 @@ export default function NewDealPage() {
                 <label className="block text-sm font-medium mb-1">Deal Name *</label>
                 <input
                   type="text"
-                  name="name"
-                  value={formData.name}
+                  name="dealName"
+                  value={formData.dealName}
                   onChange={handleChange}
                   placeholder="Enterprise License - Q3 2026"
                   required
@@ -137,8 +137,8 @@ export default function NewDealPage() {
                   <label className="block text-sm font-medium mb-1">Deal Value *</label>
                   <input
                     type="number"
-                    name="value"
-                    value={formData.value}
+                    name="dealValue"
+                    value={formData.dealValue}
                     onChange={handleChange}
                     placeholder="500000"
                     required
@@ -149,8 +149,8 @@ export default function NewDealPage() {
                   <label className="block text-sm font-medium mb-1">Win Probability %</label>
                   <input
                     type="number"
-                    name="probability"
-                    value={formData.probability}
+                    name="winProbability"
+                    value={formData.winProbability}
                     onChange={handleChange}
                     min="0"
                     max="100"
@@ -186,8 +186,8 @@ export default function NewDealPage() {
                 <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
                 <input
                   type="date"
-                  name="expectedClosureDate"
-                  value={formData.expectedClosureDate}
+                  name="expectedCloseDate"
+                  value={formData.expectedCloseDate}
                   onChange={handleChange}
                 />
               </div>

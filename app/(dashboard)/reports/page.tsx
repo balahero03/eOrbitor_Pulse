@@ -4,23 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface DashboardData {
+  role: string;
   kpis: {
     totalLeads: number;
     totalCustomers: number;
     activeDeals: number;
-    totalRevenue: number;
     openTickets: number;
     overdueTasks: number;
   };
-  pipeline: Array<{ stage: string; value: number }>;
-  recentOrders: Array<{
-    id: string;
-    orderNumber: string;
-    customerName: string;
-    amount: number;
-    status: string;
-    createdAt: string;
-  }>;
+  pipeline: Array<{ stage: string; value: number; count: number }>;
 }
 
 export default function ReportsPage() {
@@ -28,42 +20,29 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/reports/dashboard', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to fetch');
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/reports/dashboard', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  const fmt = (value: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
-      if (!res.ok) throw new Error('Failed to fetch dashboard');
-
-      const data = await res.json();
-      setData(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  if (loading) {
-    return <div className="p-6 text-center">Loading...</div>;
-  }
-
-  if (!data) {
-    return <div className="p-6 text-center">No data available</div>;
-  }
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading reports...</div>;
+  if (!data || !data.kpis) return <div className="p-6 text-center text-gray-500">No data available</div>;
 
   const pipelineTotal = data.pipeline.reduce((sum, p) => sum + p.value, 0);
 
@@ -87,10 +66,6 @@ export default function ReportsPage() {
           <p className="text-gray-600 text-sm font-medium">Active Deals</p>
           <p className="text-4xl font-bold text-purple-700">{data.kpis.activeDeals}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500">
-          <p className="text-gray-600 text-sm font-medium">This Month Revenue</p>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(data.kpis.totalRevenue)}</p>
-        </div>
         <div className="card p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-600 text-sm font-medium">Open Tickets</p>
           <p className="text-4xl font-bold text-red-700">{data.kpis.openTickets}</p>
@@ -99,42 +74,46 @@ export default function ReportsPage() {
           <p className="text-gray-600 text-sm font-medium">Overdue Tasks</p>
           <p className="text-4xl font-bold text-orange-700">{data.kpis.overdueTasks}</p>
         </div>
+        <div className="card p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border-l-4 border-indigo-500">
+          <p className="text-gray-600 text-sm font-medium">Pipeline Value</p>
+          <p className="text-2xl font-bold text-indigo-700">{fmt(pipelineTotal)}</p>
+        </div>
       </div>
 
-      {/* Reports Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Pipeline Value */}
+        {/* Pipeline Value by Stage */}
         <div className="card p-6">
-          <h2 className="text-xl font-bold mb-4">Pipeline Value by Stage</h2>
-          <div className="space-y-3">
-            {data.pipeline.map((p) => {
-              const percentage = pipelineTotal > 0 ? (p.value / pipelineTotal) * 100 : 0;
-              return (
-                <div key={p.stage}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium">{p.stage}</p>
-                    <p className="text-sm font-bold text-blue-600">{formatCurrency(p.value)}</p>
+          <h2 className="text-xl font-bold mb-4">Pipeline by Stage</h2>
+          {data.pipeline.length === 0 ? (
+            <p className="text-gray-500 text-sm">No active deals in pipeline.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.pipeline.map(p => {
+                const pct = pipelineTotal > 0 ? (p.value / pipelineTotal) * 100 : 0;
+                return (
+                  <div key={p.stage}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium">{p.stage} <span className="text-gray-400">({p.count})</span></p>
+                      <p className="text-sm font-bold text-blue-600">{fmt(p.value)}</p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <div className="pt-3 border-t border-gray-200 mt-3">
-              <p className="text-sm font-medium text-gray-600">Total Pipeline Value</p>
-              <p className="text-2xl font-bold text-blue-700">{formatCurrency(pipelineTotal)}</p>
+                );
+              })}
+              <div className="pt-3 border-t border-gray-200">
+                <p className="text-sm font-medium text-gray-600">Total Pipeline Value</p>
+                <p className="text-2xl font-bold text-blue-700">{fmt(pipelineTotal)}</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Report Links */}
         <div className="space-y-3">
           <Link href="/reports/sales" className="card p-6 hover:shadow-lg transition block">
-            <h3 className="text-lg font-bold mb-2">Sales Dashboard</h3>
+            <h3 className="text-lg font-bold mb-2">Sales Report</h3>
             <p className="text-gray-600 text-sm">Pipeline, revenue, win rate, and deal analytics</p>
           </Link>
           <Link href="/reports/leads" className="card p-6 hover:shadow-lg transition block">
@@ -150,55 +129,6 @@ export default function ReportsPage() {
             <p className="text-gray-600 text-sm">Orders, payment status, and customer insights</p>
           </Link>
         </div>
-      </div>
-
-      {/* Recent Orders */}
-      <div className="card p-6">
-        <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
-        {data.recentOrders.length === 0 ? (
-          <p className="text-gray-600">No orders this period</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Order #</th>
-                  <th className="px-4 py-2 text-left font-medium">Customer</th>
-                  <th className="px-4 py-2 text-left font-medium">Amount</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-left font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {data.recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-blue-600">
-                      <Link href={`/orders/${order.id}`} className="hover:text-blue-800">
-                        {order.orderNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2">{order.customerName}</td>
-                    <td className="px-4 py-2 font-medium">{formatCurrency(Number(order.amount))}</td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`badge px-2 py-1 rounded text-xs font-medium ${
-                          order.status === 'COMPLETED'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

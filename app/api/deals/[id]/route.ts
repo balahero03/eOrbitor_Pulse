@@ -15,15 +15,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const deal = await prisma.deal.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
         customer: true,
-        createdBy: { select: { firstName: true, lastName: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
         activityLogs: { orderBy: { createdAt: 'desc' }, take: 10 },
       },
     });
 
-    if (!deal || deal.deletedAt) {
+    if (!deal) {
       return NextResponse.json({ message: 'Deal not found' }, { status: 404 });
     }
 
@@ -45,17 +45,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { name, stage, value, probability, expectedClosureDate, notes } = body;
+    const { dealName, stage, dealValue, winProbability, expectedCloseDate, nextAction, lostReason } = body;
 
     const deal = await prisma.deal.update({
-      where: { id: id },
+      where: { id },
       data: {
-        ...(name && { name }),
+        ...(dealName && { dealName }),
         ...(stage && { stage }),
-        ...(value && { value }),
-        ...(probability !== undefined && { probability }),
-        ...(expectedClosureDate && { expectedClosureDate: new Date(expectedClosureDate) }),
-        ...(notes && { notes }),
+        ...(dealValue !== undefined && { dealValue }),
+        ...(winProbability !== undefined && { winProbability }),
+        ...(expectedCloseDate && { expectedCloseDate: new Date(expectedCloseDate) }),
+        ...(nextAction !== undefined && { nextAction }),
+        ...(lostReason !== undefined && { lostReason }),
+        ...(stage === 'CLOSED_WON' || stage === 'LOST' ? { closedAt: new Date() } : {}),
       },
     });
 
@@ -76,10 +78,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
-    await prisma.deal.update({
-      where: { id: id },
-      data: { deletedAt: new Date() },
-    });
+    await prisma.deal.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Deal deleted successfully' });
   } catch (error) {

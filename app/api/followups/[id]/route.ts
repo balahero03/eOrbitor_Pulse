@@ -5,13 +5,9 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-interface DecodedToken {
-  userId: string;
-}
-
-function verifyToken(token: string): DecodedToken | null {
+function verifyToken(token: string) {
   try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
+    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
   } catch {
     return null;
   }
@@ -23,8 +19,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const followUp = await prisma.followUp.findUnique({
-    where: { id: id },
+    where: { id },
     include: {
       deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },
       lead: { select: { id: true, name: true } },
@@ -45,11 +42,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const body = await req.json();
   const { type, scheduledDate, actualDate, durationMinutes, notes, outcome, nextAction } = body;
 
   const followUp = await prisma.followUp.update({
-    where: { id: id },
+    where: { id },
     data: {
       ...(type !== undefined && { type }),
       ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
@@ -75,7 +73,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  await prisma.followUp.delete({ where: { id: id } });
+  const { id } = await params;
+  await prisma.followUp.delete({ where: { id } });
 
   return NextResponse.json({ message: 'Follow-up deleted' });
 }

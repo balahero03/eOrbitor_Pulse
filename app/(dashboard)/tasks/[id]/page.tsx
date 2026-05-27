@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Task {
@@ -19,7 +19,8 @@ interface Task {
   tags: string[];
 }
 
-export default function TaskDetailPage({ params }: { params: { id: string } }) {
+export default function TaskDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,12 +37,12 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchTask();
-  }, [params.id]);
+  }, [id]);
 
   const fetchTask = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tasks/${params.id}`, {
+      const res = await fetch(`/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -68,7 +69,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tasks/${params.id}`, {
+      const res = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +100,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const handleCompleteTask = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tasks/${params.id}/complete`, {
+      const res = await fetch(`/api/tasks/${id}/complete`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -118,7 +119,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tasks/${params.id}`, {
+      const res = await fetch(`/api/tasks/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

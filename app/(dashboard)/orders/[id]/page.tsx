@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Order {
@@ -20,7 +20,8 @@ interface Order {
   createdAt: string;
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,12 +30,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   useEffect(() => {
     fetchOrder();
-  }, [params.id]);
+  }, [id]);
 
   const fetchOrder = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${params.id}`, {
+      const res = await fetch(`/api/orders/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -53,7 +54,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${params.id}/confirm`, {
+      const res = await fetch(`/api/orders/${id}/confirm`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -73,7 +74,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${params.id}/fulfill`, {
+      const res = await fetch(`/api/orders/${id}/fulfill`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${params.id}/payment`, {
+      const res = await fetch(`/api/orders/${id}/payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +129,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${params.id}`, {
+      const res = await fetch(`/api/orders/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
