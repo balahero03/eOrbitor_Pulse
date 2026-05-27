@@ -2,72 +2,61 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
-interface AttendanceRecord {
+interface DayRecord {
   id: string;
   userId: string;
   date: string;
-  firstLogin: string | null;
-  lastLogout: string | null;
-  totalHours: number;
+  loginTime: string | null;
+  logoutTime: string | null;
+  totalHours: number | null;
   activities: string[];
-  user: { id: string; firstName: string; lastName: string };
+  notes: string | null;
+  user: { id: string; firstName: string; lastName: string; role: string };
 }
 
 export default function AttendancePage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [records, setRecords] = useState<DayRecord[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [selectedUserRecords, setSelectedUserRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedUserId, setSelectedUserId] = useState<string>('all');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (!['ADMIN', 'SALES_MANAGER'].includes(u.role)) {
-          router.push('/dashboard');
-          return;
-        }
-        setCurrentUser(u);
-        fetchUsers(token);
+        if (u.role !== 'ADMIN') { router.push('/dashboard'); return; }
+        loadUsers(token!);
       })
       .catch(() => router.push('/login'));
-  }, [router]);
+  }, []);
 
-  const fetchUsers = async (token: string) => {
+  const loadUsers = async (token: string) => {
     try {
-      const res = await fetch('/api/users?limit=100', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch('/api/users?limit=200', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setUsers(data.users || []);
-      if (data.users?.length > 0) {
-        setSelectedUserId(data.users[0].id);
-        fetchAttendance(data.users[0].id, token);
-      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const fetchAttendance = async (userId: string, token: string) => {
+  const fetchAttendance = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const year = currentMonth.getFullYear();
-      const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
+      const month = currentMonth.getMonth() + 1;
+      const params = new URLSearchParams({ date: `${year}-${String(month).padStart(2, '0')}-01` });
+      if (selectedUserId !== 'all') params.set('userId', selectedUserId);
 
-      const res = await fetch(
-        `/api/daily-activity/team?date=${year}-${month}-01&limit=31&userId=${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      const res = await fetch(`/api/daily-activity/team?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
         setRecords(data.data || []);
@@ -79,240 +68,232 @@ export default function AttendancePage() {
     }
   };
 
-  useEffect(() => {
-    if (selectedUserId && currentUser) {
-      const token = localStorage.getItem('token');
-      if (token) fetchAttendance(selectedUserId, token);
-    }
-  }, [currentMonth, selectedUserId, currentUser]);
+  useEffect(() => { fetchAttendance(); }, [currentMonth, selectedUserId]);
 
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const formatDateString = (year: number, month: number, day: number) => {
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  };
-
-  const getAttendanceForDay = (day: number) => {
-    const dateStr = formatDateString(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + 1,
-      day
-    );
-    return records.find(r => r.date === dateStr);
-  };
-
-  const handleDayClick = (day: number) => {
-    const dateStr = formatDateString(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + 1,
-      day
-    );
-    setSelectedDay(dateStr);
-    const dayRecords = records.filter(r => r.date === dateStr);
-    setSelectedUserRecords(dayRecords);
-  };
-
-  const daysInMonth = getDaysInMonth(currentMonth);
-  const firstDay = getFirstDayOfMonth(currentMonth);
+  // Calendar helpers
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfWeek = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
   const monthName = currentMonth.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
-  const calendarDays = [];
-  for (let i = 0; i < firstDay; i++) {
-    calendarDays.push(null);
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    calendarDays.push(i);
-  }
+  const toDateStr = (day: number) =>
+    `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-  const selectedAttendance = getAttendanceForDay(parseInt(selectedDay?.split('-')[2] || ''));
+  const recordsForDay = (day: number) => records.filter(r => r.date === toDateStr(day));
 
-  if (loading && !records.length) {
-    return <div className="p-6 text-center">Loading...</div>;
-  }
+  const selectedDayRecords = selectedDay ? records.filter(r => r.date === selectedDay) : [];
+
+  // Summary counts for selected user
+  const presentDays = new Set(records.map(r => r.date)).size;
+  const totalHoursSum = records.reduce((s, r) => s + (r.totalHours || 0), 0);
+
+  // For "all users" mode, mark a day present if ANY user has a record
+  // For single user mode, mark present if that user has a record
+  const isDayPresent = (day: number) => recordsForDay(day).length > 0;
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Attendance Calendar</h1>
-          <p className="text-sm text-gray-500 mt-1">Track employee login/logout and attendance</p>
+          <h1 className="text-3xl font-bold">Attendance</h1>
+          <p className="text-sm text-gray-500 mt-1">Employee login/logout tracking</p>
         </div>
       </div>
 
-      {/* Employee Selection */}
-      <div className="mb-6 card p-4">
-        <label className="block text-sm font-semibold mb-2">Select Employee</label>
-        <select
-          value={selectedUserId}
-          onChange={e => {
-            setSelectedUserId(e.target.value);
-            setSelectedDay(null);
-            setSelectedUserRecords([]);
-          }}
-          className="w-full md:w-64 border rounded-lg px-3 py-2 text-sm"
-        >
-          {users.map(u => (
-            <option key={u.id} value={u.id}>
-              {u.firstName} {u.lastName} ({u.role})
-            </option>
-          ))}
-        </select>
+      {/* Controls */}
+      <div className="card p-4 mb-6 flex flex-wrap gap-4 items-end">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Employee</label>
+          <select
+            value={selectedUserId}
+            onChange={e => { setSelectedUserId(e.target.value); setSelectedDay(null); }}
+            className="border rounded-lg px-3 py-2 text-sm min-w-48"
+          >
+            <option value="all">All Employees</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.firstName} {u.lastName} ({u.role})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Month</label>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              className="btn btn-secondary btn-sm"
+            >←</button>
+            <span className="font-semibold text-sm px-2">{monthName}</span>
+            <button
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              disabled={currentMonth >= new Date()}
+              className="btn btn-secondary btn-sm disabled:opacity-40"
+            >→</button>
+          </div>
+        </div>
+
+        {/* Summary chips */}
+        <div className="flex gap-3 ml-auto">
+          <div className="px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-center">
+            <p className="text-xs text-gray-500 font-semibold">Present Days</p>
+            <p className="text-2xl font-bold text-green-700">{presentDays}</p>
+          </div>
+          <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <p className="text-xs text-gray-500 font-semibold">Total Hours</p>
+            <p className="text-2xl font-bold text-blue-700">{totalHoursSum.toFixed(1)}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
-        <div className="lg:col-span-2">
-          <div className="card p-6">
-            {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-6">
-              <button
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
-                }
-                className="btn btn-secondary btn-sm"
-              >
-                ← Previous
-              </button>
-              <h2 className="text-lg font-bold">{monthName}</h2>
-              <button
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
-                }
-                className="btn btn-secondary btn-sm"
-              >
-                Next →
-              </button>
-            </div>
+        <div className="lg:col-span-2 card p-6">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+              <div key={d} className="text-center text-xs font-semibold text-gray-400 py-2">{d}</div>
+            ))}
+          </div>
 
-            {/* Weekday Headers */}
-            <div className="grid grid-cols-7 gap-2 mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
-                  {day}
-                </div>
+          {/* Day grid */}
+          {loading ? (
+            <div className="py-16 text-center text-gray-400">Loading...</div>
+          ) : (
+            <div className="grid grid-cols-7 gap-1">
+              {/* Empty cells before first day */}
+              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                <div key={`e-${i}`} />
               ))}
-            </div>
 
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map((day, index) => {
-                if (day === null) {
-                  return <div key={`empty-${index}`} className="aspect-square"></div>;
-                }
-
-                const attendance = getAttendanceForDay(day);
-                const isSelected = selectedDay === formatDateString(
-                  currentMonth.getFullYear(),
-                  currentMonth.getMonth() + 1,
-                  day
-                );
-                const isPresent = !!attendance?.firstLogin;
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                const dateStr = toDateStr(day);
+                const present = isDayPresent(day);
+                const dayRecs = recordsForDay(day);
+                const isSelected = selectedDay === dateStr;
+                const isToday = dateStr === new Date().toISOString().slice(0, 10);
+                const isFuture = dateStr > new Date().toISOString().slice(0, 10);
 
                 return (
                   <button
                     key={day}
-                    onClick={() => handleDayClick(day)}
-                    className={`aspect-square rounded-lg border-2 flex items-center justify-center font-semibold text-sm transition ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : isPresent
-                        ? 'border-green-300 bg-green-50 hover:border-green-400'
-                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                    }`}
+                    onClick={() => !isFuture && setSelectedDay(isSelected ? null : dateStr)}
+                    disabled={isFuture}
+                    className={`
+                      aspect-square rounded-xl border-2 flex flex-col items-center justify-center
+                      text-sm font-semibold transition-all
+                      ${isFuture ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-default' :
+                        isSelected ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md' :
+                        present ? 'border-green-400 bg-green-50 text-green-800 hover:border-green-500 hover:shadow' :
+                        'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}
+                      ${isToday ? 'ring-2 ring-blue-300 ring-offset-1' : ''}
+                    `}
                   >
-                    <div className="text-center">
-                      <div className="text-lg">{day}</div>
-                      {isPresent && <div className="text-xs text-green-600">✓</div>}
-                    </div>
+                    <span>{day}</span>
+                    {present && !isFuture && (
+                      <span className="text-xs text-green-600 font-normal">
+                        {selectedUserId === 'all' ? `${dayRecs.length}p` : '✓'}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+          )}
 
-            <div className="mt-4 flex gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-green-50 border-2 border-green-300"></div>
-                <span>Present</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gray-50 border-2 border-gray-200"></div>
-                <span>Absent</span>
-              </div>
+          {/* Legend */}
+          <div className="mt-4 flex gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded border-2 border-green-400 bg-green-50" />Present
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded border-2 border-gray-200 bg-white" />Absent
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded ring-2 ring-blue-300 border-2 border-gray-200" />Today
             </div>
           </div>
         </div>
 
-        {/* Details Panel */}
-        <div className="lg:col-span-1">
-          <div className="card p-6 sticky top-20">
-            <h3 className="font-bold mb-4">
-              {selectedDay ? new Date(selectedDay).toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              }) : 'Select a date'}
-            </h3>
+        {/* Detail Panel */}
+        <div className="card p-6 sticky top-20 self-start">
+          {selectedDay ? (
+            <>
+              <h3 className="font-bold text-gray-800 mb-4">
+                {new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-IN', {
+                  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                })}
+              </h3>
 
-            {selectedDay && selectedAttendance ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-600">First Login</p>
-                  <p className="font-semibold text-sm">
-                    {selectedAttendance.firstLogin
-                      ? new Date(selectedAttendance.firstLogin).toLocaleTimeString('en-IN')
-                      : '—'}
-                  </p>
+              {selectedDayRecords.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-4xl mb-2">🏖️</p>
+                  <p className="text-gray-500 text-sm">No login recorded</p>
                 </div>
+              ) : (
+                <div className="space-y-5">
+                  {selectedDayRecords.map(rec => (
+                    <div key={rec.id} className="border rounded-lg p-4 space-y-3">
+                      {selectedUserId === 'all' && (
+                        <div className="flex items-center gap-2 pb-2 border-b">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                            {rec.user.firstName[0]}{rec.user.lastName[0]}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{rec.user.firstName} {rec.user.lastName}</p>
+                            <p className="text-xs text-gray-400">{rec.user.role}</p>
+                          </div>
+                        </div>
+                      )}
 
-                <div>
-                  <p className="text-xs text-gray-600">Last Logout</p>
-                  <p className="font-semibold text-sm">
-                    {selectedAttendance.lastLogout
-                      ? new Date(selectedAttendance.lastLogout).toLocaleTimeString('en-IN')
-                      : 'Still logged in'}
-                  </p>
-                </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-400 font-semibold uppercase">First Login</p>
+                          <p className="font-semibold text-green-700">
+                            {rec.loginTime
+                              ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                              : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 font-semibold uppercase">Last Logout</p>
+                          <p className="font-semibold text-red-600">
+                            {rec.logoutTime
+                              ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                              : <span className="text-orange-500">Active</span>}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                  <p className="text-xs text-gray-600">Total Hours</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {selectedAttendance.totalHours
-                      ? selectedAttendance.totalHours.toFixed(2)
-                      : '—'}
-                  </p>
-                </div>
+                      {rec.totalHours != null && (
+                        <div className="bg-blue-50 rounded-lg p-3 text-center">
+                          <p className="text-xs text-gray-500 font-semibold uppercase">Total Hours</p>
+                          <p className="text-3xl font-bold text-blue-700">{rec.totalHours.toFixed(2)}</p>
+                          <p className="text-xs text-gray-400">hrs</p>
+                        </div>
+                      )}
 
-                {selectedAttendance.activities && selectedAttendance.activities.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-600 font-semibold mb-2">Activities</p>
-                    <div className="space-y-1">
-                      {selectedAttendance.activities.map((activity, i) => (
-                        <p key={i} className="text-xs text-gray-700 bg-gray-50 p-1.5 rounded">
-                          • {activity}
-                        </p>
-                      ))}
+                      {rec.activities && rec.activities.length > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Activities</p>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {rec.activities.map((a, i) => (
+                              <p key={i} className="text-xs text-gray-700 bg-gray-50 rounded px-2 py-1">• {a}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No data for selected date</p>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-4xl mb-3">📅</p>
+              <p className="text-gray-500 text-sm">Click a date to see details</p>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="mt-6">
-        <Link href="/dashboard" className="btn btn-secondary">
-          ← Back to Dashboard
-        </Link>
       </div>
     </div>
   );
