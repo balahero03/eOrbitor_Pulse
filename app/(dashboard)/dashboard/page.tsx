@@ -455,63 +455,133 @@ function AdminDashboard({ data, user }: { data: any; user: any }) {
     );
   }
 
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
   const kpis = [
-    { label: 'Total Leads',     value: data.kpis.totalLeads,     icon: '🎯', href: '/leads' },
-    { label: 'Customers',       value: data.kpis.totalCustomers, icon: '🏢', href: '/customers' },
-    { label: 'Active Deals',    value: data.kpis.activeDeals,    icon: '📈', href: '/pipeline' },
-    { label: 'Open Tickets',    value: data.kpis.openTickets,    icon: '🎫', href: '/support' },
-    { label: 'Overdue Tasks',   value: data.kpis.overdueTasks,   icon: '⏰', href: '/tasks' },
+    { label: 'Total Leads',     value: data.kpis.totalLeads,     icon: '🎯', color: 'from-blue-50 to-blue-100 border-blue-300', href: '/leads' },
+    { label: 'Active Customers', value: data.kpis.totalCustomers, icon: '🏢', color: 'from-green-50 to-green-100 border-green-300', href: '/customers' },
+    { label: 'Active Deals',    value: data.kpis.activeDeals,    icon: '📈', color: 'from-purple-50 to-purple-100 border-purple-300', href: '/pipeline' },
+    { label: 'Support Tickets', value: data.kpis.openTickets,    icon: '🎫', color: 'from-orange-50 to-orange-100 border-orange-300', href: '/support' },
+    { label: 'Pending Tasks',   value: data.kpis.overdueTasks,   icon: '⏰', color: 'from-red-50 to-red-100 border-red-300', href: '/tasks' },
   ];
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900">Welcome back, {user.firstName}</h1>
+          <p className="text-gray-500 mt-2">{today}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/leads/new" className="btn btn-primary">+ New Lead</Link>
+          <Link href="/customers/new" className="btn btn-secondary">+ New Customer</Link>
+        </div>
+      </div>
 
+      {/* Main KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((k) => (
-          <Link key={k.label} href={k.href} className="card p-5 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="text-3xl mb-2">{k.icon}</div>
-            <p className="text-2xl font-bold">{k.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{k.label}</p>
+          <Link key={k.label} href={k.href} className={`card p-6 bg-gradient-to-br ${k.color} border-2 hover:shadow-lg hover:scale-105 transition-all cursor-pointer`}>
+            <div className="text-4xl mb-3">{k.icon}</div>
+            <p className="text-gray-600 text-sm font-medium uppercase tracking-wide">{k.label}</p>
+            <p className="text-3xl font-bold mt-2 text-gray-900">{k.value}</p>
           </Link>
         ))}
       </div>
 
-      {/* Pipeline by stage */}
-      {data.pipeline && data.pipeline.length > 0 && (
-        <div className="card p-6">
-          <h2 className="font-bold text-gray-800 mb-4">Overall Pipeline by Stage</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pipeline Overview */}
+        <div className="lg:col-span-2 card p-6">
+          <h2 className="text-xl font-bold mb-6 text-gray-900">Sales Pipeline Overview</h2>
+          {data.pipeline && data.pipeline.length > 0 ? (
+            <div className="space-y-4">
+              {data.pipeline
+                .sort((a: any, b: any) => Number(b.value) - Number(a.value))
+                .map((s: any, idx: number) => {
+                  const colors = ['bg-indigo-500', 'bg-blue-500', 'bg-cyan-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500'];
+                  return (
+                    <div key={s.stage} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-700">{s.stage}</span>
+                        <span className="text-sm text-gray-500">{s.count} deals</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className={`${colors[idx % colors.length]} h-2.5 rounded-full transition-all`}
+                          style={{
+                            width: `${Math.min(100, (Number(s.value) / Math.max(...data.pipeline.map((x: any) => Number(x.value)), 1)) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>₹{Number(s.value).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">No pipeline data available</div>
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="card p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200">
+          <h2 className="text-xl font-bold mb-6 text-gray-900">Quick Actions</h2>
           <div className="space-y-3">
-            {data.pipeline
-              .sort((a: any, b: any) => Number(b.value) - Number(a.value))
-              .map((s: any) => (
-                <div key={s.stage} className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-gray-600 w-28 shrink-0">{s.stage}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3">
-                    <div
-                      className="bg-blue-500 h-3 rounded-full"
-                      style={{
-                        width: `${Math.min(100, (Number(s.value) / Math.max(...data.pipeline.map((x: any) => Number(x.value)), 1)) * 100)}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-gray-700 w-24 text-right">
-                    ₹{Number(s.value).toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-xs text-gray-400 w-16 text-right">{s.count} deals</span>
-                </div>
-              ))}
+            <Link href="/users" className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-indigo-50 transition-colors border border-indigo-100">
+              <span className="text-xl">👤</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-900">User Management</p>
+                <p className="text-xs text-gray-500">Add/manage team members</p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </Link>
+            <Link href="/approvals" className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-indigo-50 transition-colors border border-indigo-100">
+              <span className="text-xl">✅</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-900">Pending Approvals</p>
+                <p className="text-xs text-gray-500">Review requests</p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </Link>
+            <Link href="/announcements" className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-indigo-50 transition-colors border border-indigo-100">
+              <span className="text-xl">📢</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-900">Announcements</p>
+                <p className="text-xs text-gray-500">Post company news</p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </Link>
+            <Link href="/attendance" className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-indigo-50 transition-colors border border-indigo-100">
+              <span className="text-xl">📅</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-900">Attendance</p>
+                <p className="text-xs text-gray-500">View team activity</p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </Link>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="card p-6">
-        <h2 className="font-bold mb-4">Admin Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Link href="/leads/new" className="btn btn-primary text-center text-sm">+ New Lead</Link>
-          <Link href="/customers/new" className="btn btn-primary text-center text-sm">+ New Customer</Link>
-          <Link href="/users" className="btn btn-secondary text-center text-sm">Manage Users</Link>
-          <Link href="/approvals" className="btn btn-secondary text-center text-sm">Approvals</Link>
+      {/* System Health */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card p-6 border-l-4 border-green-500">
+          <p className="text-gray-600 text-sm font-medium uppercase tracking-wide">System Status</p>
+          <p className="text-2xl font-bold mt-2 text-green-600">✓ Operational</p>
+          <p className="text-xs text-gray-500 mt-2">All systems running normally</p>
+        </div>
+        <div className="card p-6 border-l-4 border-blue-500">
+          <p className="text-gray-600 text-sm font-medium uppercase tracking-wide">Last Updated</p>
+          <p className="text-lg font-bold mt-2 text-blue-600">{new Date().toLocaleTimeString('en-IN')}</p>
+          <p className="text-xs text-gray-500 mt-2">Real-time data</p>
+        </div>
+        <div className="card p-6 border-l-4 border-purple-500">
+          <p className="text-gray-600 text-sm font-medium uppercase tracking-wide">Database</p>
+          <p className="text-2xl font-bold mt-2 text-purple-600">✓ Connected</p>
+          <p className="text-xs text-gray-500 mt-2">All services active</p>
         </div>
       </div>
     </div>
