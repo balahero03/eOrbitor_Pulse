@@ -66,7 +66,7 @@ export default function UsersPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (u.role !== 'ADMIN') { router.push('/dashboard'); return; }
+        if (u.role !== 'ADMIN' && u.role !== 'SUPPORT') { router.push('/dashboard'); return; }
         setCurrentUser(u);
         fetchUsers();
       })
@@ -226,9 +226,11 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-sm text-gray-500 mt-1">{users.length} total · {totalActive} active</p>
         </div>
-        <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
-          <span className="text-lg">+</span> Add User
-        </button>
+        {currentUser?.role === 'ADMIN' && (
+          <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+            <span className="text-lg">+</span> Add User
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -255,7 +257,7 @@ export default function UsersPage() {
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">Department</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">Reports To</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                        {currentUser?.role === 'ADMIN' && <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -290,33 +292,35 @@ export default function UsersPage() {
                               {u.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => openEdit(u)}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => openPassword(u)}
-                                className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                              >
-                                Password
-                              </button>
-                              <button
-                                onClick={() => handleToggleActive(u)}
-                                disabled={u.id === currentUser?.id}
-                                className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${
-                                  u.isActive
-                                    ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                    : 'border-green-200 text-green-600 hover:bg-green-50'
-                                }`}
-                              >
-                                {u.isActive ? 'Deactivate' : 'Activate'}
-                              </button>
-                            </div>
-                          </td>
+                          {currentUser?.role === 'ADMIN' && (
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => openEdit(u)}
+                                  className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => openPassword(u)}
+                                  className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                >
+                                  Password
+                                </button>
+                                <button
+                                  onClick={() => handleToggleActive(u)}
+                                  disabled={u.id === currentUser?.id}
+                                  className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${
+                                    u.isActive
+                                      ? 'border-red-200 text-red-600 hover:bg-red-50'
+                                      : 'border-green-200 text-green-600 hover:bg-green-50'
+                                  }`}
+                                >
+                                  {u.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

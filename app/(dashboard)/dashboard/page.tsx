@@ -443,6 +443,127 @@ function ManagerDashboard({ data, user }: { data: any; user: any }) {
   );
 }
 
+// ─── Support Dashboard ──────────────────────────────────────────────────────
+function SupportDashboard({ user }: { user: any }) {
+  const router = useRouter();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [stats, setStats] = useState({ open: 0, inProgress: 0, resolved: 0, urgent: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/tickets?limit=50', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        const list = data.tickets || [];
+        setTickets(list);
+        setStats({
+          open:       list.filter((t: any) => t.status === 'OPEN').length,
+          inProgress: list.filter((t: any) => t.status === 'IN_PROGRESS').length,
+          resolved:   list.filter((t: any) => t.status === 'RESOLVED').length,
+          urgent:     list.filter((t: any) => t.priority === 'URGENT').length,
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const STATUS_COLOR: Record<string, string> = {
+    OPEN:        'bg-red-50 text-red-700 border border-red-200',
+    IN_PROGRESS: 'bg-blue-50 text-blue-700 border border-blue-200',
+    RESOLVED:    'bg-green-50 text-green-700 border border-green-200',
+    CLOSED:      'bg-gray-100 text-gray-600',
+  };
+
+  const PRIORITY_COLOR: Record<string, string> = {
+    URGENT: 'bg-red-100 text-red-800 font-bold',
+    HIGH:   'bg-orange-100 text-orange-800',
+    MEDIUM: 'bg-yellow-100 text-yellow-800',
+    LOW:    'bg-green-100 text-green-700',
+  };
+
+  const todayStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user.firstName}
+          </h1>
+          <p className="text-gray-500 mt-0.5">{todayStr}</p>
+        </div>
+        <Link href="/support/new" className="btn btn-primary">+ New Ticket</Link>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card p-5 border-l-4 border-red-400 bg-red-50">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Open</p>
+          <p className="text-4xl font-bold mt-1 text-red-700">{stats.open}</p>
+          <p className="text-xs text-gray-500 mt-1">need attention</p>
+        </div>
+        <div className="card p-5 border-l-4 border-blue-400 bg-blue-50">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">In Progress</p>
+          <p className="text-4xl font-bold mt-1 text-blue-700">{stats.inProgress}</p>
+          <p className="text-xs text-gray-500 mt-1">being worked on</p>
+        </div>
+        <div className="card p-5 border-l-4 border-orange-400 bg-orange-50">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgent</p>
+          <p className="text-4xl font-bold mt-1 text-orange-700">{stats.urgent}</p>
+          <p className="text-xs text-gray-500 mt-1">high priority</p>
+        </div>
+        <div className="card p-5 border-l-4 border-green-400 bg-green-50">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resolved</p>
+          <p className="text-4xl font-bold mt-1 text-green-700">{stats.resolved}</p>
+          <p className="text-xs text-gray-500 mt-1">completed</p>
+        </div>
+      </div>
+
+      {/* Assigned Tickets */}
+      <div className="card overflow-hidden">
+        <div className="p-5 border-b flex items-center justify-between">
+          <h2 className="font-bold text-gray-800">My Assigned Tickets</h2>
+          <Link href="/support" className="text-xs text-blue-600 hover:underline">View all</Link>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-gray-400">Loading...</div>
+        ) : tickets.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">
+            <div className="text-3xl mb-2">✅</div>
+            <p>No tickets assigned to you</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {tickets.slice(0, 10).map((ticket: any) => (
+              <div
+                key={ticket.id}
+                onClick={() => router.push(`/support/${ticket.id}`)}
+                className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-blue-600">{ticket.ticketNumber}</p>
+                  <p className="text-sm text-gray-800 truncate">{ticket.subject}</p>
+                  <p className="text-xs text-gray-500">{ticket.customer?.companyName}</p>
+                </div>
+                <div className="flex items-center gap-2 ml-4 shrink-0">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${PRIORITY_COLOR[ticket.priority] || 'bg-gray-100 text-gray-600'}`}>
+                    {ticket.priority}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLOR[ticket.status] || 'bg-gray-100 text-gray-600'}`}>
+                    {ticket.status.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin Dashboard ────────────────────────────────────────────────────────
 function AdminDashboard({ data, user }: { data: any; user: any }) {
   if (!data?.kpis) {
@@ -650,6 +771,10 @@ export default function DashboardPage() {
 
   if (user.role === 'SALES_MANAGER') {
     return <ManagerDashboard data={data} user={user} />;
+  }
+
+  if (user.role === 'SUPPORT') {
+    return <SupportDashboard user={user} />;
   }
 
   return <AdminDashboard data={data} user={user} />;

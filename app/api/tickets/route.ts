@@ -8,17 +8,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 async function verifyAuth(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '');
   if (!token) throw new Error('Unauthorized');
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    throw new Error('Invalid token');
-  }
+  return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    await verifyAuth(req);
+    const auth = await verifyAuth(req);
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -30,6 +25,24 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit;
     const where: any = {};
+
+    // Role-based filtering
+    if (auth.role === 'SUPPORT') {
+      // Support agents only see tickets assigned to them
+      where.assignedToId = auth.id;
+    } else if (auth.role === 'SALES_EXEC') {
+      // Sales execs see tickets they created
+      where.createdById = auth.id;
+    } else if (auth.role === 'SALES_MANAGER') {
+      // Managers see tickets created by their team
+      const subordinates = await prisma.user.findMany({
+        where: { managerId: auth.id },
+        select: { id: true },
+      });
+      const teamIds = [auth.id, ...subordinates.map((u: any) => u.id)];
+      where.createdById = { in: teamIds };
+    }
+    // ADMIN sees all tickets — no extra filter
 
     if (status) where.status = status;
     if (priority) where.priority = priority;
@@ -66,11 +79,16 @@ export async function POST(req: NextRequest) {
     const auth = await verifyAuth(req);
     const body = await req.json();
 
-    const { customerId, dealId, type, priority, subject, description } = body;
+    const { customerId, dealId, type, priority, subject, description, assignedToId } = body;
 
     if (!customerId || !type || !priority || !subject || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Admins/managers can assign to anyone; others are self-assigned
+    const resolvedAssignedTo = (
+      ['ADMIN', 'SALES_MANAGER'].includes(auth.role) && assignedToId
+    ) ? assignedToId : auth.id;
 
     const ticketNumber = `TKT-${Date.now()}`;
 
@@ -83,7 +101,7 @@ export async function POST(req: NextRequest) {
         priority,
         subject,
         description,
-        assignedToId: auth.id,
+        assignedToId: resolvedAssignedTo,
         createdById: auth.id,
       },
       include: { customer: true, assignedTo: true, createdBy: true },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Customer {
@@ -11,12 +11,14 @@ interface Customer {
 
 export default function NewDealPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefilledCustomerId = searchParams.get('customerId') || '';
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     dealName: '',
-    customerId: '',
+    customerId: prefilledCustomerId,
     dealValue: '',
     winProbability: '50',
     stage: 'SUSPECT',

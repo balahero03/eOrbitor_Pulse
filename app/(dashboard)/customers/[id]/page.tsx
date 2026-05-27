@@ -40,6 +40,7 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentUserRole, setCurrentUserRole] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({
@@ -51,6 +52,11 @@ export default function CustomerDetailPage() {
   });
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(u => setCurrentUserRole(u.role))
+      .catch(console.error);
     fetchCustomer();
   }, [id]);
 
@@ -351,12 +357,19 @@ export default function CustomerDetailPage() {
           </div>
 
           {/* Actions */}
+          {currentUserRole !== 'SUPPORT' && (
           <div className="space-y-2">
             <Link href={`/customers/${customer.id}/edit`} className="btn btn-primary w-full text-center">
               Edit Customer
             </Link>
-            <button className="btn btn-secondary w-full">+ New Deal</button>
+            <button
+              className="btn btn-secondary w-full"
+              onClick={() => router.push(`/pipeline/new?customerId=${customer.id}`)}
+            >
+              + New Deal
+            </button>
           </div>
+          )}
         </div>
       </div>
     </div>

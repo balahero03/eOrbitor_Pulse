@@ -13,22 +13,22 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { label: 'Dashboard',   href: '/dashboard',   icon: '📊' },
-  { label: 'Leads',       href: '/leads',        icon: '👥' },
-  { label: 'Customers',   href: '/customers',    icon: '🏢' },
-  { label: 'Pipeline',    href: '/pipeline',     icon: '📈' },
-  { label: 'Quotations',  href: '/quotations',   icon: '📄' },
-  { label: 'Orders',      href: '/orders',       icon: '📦' },
-  { label: 'Tasks',       href: '/tasks',        icon: '✓' },
-  { label: 'Support',     href: '/support',      icon: '🆘' },
-  { label: 'Activity',    href: '/daily-activity', icon: '📝' },
-  { label: 'Team Activity', href: '/team-activity', icon: '👥', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Attendance',  href: '/attendance', icon: '📅', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Reports',     href: '/reports',      icon: '📊', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Approvals',   href: '/approvals',    icon: '✅', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Announcements', href: '/announcements', icon: '📢', roles: ['ADMIN'] },
-  { label: 'Users',       href: '/users',        icon: '👤', roles: ['ADMIN'] },
-  { label: 'Settings',    href: '/settings',     icon: '⚙️', roles: ['ADMIN'] },
+  { label: 'Dashboard',    href: '/dashboard',      icon: '📊' },
+  { label: 'Leads',        href: '/leads',           icon: '👥', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Customers',    href: '/customers',       icon: '🏢' },
+  { label: 'Pipeline',     href: '/pipeline',        icon: '📈', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Quotations',   href: '/quotations',      icon: '📄', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Orders',       href: '/orders',          icon: '📦', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Tasks',        href: '/tasks',           icon: '✓',  roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Support',      href: '/support',         icon: '🆘' },
+  { label: 'Activity',     href: '/daily-activity',  icon: '📝' },
+  { label: 'Team Activity', href: '/team-activity',  icon: '👥', roles: ['ADMIN', 'SALES_MANAGER'] },
+  { label: 'Attendance',   href: '/attendance',      icon: '📅', roles: ['ADMIN', 'SALES_MANAGER'] },
+  { label: 'Reports',      href: '/reports',         icon: '📊', roles: ['ADMIN', 'SALES_MANAGER'] },
+  { label: 'Approvals',    href: '/approvals',       icon: '✅', roles: ['ADMIN', 'SALES_MANAGER'] },
+  { label: 'Announcements', href: '/announcements',  icon: '📢', roles: ['ADMIN'] },
+  { label: 'Users',        href: '/users',           icon: '👤', roles: ['ADMIN', 'SUPPORT'] },
+  { label: 'Settings',     href: '/settings',        icon: '⚙️', roles: ['ADMIN'] },
 ];
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {

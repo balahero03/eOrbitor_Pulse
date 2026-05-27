@@ -23,10 +23,25 @@ interface Ticket {
   customerSatisfactionRating?: number;
 }
 
+const STATUS_COLOR: Record<string, string> = {
+  OPEN:        'bg-red-50 text-red-700',
+  IN_PROGRESS: 'bg-blue-50 text-blue-700',
+  RESOLVED:    'bg-green-50 text-green-700',
+  CLOSED:      'bg-gray-50 text-gray-700',
+};
+
+const PRIORITY_COLOR: Record<string, string> = {
+  URGENT: 'bg-red-100 text-red-800',
+  HIGH:   'bg-orange-100 text-orange-800',
+  MEDIUM: 'bg-yellow-100 text-yellow-800',
+  LOW:    'bg-green-100 text-green-800',
+};
+
 export default function TicketDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,6 +54,11 @@ export default function TicketDetailPage() {
   });
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(u => setCurrentUser(u))
+      .catch(console.error);
     fetchTicket();
   }, [id]);
 
@@ -48,9 +68,7 @@ export default function TicketDetailPage() {
       const res = await fetch(`/api/tickets/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!res.ok) throw new Error('Failed to fetch ticket');
-
       const data = await res.json();
       setTicket(data);
       setFormData({
@@ -66,18 +84,21 @@ export default function TicketDetailPage() {
     }
   };
 
+  const canEdit = () => {
+    if (!currentUser || !ticket) return false;
+    if (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role)) return true;
+    if (currentUser.role === 'SUPPORT') return ticket.assignedTo.id === currentUser.id;
+    return false; // SALES_EXEC and VIEWER: read-only
+  };
+
   const handleSave = async () => {
     if (!ticket) return;
-
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/tickets/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           status: formData.status,
           priority: formData.priority,
@@ -87,9 +108,7 @@ export default function TicketDetailPage() {
             : null,
         }),
       });
-
       if (!res.ok) throw new Error('Failed to update ticket');
-
       const updated = await res.json();
       setTicket(updated);
       setEditing(false);
@@ -102,16 +121,12 @@ export default function TicketDetailPage() {
 
   const handleResolve = async () => {
     if (!ticket) return;
-
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/tickets/${id}/resolve`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           resolutionNotes: formData.resolutionNotes,
           customerSatisfactionRating: formData.customerSatisfactionRating
@@ -119,9 +134,7 @@ export default function TicketDetailPage() {
             : null,
         }),
       });
-
       if (!res.ok) throw new Error('Failed to resolve ticket');
-
       const updated = await res.json();
       setTicket(updated);
       setShowResolutionForm(false);
@@ -132,28 +145,10 @@ export default function TicketDetailPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'OPEN': return 'bg-red-50 text-red-700';
-      case 'IN_PROGRESS': return 'bg-blue-50 text-blue-700';
-      case 'RESOLVED': return 'bg-green-50 text-green-700';
-      case 'CLOSED': return 'bg-gray-50 text-gray-700';
-      default: return 'bg-gray-50 text-gray-700';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT': return 'bg-red-100 text-red-800';
-      case 'HIGH': return 'bg-orange-100 text-orange-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
-      case 'LOW': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) return <div className="p-6 text-center">Loading...</div>;
   if (!ticket) return <div className="p-6 text-center">Ticket not found</div>;
+
+  const editable = canEdit();
 
   return (
     <div className="p-6">
@@ -172,24 +167,21 @@ export default function TicketDetailPage() {
                 <h2 className="text-2xl font-bold mb-2">{ticket.subject}</h2>
                 <p className="text-gray-600">{ticket.description}</p>
               </div>
-              {!editing && (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="btn btn-secondary"
-                >
+              {editable && !editing && (
+                <button onClick={() => setEditing(true)} className="btn btn-secondary">
                   Edit
                 </button>
               )}
             </div>
 
-            {editing ? (
+            {editable && editing ? (
               <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4 border-t pt-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full"
+                    className="w-full border rounded-lg px-3 py-2"
                   >
                     <option value="OPEN">Open</option>
                     <option value="IN_PROGRESS">In Progress</option>
@@ -203,7 +195,7 @@ export default function TicketDetailPage() {
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full"
+                    className="w-full border rounded-lg px-3 py-2"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -217,23 +209,15 @@ export default function TicketDetailPage() {
                   <textarea
                     value={formData.resolutionNotes}
                     onChange={(e) => setFormData({ ...formData, resolutionNotes: e.target.value })}
-                    className="w-full h-24"
+                    className="w-full h-24 border rounded-lg px-3 py-2"
                   />
                 </div>
 
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="btn btn-primary"
-                  >
+                  <button type="submit" disabled={saving} className="btn btn-primary">
                     {saving ? 'Saving...' : 'Save'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="btn btn-secondary"
-                  >
+                  <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">
                     Cancel
                   </button>
                 </div>
@@ -242,13 +226,13 @@ export default function TicketDetailPage() {
               <div className="space-y-3 border-t pt-4">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Status</p>
-                  <span className={`badge px-3 py-1 rounded text-sm font-medium ${getStatusColor(ticket.status)}`}>
+                  <span className={`px-3 py-1 rounded text-sm font-medium ${STATUS_COLOR[ticket.status] || 'bg-gray-50 text-gray-700'}`}>
                     {ticket.status.replace(/_/g, ' ')}
                   </span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Priority</p>
-                  <span className={`badge px-3 py-1 rounded text-sm font-medium ${getPriorityColor(ticket.priority)}`}>
+                  <span className={`px-3 py-1 rounded text-sm font-medium ${PRIORITY_COLOR[ticket.priority] || 'bg-gray-100 text-gray-800'}`}>
                     {ticket.priority}
                   </span>
                 </div>
@@ -258,18 +242,18 @@ export default function TicketDetailPage() {
                     <p className="text-gray-700">{ticket.resolutionNotes}</p>
                   </div>
                 )}
+                {!editable && (
+                  <p className="text-xs text-gray-400 italic mt-2">View only — you cannot edit this ticket.</p>
+                )}
               </div>
             )}
           </div>
 
-          {/* Resolve Ticket */}
-          {ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED' && (
+          {/* Resolve Ticket — only for editable roles */}
+          {editable && ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED' && (
             <div className="card p-6 bg-blue-50 border-l-4 border-blue-500">
               {!showResolutionForm ? (
-                <button
-                  onClick={() => setShowResolutionForm(true)}
-                  className="btn btn-primary"
-                >
+                <button onClick={() => setShowResolutionForm(true)} className="btn btn-primary">
                   Mark as Resolved
                 </button>
               ) : (
@@ -281,7 +265,7 @@ export default function TicketDetailPage() {
                       onChange={(e) => setFormData({ ...formData, resolutionNotes: e.target.value })}
                       placeholder="How was this issue resolved?"
                       rows={4}
-                      className="w-full"
+                      className="w-full border rounded-lg px-3 py-2"
                     />
                   </div>
 
@@ -290,7 +274,7 @@ export default function TicketDetailPage() {
                     <select
                       value={formData.customerSatisfactionRating}
                       onChange={(e) => setFormData({ ...formData, customerSatisfactionRating: e.target.value })}
-                      className="w-full"
+                      className="w-full border rounded-lg px-3 py-2"
                     >
                       <option value="">No rating</option>
                       <option value="1">★ 1 - Very Unsatisfied</option>
@@ -302,18 +286,10 @@ export default function TicketDetailPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="btn btn-primary"
-                    >
+                    <button type="submit" disabled={saving} className="btn btn-primary">
                       {saving ? 'Resolving...' : 'Resolve Ticket'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowResolutionForm(false)}
-                      className="btn btn-secondary"
-                    >
+                    <button type="button" onClick={() => setShowResolutionForm(false)} className="btn btn-secondary">
                       Cancel
                     </button>
                   </div>
@@ -325,7 +301,6 @@ export default function TicketDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Customer Info */}
           <div className="card p-6">
             <h3 className="text-lg font-semibold mb-3">Customer</h3>
             <p className="text-sm text-gray-600">Company</p>
@@ -336,7 +311,6 @@ export default function TicketDetailPage() {
             </p>
           </div>
 
-          {/* Deal Info */}
           {ticket.deal && (
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
@@ -349,7 +323,6 @@ export default function TicketDetailPage() {
             </div>
           )}
 
-          {/* Ticket Details */}
           <div className="card p-6">
             <h3 className="text-lg font-semibold mb-3">Details</h3>
             <div className="space-y-3 text-sm">

@@ -4,22 +4,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface Customer {
-  id: string;
-  companyName: string;
-}
-
-interface Deal {
-  id: string;
-  dealName: string;
-}
+interface Customer { id: string; companyName: string; }
+interface Deal { id: string; dealName: string; }
+interface User { id: string; firstName: string; lastName: string; role: string; }
 
 export default function NewTicketPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [supportAgents, setSupportAgents] = useState<User[]>([]);
   const [formData, setFormData] = useState({
     customerId: '',
     dealId: '',
@@ -27,24 +23,44 @@ export default function NewTicketPage() {
     priority: 'MEDIUM',
     subject: '',
     description: '',
+    assignedToId: '',
   });
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(u => {
+        setCurrentUser(u);
+        if (['ADMIN', 'SALES_MANAGER'].includes(u.role)) {
+          fetchSupportAgents(token!);
+        }
+      })
+      .catch(console.error);
     fetchCustomersAndDeals();
   }, []);
+
+  const fetchSupportAgents = async (token: string) => {
+    try {
+      const res = await fetch('/api/users?role=SUPPORT&limit=100', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSupportAgents(data.users || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchCustomersAndDeals = async () => {
     try {
       const token = localStorage.getItem('token');
       const [customersRes, dealsRes] = await Promise.all([
-        fetch('/api/customers?limit=1000', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch('/api/deals?limit=1000', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch('/api/customers?limit=1000', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/deals?limit=1000', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-
       if (customersRes.ok) {
         const data = await customersRes.json();
         setCustomers(data.customers || []);
@@ -54,7 +70,7 @@ export default function NewTicketPage() {
         setDeals(data.deals || []);
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error(err);
     }
   };
 
@@ -74,20 +90,23 @@ export default function NewTicketPage() {
       }
 
       const token = localStorage.getItem('token');
+      const body: any = {
+        customerId: formData.customerId,
+        dealId: formData.dealId || null,
+        type: formData.type,
+        priority: formData.priority,
+        subject: formData.subject,
+        description: formData.description,
+      };
+
+      if (formData.assignedToId) {
+        body.assignedToId = formData.assignedToId;
+      }
+
       const res = await fetch('/api/tickets', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          customerId: formData.customerId,
-          dealId: formData.dealId || null,
-          type: formData.type,
-          priority: formData.priority,
-          subject: formData.subject,
-          description: formData.description,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -103,6 +122,8 @@ export default function NewTicketPage() {
       setLoading(false);
     }
   };
+
+  const canAssign = currentUser && ['ADMIN', 'SALES_MANAGER'].includes(currentUser.role);
 
   return (
     <div className="p-6">
@@ -121,13 +142,7 @@ export default function NewTicketPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium mb-1">Customer *</label>
-            <select
-              name="customerId"
-              value={formData.customerId}
-              onChange={handleChange}
-              required
-              className="w-full"
-            >
+            <select name="customerId" value={formData.customerId} onChange={handleChange} required className="w-full border rounded-lg px-3 py-2">
               <option value="">Select a customer</option>
               {customers.map(c => (
                 <option key={c.id} value={c.id}>{c.companyName}</option>
@@ -137,12 +152,7 @@ export default function NewTicketPage() {
 
           <div>
             <label className="block text-sm font-medium mb-1">Related Deal (Optional)</label>
-            <select
-              name="dealId"
-              value={formData.dealId}
-              onChange={handleChange}
-              className="w-full"
-            >
+            <select name="dealId" value={formData.dealId} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
               <option value="">No related deal</option>
               {deals.map(d => (
                 <option key={d.id} value={d.id}>{d.dealName}</option>
@@ -153,12 +163,7 @@ export default function NewTicketPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Type *</label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full"
-              >
+              <select name="type" value={formData.type} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
                 <option value="GENERAL">General</option>
                 <option value="TECHNICAL">Technical</option>
                 <option value="BILLING">Billing</option>
@@ -167,12 +172,7 @@ export default function NewTicketPage() {
 
             <div>
               <label className="block text-sm font-medium mb-1">Priority *</label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-                className="w-full"
-              >
+              <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -180,6 +180,19 @@ export default function NewTicketPage() {
               </select>
             </div>
           </div>
+
+          {canAssign && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Assign To (Support Agent)</label>
+              <select name="assignedToId" value={formData.assignedToId} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
+                <option value="">Self-assign</option>
+                {supportAgents.map(u => (
+                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Leave blank to assign to yourself</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">Subject *</label>
@@ -190,7 +203,7 @@ export default function NewTicketPage() {
               onChange={handleChange}
               placeholder="Brief description of the issue"
               required
-              className="w-full"
+              className="w-full border rounded-lg px-3 py-2"
             />
           </div>
 
@@ -203,16 +216,12 @@ export default function NewTicketPage() {
               placeholder="Detailed description of the issue"
               required
               rows={6}
-              className="w-full"
+              className="w-full border rounded-lg px-3 py-2"
             />
           </div>
 
           <div className="flex gap-4 pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary flex-1"
-            >
+            <button type="submit" disabled={loading} className="btn btn-primary flex-1">
               {loading ? 'Creating...' : 'Create Ticket'}
             </button>
             <Link href="/support" className="btn btn-secondary flex-1 text-center">
