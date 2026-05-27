@@ -21,6 +21,8 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Orders',      href: '/orders',       icon: '📦' },
   { label: 'Tasks',       href: '/tasks',        icon: '✓' },
   { label: 'Support',     href: '/support',      icon: '🆘' },
+  { label: 'Activity',    href: '/daily-activity', icon: '📝' },
+  { label: 'Team Activity', href: '/team-activity', icon: '👥', roles: ['ADMIN', 'SALES_MANAGER'] },
   { label: 'Reports',     href: '/reports',      icon: '📊', roles: ['ADMIN', 'SALES_MANAGER'] },
   { label: 'Approvals',   href: '/approvals',    icon: '✅', roles: ['ADMIN', 'SALES_MANAGER'] },
   { label: 'Users',       href: '/users',        icon: '👤', roles: ['ADMIN'] },

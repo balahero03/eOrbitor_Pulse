@@ -314,7 +314,136 @@ function SalesExecDashboard({ data, user }: { data: any; user: any }) {
   );
 }
 
-// ─── Admin / Manager Dashboard ──────────────────────────────────────────────
+// ─── Manager Dashboard ──────────────────────────────────────────────────────
+function ManagerDashboard({ data, user }: { data: any; user: any }) {
+  if (!data?.stats) {
+    return (
+      <div className="p-6">
+        <div className="card p-6 bg-yellow-50 border border-yellow-200">
+          <p className="text-yellow-700">Dashboard data not available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = [
+    { label: 'Team Leads',       value: data.stats.teamLeads,       icon: '👥', href: '/leads', color: 'bg-blue-50' },
+    { label: 'Active Deals',     value: data.stats.teamDeals,       icon: '📈', href: '/pipeline', color: 'bg-green-50' },
+    { label: 'Won This Month',   value: data.stats.teamWonThisMonth, icon: '🏆', href: '/pipeline', color: 'bg-yellow-50' },
+    { label: 'Open Tasks',       value: data.stats.teamOpenTasks,   icon: '✓', href: '/tasks', color: 'bg-purple-50' },
+  ];
+
+  const alerts = [
+    { label: 'Overdue Follow-ups', value: data.stats.teamFollowUpsOverdue, color: 'text-red-600' },
+    { label: 'Overdue Tasks',      value: data.stats.teamOverdueTasks, color: 'text-orange-600' },
+  ];
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Team Dashboard</h1>
+        <p className="text-sm text-gray-500 mt-1">{data.teamName}</p>
+      </div>
+
+      {/* Key Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((s) => (
+          <Link key={s.label} href={s.href} className={`card p-5 hover:shadow-md transition-shadow cursor-pointer ${s.color}`}>
+            <div className="text-2xl mb-2">{s.icon}</div>
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs text-gray-600 mt-1">{s.label}</p>
+          </Link>
+        ))}
+      </div>
+
+      {/* Alerts */}
+      <div className="grid grid-cols-2 gap-4">
+        {alerts.map((a) => (
+          <div key={a.label} className="card p-4 border-l-4 border-red-500">
+            <p className={`text-2xl font-bold ${a.color}`}>{a.value}</p>
+            <p className="text-xs text-gray-600 mt-1">{a.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Team Members */}
+      {data.teamMembers && data.teamMembers.length > 0 && (
+        <div className="card p-6">
+          <h2 className="font-bold text-gray-800 mb-4">Team Members</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {data.teamMembers.map((member: any) => (
+              <div key={member.id} className="p-3 bg-gray-50 rounded text-sm">
+                <p className="font-medium">{member.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pipeline by stage */}
+      {data.pipeline && data.pipeline.length > 0 && (
+        <div className="card p-6">
+          <h2 className="font-bold text-gray-800 mb-4">Team Pipeline by Stage</h2>
+          <div className="space-y-3">
+            {data.pipeline
+              .sort((a: any, b: any) => Number(b.value) - Number(a.value))
+              .map((s: any) => (
+                <div key={s.stage} className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-gray-600 w-28 shrink-0">{s.stage}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3">
+                    <div
+                      className="bg-blue-500 h-3 rounded-full"
+                      style={{
+                        width: `${Math.min(100, (Number(s.value) / Math.max(...data.pipeline.map((x: any) => Number(x.value)), 1)) * 100)}%`
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 w-24 text-right">
+                    ₹{Number(s.value).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-xs text-gray-400 w-16 text-right">{s.count} deals</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Team Leads */}
+      {data.recentLeads && data.recentLeads.length > 0 && (
+        <div className="card p-6">
+          <h2 className="font-bold text-gray-800 mb-4">Recent Team Leads</h2>
+          <div className="space-y-2">
+            {data.recentLeads.map((lead: any) => (
+              <Link key={lead.id} href={`/leads/${lead.id}`} className="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100">
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{lead.name}</p>
+                  <p className="text-xs text-gray-500">{lead.company}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-gray-600">{lead.assignedTo.firstName}</p>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{lead.status}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="card p-6">
+        <h2 className="font-bold mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Link href="/leads/new" className="btn btn-primary text-center text-sm">+ New Lead</Link>
+          <Link href="/leads" className="btn btn-secondary text-center text-sm">View Leads</Link>
+          <Link href="/pipeline" className="btn btn-secondary text-center text-sm">View Pipeline</Link>
+          <Link href="/approvals" className="btn btn-secondary text-center text-sm">Approvals</Link>
+          <Link href="/tasks" className="btn btn-secondary text-center text-sm">Team Tasks</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Dashboard ────────────────────────────────────────────────────────
 function AdminDashboard({ data, user }: { data: any; user: any }) {
   if (!data?.kpis) {
     return (
@@ -334,19 +463,9 @@ function AdminDashboard({ data, user }: { data: any; user: any }) {
     { label: 'Overdue Tasks',   value: data.kpis.overdueTasks,   icon: '⏰', href: '/tasks' },
   ];
 
-  const quickActions = [
-    { label: '+ New Lead',     href: '/leads/new' },
-    { label: '+ New Customer', href: '/customers/new' },
-    { label: 'View Pipeline',  href: '/pipeline' },
-  ];
-
-  if (user?.role === 'ADMIN') {
-    quickActions.push({ label: 'Manage Users', href: '/users' });
-  }
-
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((k) => (
@@ -361,7 +480,7 @@ function AdminDashboard({ data, user }: { data: any; user: any }) {
       {/* Pipeline by stage */}
       {data.pipeline && data.pipeline.length > 0 && (
         <div className="card p-6">
-          <h2 className="font-bold text-gray-800 mb-4">Pipeline by Stage</h2>
+          <h2 className="font-bold text-gray-800 mb-4">Overall Pipeline by Stage</h2>
           <div className="space-y-3">
             {data.pipeline
               .sort((a: any, b: any) => Number(b.value) - Number(a.value))
@@ -387,13 +506,12 @@ function AdminDashboard({ data, user }: { data: any; user: any }) {
       )}
 
       <div className="card p-6">
-        <h2 className="font-bold mb-4">Quick Actions</h2>
+        <h2 className="font-bold mb-4">Admin Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {quickActions.map((action) => (
-            <Link key={action.href} href={action.href} className="btn btn-primary text-center">
-              {action.label}
-            </Link>
-          ))}
+          <Link href="/leads/new" className="btn btn-primary text-center text-sm">+ New Lead</Link>
+          <Link href="/customers/new" className="btn btn-primary text-center text-sm">+ New Customer</Link>
+          <Link href="/users" className="btn btn-secondary text-center text-sm">Manage Users</Link>
+          <Link href="/approvals" className="btn btn-secondary text-center text-sm">Approvals</Link>
         </div>
       </div>
     </div>
@@ -458,6 +576,10 @@ export default function DashboardPage() {
 
   if (user.role === 'SALES_EXEC') {
     return <SalesExecDashboard data={data} user={user} />;
+  }
+
+  if (user.role === 'SALES_MANAGER') {
+    return <ManagerDashboard data={data} user={user} />;
   }
 
   return <AdminDashboard data={data} user={user} />;

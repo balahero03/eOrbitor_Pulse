@@ -42,6 +42,8 @@ model User {
   notifications Notification[]
   approvalsRequested ApprovalRequest[] @relation("ApprovalRequestedBy")
   approvalsApproved  ApprovalRequest[] @relation("ApprovalApprovedBy")
+  dailyActivities    DailyActivity[]
+  timeLogs           TimeLog[]
 
   @@index([email])
   @@index([role])
@@ -587,4 +589,37 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// Daily Activity Report
+model DailyActivity {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String    // YYYY-MM-DD format
+  activities      String    // JSON array of activity points/tasks
+  loginTime       DateTime?
+  logoutTime      DateTime?
+  totalHours      Decimal?  // Calculated total hours worked
+  notes           String?   // Additional notes
+  isEditable      Boolean   @default(true) // Can edit only on same day or next day
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model TimeLog {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime       DateTime
+  logoutTime      DateTime?
+  sessionDuration Int?      // duration in seconds
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([loginTime])
 }
