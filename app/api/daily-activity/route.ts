@@ -62,11 +62,20 @@ export async function GET(req: NextRequest) {
     // Can edit today and yesterday (until tomorrow morning)
     const isEditable = dateFormatted <= today;
 
+    // Calculate total hours if login and logout times exist
+    let totalHours = null;
+    if (activity.loginTime && activity.logoutTime) {
+      const loginMs = new Date(activity.loginTime).getTime();
+      const logoutMs = new Date(activity.logoutTime).getTime();
+      totalHours = (logoutMs - loginMs) / (1000 * 60 * 60);
+    }
+
     return NextResponse.json({
       data: {
         ...activity,
         activities: JSON.parse(activity.activities || '[]'),
         isEditable,
+        totalHours,
       },
     });
   } catch (error) {
@@ -78,10 +87,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!token) {
+      console.log('No token provided');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const { activities, notes, date: dateStr } = await req.json();
+    const body = await req.json();
+    const { activities, notes, date: dateStr } = body;
+
+    console.log('POST body:', { activities: activities?.length || 0, notes: notes?.substring(0, 20), dateStr });
 
     if (!dateStr) {
       return NextResponse.json({ error: 'Date is required' }, { status: 400 });
@@ -90,10 +105,14 @@ export async function POST(req: NextRequest) {
     const dateFormatted = formatDateString(dateStr);
     const today = new Date().toISOString().split('T')[0];
 
+    console.log('Dates:', { dateFormatted, today, isValid: dateFormatted <= today });
+
     // Can only edit today and yesterday (until tomorrow)
     if (dateFormatted > today) {
       return NextResponse.json({ error: 'Cannot create activity for future dates' }, { status: 400 });
     }
+
+    console.log('Finding existing activity for:', { userId: decoded.id, date: dateFormatted });
 
     let activity = await prisma.dailyActivity.findUnique({
       where: {
@@ -104,7 +123,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log('Existing activity:', activity ? 'found' : 'not found');
+
     if (activity) {
+      console.log('Updating activity:', activity.id);
       activity = await prisma.dailyActivity.update({
         where: { id: activity.id },
         data: {
@@ -116,6 +138,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
+      console.log('Creating new activity');
       activity = await prisma.dailyActivity.create({
         data: {
           userId: decoded.id,
@@ -129,12 +152,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    console.log('Activity saved successfully:', activity.id);
+
     return NextResponse.json({
       message: 'Activity saved',
       data: { ...activity, activities: JSON.parse(activity.activities || '[]') },
     }, { status: 201 });
   } catch (error) {
     console.error('Daily activity save error:', error);
-    return NextResponse.json({ error: 'Failed to save activity', details: String(error) }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error details:', errorMessage);
+    return NextResponse.json({ error: 'Failed to save activity', details: errorMessage }, { status: 500 });
   }
 }

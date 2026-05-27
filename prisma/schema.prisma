@@ -44,6 +44,7 @@ model User {
   approvalsApproved  ApprovalRequest[] @relation("ApprovalApprovedBy")
   dailyActivities    DailyActivity[]
   timeLogs           TimeLog[]
+  announcements      Announcement[]
 
   @@index([email])
   @@index([role])
@@ -622,4 +623,22 @@ model TimeLog {
 
   @@index([userId])
   @@index([loginTime])
+}
+
+model Announcement {
+  id              String    @id @default(cuid())
+  title           String
+  content         String
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  priority        String    @default("NORMAL") // URGENT, NORMAL, LOW
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isPublished])
+  @@index([createdById])
+  @@index([publishedAt])
 }

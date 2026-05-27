@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
+    const filterUserId = searchParams.get('userId');
 
     const dateFormatted = formatDateString(dateStr);
 
@@ -44,6 +45,9 @@ export async function GET(req: NextRequest) {
     const where: any = { date: dateFormatted };
     if (userIds.length > 0) {
       where.userId = { in: userIds };
+    }
+    if (filterUserId) {
+      where.userId = filterUserId;
     }
 
     const [activities, total] = await Promise.all([
