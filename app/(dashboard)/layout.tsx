@@ -72,7 +72,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {sidebarOpen ? (
             <div className="flex items-center gap-2">
               <Image src="/eOrbitor_logo.jpg" alt="Logo" width={36} height={36} className="rounded" />
-              <span className="font-bold text-sm">eOrbitor</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm leading-tight">eOrbitor</span>
+                <span className="text-xs text-blue-600 font-semibold leading-tight">Pulse</span>
+              </div>
             </div>
           ) : (
             <Image src="/eOrbitor_logo.jpg" alt="Logo" width={36} height={36} className="rounded" />
