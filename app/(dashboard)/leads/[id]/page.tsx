@@ -65,7 +65,12 @@ export default function LeadDetailPage() {
     followUpDate: '',
   });
 
-  useEffect(() => { fetchLead(); }, [id]);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(u => setCurrentUser(u)).catch(console.error);
+    fetchLead();
+  }, [id]);
 
   const fetchLead = async () => {
     try {
@@ -282,9 +287,14 @@ export default function LeadDetailPage() {
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Status & Qualification</h2>
-              <button onClick={() => setEditing(!editing)} className="btn btn-secondary text-sm">
-                {editing ? 'Cancel' : 'Edit'}
-              </button>
+              {currentUser && (
+                ['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) ||
+                lead.assignedTo?.id === currentUser.id
+              ) && (
+                <button onClick={() => setEditing(!editing)} className="btn btn-secondary text-sm">
+                  {editing ? 'Cancel' : 'Edit'}
+                </button>
+              )}
             </div>
 
             {editing ? (
@@ -497,22 +507,28 @@ export default function LeadDetailPage() {
                 <Link href={`/customers/${lead.linkedCustomer.id}`} className="btn btn-secondary w-full block text-center">
                   View Customer
                 </Link>
-                <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full text-sm">
-                  Re-convert / Update Customer
+                {currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
+                  <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full text-sm">
+                    Re-convert / Update Customer
+                  </button>
+                )}
+              </div>
+            ) : currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) ? (
+              ['PROSPECT', 'NEGOTIATION', 'WON'].includes(lead.status) ? (
+                <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full">
+                  Convert to Customer
                 </button>
-              </div>
-            ) : ['PROSPECT', 'NEGOTIATION', 'WON'].includes(lead.status) ? (
-              <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full">
-                Convert to Customer
+              ) : (
+                <div className="text-xs text-gray-400 text-center px-2 py-2 bg-gray-50 rounded border border-gray-200">
+                  Advance to <strong>Prospect</strong> to convert to customer
+                </div>
+              )
+            ) : null}
+            {currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
+              <button onClick={() => setShowDeleteModal(true)} className="btn btn-error w-full">
+                🗑️ Request Deletion
               </button>
-            ) : (
-              <div className="text-xs text-gray-400 text-center px-2 py-2 bg-gray-50 rounded border border-gray-200">
-                Advance to <strong>Prospect</strong> to convert to customer
-              </div>
             )}
-            <button onClick={() => setShowDeleteModal(true)} className="btn btn-error w-full">
-              🗑️ Request Deletion
-            </button>
           </div>
         </div>
       </div>
