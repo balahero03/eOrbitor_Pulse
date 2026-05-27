@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface Activity {
@@ -11,6 +10,7 @@ interface Activity {
   activities: string[];
   loginTime: string;
   logoutTime: string;
+  totalHours?: number;
   notes: string;
   isEditable: boolean;
   user: { id: string; firstName: string; lastName: string };
@@ -24,22 +24,17 @@ export default function DailyActivityPage() {
   const [newActivity, setNewActivity] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     fetchActivity();
     checkLoginStatus();
-    const timer = setInterval(() => updateTime(), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString('en-IN')), 1000);
     return () => clearInterval(timer);
   }, [selectedDate]);
-
-  const updateTime = () => {
-    const now = new Date();
-    setCurrentTime(now.toLocaleTimeString('en-IN'));
-  };
 
   const checkLoginStatus = async () => {
     try {
@@ -50,9 +45,7 @@ export default function DailyActivityPage() {
       if (res.ok) {
         const data = await res.json();
         setIsLoggedIn(data.isLoggedIn);
-        if (data.loginTime) {
-          setSessionStartTime(new Date(data.loginTime));
-        }
+        if (data.loginTime) setSessionStartTime(new Date(data.loginTime));
       }
     } catch (err) {
       console.error(err);
@@ -60,13 +53,13 @@ export default function DailyActivityPage() {
   };
 
   const fetchActivity = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/daily-activity?date=${selectedDate}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-
       if (data.data) {
         setActivity(data.data);
         setActivities(data.data.activities || []);
@@ -80,46 +73,6 @@ export default function DailyActivityPage() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/time-tracking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'LOGIN' }),
-      });
-
-      if (res.ok) {
-        setIsLoggedIn(true);
-        setSessionStartTime(new Date());
-        alert('Logged in successfully');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to log in');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/time-tracking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'LOGOUT' }),
-      });
-
-      if (res.ok) {
-        setIsLoggedIn(false);
-        alert('Logged out successfully');
-        fetchActivity();
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to log out');
     }
   };
 
@@ -141,25 +94,17 @@ export default function DailyActivityPage() {
       const res = await fetch('/api/daily-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          activities,
-          notes,
-          date: selectedDate,
-        }),
+        body: JSON.stringify({ activities, notes, date: selectedDate }),
       });
-
       if (res.ok) {
-        alert('Activity saved successfully');
         setEditing(false);
         fetchActivity();
       } else {
         const err = await res.json();
-        console.error('Save error:', err);
-        alert(`Error: ${err.error || 'Failed to save'}\n${err.details || ''}`);
+        alert(`Error: ${err.error || 'Failed to save'}`);
       }
     } catch (err) {
-      console.error('Save exception:', err);
-      alert(`Exception: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -172,26 +117,20 @@ export default function DailyActivityPage() {
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Daily Activity Report</h1>
         <div className="text-right">
-          <p className="text-sm text-gray-600">{currentTime}</p>
-          <button
-            onClick={isLoggedIn ? handleLogout : handleLogin}
-            className={`mt-2 btn ${isLoggedIn ? 'btn-error' : 'btn-success'} text-sm`}
-          >
-            {isLoggedIn ? '🔴 Logout' : '🟢 Login'}
-          </button>
+          <p className="text-lg font-mono text-gray-700">{currentTime}</p>
+          {isLoggedIn && sessionStartTime ? (
+            <p className="text-xs text-green-600 mt-1">
+              Session started at {sessionStartTime.toLocaleTimeString('en-IN')}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1">No active session</p>
+          )}
         </div>
       </div>
-
-      {isLoggedIn && sessionStartTime && (
-        <div className="mb-6 card p-4 bg-green-50 border border-green-200">
-          <p className="text-sm text-green-700">
-            <strong>Logged in since:</strong> {sessionStartTime.toLocaleString('en-IN')}
-          </p>
-        </div>
-      )}
 
       {/* Date Selector */}
       <div className="mb-6 card p-4">
@@ -204,7 +143,7 @@ export default function DailyActivityPage() {
           className="border rounded px-3 py-2"
         />
         <p className="text-xs text-gray-500 mt-2">
-          {isEditable ? '✅ You can edit this day' : '🔒 This day is locked, you can only view'}
+          {isEditable ? '✅ You can edit this day' : '🔒 This day is locked for editing'}
         </p>
       </div>
 
@@ -215,10 +154,7 @@ export default function DailyActivityPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Activities & Tasks</h2>
               {isEditable && !editing && (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="btn btn-secondary btn-sm"
-                >
+                <button onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">
                   ✏️ Edit
                 </button>
               )}
@@ -231,33 +167,18 @@ export default function DailyActivityPage() {
                     type="text"
                     value={newActivity}
                     onChange={(e) => setNewActivity(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddActivity()}
-                    placeholder="Add activity point... (e.g., Called 5 clients, Prepared proposal)"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddActivity()}
+                    placeholder="Add activity... (e.g., Called 5 clients, Prepared proposal)"
                     className="flex-1 border rounded px-3 py-2 text-sm"
                   />
-                  <button
-                    onClick={handleAddActivity}
-                    className="btn btn-primary btn-sm"
-                  >
-                    Add
-                  </button>
+                  <button onClick={handleAddActivity} className="btn btn-primary btn-sm">Add</button>
                 </div>
 
                 <div className="space-y-2">
-                  {activities.map((activity, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded border"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm">{index + 1}. {activity}</p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveActivity(index)}
-                        className="btn btn-ghost btn-sm text-red-600"
-                      >
-                        ✕
-                      </button>
+                  {activities.map((act, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                      <p className="text-sm flex-1">{index + 1}. {act}</p>
+                      <button onClick={() => handleRemoveActivity(index)} className="text-red-500 hover:text-red-700 ml-2">✕</button>
                     </div>
                   ))}
                 </div>
@@ -270,11 +191,7 @@ export default function DailyActivityPage() {
                 />
 
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="btn btn-primary flex-1"
-                  >
+                  <button onClick={handleSave} disabled={saving} className="btn btn-primary flex-1">
                     {saving ? 'Saving...' : 'Save Activity'}
                   </button>
                   <button
@@ -294,13 +211,12 @@ export default function DailyActivityPage() {
                 {activities.length === 0 ? (
                   <p className="text-gray-500 text-sm">No activities recorded for this day</p>
                 ) : (
-                  activities.map((activity, index) => (
+                  activities.map((act, index) => (
                     <div key={index} className="p-3 bg-blue-50 rounded border border-blue-200">
-                      <p className="text-sm"><strong>{index + 1}.</strong> {activity}</p>
+                      <p className="text-sm"><strong>{index + 1}.</strong> {act}</p>
                     </div>
                   ))
                 )}
-
                 {notes && (
                   <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-300">
                     <p className="text-xs font-semibold text-gray-600">Notes:</p>
@@ -319,35 +235,43 @@ export default function DailyActivityPage() {
             {activity ? (
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-gray-600">Login Time</p>
-                  <p className="font-semibold">
+                  <p className="text-gray-500 text-xs uppercase font-semibold">First Login</p>
+                  <p className="font-semibold text-green-700">
                     {activity.loginTime ? new Date(activity.loginTime).toLocaleTimeString('en-IN') : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Logout Time</p>
-                  <p className="font-semibold">
-                    {activity.logoutTime ? new Date(activity.logoutTime).toLocaleTimeString('en-IN') : 'Still logged in'}
+                  <p className="text-gray-500 text-xs uppercase font-semibold">Last Logout</p>
+                  <p className="font-semibold text-red-600">
+                    {activity.logoutTime
+                      ? new Date(activity.logoutTime).toLocaleTimeString('en-IN')
+                      : isToday ? 'Currently active' : '—'}
                   </p>
                 </div>
-                <div className="p-3 bg-blue-50 rounded">
-                  <p className="text-gray-600">Total Activities</p>
-                  <p className="text-2xl font-bold text-blue-600">{activities.length}</p>
+                {activity.totalHours != null && (
+                  <div className="p-3 bg-blue-50 rounded border border-blue-100">
+                    <p className="text-gray-500 text-xs uppercase font-semibold">Total Hours</p>
+                    <p className="text-2xl font-bold text-blue-700">{Number(activity.totalHours).toFixed(2)} hrs</p>
+                  </div>
+                )}
+                <div className="p-3 bg-gray-50 rounded">
+                  <p className="text-gray-500 text-xs uppercase font-semibold">Activities Logged</p>
+                  <p className="text-2xl font-bold text-gray-700">{activities.length}</p>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No time log for this day yet</p>
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">No record for this day</p>
+                <p className="text-xs text-gray-400 mt-1">Login automatically creates a record</p>
+              </div>
             )}
           </div>
 
           <div className="card p-6">
-            <h3 className="font-bold mb-3">Date Info</h3>
+            <h3 className="font-bold mb-3">Date</h3>
             <p className="text-sm text-gray-600">
               {new Date(selectedDate).toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
               })}
             </p>
           </div>
@@ -362,11 +286,8 @@ export default function DailyActivityPage() {
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="mt-6">
-        <Link href="/dashboard" className="btn btn-secondary">
-          ← Back to Dashboard
-        </Link>
+        <Link href="/dashboard" className="btn btn-secondary">← Back to Dashboard</Link>
       </div>
     </div>
   );

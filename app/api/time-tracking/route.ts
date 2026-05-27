@@ -5,6 +5,10 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
@@ -13,16 +17,7 @@ export async function POST(req: NextRequest) {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     const { action } = await req.json();
 
-    if (action === 'LOGIN') {
-      const timeLog = await prisma.timeLog.create({
-        data: {
-          userId: decoded.id,
-          loginTime: new Date(),
-        },
-      });
-
-      return NextResponse.json({ message: 'Logged in', timeLogId: timeLog.id }, { status: 200 });
-    } else if (action === 'LOGOUT') {
+    if (action === 'LOGOUT') {
       const lastLog = await prisma.timeLog.findFirst({
         where: { userId: decoded.id, logoutTime: null },
         orderBy: { loginTime: 'desc' },
@@ -34,47 +29,43 @@ export async function POST(req: NextRequest) {
 
       const logoutTime = new Date();
       const sessionDuration = Math.floor((logoutTime.getTime() - lastLog.loginTime.getTime()) / 1000);
+      const dateStr = lastLog.loginTime.toISOString().slice(0, 10);
 
       await prisma.timeLog.update({
         where: { id: lastLog.id },
-        data: {
-          logoutTime,
-          sessionDuration,
-        },
+        data: { logoutTime, sessionDuration },
       });
 
-      // Update or create daily activity
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Sum all completed sessions today to get totalHours
+      const dayStart = new Date(dateStr);
+      const dayEnd = new Date(dateStr);
+      dayEnd.setDate(dayEnd.getDate() + 1);
 
-      let activity = await prisma.dailyActivity.findUnique({
+      const todayLogs = await prisma.timeLog.findMany({
         where: {
-          userId_date: {
-            userId: decoded.id,
-            date: today,
-          },
+          userId: decoded.id,
+          loginTime: { gte: dayStart, lt: dayEnd },
+          logoutTime: { not: null },
         },
       });
+      const totalSecs = todayLogs.reduce((s, l) => s + (l.sessionDuration || 0), 0);
 
-      if (!activity) {
-        activity = await prisma.dailyActivity.create({
-          data: {
-            userId: decoded.id,
-            date: today,
-            activities: JSON.stringify([]),
-            loginTime: lastLog.loginTime,
-            logoutTime,
-          },
-        });
-      } else {
-        const totalHours = (sessionDuration / 3600).toFixed(2);
-        await prisma.dailyActivity.update({
-          where: { id: activity.id },
-          data: {
-            logoutTime,
-          },
-        });
-      }
+      // Update DailyActivity with last logout time and total hours
+      await prisma.dailyActivity.upsert({
+        where: { userId_date: { userId: decoded.id, date: dateStr } },
+        update: {
+          logoutTime,
+          totalHours: parseFloat((totalSecs / 3600).toFixed(2)),
+        },
+        create: {
+          userId: decoded.id,
+          date: dateStr,
+          activities: JSON.stringify([]),
+          loginTime: lastLog.loginTime,
+          logoutTime,
+          totalHours: parseFloat((totalSecs / 3600).toFixed(2)),
+        },
+      });
 
       return NextResponse.json({ message: 'Logged out', sessionDuration }, { status: 200 });
     }
