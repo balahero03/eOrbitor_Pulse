@@ -5,6 +5,9 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
+// Super admin — activity is never visible to anyone
+const SUPER_ADMIN_EMAIL = 'lokeswaran.k@eorbitor.com';
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
@@ -39,8 +42,21 @@ export async function GET(req: NextRequest) {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
+    // Resolve super admin's userId to exclude them
+    const superAdmin = await prisma.user.findUnique({
+      where: { email: SUPER_ADMIN_EMAIL },
+      select: { id: true },
+    });
+    const superAdminId = superAdmin?.id;
+
+    // Block direct lookup of super admin's activity
+    if (filterUserId && filterUserId === superAdminId) {
+      return NextResponse.json({ data: [] });
+    }
+
     const where: any = {
       date: { gte: startDate, lte: endDate },
+      ...(superAdminId && { userId: { not: superAdminId } }),
     };
 
     if (filterUserId) {

@@ -39,7 +39,8 @@ export default function AttendancePage() {
     try {
       const res = await fetch('/api/users?limit=200', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setUsers(data.users || []);
+      // Super admin's activity is private — exclude from dropdown
+      setUsers((data.users || []).filter((u: any) => u.email !== 'lokeswaran.k@eorbitor.com'));
     } catch (err) {
       console.error(err);
     }
