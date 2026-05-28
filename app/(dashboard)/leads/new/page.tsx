@@ -38,7 +38,7 @@ export default function NewLeadPage() {
     const token = localStorage.getItem('token');
     fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(d => setUsers(d.users || d))
+      .then(d => setUsers(Array.isArray(d.users) ? d.users : Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
