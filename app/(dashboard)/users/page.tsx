@@ -11,7 +11,8 @@ interface User {
   role: string;
   department?: string;
   isActive: boolean;
-  manager?: { firstName: string; lastName: string };
+  managerId?: string;
+  manager?: { id: string; firstName: string; lastName: string };
   createdAt: string;
 }
 
@@ -37,7 +38,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
 
-type ModalMode = 'add' | 'edit' | 'password';
+type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -62,6 +63,9 @@ export default function UsersPage() {
   // Password change form
   const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
   const [showPw, setShowPw] = useState(false);
+
+  // Assign-manager form
+  const [assignManagerId, setAssignManagerId] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -105,7 +109,7 @@ export default function UsersPage() {
       password: '',
       role: u.role,
       department: u.department || 'Sales',
-      managerId: '',
+      managerId: u.manager?.id || '',
     });
     setError('');
     setModal('edit');
@@ -119,6 +123,13 @@ export default function UsersPage() {
     setModal('password');
   };
 
+  const openAssignManager = (u: User) => {
+    setSelectedUser(u);
+    setAssignManagerId(u.manager?.id || '');
+    setError('');
+    setModal('assign-manager');
+  };
+
   const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -126,10 +137,12 @@ export default function UsersPage() {
     setSaving(true); setError('');
     const token = localStorage.getItem('token');
     try {
+      const body: any = { ...form };
+      if (!body.managerId) delete body.managerId;
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to create user');
@@ -153,8 +166,8 @@ export default function UsersPage() {
         lastName: form.lastName,
         role: form.role,
         department: form.department,
+        managerId: form.managerId || null,
       };
-      if (form.managerId) body.managerId = form.managerId;
       const res = await fetch(`/api/users/${selectedUser.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -162,6 +175,28 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update user');
+      closeModal();
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAssignManager = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setSaving(true); setError('');
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ managerId: assignManagerId || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to assign manager');
       closeModal();
       fetchUsers();
     } catch (err: any) {
@@ -221,6 +256,15 @@ export default function UsersPage() {
 
   const totalActive = users.filter(u => u.isActive).length;
 
+  // Build manager → exec map for team view
+  const teamMap = managers.map(mgr => ({
+    manager: mgr,
+    execs: users.filter(u => u.role === 'SALES_EXEC' && u.manager?.id === mgr.id),
+  }));
+  const unassignedExecs = users.filter(u => u.role === 'SALES_EXEC' && !u.manager);
+
+  const canEdit = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
+
   return (
     <div className="p-6 max-w-6xl">
       {/* Header */}
@@ -229,9 +273,19 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-sm text-gray-500 mt-1">{users.length} total · {totalActive} active</p>
         </div>
-        <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
-          <span className="text-lg">+</span> Add User
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setModal('team-view')}
+            className="px-4 py-2 text-sm rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
+          >
+            Team Structure
+          </button>
+          {canEdit && (
+            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+              <span className="text-lg">+</span> Add User
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -288,7 +342,14 @@ export default function UsersPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
-                            {u.manager ? `${u.manager.firstName} ${u.manager.lastName}` : '—'}
+                            {u.manager ? (
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+                                {u.manager.firstName} {u.manager.lastName}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -296,30 +357,44 @@ export default function UsersPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => openEdit(u)}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => openPassword(u)}
-                                className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                              >
-                                Password
-                              </button>
-                              <button
-                                onClick={() => handleToggleActive(u)}
-                                disabled={u.id === currentUser?.id}
-                                className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${
-                                  u.isActive
-                                    ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                    : 'border-green-200 text-green-600 hover:bg-green-50'
-                                }`}
-                              >
-                                {u.isActive ? 'Deactivate' : 'Activate'}
-                              </button>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {canEdit && (
+                                <button
+                                  onClick={() => openEdit(u)}
+                                  className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canEdit && u.role === 'SALES_EXEC' && (
+                                <button
+                                  onClick={() => openAssignManager(u)}
+                                  className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                >
+                                  Assign Manager
+                                </button>
+                              )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => openPassword(u)}
+                                  className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                >
+                                  Password
+                                </button>
+                              )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleToggleActive(u)}
+                                  disabled={u.id === currentUser?.id}
+                                  className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${
+                                    u.isActive
+                                      ? 'border-red-200 text-red-600 hover:bg-red-50'
+                                      : 'border-green-200 text-green-600 hover:bg-green-50'
+                                  }`}
+                                >
+                                  {u.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -330,6 +405,162 @@ export default function UsersPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── TEAM STRUCTURE MODAL ── */}
+      {modal === 'team-view' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-bold">Team Structure</h2>
+                <p className="text-sm text-gray-500">Manager → Salesperson relationships</p>
+              </div>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              {teamMap.map(({ manager: mgr, execs }) => (
+                <div key={mgr.id} className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border-b">
+                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                      {mgr.firstName.charAt(0)}{(mgr.lastName || '').charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">{mgr.firstName} {mgr.lastName}</p>
+                      <p className="text-xs text-gray-500">{mgr.email}</p>
+                    </div>
+                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-medium">
+                      {ROLE_LABELS[mgr.role]}
+                    </span>
+                    <span className="text-xs text-gray-400">{execs.length} exec{execs.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {execs.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-gray-400 italic">No salespersons assigned</div>
+                  ) : (
+                    <div className="divide-y divide-gray-50">
+                      {execs.map(exec => (
+                        <div key={exec.id} className="flex items-center gap-3 px-4 py-2.5 pl-10">
+                          <div className="w-1 h-4 border-l-2 border-gray-200 mr-1" />
+                          <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">
+                            {exec.firstName.charAt(0)}{(exec.lastName || '').charAt(0)}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800">{exec.firstName} {exec.lastName}</p>
+                            <p className="text-xs text-gray-400">{exec.email}</p>
+                          </div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${exec.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {exec.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          {canEdit && (
+                            <button
+                              onClick={() => { closeModal(); openAssignManager(exec); }}
+                              className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline"
+                            >
+                              Reassign
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {unassignedExecs.length > 0 && (
+                <div className="border border-dashed border-gray-300 rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b">
+                    <span className="text-gray-400 text-sm font-semibold">Unassigned Salespersons</span>
+                    <span className="text-xs text-gray-400">({unassignedExecs.length})</span>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {unassignedExecs.map(exec => (
+                      <div key={exec.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold">
+                          {exec.firstName.charAt(0)}{(exec.lastName || '').charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-700">{exec.firstName} {exec.lastName}</p>
+                          <p className="text-xs text-gray-400">{exec.email}</p>
+                        </div>
+                        {canEdit && (
+                          <button
+                            onClick={() => { closeModal(); openAssignManager(exec); }}
+                            className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline"
+                          >
+                            Assign Manager
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ASSIGN MANAGER MODAL ── */}
+      {modal === 'assign-manager' && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Assign Manager</h2>
+                <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName}</p>
+              </div>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <form onSubmit={handleAssignManager} className="p-6 space-y-4">
+              {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
+
+              {/* Current manager info */}
+              <div className="p-3 rounded-lg bg-gray-50 border text-sm">
+                <p className="text-xs font-semibold text-gray-500 mb-1">Current Manager</p>
+                {selectedUser.manager ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                      {selectedUser.manager.firstName.charAt(0)}{(selectedUser.manager.lastName || '').charAt(0)}
+                    </div>
+                    <span className="font-medium text-gray-800">
+                      {selectedUser.manager.firstName} {selectedUser.manager.lastName}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 italic">No manager assigned</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Assign To</label>
+                <select
+                  value={assignManagerId}
+                  onChange={e => setAssignManagerId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  <option value="">— No Manager (Unassign) —</option>
+                  {managers
+                    .filter(m => m.id !== selectedUser.id && m.isActive)
+                    .map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName} · {ROLE_LABELS[m.role]}
+                      </option>
+                    ))}
+                </select>
+                {managers.filter(m => m.isActive).length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No active managers or admins found. Create one first.</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t">
+                <button type="button" onClick={closeModal} className="btn btn-secondary flex-1" disabled={saving}>Cancel</button>
+                <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Assignment'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -373,7 +604,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
-                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value})}
+                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value, managerId: ''})}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
@@ -394,7 +625,9 @@ export default function UsersPage() {
                   <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     <option value="">— No Manager —</option>
-                    {managers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({ROLE_LABELS[m.role]})</option>)}
+                    {managers.filter(m => m.isActive).map(m => (
+                      <option key={m.id} value={m.id}>{m.firstName} {m.lastName} · {ROLE_LABELS[m.role]}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -440,9 +673,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
-                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value})}
+                  <select
+                    value={form.role}
+                    onChange={e => setForm({...form, role: e.target.value, managerId: ''})}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    disabled={selectedUser.id === currentUser?.id}>
+                    disabled={selectedUser.id === currentUser?.id}
+                  >
                     {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   {selectedUser.id === currentUser?.id && <p className="text-xs text-gray-400 mt-1">Cannot change your own role</p>}
@@ -459,13 +695,27 @@ export default function UsersPage() {
               {form.role === 'SALES_EXEC' && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Reports To (Manager)</label>
-                  <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    <option value="">— Keep current —</option>
-                    {managers.filter(m => m.id !== selectedUser.id).map(m => (
-                      <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({ROLE_LABELS[m.role]})</option>
-                    ))}
+                  <select
+                    value={form.managerId}
+                    onChange={e => setForm({...form, managerId: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">— No Manager —</option>
+                    {managers
+                      .filter(m => m.id !== selectedUser.id && m.isActive)
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.firstName} {m.lastName} · {ROLE_LABELS[m.role]}</option>
+                      ))}
                   </select>
+                  {form.managerId && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Currently: {managers.find(m => m.id === form.managerId)
+                        ? `${managers.find(m => m.id === form.managerId)!.firstName} ${managers.find(m => m.id === form.managerId)!.lastName}`
+                        : selectedUser.manager
+                          ? `${selectedUser.manager.firstName} ${selectedUser.manager.lastName}`
+                          : 'None'}
+                    </p>
+                  )}
                 </div>
               )}
 
