@@ -86,7 +86,7 @@ export default function TicketDetailPage() {
 
   const canEdit = () => {
     if (!currentUser || !ticket) return false;
-    if (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role)) return true;
+    if (['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role)) return true;
     if (currentUser.role === 'SUPPORT') return ticket.assignedTo.id === currentUser.id;
     return false; // SALES_EXEC and VIEWER: read-only
   };

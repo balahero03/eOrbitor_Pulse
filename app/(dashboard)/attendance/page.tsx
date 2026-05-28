@@ -29,7 +29,7 @@ export default function AttendancePage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (u.role !== 'ADMIN') { router.push('/dashboard'); return; }
+        if (!['SUPER_ADMIN','ADMIN'].includes(u.role)) { router.push('/dashboard'); return; }
         loadUsers(token!);
       })
       .catch(() => router.push('/login'));

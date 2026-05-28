@@ -52,6 +52,7 @@ model User {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   SALES_MANAGER
   SALES_EXEC

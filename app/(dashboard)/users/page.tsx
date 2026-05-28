@@ -16,6 +16,7 @@ interface User {
 }
 
 const ROLE_OPTIONS = [
+  { value: 'SUPER_ADMIN',   label: 'Super Admin', desc: 'Unrestricted access — system owner' },
   { value: 'ADMIN',         label: 'Admin',       desc: 'Full access to everything' },
   { value: 'SALES_MANAGER', label: 'Manager',     desc: 'Sees team leads & reports' },
   { value: 'SALES_EXEC',    label: 'Salesperson', desc: 'Sees own leads only' },
@@ -23,6 +24,7 @@ const ROLE_OPTIONS = [
 ];
 
 const ROLE_COLORS: Record<string, string> = {
+  SUPER_ADMIN:   'bg-purple-100 text-purple-700 border-purple-200',
   ADMIN:         'bg-red-100 text-red-700 border-red-200',
   SALES_MANAGER: 'bg-blue-100 text-blue-700 border-blue-200',
   SALES_EXEC:    'bg-green-100 text-green-700 border-green-200',
@@ -30,7 +32,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Admin', SALES_MANAGER: 'Manager', SALES_EXEC: 'Salesperson', SUPPORT: 'Support',
+  SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', SALES_MANAGER: 'Manager', SALES_EXEC: 'Salesperson', SUPPORT: 'Support',
 };
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
@@ -66,7 +68,7 @@ export default function UsersPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (u.role !== 'ADMIN' && u.role !== 'SUPPORT') { router.push('/dashboard'); return; }
+        if (!['SUPER_ADMIN','ADMIN'].includes(u.role) && u.role !== 'SUPPORT') { router.push('/dashboard'); return; }
         setCurrentUser(u);
         fetchUsers();
       })
@@ -210,6 +212,7 @@ export default function UsersPage() {
   };
 
   const groups = [
+    { label: 'Super Admins', icon: '👑', role: 'SUPER_ADMIN' },
     { label: 'Admins',       icon: '🔑', role: 'ADMIN' },
     { label: 'Managers',     icon: '👔', role: 'SALES_MANAGER' },
     { label: 'Salespersons', icon: '🧑‍💼', role: 'SALES_EXEC' },
@@ -264,8 +267,10 @@ export default function UsersPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
                                 u.role === 'ADMIN' ? 'bg-red-500' :
-                                u.role === 'SALES_MANAGER' ? 'bg-blue-500' : 'bg-green-500'
+                                u.role === 'SALES_MANAGER' ? 'bg-blue-500' :
+                                u.role === 'SUPPORT' ? 'bg-yellow-500' : 'bg-green-500'
                               }`}>
                                 {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
                               </div>

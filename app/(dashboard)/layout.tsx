@@ -14,29 +14,30 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { label: 'Dashboard',    href: '/dashboard',      icon: '📊' },
-  { label: 'Leads',        href: '/leads',           icon: '👥', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Leads',        href: '/leads',           icon: '👥', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
   { label: 'Customers',    href: '/customers',       icon: '🏢' },
-  { label: 'Pipeline',     href: '/pipeline',        icon: '📈', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
-  { label: 'Quotations',   href: '/quotations',      icon: '📄', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
-  { label: 'Orders',       href: '/orders',          icon: '📦', roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
-  { label: 'Tasks',        href: '/tasks',           icon: '✓',  roles: ['ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Pipeline',     href: '/pipeline',        icon: '📈', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Quotations',   href: '/quotations',      icon: '📄', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Orders',       href: '/orders',          icon: '📦', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+  { label: 'Tasks',        href: '/tasks',           icon: '✓',  roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
   { label: 'Support',      href: '/support',         icon: '🆘' },
   { label: 'Activity',     href: '/daily-activity',  icon: '📝' },
-  { label: 'Team Activity', href: '/team-activity',  icon: '👥', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Attendance',   href: '/attendance',      icon: '📅', roles: ['ADMIN'] },
-  { label: 'Reports',      href: '/reports',         icon: '📊', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Approvals',    href: '/approvals',       icon: '✅', roles: ['ADMIN', 'SALES_MANAGER'] },
-  { label: 'Announcements', href: '/announcements',  icon: '📢', roles: ['ADMIN'] },
-  { label: 'Users',        href: '/users',           icon: '👤', roles: ['ADMIN', 'SUPPORT'] },
-  { label: 'Settings',     href: '/settings',        icon: '⚙️', roles: ['ADMIN'] },
+  { label: 'Team Activity', href: '/team-activity',  icon: '👥', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+  { label: 'Attendance',   href: '/attendance',      icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { label: 'Reports',      href: '/reports',         icon: '📊', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+  { label: 'Approvals',    href: '/approvals',       icon: '✅', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+  { label: 'Announcements', href: '/announcements',  icon: '📢', roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { label: 'Users',        href: '/users',           icon: '👤', roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
+  { label: 'Settings',     href: '/settings',        icon: '⚙️', roles: ['SUPER_ADMIN', 'ADMIN'] },
 ];
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  ADMIN:         { label: 'Admin',    color: 'bg-red-100 text-red-700' },
-  SALES_MANAGER: { label: 'Manager',  color: 'bg-blue-100 text-blue-700' },
-  SALES_EXEC:    { label: 'Sales',    color: 'bg-green-100 text-green-700' },
-  SUPPORT:       { label: 'Support',  color: 'bg-yellow-100 text-yellow-700' },
-  VIEWER:        { label: 'Viewer',   color: 'bg-gray-100 text-gray-600' },
+  SUPER_ADMIN:   { label: 'Super Admin', color: 'bg-purple-100 text-purple-700' },
+  ADMIN:         { label: 'Admin',       color: 'bg-red-100 text-red-700' },
+  SALES_MANAGER: { label: 'Manager',     color: 'bg-blue-100 text-blue-700' },
+  SALES_EXEC:    { label: 'Sales',       color: 'bg-green-100 text-green-700' },
+  SUPPORT:       { label: 'Support',     color: 'bg-yellow-100 text-yellow-700' },
+  VIEWER:        { label: 'Viewer',      color: 'bg-gray-100 text-gray-600' },
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

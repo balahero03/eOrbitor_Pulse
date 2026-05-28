@@ -45,7 +45,7 @@ export default function TeamActivityPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/daily-activity/team?date=${selectedDate}`, {
+      const res = await fetch(`/api/daily-activity/team?date=${selectedDate}&mode=day`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

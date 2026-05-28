@@ -41,7 +41,7 @@ export async function PATCH(
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.role !== 'ADMIN') {
+    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Only admins can update announcements' }, { status: 403 });
     }
 
@@ -81,7 +81,7 @@ export async function DELETE(
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.role !== 'ADMIN') {
+    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Only admins can delete announcements' }, { status: 403 });
     }
 

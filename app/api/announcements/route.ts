@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.role !== 'ADMIN') {
+    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Only admins can create announcements' }, { status: 403 });
     }
 

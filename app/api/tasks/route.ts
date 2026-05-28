@@ -36,14 +36,14 @@ export async function GET(req: NextRequest) {
 
   const where: any = {};
 
-  // Tasks are private — each user sees only their own assigned tasks. Admin sees all.
-  if (decoded.role !== 'ADMIN') {
+  // Tasks are private — each user sees only their own assigned tasks. Admin/SuperAdmin sees all.
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
     where.assignedToId = decoded.id;
   }
 
   if (status) where.status = status;
   if (priority) where.priority = priority;
-  if (assignedToId && decoded.role === 'ADMIN') where.assignedToId = assignedToId;
+  if (assignedToId && ['SUPER_ADMIN','ADMIN'].includes(decoded.role)) where.assignedToId = assignedToId;
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },

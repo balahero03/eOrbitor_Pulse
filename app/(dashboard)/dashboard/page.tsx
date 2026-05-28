@@ -777,5 +777,9 @@ export default function DashboardPage() {
     return <SupportDashboard user={user} />;
   }
 
+  if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
+    return <AdminDashboard data={data} user={user} />;
+  }
+
   return <AdminDashboard data={data} user={user} />;
 }

@@ -32,7 +32,7 @@ export default function NewTicketPage() {
       .then(r => r.json())
       .then(u => {
         setCurrentUser(u);
-        if (['ADMIN', 'SALES_MANAGER'].includes(u.role)) {
+        if (['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(u.role)) {
           fetchSupportAgents(token!);
         }
       })
@@ -123,7 +123,7 @@ export default function NewTicketPage() {
     }
   };
 
-  const canAssign = currentUser && ['ADMIN', 'SALES_MANAGER'].includes(currentUser.role);
+  const canAssign = currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role);
 
   return (
     <div className="p-6">

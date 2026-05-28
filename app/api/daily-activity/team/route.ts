@@ -15,32 +15,32 @@ export async function GET(req: NextRequest) {
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-    if (decoded.role !== 'ADMIN') {
+    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
     const filterUserId = searchParams.get('userId');
+    const dateParam = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const mode = searchParams.get('mode'); // 'day' = exact date, default = full month
 
-    // Expect ?year=2026&month=5 OR ?date=2026-05-01
-    let year: number;
-    let month: number; // 1-based
+    let startDate: string;
+    let endDate: string;
 
-    const dateParam = searchParams.get('date');
-    if (dateParam) {
-      const parts = dateParam.split('-');
-      year = parseInt(parts[0]);
-      month = parseInt(parts[1]);
+    if (mode === 'day') {
+      // Exact date filter for team-activity page
+      startDate = dateParam;
+      endDate = dateParam;
     } else {
-      year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
-      month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
+      // Full month range for attendance calendar
+      const parts = dateParam.split('-');
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const monthStr = String(month).padStart(2, '0');
+      startDate = `${year}-${monthStr}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
     }
-
-    // Build date range strings for the full month
-    const monthStr = String(month).padStart(2, '0');
-    const startDate = `${year}-${monthStr}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
     // Resolve super admin's userId to exclude them
     const superAdmin = await prisma.user.findUnique({

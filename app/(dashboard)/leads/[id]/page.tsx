@@ -288,7 +288,7 @@ export default function LeadDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Status & Qualification</h2>
               {currentUser && (
-                ['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) ||
+                ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) ||
                 lead.assignedTo?.id === currentUser.id
               ) && (
                 <button onClick={() => setEditing(!editing)} className="btn btn-secondary text-sm">
@@ -507,13 +507,13 @@ export default function LeadDetailPage() {
                 <Link href={`/customers/${lead.linkedCustomer.id}`} className="btn btn-secondary w-full block text-center">
                   View Customer
                 </Link>
-                {currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
+                {currentUser && (['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
                   <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full text-sm">
                     Re-convert / Update Customer
                   </button>
                 )}
               </div>
-            ) : currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) ? (
+            ) : currentUser && (['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) ? (
               ['PROSPECT', 'NEGOTIATION', 'WON'].includes(lead.status) ? (
                 <button onClick={() => setShowConvertModal(true)} className="btn btn-secondary w-full">
                   Convert to Customer
@@ -524,7 +524,7 @@ export default function LeadDetailPage() {
                 </div>
               )
             ) : null}
-            {currentUser && (['ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
+            {currentUser && (['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) || lead.assignedTo?.id === currentUser.id) && (
               <button onClick={() => setShowDeleteModal(true)} className="btn btn-error w-full">
                 🗑️ Request Deletion
               </button>

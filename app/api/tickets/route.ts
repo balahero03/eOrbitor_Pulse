@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // Admins/managers can assign to anyone; others are self-assigned
     const resolvedAssignedTo = (
-      ['ADMIN', 'SALES_MANAGER'].includes(auth.role) && assignedToId
+      ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(auth.role) && assignedToId
     ) ? assignedToId : auth.id;
 
     const ticketNumber = `TKT-${Date.now()}`;
