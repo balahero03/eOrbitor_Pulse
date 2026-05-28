@@ -10,23 +10,28 @@ export async function GET(req: NextRequest) {
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(decoded.role);
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
+    // Admins see all (drafts + published), everyone else only published
+    const where = isAdmin ? {} : { isPublished: true };
+
     const [announcements, total] = await Promise.all([
       prisma.announcement.findMany({
-        where: { isPublished: true },
+        where,
         include: {
           createdBy: { select: { id: true, firstName: true, lastName: true } },
         },
-        orderBy: { publishedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      prisma.announcement.count({ where: { isPublished: true } }),
+      prisma.announcement.count({ where }),
     ]);
 
     return NextResponse.json({

@@ -35,6 +35,55 @@ function isOverdue(date: string) {
   return new Date(date) < new Date();
 }
 
+// ─── Announcements Banner (shown to all roles) ──────────────────────────────
+function AnnouncementsBanner() {
+  const [items, setItems] = useState<any[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/announcements?limit=10', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setItems(d.data || []))
+      .catch(() => {});
+  }, []);
+
+  const visible = items.filter(a => !dismissed.has(a.id));
+  if (visible.length === 0) return null;
+
+  return (
+    <div className="px-6 pt-4 space-y-2">
+      {visible.map(ann => (
+        <div
+          key={ann.id}
+          className={`flex items-start gap-3 px-4 py-3 rounded-lg border text-sm ${
+            ann.priority === 'URGENT'
+              ? 'bg-red-50 border-red-300 text-red-800'
+              : ann.priority === 'LOW'
+              ? 'bg-gray-50 border-gray-200 text-gray-700'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}
+        >
+          <span className="text-lg flex-shrink-0">
+            {ann.priority === 'URGENT' ? '🔴' : ann.priority === 'LOW' ? '📋' : '📢'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold">{ann.title}</p>
+            <p className="text-xs mt-0.5 opacity-80">{ann.content}</p>
+          </div>
+          <button
+            onClick={() => setDismissed(prev => new Set([...prev, ann.id]))}
+            className="flex-shrink-0 opacity-50 hover:opacity-100 text-lg leading-none"
+            title="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Sales Exec Dashboard ───────────────────────────────────────────────────
 function SalesExecDashboard({ data, user }: { data: any; user: any }) {
   const router = useRouter();
@@ -766,20 +815,16 @@ export default function DashboardPage() {
   }
 
   if (user.role === 'SALES_EXEC') {
-    return <SalesExecDashboard data={data} user={user} />;
+    return <><AnnouncementsBanner /><SalesExecDashboard data={data} user={user} /></>;
   }
 
   if (user.role === 'SALES_MANAGER') {
-    return <ManagerDashboard data={data} user={user} />;
+    return <><AnnouncementsBanner /><ManagerDashboard data={data} user={user} /></>;
   }
 
   if (user.role === 'SUPPORT') {
-    return <SupportDashboard user={user} />;
+    return <><AnnouncementsBanner /><SupportDashboard user={user} /></>;
   }
 
-  if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
-    return <AdminDashboard data={data} user={user} />;
-  }
-
-  return <AdminDashboard data={data} user={user} />;
+  return <><AnnouncementsBanner /><AdminDashboard data={data} user={user} /></>;
 }
