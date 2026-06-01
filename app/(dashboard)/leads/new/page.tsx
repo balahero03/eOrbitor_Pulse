@@ -28,10 +28,6 @@ export default function NewLeadPage() {
     address: '',
     source: 'EMAIL',
     status: INITIAL_STATUS,
-    quoteNo: '',
-    quoteValue: '',
-    rfqDate: '',
-    followUpDate: '',
     expectedClosureDate: '',
     remarks: '',
     assignedToId: '',
@@ -68,10 +64,6 @@ export default function NewLeadPage() {
       const payload: any = { ...formData };
       if (!payload.email) delete payload.email;
       if (!payload.phone) delete payload.phone;
-      if (!payload.quoteNo) delete payload.quoteNo;
-      if (!payload.quoteValue) delete payload.quoteValue;
-      if (!payload.rfqDate) delete payload.rfqDate;
-      if (!payload.followUpDate) delete payload.followUpDate;
       if (!payload.remarks) delete payload.remarks;
       if (!payload.assignedToId) delete payload.assignedToId;
       if (!payload.broughtById) delete payload.broughtById;
@@ -171,67 +163,6 @@ export default function NewLeadPage() {
                   <option value="WEBSITE">Website</option>
                   <option value="ADVERTISEMENT">Advertisement</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Quote Details */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Quote Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Quote No (S.NO)</label>
-                <input
-                  type="text"
-                  name="quoteNo"
-                  value={formData.quoteNo}
-                  onChange={handleChange}
-                  placeholder="e.g. Q-2024-001"
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Quote Value (₹)</label>
-                <input
-                  type="number"
-                  name="quoteValue"
-                  value={formData.quoteValue}
-                  onChange={handleChange}
-                  placeholder="e.g. 500000"
-                  min="0"
-                  step="0.01"
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">RFQ Date</label>
-                <input
-                  type="date"
-                  name="rfqDate"
-                  value={formData.rfqDate}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Follow-up Date</label>
-                <input
-                  type="date"
-                  name="followUpDate"
-                  value={formData.followUpDate}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
-                <input
-                  type="date"
-                  name="expectedClosureDate"
-                  value={formData.expectedClosureDate}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
               </div>
             </div>
           </div>

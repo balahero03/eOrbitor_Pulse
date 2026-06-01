@@ -96,7 +96,7 @@ const CLOSED_STATUSES: Record<string, { label: string; icon: string; style: stri
   ON_HOLD: { label: 'On Hold',     icon: '⏸️', style: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
-const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'DEMO', 'PROPOSAL', 'NEGOTIATION', 'OTHER'];
+const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'WHATSAPP', 'SITE_VISIT'];
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
@@ -897,37 +897,11 @@ export default function LeadDetailPage() {
                       onChange={e => setEditData({ ...editData, address: e.target.value })}
                       placeholder="Full address" className="w-full border rounded-lg px-3 py-2 text-sm" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Quote No.</label>
-                      <input type="text" value={editData.quoteNo}
-                        onChange={e => setEditData({ ...editData, quoteNo: e.target.value })}
-                        placeholder="QT-2024-001" className="w-full border rounded-lg px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Quote Value (₹)</label>
-                      <input type="number" value={editData.quoteValue}
-                        onChange={e => setEditData({ ...editData, quoteValue: e.target.value })}
-                        placeholder="0" className="w-full border rounded-lg px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">RFQ Date</label>
-                      <input type="date" value={editData.rfqDate}
-                        onChange={e => setEditData({ ...editData, rfqDate: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Follow-up Date</label>
-                      <input type="date" value={editData.followUpDate}
-                        onChange={e => setEditData({ ...editData, followUpDate: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
-                      <input type="date" value={editData.expectedClosureDate}
-                        onChange={e => setEditData({ ...editData, expectedClosureDate: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
+                    <input type="date" value={editData.expectedClosureDate}
+                      onChange={e => setEditData({ ...editData, expectedClosureDate: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Remarks</label>
@@ -1092,16 +1066,16 @@ export default function LeadDetailPage() {
             )}
 
             {/* Presales Members */}
-            {lead.presalesIds && lead.presalesIds.length > 0 && (
+            {lead.presalesUsers && lead.presalesUsers.length > 0 && (
               <div className="bg-white rounded-xl border p-5 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-600 mb-3">Presales Members</h3>
                 <div className="space-y-2">
-                  {lead.presalesIds.map((userId, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                  {lead.presalesUsers.map((user: any) => (
+                    <div key={user.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                       <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                        •
+                        {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                       </div>
-                      <span className="text-sm text-gray-700">{userId}</span>
+                      <span className="text-sm text-gray-700">{user.firstName} {user.lastName}</span>
                     </div>
                   ))}
                 </div>

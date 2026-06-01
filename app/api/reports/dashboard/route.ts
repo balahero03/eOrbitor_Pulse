@@ -18,11 +18,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     teamFilter.assignedToId = { in: teamIds };
   }
 
-  const [totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks, pipelineByStage] = await Promise.all([
+  const [totalLeads, totalCustomers, activeDeals, overdueTasks, pipelineByStage] = await Promise.all([
     prisma.lead.count({ where: { ...teamFilter, deletedAt: null } }),
     prisma.customer.count({ where: { deletedAt: null } }),
     prisma.deal.count({ where: { ...teamFilter, stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
-    prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
     prisma.task.count({ where: { ...teamFilter, status: { not: 'COMPLETED' }, dueDate: { lt: new Date() } } }),
     prisma.deal.groupBy({
       by: ['stage'],
@@ -34,7 +33,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     role: user.role,
-    kpis: { totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks },
+    kpis: { totalLeads, totalCustomers, activeDeals, overdueTasks },
     pipeline: (pipelineByStage as any[]).map((s) => ({
       stage: s.stage,
       value: s._sum?.dealValue || 0,

@@ -88,8 +88,23 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const discount = Number(discountInput || 0);
   const totalAmount = subtotal + taxAmount - discount;
-  const count = await prisma.quotation.count();
-  const quotationNumber = `QT-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
+
+  // Get the last quotation number to ensure sequential generation
+  const lastQuotation = await prisma.quotation.findFirst({
+    orderBy: { createdAt: 'desc' },
+    select: { quotationNumber: true },
+  });
+
+  // Extract the number and increment
+  let nextNumber = 1;
+  if (lastQuotation?.quotationNumber) {
+    const match = lastQuotation.quotationNumber.match(/QT-\d+-(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const quotationNumber = `QT-${new Date().getFullYear()}-${String(nextNumber).padStart(5, '0')}`;
 
   const quotation = await prisma.quotation.create({
     data: {

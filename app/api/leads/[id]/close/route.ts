@@ -91,6 +91,27 @@ export async function POST(
         : { reason, competitor, whatToImprove, attachmentNames };
 
     if (outcome === 'WON') {
+      // Auto-create a Customer from the won lead if one doesn't already exist
+      let customerId = lead.linkedCustomerId;
+      if (!customerId) {
+        const newCustomer = await prisma.customer.create({
+          data: {
+            companyName: lead.company,
+            email: lead.email,
+            phone: lead.phone,
+            address: lead.address,
+            billingAddress: lead.address ? { street: lead.address } : undefined,
+            gstNumber: '', // Will be empty until updated by user
+            contactPerson: lead.name,
+            website: '',
+            employeeCount: 0,
+            industry: '',
+            createdById: lead.assignedToId,
+          },
+        });
+        customerId = newCustomer.id;
+      }
+
       const updated = await prisma.lead.update({
         where: { id },
         data: {
@@ -98,6 +119,7 @@ export async function POST(
           closedAt: new Date(),
           closureReason: reasonOfWin || null,
           closureDetails: closureDetails as any,
+          linkedCustomerId: customerId,
         } as any,
         include: {
           assignedTo: { select: { firstName: true, lastName: true } },
@@ -118,7 +140,7 @@ export async function POST(
         });
       }
 
-      return NextResponse.json({ outcome: 'WON', lead: updated, message: 'Lead won! Moved to Orders.' });
+      return NextResponse.json({ outcome: 'WON', lead: updated, message: 'Lead won! Auto-converted to Customer and moved to Orders.' });
     }
 
     // LOST or DROPPED

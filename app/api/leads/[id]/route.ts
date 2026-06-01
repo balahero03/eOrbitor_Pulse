@@ -26,11 +26,20 @@ export async function GET(
       },
     });
 
+    // Resolve presalesIds to user names
+    let presalesUsers: any[] = [];
+    if (lead && lead.presalesIds && lead.presalesIds.length > 0) {
+      presalesUsers = await prisma.user.findMany({
+        where: { id: { in: lead.presalesIds } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+    }
+
     if (!lead || lead.deletedAt) {
       return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
     }
 
-    return NextResponse.json(lead);
+    return NextResponse.json({ ...lead, presalesUsers });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

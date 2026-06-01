@@ -176,38 +176,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
   }
 
-  // ── SUPPORT: ticket-focused dashboard ───────────────────────────────
-  if (role === 'SUPPORT') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const [openTickets, myAssignedTickets, resolvedToday, urgentTickets, myTickets] = await Promise.all([
-      prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-      prisma.ticket.count({ where: { assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-      prisma.ticket.count({ where: { assignedToId: userId, status: 'RESOLVED', createdAt: { gte: today, lte: todayEnd } } }),
-      prisma.ticket.count({ where: { assignedToId: userId, priority: 'URGENT', status: { not: 'CLOSED' } } }),
-      prisma.ticket.findMany({
-        where: { assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-        select: {
-          id: true, subject: true, status: true, priority: true, createdAt: true,
-          customer: { select: { companyName: true } },
-        },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        take: 10,
-      }),
-    ]);
-
-    return NextResponse.json({
-      role: 'SUPPORT',
-      stats: { openTickets, myAssignedTickets, resolvedToday, urgentTickets },
-      myTickets: myTickets.map((t) => ({
-        id: t.id, title: t.subject, status: t.status, priority: t.priority,
-        customer: t.customer?.companyName, createdAt: t.createdAt.toISOString(),
-      })),
-    });
-  }
+  // ── SUPPORT: falls through to ADMIN dashboard (no ticket model) ──────
+  // Support role is now treated like ADMIN/SUPER_ADMIN since tickets were removed
 
   // ── ADMIN / SUPER_ADMIN: org-level KPIs ─────────────────────────────
   const now = new Date();
@@ -215,13 +185,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const [
-    totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks,
+    totalLeads, totalCustomers, activeDeals, overdueTasks,
     pendingApprovals, totalUsers, monthRevenue, lastMonthRevenue, pipelineByStage, recentActivity,
   ] = await Promise.all([
     prisma.lead.count({ where: { deletedAt: null } }),
     prisma.customer.count({ where: { deletedAt: null } }),
     prisma.deal.count({ where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
-    prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
     prisma.task.count({ where: { status: { not: 'COMPLETED' }, dueDate: { lt: now } } }),
     prisma.approvalRequest.count({ where: { status: 'PENDING' } }),
     prisma.user.count({ where: { isActive: true } }),
@@ -245,7 +214,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     kpis: {
       totalLeads, totalCustomers, activeDeals,
       dealsPipelineValue: Number(dealsPipelineValue._sum.dealValue || 0),
-      openTickets, overdueTasks,
+      overdueTasks,
       monthRevenue: Number(monthRevenue._sum.totalAmount || 0),
       lastMonthRevenue: Number(lastMonthRevenue._sum.totalAmount || 0),
       totalUsers, pendingApprovals,
