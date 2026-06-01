@@ -258,6 +258,21 @@ function SpancoKanban({
 }
 
 // ─── Closure Outcome Modal ────────────────────────────────────────────────────
+interface ClosureFormData {
+  outcome: 'WON' | 'LOST' | 'DROPPED';
+  // WON fields
+  quoteRef: string;
+  poNumber: string;
+  reasonOfWin: string;
+  whatWentWell: string;
+  // LOST / DROPPED fields
+  reason: string;
+  competitor: string;
+  whatToImprove: string;
+  // Attachments (max 3)
+  files: (File | null)[];
+}
+
 function ClosureModal({
   lead,
   onClose,
@@ -266,97 +281,201 @@ function ClosureModal({
 }: {
   lead: LeadDetail;
   onClose: () => void;
-  onSubmit: (outcome: 'WON' | 'LOST' | 'DROPPED', reason: string) => void;
+  onSubmit: (form: ClosureFormData) => void;
   closing: boolean;
 }) {
-  const [outcome, setOutcome] = useState<'WON' | 'LOST' | 'DROPPED'>('WON');
-  const [reason, setReason] = useState('');
+  const [form, setForm] = useState<ClosureFormData>({
+    outcome: 'WON',
+    quoteRef: lead.quoteNo || '',
+    poNumber: '',
+    reasonOfWin: '',
+    whatWentWell: '',
+    reason: '',
+    competitor: '',
+    whatToImprove: '',
+    files: [null, null, null],
+  });
+
+  const set = (k: keyof ClosureFormData, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const setFile = (idx: number, file: File | null) =>
+    setForm(f => { const files = [...f.files]; files[idx] = file; return { ...f, files }; });
+
+  const fileInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
+
+  const outcomeConfig = {
+    WON:     { label: 'Won',     icon: '🏆', btnColor: 'bg-green-600 hover:bg-green-700', border: 'border-green-400 bg-green-50 text-green-800' },
+    LOST:    { label: 'Lost',    icon: '❌', btnColor: 'bg-red-600 hover:bg-red-700',     border: 'border-red-400 bg-red-50 text-red-800' },
+    DROPPED: { label: 'Dropped', icon: '🚫', btnColor: 'bg-gray-600 hover:bg-gray-700',   border: 'border-gray-400 bg-gray-50 text-gray-700' },
+  };
+
+  const cfg = outcomeConfig[form.outcome];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Close this deal</h2>
-          <p className="text-sm text-gray-500 mb-5">
-            <strong>{lead.name}</strong> · {lead.company}
-            {lead.quoteValue ? ` · ${fmt(lead.quoteValue)}` : ''}
-          </p>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
 
-          {/* Outcome picker */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            {[
-              { key: 'WON',     label: 'Won',     icon: '🏆', style: 'border-green-400 bg-green-50 text-green-800' },
-              { key: 'LOST',    label: 'Lost',    icon: '❌', style: 'border-red-400 bg-red-50 text-red-800' },
-              { key: 'DROPPED', label: 'Dropped', icon: '🚫', style: 'border-gray-400 bg-gray-50 text-gray-700' },
-            ].map(o => (
-              <button
-                key={o.key}
-                onClick={() => setOutcome(o.key as any)}
-                className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 font-medium text-sm transition-all
-                  ${outcome === o.key ? o.style + ' scale-105 shadow-md' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
-              >
-                <span className="text-2xl">{o.icon}</span>
-                <span>{o.label}</span>
-              </button>
-            ))}
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Close this Deal</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              <strong>{lead.name}</strong> · {lead.company}
+              {lead.quoteValue ? ` · ${fmt(lead.quoteValue)}` : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+          {/* Outcome selector */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Outcome</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(['WON', 'LOST', 'DROPPED'] as const).map(o => {
+                const c = outcomeConfig[o];
+                return (
+                  <button key={o} onClick={() => set('outcome', o)}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-medium text-sm transition-all
+                      ${form.outcome === o ? c.border + ' scale-[1.03] shadow-md' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                    <span className="text-xl">{c.icon}</span>
+                    <span>{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Win description */}
-          {outcome === 'WON' && (
-            <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
-              <p className="font-semibold mb-1">✅ What happens next:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Lead moves to <strong>Orders</strong> automatically</li>
-                <li>Manager & Admin notified by email</li>
-                <li>Lead archived in Closed Leads → Won</li>
-              </ul>
+          {/* ── WON FIELDS ── */}
+          {form.outcome === 'WON' && (
+            <div className="space-y-4">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+                Lead moves to <strong>Orders</strong> · Manager &amp; Admin notified by email with attachments
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Reference</label>
+                  <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
+                    placeholder="e.g. QT-2026-00123"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO Number</label>
+                  <input type="text" value={form.poNumber} onChange={e => set('poNumber', e.target.value)}
+                    placeholder="Customer PO #"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                  🎯 Reason of Win <span className="text-red-400">*</span>
+                </label>
+                <textarea value={form.reasonOfWin} onChange={e => set('reasonOfWin', e.target.value)}
+                  rows={3} placeholder="Why did we win? e.g. Best price, quick delivery, strong relationship…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">✅ What Went Well</label>
+                <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
+                  rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+              </div>
             </div>
           )}
 
-          {(outcome === 'LOST' || outcome === 'DROPPED') && (
-            <div className="mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700">
-              <p className="font-semibold mb-1">{outcome === 'LOST' ? '❌' : '🚫'} What happens next:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Lead moved to Closed Leads → {outcome === 'LOST' ? 'Lost' : 'Dropped'}</li>
-                <li>Manager & Admin notified by email</li>
-                <li>You can re-open this lead anytime</li>
-              </ul>
+          {/* ── LOST / DROPPED FIELDS ── */}
+          {(form.outcome === 'LOST' || form.outcome === 'DROPPED') && (
+            <div className="space-y-4">
+              <div className={`p-3 rounded-lg border text-xs ${form.outcome === 'LOST' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                Lead archived in Closed Leads · Manager &amp; Admin notified by email with attachments
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                  {form.outcome === 'LOST' ? '❌ Reason of Loss' : '🚫 Reason for Drop'} <span className="text-red-400">*</span>
+                </label>
+                <textarea value={form.reason} onChange={e => set('reason', e.target.value)}
+                  rows={3} placeholder={
+                    form.outcome === 'LOST'
+                      ? 'e.g. Competitor offered 15% lower price, customer chose domestic vendor…'
+                      : 'e.g. Customer paused procurement for 6 months due to budget freeze…'
+                  }
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+              {form.outcome === 'LOST' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competitor (if any)</label>
+                  <input type="text" value={form.competitor} onChange={e => set('competitor', e.target.value)}
+                    placeholder="e.g. HP India, local vendor…"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">💡 What to Improve</label>
+                <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
+                  rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
             </div>
           )}
 
-          {/* Reason */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium mb-1">
-              Reason <span className="text-gray-400 font-normal">(recommended)</span>
-            </label>
-            <textarea
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              placeholder={
-                outcome === 'WON' ? 'e.g. Customer signed agreement on 1st June' :
-                outcome === 'LOST' ? 'e.g. Competitor offered lower price' :
-                'e.g. Customer paused procurement for 6 months'
-              }
-              className="w-full border rounded-lg px-3 py-2 text-sm h-20"
-            />
+          {/* ── ATTACHMENTS ── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
+              📎 Attachments
+              <span className="ml-2 text-gray-300 font-normal normal-case">Quote / Proposal / PO — up to 3 files</span>
+            </p>
+            <div className="space-y-2">
+              {[0, 1, 2].map(idx => (
+                <div key={idx} className="flex items-center gap-2">
+                  <label className="text-xs text-gray-400 w-5 text-center font-medium">{idx + 1}</label>
+                  <div
+                    className="flex-1 flex items-center gap-2 border border-dashed rounded-lg px-3 py-2 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    onClick={() => fileInputRefs[idx].current?.click()}
+                  >
+                    {form.files[idx] ? (
+                      <>
+                        <span className="text-blue-600 text-xs font-medium truncate flex-1">{form.files[idx]!.name}</span>
+                        <span className="text-xs text-gray-400">{(form.files[idx]!.size / 1024).toFixed(0)} KB</span>
+                        <button type="button" onClick={e => { e.stopPropagation(); setFile(idx, null); }}
+                          className="text-gray-300 hover:text-red-400 text-lg leading-none flex-shrink-0">×</button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">Click to attach file (PDF, DOC, XLS, IMG)</span>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRefs[idx]}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={e => setFile(idx, e.target.files?.[0] || null)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button onClick={onClose} disabled={closing}
-              className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-              Cancel
-            </button>
-            <button
-              onClick={() => onSubmit(outcome, reason)}
-              disabled={closing}
-              className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors
-                ${outcome === 'WON' ? 'bg-green-600 hover:bg-green-700' :
-                  outcome === 'LOST' ? 'bg-red-600 hover:bg-red-700' :
-                  'bg-gray-600 hover:bg-gray-700'}`}
-            >
-              {closing ? 'Closing…' : `Confirm ${outcome === 'WON' ? '🏆 Won' : outcome === 'LOST' ? '❌ Lost' : '🚫 Dropped'}`}
-            </button>
-          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
+          <button onClick={onClose} disabled={closing}
+            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSubmit(form)}
+            disabled={closing || (form.outcome === 'WON' ? !form.reasonOfWin.trim() : !form.reason.trim())}
+            className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors ${cfg.btnColor}`}
+          >
+            {closing ? 'Closing…' : `Confirm ${cfg.icon} ${cfg.label}`}
+          </button>
         </div>
       </div>
     </div>
@@ -446,14 +565,27 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleClosureSumbit = async (outcome: 'WON' | 'LOST' | 'DROPPED', reason: string) => {
+  const handleClosureSumbit = async (form: ClosureFormData) => {
     setClosureSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const fd = new FormData();
+      fd.append('outcome',       form.outcome);
+      fd.append('reason',        form.reason);
+      fd.append('quoteRef',      form.quoteRef);
+      fd.append('poNumber',      form.poNumber);
+      fd.append('reasonOfWin',   form.reasonOfWin);
+      fd.append('whatWentWell',  form.whatWentWell);
+      fd.append('competitor',    form.competitor);
+      fd.append('whatToImprove', form.whatToImprove);
+      form.files.forEach((file, idx) => {
+        if (file) fd.append(`attachment${idx + 1}`, file);
+      });
+
       const res = await fetch(`/api/leads/${id}/close`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ outcome, reason }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
       });
       if (!res.ok) {
         const e = await res.json();
@@ -461,7 +593,7 @@ export default function LeadDetailPage() {
         return;
       }
       setShowClosureModal(false);
-      if (outcome === 'WON') {
+      if (form.outcome === 'WON') {
         router.push('/orders');
       } else {
         router.push('/closed-leads');
