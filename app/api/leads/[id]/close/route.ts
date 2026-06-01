@@ -26,6 +26,7 @@ export async function POST(
       competitor    = '',
       whatToImprove = '',
       attachments: rawAttachments = [],
+      closureDetails: incomingClosureDetails,
     } = body;
 
     if (!['WON', 'LOST', 'DROPPED'].includes(outcome)) {
@@ -85,10 +86,14 @@ export async function POST(
       : 'Manager';
     const attachmentNames = attachments.map(a => a.filename);
 
+    // Merge with existing stage details (approach/negotiation captured during pipeline)
+    const existingStageDetails = (lead.closureDetails as any) || {};
+    const baseClosureDetails = incomingClosureDetails || existingStageDetails;
+
     const closureDetails =
       outcome === 'WON'
-        ? { quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames }
-        : { reason, competitor, whatToImprove, attachmentNames };
+        ? { ...baseClosureDetails, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames }
+        : { ...baseClosureDetails, reason, competitor, whatToImprove, attachmentNames };
 
     if (outcome === 'WON') {
       // Auto-create a Customer from the won lead if one doesn't already exist
@@ -97,16 +102,10 @@ export async function POST(
         const newCustomer = await prisma.customer.create({
           data: {
             companyName: lead.company,
-            email: lead.email,
-            phone: lead.phone,
-            address: lead.address,
             billingAddress: lead.address ? { street: lead.address } : undefined,
-            gstNumber: '', // Will be empty until updated by user
-            contactPerson: lead.name,
+            gstNumber: `PENDING-${Date.now()}`,
             website: '',
-            employeeCount: 0,
             industry: '',
-            createdById: lead.assignedToId,
           },
         });
         customerId = newCustomer.id;

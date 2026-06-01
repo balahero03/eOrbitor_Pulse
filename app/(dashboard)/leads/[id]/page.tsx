@@ -24,9 +24,11 @@ interface LeadDetail {
   expectedClosureDate?: string;
   closedAt?: string;
   closureReason?: string;
+  closureDetails?: any;
   solutionAreas?: string[];
   oemNames?: string[];
   presalesIds?: string[];
+  presalesUsers?: Array<{ id: string; firstName: string; lastName: string }>;
   assignedTo: { id: string; firstName: string; lastName: string };
   broughtBy?: { id: string; firstName: string; lastName: string };
   linkedCustomer?: { id: string; companyName: string };
@@ -241,7 +243,7 @@ function SpancoKanban({
         <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-400 font-medium">Mark as:</span>
           {lead.status === 'SUSPECT' && (
-            <button onClick={() => setShowConvertModal(true)} disabled={changing}
+            <button onClick={() => onShowConvertModal?.()} disabled={changing}
               className="text-xs px-3 py-1 rounded-full border bg-cyan-50 text-cyan-700 border-cyan-200 hover:opacity-80 disabled:opacity-40 font-semibold">
               📋 Convert to Prospect
             </button>
@@ -288,6 +290,14 @@ interface ClosureFormData {
   poNumber: string;
   reasonOfWin: string;
   whatWentWell: string;
+  // Closure stage details (WON)
+  finalDealValue: string;
+  finalTerms: string;
+  contractDetails: string;
+  paymentTermsFinal: string;
+  deliveryDateFinal: string;
+  contractSignedDate: string;
+  specialConditions: string;
   // LOST / DROPPED fields
   reason: string;
   competitor: string;
@@ -313,6 +323,13 @@ function ClosureModal({
     poNumber: '',
     reasonOfWin: '',
     whatWentWell: '',
+    finalDealValue: lead.quoteValue ? String(lead.quoteValue) : '',
+    finalTerms: '',
+    contractDetails: '',
+    paymentTermsFinal: '',
+    deliveryDateFinal: '',
+    contractSignedDate: '',
+    specialConditions: '',
     reason: '',
     competitor: '',
     whatToImprove: '',
@@ -408,6 +425,57 @@ function ClosureModal({
                 <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
                   rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+              </div>
+
+              {/* ── CLOSURE STAGE DETAILS ── */}
+              <div className="border-t pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">🔒 Closure Stage Details</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value (₹)</label>
+                      <input type="number" value={form.finalDealValue} onChange={e => set('finalDealValue', e.target.value)}
+                        placeholder="Final agreed value"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contract Signed Date</label>
+                      <input type="date" value={form.contractSignedDate} onChange={e => set('contractSignedDate', e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO / Contract Details</label>
+                    <input type="text" value={form.contractDetails} onChange={e => set('contractDetails', e.target.value)}
+                      placeholder="PO number, contract reference…"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms (Final)</label>
+                      <input type="text" value={form.paymentTermsFinal} onChange={e => set('paymentTermsFinal', e.target.value)}
+                        placeholder="e.g. 50% advance, 50% on delivery"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Date (Final)</label>
+                      <input type="date" value={form.deliveryDateFinal} onChange={e => set('deliveryDateFinal', e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Terms Agreed</label>
+                    <textarea value={form.finalTerms} onChange={e => set('finalTerms', e.target.value)}
+                      rows={2} placeholder="Summary of final agreed terms…"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Special Conditions / Clauses</label>
+                    <textarea value={form.specialConditions} onChange={e => set('specialConditions', e.target.value)}
+                      rows={2} placeholder="Any special conditions, warranty clauses, SLA terms…"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -505,6 +573,205 @@ function ClosureModal({
   );
 }
 
+// ─── Approach Stage Modal ─────────────────────────────────────────────────────
+interface ApproachFormData {
+  demoDate: string;
+  demoLocation: string;
+  clientAttendees: string;
+  topicsCovered: string;
+  clientFeedback: string;
+  nextSteps: string;
+  materialsProvided: string;
+}
+
+function ApproachModal({ lead, onClose, onSubmit, submitting }: {
+  lead: LeadDetail; onClose: () => void;
+  onSubmit: (data: ApproachFormData) => void; submitting: boolean;
+}) {
+  const [form, setForm] = useState<ApproachFormData>({
+    demoDate: '', demoLocation: 'On-site', clientAttendees: '',
+    topicsCovered: '', clientFeedback: '', nextSteps: '', materialsProvided: '',
+  });
+  const set = (k: keyof ApproachFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const canSubmit = form.demoDate && form.clientAttendees && form.topicsCovered;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+        <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">📣 Approach Stage Details</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{lead.name} · {lead.company}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-800">
+            Fill in the demo/presentation details before moving to Approach stage. These fields are required.
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Demo/Presentation Date <span className="text-red-400">*</span></label>
+              <input type="date" value={form.demoDate} onChange={e => set('demoDate', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>
+              <select value={form.demoLocation} onChange={e => set('demoLocation', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option>On-site</option>
+                <option>Virtual</option>
+                <option>Hybrid</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Attendees <span className="text-red-400">*</span></label>
+            <input type="text" value={form.clientAttendees} onChange={e => set('clientAttendees', e.target.value)}
+              placeholder="e.g. CEO, CTO, IT Head" className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Topics Covered <span className="text-red-400">*</span></label>
+            <textarea value={form.topicsCovered} onChange={e => set('topicsCovered', e.target.value)}
+              rows={2} placeholder="e.g. Server Virtualisation, Cloud Migration roadmap…"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Feedback / Response</label>
+            <textarea value={form.clientFeedback} onChange={e => set('clientFeedback', e.target.value)}
+              rows={2} placeholder="Client's response, interest level, concerns…"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Next Steps Discussed</label>
+            <textarea value={form.nextSteps} onChange={e => set('nextSteps', e.target.value)}
+              rows={2} placeholder="e.g. Share proposal by Friday, schedule follow-up call…"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Materials Provided</label>
+            <input type="text" value={form.materialsProvided} onChange={e => set('materialsProvided', e.target.value)}
+              placeholder="e.g. Brochure, Case studies, Demo video link"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t flex gap-3 flex-shrink-0">
+          <button onClick={onClose} disabled={submitting}
+            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+          <button onClick={() => onSubmit(form)} disabled={submitting || !canSubmit}
+            className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+            {submitting ? 'Saving…' : 'Move to Approach →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Negotiation Stage Modal ──────────────────────────────────────────────────
+interface NegotiationFormData {
+  quoteNumber: string;
+  quoteValue: string;
+  discount: string;
+  paymentTerms: string;
+  deliveryTimeline: string;
+  negotiationPoints: string;
+  objections: string;
+  decisionTimeline: string;
+  competingVendors: string;
+}
+
+function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
+  lead: LeadDetail; onClose: () => void;
+  onSubmit: (data: NegotiationFormData) => void; submitting: boolean;
+}) {
+  const [form, setForm] = useState<NegotiationFormData>({
+    quoteNumber: lead.quoteNo || '', quoteValue: lead.quoteValue ? String(lead.quoteValue) : '',
+    discount: '', paymentTerms: '', deliveryTimeline: '',
+    negotiationPoints: '', objections: '', decisionTimeline: '', competingVendors: '',
+  });
+  const set = (k: keyof NegotiationFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const canSubmit = form.quoteNumber && form.quoteValue && form.paymentTerms;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+        <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">🤝 Negotiation Stage Details</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{lead.name} · {lead.company}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-800">
+            Fill in quote and negotiation details before moving to Negotiation stage. Required fields marked with *.
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote/Proposal No. <span className="text-red-400">*</span></label>
+              <input type="text" value={form.quoteNumber} onChange={e => set('quoteNumber', e.target.value)}
+                placeholder="e.g. QT-2026-001" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Value (₹) <span className="text-red-400">*</span></label>
+              <input type="number" value={form.quoteValue} onChange={e => set('quoteValue', e.target.value)}
+                placeholder="e.g. 2500000" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Discount Offered (%)</label>
+              <input type="number" value={form.discount} onChange={e => set('discount', e.target.value)}
+                placeholder="e.g. 10" min="0" max="100" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms <span className="text-red-400">*</span></label>
+              <input type="text" value={form.paymentTerms} onChange={e => set('paymentTerms', e.target.value)}
+                placeholder="e.g. 30% advance, 70% on delivery" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline</label>
+            <input type="text" value={form.deliveryTimeline} onChange={e => set('deliveryTimeline', e.target.value)}
+              placeholder="e.g. 4-6 weeks from PO" className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Negotiation Points</label>
+            <textarea value={form.negotiationPoints} onChange={e => set('negotiationPoints', e.target.value)}
+              rows={2} placeholder="Key price/terms/timeline points being negotiated…"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Objections &amp; Resolutions</label>
+            <textarea value={form.objections} onChange={e => set('objections', e.target.value)}
+              rows={2} placeholder="e.g. Price too high → offered 10% discount + extended warranty…"
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Decision Timeline</label>
+              <input type="text" value={form.decisionTimeline} onChange={e => set('decisionTimeline', e.target.value)}
+                placeholder="e.g. End of Q2 2026" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competing Vendors</label>
+              <input type="text" value={form.competingVendors} onChange={e => set('competingVendors', e.target.value)}
+                placeholder="e.g. HP India, Dell" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t flex gap-3 flex-shrink-0">
+          <button onClick={onClose} disabled={submitting}
+            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+          <button onClick={() => onSubmit(form)} disabled={submitting || !canSubmit}
+            className="flex-1 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
+            {submitting ? 'Saving…' : 'Move to Negotiation →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeadDetailPage() {
   const { id } = useParams() as { id: string };
@@ -525,6 +792,11 @@ export default function LeadDetailPage() {
 
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Stage-specific modals
+  const [showApproachModal, setShowApproachModal] = useState(false);
+  const [showNegotiationModal, setShowNegotiationModal] = useState(false);
+  const [stageSubmitting, setStageSubmitting] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
@@ -579,6 +851,18 @@ export default function LeadDetailPage() {
         followUpDate: data.followUpDate ? data.followUpDate.split('T')[0] : '',
         expectedClosureDate: data.expectedClosureDate ? data.expectedClosureDate.split('T')[0] : '',
         address: data.address || '',
+        solutionAreas: data.solutionAreas || [],
+        oemNames: data.oemNames || [],
+        presalesIds: data.presalesIds || [],
+        employeeCount: 0,
+        industry: '',
+        annualRevenue: 0,
+        yearEstablished: 0,
+        website: '',
+        keyContacts: '',
+        currentInfra: '',
+        budgetStatus: '',
+        prospectNotes: '',
       });
     } catch {
       /* silent */
@@ -592,34 +876,113 @@ export default function LeadDetailPage() {
     lead?.assignedTo?.id === currentUser.id
   ));
 
+  // SPANCO stage order for reversal checks
+  const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
+
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
 
-    // Prevent going back to SUSPECT from PROSPECT or later stages
+    const currentIdx = STAGE_ORDER.indexOf(lead.status);
+    const newIdx = STAGE_ORDER.indexOf(newStatus);
+
+    // SUSPECT is always blocked from reverting
     if (lead.status !== 'SUSPECT' && newStatus === 'SUSPECT') {
-      alert('Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back to Suspect stage.');
+      alert('Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back.');
+      return;
+    }
+    // APPROACH and NEGOTIATION can't go back — only NEGOTIATION↔CLOSURE is allowed
+    if (newIdx < currentIdx) {
+      const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
+                          (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
+      if (!allowedBack) {
+        alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
+        return;
+      }
+    }
+
+    // Intercept forward moves that require data capture
+    if (lead.status === 'PROSPECT' && newStatus === 'APPROACH') {
+      setShowApproachModal(true);
+      return;
+    }
+    if (lead.status === 'APPROACH' && newStatus === 'NEGOTIATION') {
+      setShowNegotiationModal(true);
+      return;
+    }
+    if (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE') {
+      // Direct move — closure details captured in the Close Deal modal
+      await doStageChange(newStatus);
       return;
     }
 
+    await doStageChange(newStatus);
+  };
+
+  const doStageChange = async (newStatus: string, extra?: Record<string, any>) => {
     setStageChanging(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...extra }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `HTTP ${res.status}`);
       }
-      const updated = await res.json();
-      setLead(prev => prev ? { ...prev, status: updated.status } : null);
+      await res.json();
+      fetchLead();
     } catch (err: any) {
       alert(`Failed to update stage: ${err?.message || 'Unknown error'}`);
     } finally {
       setStageChanging(false);
     }
+  };
+
+  const handleApproachSubmit = async (data: ApproachFormData) => {
+    setStageSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const approachDetails = { ...data, capturedAt: new Date().toISOString() };
+      const existing = (lead?.closureDetails as any) || {};
+      const merged = { ...existing, approach: approachDetails };
+
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'APPROACH', closureDetails: merged }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      setShowApproachModal(false);
+      fetchLead();
+    } catch { alert('An error occurred.'); }
+    finally { setStageSubmitting(false); }
+  };
+
+  const handleNegotiationSubmit = async (data: NegotiationFormData) => {
+    setStageSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const negotiationDetails = { ...data, capturedAt: new Date().toISOString() };
+      const existing = (lead?.closureDetails as any) || {};
+      const merged = { ...existing, negotiation: negotiationDetails };
+
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          status: 'NEGOTIATION',
+          closureDetails: merged,
+          quoteNo: data.quoteNumber,
+          quoteValue: data.quoteValue,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      setShowNegotiationModal(false);
+      fetchLead();
+    } catch { alert('An error occurred.'); }
+    finally { setStageSubmitting(false); }
   };
 
   const handleClosureSumbit = async (form: ClosureFormData) => {
@@ -639,6 +1002,19 @@ export default function LeadDetailPage() {
         attachments.push({ filename: file.name, contentType: file.type || 'application/octet-stream', dataBase64: btoa(binary) });
       }
 
+      // Build closure stage details to merge into closureDetails
+      const existingDetails = (lead?.closureDetails as any) || {};
+      const closureStageDetails = form.outcome === 'WON' ? {
+        finalDealValue: form.finalDealValue,
+        finalTerms: form.finalTerms,
+        contractDetails: form.contractDetails,
+        paymentTermsFinal: form.paymentTermsFinal,
+        deliveryDateFinal: form.deliveryDateFinal,
+        contractSignedDate: form.contractSignedDate,
+        specialConditions: form.specialConditions,
+        capturedAt: new Date().toISOString(),
+      } : undefined;
+
       const res = await fetch(`/api/leads/${id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -652,6 +1028,9 @@ export default function LeadDetailPage() {
           competitor:    form.competitor,
           whatToImprove: form.whatToImprove,
           attachments,
+          closureDetails: closureStageDetails
+            ? { ...existingDetails, closure: closureStageDetails }
+            : existingDetails,
         }),
       });
       if (!res.ok) {
@@ -1073,7 +1452,7 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Solution Profile */}
-            {(lead.solutionAreas?.length > 0 || lead.oemNames?.length > 0) && (
+            {((lead.solutionAreas ?? []).length > 0 || (lead.oemNames ?? []).length > 0) && (
               <div className="bg-white rounded-xl border p-5 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-600 mb-3">Solution Profile</h3>
                 <div className="space-y-3">
@@ -1126,9 +1505,9 @@ export default function LeadDetailPage() {
             )}
 
             {/* Prospect Details */}
-            {lead.closureDetails && lead.status === 'PROSPECT' && (
+            {lead.closureDetails && ((lead.closureDetails as any).employeeCount > 0 || (lead.closureDetails as any).industry) && (
               <div className="bg-white rounded-xl border p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-600 mb-3">Prospect Information</h3>
+                <h3 className="text-sm font-semibold text-cyan-700 mb-3">📋 Prospect Information</h3>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).employeeCount > 0 && (
                     <div>
@@ -1146,12 +1525,6 @@ export default function LeadDetailPage() {
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Annual Revenue</p>
                       <p className="text-sm font-medium">₹{(lead.closureDetails as any).annualRevenue.toLocaleString('en-IN')}</p>
-                    </div>
-                  )}
-                  {(lead.closureDetails as any).yearEstablished > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-0.5">Year Established</p>
-                      <p className="text-sm font-medium">{(lead.closureDetails as any).yearEstablished}</p>
                     </div>
                   )}
                   {(lead.closureDetails as any).website && (
@@ -1182,6 +1555,165 @@ export default function LeadDetailPage() {
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Notes</p>
                       <p className="text-sm">{(lead.closureDetails as any).prospectNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Approach Stage Details */}
+            {lead.closureDetails && (lead.closureDetails as any).approach && (
+              <div className="bg-white rounded-xl border border-indigo-100 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-indigo-700 mb-3">📣 Approach Details</h3>
+                <div className="space-y-2">
+                  {(lead.closureDetails as any).approach.demoDate && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Demo Date</p>
+                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).approach.demoDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.demoLocation && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Location</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).approach.demoLocation}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.clientAttendees && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Client Attendees</p>
+                      <p className="text-sm">{(lead.closureDetails as any).approach.clientAttendees}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.topicsCovered && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Topics Covered</p>
+                      <p className="text-sm">{(lead.closureDetails as any).approach.topicsCovered}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.clientFeedback && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Client Feedback</p>
+                      <p className="text-sm">{(lead.closureDetails as any).approach.clientFeedback}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.nextSteps && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Next Steps</p>
+                      <p className="text-sm">{(lead.closureDetails as any).approach.nextSteps}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).approach.materialsProvided && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Materials Provided</p>
+                      <p className="text-sm">{(lead.closureDetails as any).approach.materialsProvided}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Negotiation Stage Details */}
+            {lead.closureDetails && (lead.closureDetails as any).negotiation && (
+              <div className="bg-white rounded-xl border border-orange-100 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-orange-700 mb-3">🤝 Negotiation Details</h3>
+                <div className="space-y-2">
+                  {(lead.closureDetails as any).negotiation.quoteNumber && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Quote / Proposal No.</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).negotiation.quoteNumber}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.quoteValue && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Quote Value</p>
+                      <p className="text-sm font-bold text-green-700">₹{Number((lead.closureDetails as any).negotiation.quoteValue).toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.discount && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Discount Offered</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).negotiation.discount}%</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.paymentTerms && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Payment Terms</p>
+                      <p className="text-sm">{(lead.closureDetails as any).negotiation.paymentTerms}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.deliveryTimeline && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Delivery Timeline</p>
+                      <p className="text-sm">{(lead.closureDetails as any).negotiation.deliveryTimeline}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.objections && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Objections &amp; Resolutions</p>
+                      <p className="text-sm">{(lead.closureDetails as any).negotiation.objections}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.competingVendors && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Competing Vendors</p>
+                      <p className="text-sm">{(lead.closureDetails as any).negotiation.competingVendors}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).negotiation.decisionTimeline && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Client Decision Timeline</p>
+                      <p className="text-sm">{(lead.closureDetails as any).negotiation.decisionTimeline}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Closure Stage Details (shown after deal is closed WON) */}
+            {lead.closureDetails && (lead.closureDetails as any).closure && (
+              <div className="bg-white rounded-xl border border-green-100 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-green-700 mb-3">🔒 Closure Details</h3>
+                <div className="space-y-2">
+                  {(lead.closureDetails as any).closure.finalDealValue && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Final Deal Value</p>
+                      <p className="text-sm font-bold text-green-700">₹{Number((lead.closureDetails as any).closure.finalDealValue).toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.contractDetails && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">PO / Contract Details</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).closure.contractDetails}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.paymentTermsFinal && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Payment Terms (Final)</p>
+                      <p className="text-sm">{(lead.closureDetails as any).closure.paymentTermsFinal}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.deliveryDateFinal && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Delivery Date</p>
+                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).closure.deliveryDateFinal).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.contractSignedDate && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Contract Signed Date</p>
+                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).closure.contractSignedDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.finalTerms && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Final Terms</p>
+                      <p className="text-sm">{(lead.closureDetails as any).closure.finalTerms}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).closure.specialConditions && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Special Conditions</p>
+                      <p className="text-sm">{(lead.closureDetails as any).closure.specialConditions}</p>
                     </div>
                   )}
                 </div>
@@ -1229,6 +1761,24 @@ export default function LeadDetailPage() {
           onClose={() => setShowClosureModal(false)}
           onSubmit={handleClosureSumbit}
           closing={closureSubmitting}
+        />
+      )}
+
+      {showApproachModal && lead && (
+        <ApproachModal
+          lead={lead}
+          onClose={() => setShowApproachModal(false)}
+          onSubmit={handleApproachSubmit}
+          submitting={stageSubmitting}
+        />
+      )}
+
+      {showNegotiationModal && lead && (
+        <NegotiationModal
+          lead={lead}
+          onClose={() => setShowNegotiationModal(false)}
+          onSubmit={handleNegotiationSubmit}
+          submitting={stageSubmitting}
         />
       )}
 

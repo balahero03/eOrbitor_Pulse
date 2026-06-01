@@ -69,14 +69,24 @@ export async function PATCH(
 
     let resolvedCustomerId = linkedCustomerId;
 
-    // Prevent reverting from PROSPECT or later back to SUSPECT
-    if (status && status === 'SUSPECT') {
+    // Prevent illegal stage reversals
+    if (status) {
       const existingLead = await prisma.lead.findUnique({ where: { id }, select: { status: true } });
-      if (existingLead && existingLead.status !== 'SUSPECT') {
-        return NextResponse.json(
-          { message: 'Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back.' },
-          { status: 400 }
-        );
+      const current = existingLead?.status;
+      const stageOrder = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
+      const currentIdx = stageOrder.indexOf(current || '');
+      const newIdx = stageOrder.indexOf(status);
+
+      if (currentIdx > 0 && newIdx >= 0 && newIdx < currentIdx) {
+        // Only CLOSURE → NEGOTIATION is allowed as a reversal
+        const allowedBack = (current === 'CLOSURE' && status === 'NEGOTIATION') ||
+                            (current === 'NEGOTIATION' && status === 'CLOSURE');
+        if (!allowedBack) {
+          return NextResponse.json(
+            { message: `Cannot revert from ${current} to ${status}. The pipeline moves forward only.` },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -105,6 +115,7 @@ export async function PATCH(
         ...(oemNames !== undefined && { oemNames }),
         ...(presalesIds !== undefined && { presalesIds }),
         ...(prospectDetails !== undefined && { closureDetails: prospectDetails }),
+        ...(closureDetails !== undefined && prospectDetails === undefined && { closureDetails }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },
