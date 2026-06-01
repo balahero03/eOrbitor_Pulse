@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 export default function SettingsPage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
 

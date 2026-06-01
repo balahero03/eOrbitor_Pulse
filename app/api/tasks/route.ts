@@ -1,49 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-interface DecodedToken {
-  id: string;
-  role: string;
-}
-
-function verifyToken(token: string): DecodedToken | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: NextRequest) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '20', 10);
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const assignedToId = searchParams.get('assignedToId');
   const search = searchParams.get('search');
 
-  const decoded = verifyToken(token!)!;
-
   const where: any = {};
 
-  // Tasks are private — each user sees only their own assigned tasks. Admin/SuperAdmin sees all.
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
-    where.assignedToId = decoded.id;
+  // Role-based scoping
+  if (user.role === 'SALES_EXEC') {
+    where.assignedToId = user.id;
+  } else if (user.role === 'SALES_MANAGER') {
+    const teamMembers = await prisma.user.findMany({
+      where: { managerId: user.id },
+      select: { id: true },
+    });
+    const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
+    where.assignedToId = { in: teamIds };
   }
+  // ADMIN/SUPER_ADMIN see all
 
   if (status) where.status = status;
   if (priority) where.priority = priority;
-  if (assignedToId && ['SUPER_ADMIN','ADMIN'].includes(decoded.role)) where.assignedToId = assignedToId;
+  if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+    where.assignedToId = assignedToId;
+  }
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
@@ -67,24 +54,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     tasks,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
-}
+});
 
-export async function POST(req: NextRequest) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  const decoded = token ? verifyToken(token) : null;
-  if (!decoded) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
-  const body = await req.json();
-  const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags } = body;
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags } = await req.json();
 
   if (!title || !assignedToId) {
     return NextResponse.json({ message: 'Title and assignedToId are required' }, { status: 400 });
@@ -99,7 +74,7 @@ export async function POST(req: NextRequest) {
       dueDate: dueDate ? new Date(dueDate) : null,
       assignedToId,
       relatedDealId: relatedDealId || null,
-      createdById: decoded.id,
+      createdById: user.id,
       tags: tags || [],
     },
     include: {
@@ -109,4 +84,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(task, { status: 201 });
-}
+});

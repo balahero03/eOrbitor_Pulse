@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 
 // POST /api/leads/[id]/followups
 // Adds a follow-up to a lead. Auto-creates a stub customer+deal if the lead

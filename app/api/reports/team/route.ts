@@ -1,91 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-async function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    throw new Error('Invalid token');
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+    throw new ForbiddenError();
   }
-}
 
-export async function GET(req: NextRequest) {
-  try {
-    await verifyAuth(req);
+  const { searchParams } = new URL(req.url);
+  const startDate = searchParams.get('startDate')
+    ? new Date(searchParams.get('startDate')!)
+    : new Date(new Date().setMonth(new Date().getMonth() - 1));
+  const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : new Date();
 
-    const { searchParams } = new URL(req.url);
-    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : new Date(new Date().setMonth(new Date().getMonth() - 1));
-    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : new Date();
-
-    // Get all sales users
-    const salesUsers = await prisma.user.findMany({
-      where: { role: { in: ['SALES_MANAGER', 'SALES_EXEC'] } },
-    });
-
-    // Team Performance
-    const teamMetrics = await Promise.all(
-      salesUsers.map(async (user) => {
-        const dealsAssigned = await prisma.deal.count({
-          where: { assignedToId: user.id },
-        });
-
-        const dealsWon = await prisma.deal.count({
-          where: {
-            assignedToId: user.id,
-            stage: 'CLOSURE',
-            closedAt: { gte: startDate, lte: endDate },
-          },
-        });
-
-        const dealValue = await prisma.deal.aggregate({
-          where: { assignedToId: user.id, stage: 'CLOSURE' },
-          _sum: { dealValue: true },
-        });
-
-        const leadsAssigned = await prisma.lead.count({
-          where: { assignedToId: user.id },
-        });
-
-        const leadsConverted = await prisma.lead.count({
-          where: { assignedToId: user.id, status: 'CONVERTED' },
-        });
-
-        const tasksCompleted = await prisma.task.count({
-          where: {
-            assignedToId: user.id,
-            status: 'COMPLETED',
-            completedAt: { gte: startDate, lte: endDate },
-          },
-        });
-
-        return {
-          userId: user.id,
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email,
-          dealsAssigned,
-          dealsWon,
-          dealValue: dealValue._sum.dealValue || 0,
-          leadsAssigned,
-          leadsConverted,
-          conversionRate:
-            leadsAssigned > 0 ? ((leadsConverted / leadsAssigned) * 100).toFixed(2) : '0',
-          tasksCompleted,
-        };
-      })
-    );
-
-    return NextResponse.json({
-      period: { startDate, endDate },
-      team: teamMetrics,
-    });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to fetch team report' }, { status: 500 });
+  // Managers only see their team
+  const userWhere: any = { role: { in: ['SALES_MANAGER', 'SALES_EXEC'] } };
+  if (user.role === 'SALES_MANAGER') {
+    userWhere.managerId = user.id;
   }
-}
+
+  const salesUsers = await prisma.user.findMany({ where: userWhere });
+
+  const teamMetrics = await Promise.all(
+    salesUsers.map(async (u) => {
+      const [dealsAssigned, dealsWon, dealValue, leadsAssigned, leadsConverted, tasksCompleted] = await Promise.all([
+        prisma.deal.count({ where: { assignedToId: u.id } }),
+        prisma.deal.count({ where: { assignedToId: u.id, stage: 'CLOSURE', closedAt: { gte: startDate, lte: endDate } } }),
+        prisma.deal.aggregate({ where: { assignedToId: u.id, stage: 'CLOSURE' }, _sum: { dealValue: true } }),
+        prisma.lead.count({ where: { assignedToId: u.id } }),
+        prisma.lead.count({ where: { assignedToId: u.id, status: 'CONVERTED' } }),
+        prisma.task.count({ where: { assignedToId: u.id, status: 'COMPLETED', completedAt: { gte: startDate, lte: endDate } } }),
+      ]);
+
+      return {
+        userId: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        email: u.email,
+        dealsAssigned, dealsWon,
+        dealValue: dealValue._sum.dealValue || 0,
+        leadsAssigned, leadsConverted,
+        conversionRate: leadsAssigned > 0 ? ((leadsConverted / leadsAssigned) * 100).toFixed(2) : '0',
+        tasksCompleted,
+      };
+    })
+  );
+
+  return NextResponse.json({ period: { startDate, endDate }, team: teamMetrics });
+});

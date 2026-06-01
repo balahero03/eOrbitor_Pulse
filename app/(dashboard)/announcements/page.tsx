@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface Announcement {
   id: string;
@@ -18,6 +19,7 @@ interface Announcement {
 }
 
 export default function AnnouncementsPage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);

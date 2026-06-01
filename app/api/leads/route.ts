@@ -1,178 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
 
-const prisma = new PrismaClient();
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const status = searchParams.get('status');
+  const source = searchParams.get('source');
+  const search = searchParams.get('search');
+  const assignedToId = searchParams.get('assignedToId');
+  const rfqFrom = searchParams.get('rfqFrom');
+  const rfqTo = searchParams.get('rfqTo');
+  const followUpFrom = searchParams.get('followUpFrom');
+  const followUpTo = searchParams.get('followUpTo');
+  const hasFollowUp = searchParams.get('hasFollowUp');
+  const quoteValueMin = searchParams.get('quoteValueMin');
+  const quoteValueMax = searchParams.get('quoteValueMax');
 
-export async function GET(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  const where: any = { deletedAt: null };
+  const andConditions: any[] = [];
 
-    const token = authHeader.split(' ')[1];
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-    } catch {
-      return NextResponse.json({ message: 'Invalid or expired token — please log out and log in again' }, { status: 401 });
-    }
-    console.log('LEADS GET - role:', decoded.role, 'id:', decoded.id);
+  // Role-based data scoping
+  if (user.role === 'SALES_EXEC') {
+    where.assignedToId = user.id;
+  } else if (user.role === 'SALES_MANAGER') {
+    const teamMembers = await prisma.user.findMany({
+      where: { managerId: user.id },
+      select: { id: true },
+    });
+    const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
+    where.assignedToId = { in: teamIds };
+  }
+  // ADMIN/SUPER_ADMIN see all — no extra filter
 
-    const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const status = searchParams.get('status');
-    const source = searchParams.get('source');
-    const search = searchParams.get('search');
-    const assignedToId = searchParams.get('assignedToId');
-    const rfqFrom = searchParams.get('rfqFrom');
-    const rfqTo = searchParams.get('rfqTo');
-    const followUpFrom = searchParams.get('followUpFrom');
-    const followUpTo = searchParams.get('followUpTo');
-    const hasFollowUp = searchParams.get('hasFollowUp');
-    const quoteValueMin = searchParams.get('quoteValueMin');
-    const quoteValueMax = searchParams.get('quoteValueMax');
+  if (status) where.status = status;
+  if (source) where.source = source;
+  // Only allow assignedToId filter override for managers/admins
+  if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+    where.assignedToId = assignedToId;
+  }
 
-    const skip = (page - 1) * limit;
-
-    const where: any = { deletedAt: null };
-
-    // All roles see all leads — edit access is controlled on the frontend
-
-    const andConditions: any[] = [];
-
-    if (status) where.status = status;
-    if (source) where.source = source;
-    if (assignedToId) where.assignedToId = assignedToId;
-
-    if (rfqFrom || rfqTo) {
-      where.rfqDate = {
-        ...(rfqFrom && { gte: new Date(rfqFrom) }),
-        ...(rfqTo && { lte: new Date(rfqTo + 'T23:59:59') }),
-      };
-    }
-    if (followUpFrom || followUpTo) {
-      where.followUpDate = {
-        ...(followUpFrom && { gte: new Date(followUpFrom) }),
-        ...(followUpTo && { lte: new Date(followUpTo + 'T23:59:59') }),
-      };
-    }
-    if (hasFollowUp === 'yes') where.followUpDate = { not: null };
-    if (hasFollowUp === 'no') where.followUpDate = null;
-
-    if (quoteValueMin || quoteValueMax) {
-      where.quoteValue = {
-        ...(quoteValueMin && { gte: parseFloat(quoteValueMin) }),
-        ...(quoteValueMax && { lte: parseFloat(quoteValueMax) }),
-      };
-    }
-
-    if (search) {
-      const searchConditions = [
+  if (rfqFrom || rfqTo) {
+    where.rfqDate = {
+      ...(rfqFrom && { gte: new Date(rfqFrom) }),
+      ...(rfqTo && { lte: new Date(rfqTo + 'T23:59:59') }),
+    };
+  }
+  if (followUpFrom || followUpTo) {
+    where.followUpDate = {
+      ...(followUpFrom && { gte: new Date(followUpFrom) }),
+      ...(followUpTo && { lte: new Date(followUpTo + 'T23:59:59') }),
+    };
+  }
+  if (hasFollowUp === 'yes') where.followUpDate = { not: null };
+  if (hasFollowUp === 'no') where.followUpDate = null;
+  if (quoteValueMin || quoteValueMax) {
+    where.quoteValue = {
+      ...(quoteValueMin && { gte: parseFloat(quoteValueMin) }),
+      ...(quoteValueMax && { lte: parseFloat(quoteValueMax) }),
+    };
+  }
+  if (search) {
+    andConditions.push({
+      OR: [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { company: { contains: search, mode: 'insensitive' } },
         { quoteNo: { contains: search, mode: 'insensitive' } },
         { remarks: { contains: search, mode: 'insensitive' } },
-      ];
-      andConditions.push({ OR: searchConditions });
-    }
-
-    if (andConditions.length > 0) {
-      where.AND = andConditions;
-    }
-
-    const [leads, total] = await Promise.all([
-      prisma.lead.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          company: true,
-          source: true,
-          status: true,
-          leadScore: true,
-          quoteNo: true,
-          quoteValue: true,
-          rfqDate: true,
-          followUpDate: true,
-          remarks: true,
-          assignedTo: { select: { firstName: true, lastName: true } },
-          broughtBy: { select: { firstName: true, lastName: true } },
-          linkedCustomer: { select: { id: true, companyName: true } },
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.lead.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      leads,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      ],
     });
-  } catch (error: any) {
-    console.error('LEADS GET ERROR:', error?.message, error?.code, error?.meta);
-    return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
-}
+  if (andConditions.length > 0) where.AND = andConditions;
 
-export async function POST(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
-
-    const { name, email, phone, company, source, assignedToId, broughtById, status, quoteNo, quoteValue, rfqDate, followUpDate, remarks } = await req.json();
-
-    if (!name || !company) {
-      return NextResponse.json(
-        { message: 'Opportunity name and company are required' },
-        { status: 400 }
-      );
-    }
-
-    const lead = await prisma.lead.create({
-      data: {
-        name,
-        email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
-        phone: phone || null,
-        company,
-        source: source || 'EMAIL',
-        status: status || 'SUSPECT',
-        leadScore: 0,
-        assignedToId: assignedToId || decoded.id,
-        ...(broughtById && { broughtById }),
-        ...(quoteNo && { quoteNo }),
-        ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
-        ...(rfqDate && { rfqDate: new Date(rfqDate) }),
-        ...(followUpDate && { followUpDate: new Date(followUpDate) }),
-        ...(remarks && { remarks }),
-      },
-      include: {
+  const skip = (page - 1) * limit;
+  const [leads, total] = await Promise.all([
+    prisma.lead.findMany({
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true, name: true, email: true, phone: true, company: true,
+        source: true, status: true, leadScore: true, quoteNo: true,
+        quoteValue: true, rfqDate: true, followUpDate: true, remarks: true,
         assignedTo: { select: { firstName: true, lastName: true } },
+        broughtBy: { select: { firstName: true, lastName: true } },
+        linkedCustomer: { select: { id: true, companyName: true } },
+        createdAt: true, updatedAt: true,
       },
-    });
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.lead.count({ where }),
+  ]);
 
-    return NextResponse.json(lead, { status: 201 });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  return NextResponse.json({
+    leads,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  });
+});
+
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const {
+    name, email, phone, company, source, assignedToId, broughtById,
+    status, quoteNo, quoteValue, rfqDate, followUpDate, remarks,
+  } = await req.json();
+
+  if (!name || !company) {
+    return NextResponse.json({ message: 'Opportunity name and company are required' }, { status: 400 });
   }
-}
+
+  const lead = await prisma.lead.create({
+    data: {
+      name,
+      email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
+      phone: phone || null,
+      company,
+      source: source || 'EMAIL',
+      status: status || 'SUSPECT',
+      leadScore: 0,
+      assignedToId: assignedToId || user.id,
+      ...(broughtById && { broughtById }),
+      ...(quoteNo && { quoteNo }),
+      ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
+      ...(rfqDate && { rfqDate: new Date(rfqDate) }),
+      ...(followUpDate && { followUpDate: new Date(followUpDate) }),
+      ...(remarks && { remarks }),
+    },
+    include: {
+      assignedTo: { select: { firstName: true, lastName: true } },
+    },
+  });
+
+  return NextResponse.json(lead, { status: 201 });
+});

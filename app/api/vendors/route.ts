@@ -1,31 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-interface DecodedToken {
-  userId: string;
-}
-
-function verifyToken(token: string): DecodedToken | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: NextRequest) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '20', 10);
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const search = searchParams.get('search');
   const isActive = searchParams.get('isActive') !== 'false';
 
@@ -38,16 +19,13 @@ export async function GET(req: NextRequest) {
     ];
   }
 
+  const skip = (page - 1) * limit;
   const [vendors, total] = await Promise.all([
     prisma.vendor.findMany({
       where,
-      include: {
-        products: {
-          select: { productId: true },
-        },
-      },
+      include: { products: { select: { productId: true } } },
       orderBy: { vendorName: 'asc' },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
     }),
     prisma.vendor.count({ where }),
@@ -55,23 +33,16 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     vendors,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
-}
+});
 
-export async function POST(req: NextRequest) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Only admins can create vendors');
   }
 
-  const body = await req.json();
-  const { vendorName, gstNumber, email, phone, website, paymentTerms, rating } = body;
+  const { vendorName, gstNumber, email, phone, website, paymentTerms, rating } = await req.json();
 
   if (!vendorName || !gstNumber) {
     return NextResponse.json({ message: 'Vendor name and GST number are required' }, { status: 400 });
@@ -84,11 +55,8 @@ export async function POST(req: NextRequest) {
 
   const vendor = await prisma.vendor.create({
     data: {
-      vendorName,
-      gstNumber,
-      email: email || null,
-      phone: phone || null,
-      website: website || null,
+      vendorName, gstNumber,
+      email: email || null, phone: phone || null, website: website || null,
       paymentTerms: paymentTerms || null,
       rating: rating ? parseInt(rating) : null,
       isActive: true,
@@ -96,4 +64,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(vendor, { status: 201 });
-}
+});

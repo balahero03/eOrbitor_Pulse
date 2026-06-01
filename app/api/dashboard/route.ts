@@ -1,34 +1,260 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
 
-const prisma = new PrismaClient();
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { id: userId, role } = user;
 
-export async function GET(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  // ── SALES EXEC: personal daily dashboard ────────────────────────────
+  if (role === 'SALES_EXEC') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-    const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-
-    const [totalLeads, activeDeals, pendingTasks, totalRevenue] = await Promise.all([
-      prisma.lead.count({ where: { deletedAt: null } }),
-      prisma.deal.count({ where: { stage: { not: 'CLOSURE' } } }),
-      prisma.task.count({ where: { status: { in: ['TODO', 'IN_PROGRESS'] } } }),
-      prisma.order.aggregate({ _sum: { totalAmount: true }, where: { paymentStatus: 'COMPLETED' } }),
+    const [
+      myLeadsTotal,
+      followUpsToday,
+      overdueFollowUps,
+      myOpenTasks,
+      myOverdueTasks,
+      tasksToday,
+      recentLeads,
+      upcomingFollowUps,
+      leadsByStatus,
+      wonThisMonth,
+    ] = await Promise.all([
+      prisma.lead.count({ where: { assignedToId: userId, deletedAt: null } }),
+      prisma.lead.findMany({
+        where: { assignedToId: userId, deletedAt: null, followUpDate: { gte: today, lte: todayEnd } },
+        select: { id: true, name: true, company: true, status: true, followUpDate: true, quoteNo: true },
+        orderBy: { followUpDate: 'asc' },
+      }),
+      prisma.lead.findMany({
+        where: {
+          assignedToId: userId, deletedAt: null,
+          followUpDate: { lt: today },
+          status: { notIn: ['WON', 'LOST', 'DROPPED', 'REJECTED', 'CONVERTED'] },
+        },
+        select: { id: true, name: true, company: true, status: true, followUpDate: true, quoteNo: true },
+        orderBy: { followUpDate: 'asc' },
+        take: 10,
+      }),
+      prisma.task.count({ where: { assignedToId: userId, status: { not: 'COMPLETED' } } }),
+      prisma.task.count({ where: { assignedToId: userId, status: { not: 'COMPLETED' }, dueDate: { lt: today } } }),
+      prisma.task.findMany({
+        where: { assignedToId: userId, status: { not: 'COMPLETED' }, dueDate: { gte: today, lte: todayEnd } },
+        select: { id: true, title: true, priority: true, dueDate: true, status: true },
+        orderBy: { priority: 'asc' },
+      }),
+      prisma.lead.findMany({
+        where: { assignedToId: userId, deletedAt: null },
+        select: { id: true, name: true, company: true, status: true, quoteNo: true, quoteValue: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+      prisma.lead.findMany({
+        where: {
+          assignedToId: userId, deletedAt: null,
+          followUpDate: { gt: todayEnd, lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        },
+        select: { id: true, name: true, company: true, status: true, followUpDate: true, quoteNo: true },
+        orderBy: { followUpDate: 'asc' },
+        take: 8,
+      }),
+      prisma.lead.groupBy({
+        by: ['status'],
+        where: { assignedToId: userId, deletedAt: null },
+        _count: true,
+      }),
+      prisma.lead.count({
+        where: {
+          assignedToId: userId, status: 'WON',
+          updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        },
+      }),
     ]);
 
     return NextResponse.json({
-      totalLeads,
-      activeDeals,
-      pendingTasks,
-      yTDRevenue: totalRevenue._sum.totalAmount || 0,
+      role: 'SALES_EXEC',
+      today: today.toISOString(),
+      stats: {
+        myLeadsTotal, openTasks: myOpenTasks, overdueTasks: myOverdueTasks,
+        followUpsToday: followUpsToday.length, overdueFollowUps: overdueFollowUps.length, wonThisMonth,
+      },
+      followUpsToday, overdueFollowUps, tasksToday, recentLeads, upcomingFollowUps, leadsByStatus,
     });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
-}
+
+  // ── SALES MANAGER: team-level metrics ───────────────────────────────
+  if (role === 'SALES_MANAGER') {
+    const subs = await prisma.user.findMany({
+      where: { managerId: userId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const teamIds = [userId, ...subs.map((u) => u.id)];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      teamLeads, teamDeals, teamWonThisMonth,
+      teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue,
+      pipelineByStage, recentLeads,
+    ] = await Promise.all([
+      prisma.lead.count({
+        where: {
+          OR: [{ assignedToId: { in: teamIds } }, { broughtById: { in: teamIds } }],
+          deletedAt: null,
+        },
+      }),
+      prisma.deal.count({ where: { assignedToId: { in: teamIds }, stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
+      prisma.lead.count({
+        where: {
+          assignedToId: { in: teamIds }, status: 'WON',
+          updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        },
+      }),
+      prisma.task.count({ where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' } } }),
+      prisma.task.count({ where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' }, dueDate: { lt: today } } }),
+      prisma.lead.count({
+        where: {
+          assignedToId: { in: teamIds }, deletedAt: null,
+          followUpDate: { lt: today },
+          status: { notIn: ['WON', 'LOST', 'DROPPED', 'REJECTED', 'CONVERTED'] },
+        },
+      }),
+      prisma.deal.groupBy({
+        by: ['stage'],
+        where: { assignedToId: { in: teamIds } },
+        _sum: { dealValue: true },
+        _count: { id: true },
+      }).catch(() => []),
+      prisma.lead.findMany({
+        where: { assignedToId: { in: teamIds }, deletedAt: null },
+        select: {
+          id: true, name: true, company: true, status: true,
+          assignedTo: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+
+    const leaderboard = await Promise.all(
+      subs.map(async (u) => {
+        const [wonCount, leadCount, pipelineAgg] = await Promise.all([
+          prisma.lead.count({
+            where: {
+              assignedToId: u.id, status: 'WON',
+              updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+            },
+          }),
+          prisma.lead.count({ where: { assignedToId: u.id, deletedAt: null } }),
+          prisma.deal.aggregate({
+            where: { assignedToId: u.id, stage: { notIn: ['CLOSURE', 'ONGOING'] } },
+            _sum: { dealValue: true },
+          }),
+        ]);
+        return {
+          userId: u.id, name: `${u.firstName} ${u.lastName}`,
+          wonThisMonth: wonCount, activeLeads: leadCount,
+          pipelineValue: Number(pipelineAgg._sum.dealValue || 0),
+        };
+      })
+    );
+
+    return NextResponse.json({
+      role: 'SALES_MANAGER',
+      teamName: `${subs.length + 1} member team`,
+      stats: { teamLeads, teamDeals, teamWonThisMonth, teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue },
+      teamMembers: subs.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })),
+      leaderboard,
+      pipeline: (pipelineByStage as any[]).map((s) => ({
+        stage: s.stage, value: s._sum?.dealValue || 0, count: s._count?.id || 0,
+      })),
+      recentLeads,
+    });
+  }
+
+  // ── SUPPORT: ticket-focused dashboard ───────────────────────────────
+  if (role === 'SUPPORT') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [openTickets, myAssignedTickets, resolvedToday, urgentTickets, myTickets] = await Promise.all([
+      prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+      prisma.ticket.count({ where: { assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+      prisma.ticket.count({ where: { assignedToId: userId, status: 'RESOLVED', createdAt: { gte: today, lte: todayEnd } } }),
+      prisma.ticket.count({ where: { assignedToId: userId, priority: 'URGENT', status: { not: 'CLOSED' } } }),
+      prisma.ticket.findMany({
+        where: { assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+        select: {
+          id: true, subject: true, status: true, priority: true, createdAt: true,
+          customer: { select: { companyName: true } },
+        },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        take: 10,
+      }),
+    ]);
+
+    return NextResponse.json({
+      role: 'SUPPORT',
+      stats: { openTickets, myAssignedTickets, resolvedToday, urgentTickets },
+      myTickets: myTickets.map((t) => ({
+        id: t.id, title: t.subject, status: t.status, priority: t.priority,
+        customer: t.customer?.companyName, createdAt: t.createdAt.toISOString(),
+      })),
+    });
+  }
+
+  // ── ADMIN / SUPER_ADMIN: org-level KPIs ─────────────────────────────
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const [
+    totalLeads, totalCustomers, activeDeals, openTickets, overdueTasks,
+    pendingApprovals, totalUsers, monthRevenue, lastMonthRevenue, pipelineByStage, recentActivity,
+  ] = await Promise.all([
+    prisma.lead.count({ where: { deletedAt: null } }),
+    prisma.customer.count({ where: { deletedAt: null } }),
+    prisma.deal.count({ where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
+    prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+    prisma.task.count({ where: { status: { not: 'COMPLETED' }, dueDate: { lt: now } } }),
+    prisma.approvalRequest.count({ where: { status: 'PENDING' } }),
+    prisma.user.count({ where: { isActive: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: monthStart } }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: lastMonthStart, lt: monthStart } }, _sum: { totalAmount: true } }),
+    prisma.deal.groupBy({ by: ['stage'], _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
+    prisma.activityLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { id: true, action: true, entityType: true, createdAt: true },
+    }),
+  ]);
+
+  const dealsPipelineValue = await prisma.deal.aggregate({
+    where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } },
+    _sum: { dealValue: true },
+  });
+
+  return NextResponse.json({
+    role: 'ADMIN',
+    kpis: {
+      totalLeads, totalCustomers, activeDeals,
+      dealsPipelineValue: Number(dealsPipelineValue._sum.dealValue || 0),
+      openTickets, overdueTasks,
+      monthRevenue: Number(monthRevenue._sum.totalAmount || 0),
+      lastMonthRevenue: Number(lastMonthRevenue._sum.totalAmount || 0),
+      totalUsers, pendingApprovals,
+    },
+    pipeline: (pipelineByStage as any[]).map((s) => ({
+      stage: s.stage, value: s._sum?.dealValue || 0, count: s._count?.id || 0,
+    })),
+    recentActivity: recentActivity.map((a) => ({
+      id: a.id, action: a.action, entity: a.entityType, createdAt: a.createdAt.toISOString(),
+    })),
+  });
+});

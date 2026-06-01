@@ -1,82 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100);
 
-export async function GET(req: NextRequest) {
-  try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+  // Admins see all (drafts + published), others see only published
+  const where = isAdmin ? {} : { isPublished: true };
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(decoded.role);
+  const skip = (page - 1) * limit;
+  const [announcements, total] = await Promise.all([
+    prisma.announcement.findMany({
+      where,
+      include: { createdBy: { select: { id: true, firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.announcement.count({ where }),
+  ]);
 
-    const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const skip = (page - 1) * limit;
+  return NextResponse.json({
+    data: announcements,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  });
+});
 
-    // Admins see all (drafts + published), everyone else only published
-    const where = isAdmin ? {} : { isPublished: true };
-
-    const [announcements, total] = await Promise.all([
-      prisma.announcement.findMany({
-        where,
-        include: {
-          createdBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.announcement.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      data: announcements,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch announcements' }, { status: 500 });
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Only admins can create announcements');
   }
-}
 
-export async function POST(req: NextRequest) {
-  try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { title, content, priority = 'NORMAL', expiresAt } = await req.json();
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
-      return NextResponse.json({ error: 'Only admins can create announcements' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { title, content, priority = 'NORMAL', expiresAt } = body;
-
-    if (!title || !content) {
-      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
-    }
-
-    const announcement = await prisma.announcement.create({
-      data: {
-        title,
-        content,
-        priority,
-        createdById: decoded.id,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-      },
-      include: {
-        createdBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-
-    return NextResponse.json(announcement, { status: 201 });
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: error.message || 'Failed to create announcement' }, { status: 500 });
+  if (!title || !content) {
+    return NextResponse.json({ message: 'Title and content are required' }, { status: 400 });
   }
-}
+
+  const announcement = await prisma.announcement.create({
+    data: {
+      title, content, priority,
+      createdById: user.id,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    },
+    include: { createdBy: { select: { id: true, firstName: true, lastName: true } } },
+  });
+
+  return NextResponse.json(announcement, { status: 201 });
+});

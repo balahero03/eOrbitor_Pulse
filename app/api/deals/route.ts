@@ -1,102 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
 
-const prisma = new PrismaClient();
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const stage = searchParams.get('stage');
+  const search = searchParams.get('search');
 
-export async function GET(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  const where: any = {};
 
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
-
-    const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const stage = searchParams.get('stage');
-    const search = searchParams.get('search');
-
-    const skip = (page - 1) * limit;
-    const where: any = {};
-
-    if (stage) where.stage = stage;
-    if (search) {
-      where.OR = [
-        { dealName: { contains: search, mode: 'insensitive' } },
-        { customer: { companyName: { contains: search, mode: 'insensitive' } } },
-      ];
-    }
-
-    const [deals, total] = await Promise.all([
-      prisma.deal.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          dealName: true,
-          stage: true,
-          dealValue: true,
-          winProbability: true,
-          customer: { select: { id: true, companyName: true } },
-          assignedTo: { select: { firstName: true, lastName: true } },
-          expectedCloseDate: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.deal.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      deals,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  // Role-based scoping
+  if (user.role === 'SALES_EXEC') {
+    where.assignedToId = user.id;
+  } else if (user.role === 'SALES_MANAGER') {
+    const teamMembers = await prisma.user.findMany({
+      where: { managerId: user.id },
+      select: { id: true },
     });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
+    where.assignedToId = { in: teamIds };
   }
-}
 
-export async function POST(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  if (stage) where.stage = stage;
+  if (search) {
+    where.OR = [
+      { dealName: { contains: search, mode: 'insensitive' } },
+      { customer: { companyName: { contains: search, mode: 'insensitive' } } },
+    ];
+  }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
-
-    const body = await req.json();
-    const { dealName, customerId, dealValue, winProbability, stage, expectedCloseDate } = body;
-
-    if (!dealName || !customerId || !dealValue) {
-      return NextResponse.json({ message: 'Deal name, customerId, and dealValue are required' }, { status: 400 });
-    }
-
-    const deal = await prisma.deal.create({
-      data: {
-        dealName,
-        customerId,
-        dealValue,
-        winProbability: winProbability ?? 50,
-        stage: stage || 'SUSPECT',
-        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
-        assignedToId: decoded.id,
-      },
-      include: {
-        customer: { select: { companyName: true } },
+  const skip = (page - 1) * limit;
+  const [deals, total] = await Promise.all([
+    prisma.deal.findMany({
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true, dealName: true, stage: true, dealValue: true, winProbability: true,
+        customer: { select: { id: true, companyName: true } },
         assignedTo: { select: { firstName: true, lastName: true } },
+        expectedCloseDate: true, createdAt: true,
       },
-    });
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.deal.count({ where }),
+  ]);
 
-    return NextResponse.json(deal, { status: 201 });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  return NextResponse.json({
+    deals,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  });
+});
+
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const { dealName, customerId, dealValue, winProbability, stage, expectedCloseDate } = await req.json();
+
+  if (!dealName || !customerId || !dealValue) {
+    return NextResponse.json(
+      { message: 'Deal name, customerId, and dealValue are required' },
+      { status: 400 }
+    );
   }
-}
+
+  const deal = await prisma.deal.create({
+    data: {
+      dealName,
+      customerId,
+      dealValue,
+      winProbability: winProbability ?? 50,
+      stage: stage || 'SUSPECT',
+      expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
+      assignedToId: user.id,
+    },
+    include: {
+      customer: { select: { companyName: true } },
+      assignedTo: { select: { firstName: true, lastName: true } },
+    },
+  });
+
+  return NextResponse.json(deal, { status: 201 });
+});

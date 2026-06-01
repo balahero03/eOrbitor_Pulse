@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface ApprovalRequest {
   id: string;
@@ -19,6 +20,7 @@ interface ApprovalRequest {
 }
 
 export default function ApprovalsPage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
   const router = useRouter();
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface DashboardData {
   role: string;
@@ -16,6 +17,7 @@ interface DashboardData {
 }
 
 export default function ReportsPage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 

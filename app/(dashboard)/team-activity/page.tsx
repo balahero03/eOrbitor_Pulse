@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface TeamActivity {
   id: string;
@@ -32,6 +33,7 @@ function avatarColor(role: string) {
 }
 
 export default function TeamActivityPage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
   const [activities, setActivities] = useState<TeamActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));

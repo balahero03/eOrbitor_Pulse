@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface DayRecord {
   id: string;
@@ -16,6 +17,7 @@ interface DayRecord {
 }
 
 export default function AttendancePage() {
+  useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());

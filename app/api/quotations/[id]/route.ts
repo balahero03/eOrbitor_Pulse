@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -73,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         const lineSubtotal = item.quantity * item.unitPrice;
         subtotal += lineSubtotal;
 
-        const lineTax = lineSubtotal * (product.tax / 100);
+        const lineTax = lineSubtotal * (Number(product.tax) / 100);
         taxAmount += lineTax;
       }
 

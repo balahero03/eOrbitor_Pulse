@@ -1,51 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-async function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    throw new Error('Invalid token');
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError();
   }
-}
 
-export async function GET(req: NextRequest) {
-  try {
-    await verifyAuth(req);
+  const [users, leads, customers, deals] = await Promise.all([
+    prisma.user.count(),
+    prisma.lead.count(),
+    prisma.customer.count(),
+    prisma.deal.count(),
+  ]);
 
-    const users = await prisma.user.count();
-    const leads = await prisma.lead.count();
-    const customers = await prisma.customer.count();
-    const deals = await prisma.deal.count();
-
-    return NextResponse.json({
-      systemStats: {
-        totalUsers: users,
-        totalLeads: leads,
-        totalCustomers: customers,
-        totalDeals: deals,
-      },
-      emailConfig: {
-        provider: process.env.EMAIL_PROVIDER || 'SMTP',
-        host: process.env.SMTP_HOST || 'localhost',
-        port: process.env.SMTP_PORT || 587,
-        senderEmail: process.env.SENDER_EMAIL || 'noreply@eorbitor.local',
-      },
-      features: {
-        realTimeNotifications: true,
-        activityLogging: true,
-        roleBasedAccess: true,
-        emailNotifications: process.env.SMTP_HOST ? true : false,
-      },
-    });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
-  }
-}
+  return NextResponse.json({
+    systemStats: { totalUsers: users, totalLeads: leads, totalCustomers: customers, totalDeals: deals },
+    emailConfig: {
+      provider: process.env.EMAIL_PROVIDER || 'SMTP',
+      host: process.env.SMTP_HOST || 'localhost',
+      port: process.env.SMTP_PORT || 587,
+      senderEmail: process.env.SENDER_EMAIL || 'noreply@eorbitor.local',
+    },
+    features: {
+      realTimeNotifications: true,
+      activityLogging: true,
+      roleBasedAccess: true,
+      emailNotifications: !!process.env.SMTP_HOST,
+    },
+  });
+});
