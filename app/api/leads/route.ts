@@ -18,7 +18,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const quoteValueMin = searchParams.get('quoteValueMin');
   const quoteValueMax = searchParams.get('quoteValueMax');
 
-  const where: any = { deletedAt: null };
+  // Active leads only — closed leads live in /api/leads/closed
+  const CLOSED_STATUSES = ['WON', 'LOST', 'DROPPED', 'ORDER'];
+  const where: any = {
+    deletedAt: null,
+    status: { notIn: CLOSED_STATUSES },
+  };
   const andConditions: any[] = [];
 
   // Role-based data scoping
@@ -34,7 +39,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
   // ADMIN/SUPER_ADMIN see all — no extra filter
 
-  if (status) where.status = status;
+  if (status && !CLOSED_STATUSES.includes(status)) where.status = status;
   if (source) where.source = source;
   // Only allow assignedToId filter override for managers/admins
   if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
