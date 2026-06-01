@@ -51,43 +51,27 @@ export async function PATCH(
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { name, email, phone, company, source, status, leadScore, assignedToId, broughtById, linkedCustomerId, qualificationNotes, remarks, quoteNo, quoteValue, rfqDate, followUpDate } = body;
+    const {
+      name, email, phone, company, source, status, leadScore,
+      assignedToId, broughtById, linkedCustomerId, qualificationNotes,
+      remarks, quoteNo, quoteValue, rfqDate, followUpDate,
+    } = body;
 
-    // Auto-convert to customer when status advances to a positive stage
-    const CUSTOMER_STAGES = ['PROSPECT', 'NEGOTIATION', 'WON'];
     let resolvedCustomerId = linkedCustomerId;
-
-    if (status && CUSTOMER_STAGES.includes(status) && !linkedCustomerId) {
-      const existing = await prisma.lead.findUnique({ where: { id }, select: { linkedCustomerId: true, company: true } });
-      if (existing && !existing.linkedCustomerId) {
-        try {
-          const customer = await prisma.customer.create({
-            data: {
-              companyName: existing.company,
-              gstNumber: `PENDING-${Date.now()}`,
-              industry: 'Other',
-            },
-          });
-          resolvedCustomerId = customer.id;
-        } catch {
-          // customer may already exist — continue without linking
-        }
-      }
-    }
 
     const lead = await prisma.lead.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(company && { company }),
-        ...(source && { source }),
-        ...(status && { status }),
+        ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(company !== undefined && { company }),
+        ...(source !== undefined && { source }),
+        ...(status !== undefined && { status: status as any }),
         ...(leadScore !== undefined && { leadScore }),
-        ...(assignedToId && { assignedToId }),
+        ...(assignedToId !== undefined && { assignedToId }),
         ...(broughtById !== undefined && { broughtById }),
-        ...(resolvedCustomerId && { linkedCustomerId: resolvedCustomerId }),
+        ...(resolvedCustomerId !== undefined && { linkedCustomerId: resolvedCustomerId }),
         ...(qualificationNotes !== undefined && { qualificationNotes }),
         ...(remarks !== undefined && { remarks }),
         ...(quoteNo !== undefined && { quoteNo }),
@@ -102,9 +86,9 @@ export async function PATCH(
     });
 
     return NextResponse.json(lead);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[LEAD PATCH ERROR]', error?.message, error?.code, error?.meta);
+    return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 

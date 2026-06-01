@@ -433,11 +433,14 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
       const updated = await res.json();
       setLead(prev => prev ? { ...prev, status: updated.status } : null);
-    } catch {
-      alert('Failed to update stage.');
+    } catch (err: any) {
+      alert(`Failed to update stage: ${err?.message || 'Unknown error'}`);
     } finally {
       setStageChanging(false);
     }

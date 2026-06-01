@@ -11,9 +11,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  const closedStatuses = outcome
-    ? [outcome]
-    : ['WON', 'LOST', 'DROPPED', 'ORDER'];
+  // WON tab shows both WON and ORDER (same business meaning — won deal)
+  const closedStatuses = outcome === 'WON'
+    ? ['WON', 'ORDER']
+    : outcome
+      ? [outcome]
+      : ['WON', 'LOST', 'DROPPED', 'ORDER'];
 
   const where: any = {
     deletedAt: null,

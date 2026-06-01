@@ -4,17 +4,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const TABS = [
-  { key: '',        label: 'All Closed',  icon: '📊', color: 'text-gray-700' },
-  { key: 'ORDER',   label: 'Won → Orders', icon: '🏆', color: 'text-green-700' },
-  { key: 'LOST',    label: 'Lost',        icon: '❌', color: 'text-red-700' },
-  { key: 'DROPPED', label: 'Dropped',     icon: '🚫', color: 'text-gray-600' },
+  { key: '',        label: 'All Closed',   icon: '📊' },
+  { key: 'WON',     label: 'Won → Orders', icon: '🏆' },
+  { key: 'LOST',    label: 'Lost',         icon: '❌' },
+  { key: 'DROPPED', label: 'Dropped',      icon: '🚫' },
 ];
 
-const STATUS_STYLES: Record<string, string> = {
-  ORDER:   'bg-green-100 text-green-800 border-green-200',
-  WON:     'bg-green-100 text-green-800 border-green-200',
-  LOST:    'bg-red-100 text-red-700 border-red-200',
-  DROPPED: 'bg-gray-100 text-gray-600 border-gray-200',
+const STATUS_META: Record<string, { label: string; icon: string; style: string }> = {
+  ORDER:   { label: 'Won → Order', icon: '🏆', style: 'bg-green-100 text-green-800 border-green-200' },
+  WON:     { label: 'Won → Order', icon: '🏆', style: 'bg-green-100 text-green-800 border-green-200' },
+  LOST:    { label: 'Lost',        icon: '❌', style: 'bg-red-100 text-red-700 border-red-200' },
+  DROPPED: { label: 'Dropped',     icon: '🚫', style: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 const fmt = (v: number) =>
@@ -34,13 +34,9 @@ export default function ClosedLeadsPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
 
-  useEffect(() => {
-    setPage(1);
-  }, [tab, search, from, to]);
+  useEffect(() => { setPage(1); }, [tab, search, from, to]);
 
-  useEffect(() => {
-    fetchLeads();
-  }, [tab, search, from, to, page]);
+  useEffect(() => { fetchLeads(); }, [tab, search, from, to, page]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -69,10 +65,9 @@ export default function ClosedLeadsPage() {
     }
   };
 
-  const totalWonValue = stats ? stats.won.value + stats.order.value : 0;
-  const totalWonCount = stats ? stats.won.count + stats.order.count : 0;
-  const totalLostValue = stats ? stats.lost.value + stats.dropped.value : 0;
-  const totalLostCount = stats ? stats.lost.count + stats.dropped.count : 0;
+  const totalWonCount = stats ? (stats.won?.count ?? 0) + (stats.order?.count ?? 0) : 0;
+  const totalWonValue = stats ? (stats.won?.value ?? 0) + (stats.order?.value ?? 0) : 0;
+  const totalLostCount = stats ? (stats.lost?.count ?? 0) + (stats.dropped?.count ?? 0) : 0;
   const winRate = totalWonCount + totalLostCount > 0
     ? ((totalWonCount / (totalWonCount + totalLostCount)) * 100).toFixed(1)
     : '0';
@@ -92,70 +87,78 @@ export default function ClosedLeadsPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase font-medium">Won (incl. Orders)</p>
+        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-green-300 transition-colors" onClick={() => setTab('WON')}>
+          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Won (incl. Orders)</p>
           <p className="text-3xl font-bold text-green-600 mt-1">{totalWonCount}</p>
           <p className="text-sm text-green-700 font-medium mt-1">{fmt(totalWonValue)}</p>
         </div>
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase font-medium">Lost</p>
-          <p className="text-3xl font-bold text-red-600 mt-1">{stats?.lost.count ?? 0}</p>
-          <p className="text-sm text-red-700 font-medium mt-1">{fmt(stats?.lost.value ?? 0)}</p>
+        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-red-300 transition-colors" onClick={() => setTab('LOST')}>
+          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Lost</p>
+          <p className="text-3xl font-bold text-red-600 mt-1">{stats?.lost?.count ?? 0}</p>
+          <p className="text-sm text-red-700 font-medium mt-1">{fmt(stats?.lost?.value ?? 0)}</p>
+        </div>
+        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setTab('DROPPED')}>
+          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Dropped</p>
+          <p className="text-3xl font-bold text-gray-600 mt-1">{stats?.dropped?.count ?? 0}</p>
+          <p className="text-sm text-gray-500 mt-1">{fmt(stats?.dropped?.value ?? 0)}</p>
         </div>
         <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase font-medium">Dropped</p>
-          <p className="text-3xl font-bold text-gray-600 mt-1">{stats?.dropped.count ?? 0}</p>
-          <p className="text-sm text-gray-500 mt-1">{fmt(stats?.dropped.value ?? 0)}</p>
-        </div>
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase font-medium">Win Rate</p>
+          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Win Rate</p>
           <p className="text-3xl font-bold text-blue-600 mt-1">{winRate}%</p>
           <p className="text-sm text-gray-500 mt-1">{totalWonCount + totalLostCount} total closed</p>
         </div>
       </div>
 
-      {/* Tabs + filters */}
+      {/* Table card */}
       <div className="bg-white rounded-xl border shadow-sm">
-        <div className="flex items-center justify-between px-5 pt-4 pb-0 border-b border-gray-100">
-          <div className="flex gap-1">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
-                  tab === t.key
-                    ? 'border-blue-600 text-blue-700 bg-blue-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t.icon} {t.label}
-              </button>
-            ))}
-          </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 px-4 pt-3 gap-1 overflow-x-auto">
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                tab === t.key
+                  ? 'border-blue-600 text-blue-700 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="p-4 border-b border-gray-100 flex flex-wrap gap-3">
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, company…"
-            className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px]"
-          />
-          <input
-            type="date"
-            value={from}
-            onChange={e => setFrom(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm"
-            title="Closed from"
-          />
-          <input
-            type="date"
-            value={to}
-            onChange={e => setTo(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm"
-            title="Closed to"
-          />
+        {/* Filters */}
+        <div className="p-4 border-b border-gray-100 flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Name, company…"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Closed from</label>
+            <input
+              type="date"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Closed to</label>
+            <input
+              type="date"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
           {(search || from || to) && (
             <button
               onClick={() => { setSearch(''); setFrom(''); setTo(''); }}
@@ -175,56 +178,58 @@ export default function ClosedLeadsPage() {
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📭</p>
             <p className="text-gray-500 font-medium">No closed leads found</p>
-            <p className="text-sm text-gray-400 mt-1">Closed leads will appear here after CLOSURE stage</p>
+            <p className="text-sm text-gray-400 mt-1">Closed leads appear here after a deal is closed from the CLOSURE stage</p>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Lead</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Outcome</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Value</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Closed By</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Closed On</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Reason</th>
-                    <th className="px-4 py-3"></th>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Company</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Outcome</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Value</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Closed By</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Closed On</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Reason</th>
+                    <th className="px-4 py-3 w-12"></th>
                   </tr>
                 </thead>
-                <tbody>
-                  {leads.map(lead => (
-                    <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-gray-900">{lead.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{lead.company}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${STATUS_STYLES[lead.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {lead.status === 'ORDER' ? '🏆 Won → Order' : lead.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">
-                        {lead.quoteValue ? fmt(Number(lead.quoteValue)) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {lead.assignedTo?.firstName} {lead.assignedTo?.lastName}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {lead.closedAt ? fmtDate(lead.closedAt) : fmtDate(lead.updatedAt)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 max-w-[180px]">
-                        <span className="truncate block" title={lead.closureReason || ''}>
-                          {lead.closureReason || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/leads/${lead.id}`}
-                          className="text-xs text-blue-600 hover:underline font-medium">
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-gray-50">
+                  {leads.map(lead => {
+                    const meta = STATUS_META[lead.status] ?? { label: lead.status, icon: '', style: 'bg-gray-100 text-gray-600 border-gray-200' };
+                    return (
+                      <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3.5 font-medium text-gray-900">{lead.name}</td>
+                        <td className="px-4 py-3.5 text-gray-600">{lead.company}</td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium ${meta.style}`}>
+                            {meta.icon} {meta.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-semibold text-gray-800">
+                          {lead.quoteValue ? fmt(Number(lead.quoteValue)) : <span className="text-gray-400 font-normal">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-gray-600">
+                          {lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : '—'}
+                        </td>
+                        <td className="px-4 py-3.5 text-gray-500">
+                          {lead.closedAt ? fmtDate(lead.closedAt) : fmtDate(lead.updatedAt)}
+                        </td>
+                        <td className="px-4 py-3.5 text-gray-500 max-w-[200px]">
+                          <span className="truncate block" title={lead.closureReason || ''}>
+                            {lead.closureReason || <span className="text-gray-300">—</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <Link href={`/leads/${lead.id}`} className="text-xs text-blue-600 hover:underline font-medium">
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -233,7 +238,7 @@ export default function ClosedLeadsPage() {
             {pagination && pagination.pages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
                 <p className="text-sm text-gray-500">
-                  {pagination.total} total · page {pagination.page} of {pagination.pages}
+                  {pagination.total} result{pagination.total !== 1 ? 's' : ''} · page {pagination.page} of {pagination.pages}
                 </p>
                 <div className="flex gap-2">
                   <button
