@@ -18,7 +18,7 @@ async function verifyAuth(req: NextRequest) {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await verifyAuth(req);
+    const user = await verifyAuth(req);
 
     const ticket = await prisma.ticket.findUnique({
       where: { id: id },
@@ -29,8 +29,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
+    // Permission check: User can view if they:
+    // - Are SUPER_ADMIN or ADMIN (view all)
+    // - Are SUPPORT and assigned to this ticket
+    // - Created the ticket (view own)
+    const canView =
+      ['SUPER_ADMIN', 'ADMIN'].includes(user.role) ||
+      (user.role === 'SUPPORT' && ticket.assignedToId === user.id) ||
+      ticket.createdById === user.id;
+
+    if (!canView) {
+      return NextResponse.json(
+        { error: 'You do not have permission to view this ticket' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(ticket);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === 'You do not have permission to view this ticket') {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: 'Failed to fetch ticket' }, { status: 500 });
   }
 }
@@ -38,9 +57,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await verifyAuth(req);
-    const body = await req.json();
+    const user = await verifyAuth(req);
 
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: id },
+      select: { assignedToId: true, createdById: true },
+    });
+
+    if (!ticket) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    // Permission check: User can edit if they:
+    // - Are SUPER_ADMIN or ADMIN
+    // - Are SUPPORT and assigned to this ticket
+    // - Created the ticket (can only view, not edit)
+    const canEdit =
+      ['SUPER_ADMIN', 'ADMIN'].includes(user.role) ||
+      (user.role === 'SUPPORT' && ticket.assignedToId === user.id);
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: 'You do not have permission to edit this ticket' },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
     const { status, priority, assignedToId, resolutionNotes, customerSatisfactionRating } = body;
 
     const updateData: any = {};
@@ -59,14 +102,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (resolutionNotes !== undefined) updateData.resolutionNotes = resolutionNotes;
     if (customerSatisfactionRating !== undefined) updateData.customerSatisfactionRating = customerSatisfactionRating;
 
-    const ticket = await prisma.ticket.update({
+    const updatedTicket = await prisma.ticket.update({
       where: { id: id },
       data: updateData,
       include: { customer: true, assignedTo: true, createdBy: true },
     });
 
-    return NextResponse.json(ticket);
-  } catch (err) {
+    return NextResponse.json(updatedTicket);
+  } catch (err: any) {
+    if (err.message?.includes('permission')) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: 'Failed to update ticket' }, { status: 500 });
   }
 }
@@ -74,7 +120,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await verifyAuth(req);
+    const user = await verifyAuth(req);
+
+    // Only ADMIN can delete tickets
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Only administrators can delete tickets' },
+        { status: 403 }
+      );
+    }
 
     await prisma.ticket.delete({
       where: { id: id },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Ticket {
   id: string;
@@ -45,6 +46,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function SupportPage() {
+  const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,18 +55,28 @@ export default function SupportPage() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(u => setCurrentUser(u))
+      .then(u => {
+        setCurrentUser(u);
+        // Only ADMIN and SUPPORT can view all tickets
+        if (!['SUPER_ADMIN', 'ADMIN', 'SUPPORT'].includes(u.role)) {
+          setAccessDenied(true);
+          setLoading(false);
+        }
+      })
       .catch(console.error);
   }, []);
 
   useEffect(() => {
-    fetchTickets();
-  }, [page, status, priority]);
+    if (!accessDenied) {
+      fetchTickets();
+    }
+  }, [page, status, priority, accessDenied]);
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -100,6 +112,33 @@ export default function SupportPage() {
   const resolvedCount = tickets.filter(t => t.status === 'RESOLVED').length;
 
   const scopeLabel = currentUser ? (ROLE_LABELS[currentUser.role] || 'Support Tickets') : 'Support Tickets';
+
+  if (accessDenied) {
+    return (
+      <div className="p-6">
+        <div className="max-w-md mx-auto mt-20">
+          <div className="bg-white rounded-xl border border-red-200 shadow-lg p-8 text-center">
+            <div className="text-5xl mb-4">🔒</div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
+            <p className="text-gray-600 mb-6">
+              You don't have permission to view all support tickets. Only Admins and Support staff can view the complete ticket list.
+            </p>
+            <p className="text-sm text-gray-500 mb-6 border-t pt-4">
+              <strong>What you can do:</strong>
+            </p>
+            <div className="space-y-2 text-left bg-blue-50 p-4 rounded-lg mb-6">
+              <p className="text-sm">✓ Create a new support ticket</p>
+              <p className="text-sm">✓ Track your own ticket's status</p>
+              <p className="text-sm">✓ Update your tickets with additional information</p>
+            </div>
+            <Link href="/support/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
+              Create a Ticket
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

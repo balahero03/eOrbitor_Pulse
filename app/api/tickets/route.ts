@@ -3,6 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  // Only ADMIN, SUPER_ADMIN, and SUPPORT can view tickets
+  if (!['SUPER_ADMIN', 'ADMIN', 'SUPPORT'].includes(user.role)) {
+    return NextResponse.json(
+      { message: 'You do not have permission to view support tickets. Contact an administrator.' },
+      { status: 403 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -16,15 +24,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   // Role-based scoping
   if (user.role === 'SUPPORT') {
     where.assignedToId = user.id;
-  } else if (user.role === 'SALES_EXEC') {
-    where.createdById = user.id;
-  } else if (user.role === 'SALES_MANAGER') {
-    const subordinates = await prisma.user.findMany({
-      where: { managerId: user.id },
-      select: { id: true },
-    });
-    const teamIds = [user.id, ...subordinates.map((u) => u.id)];
-    where.createdById = { in: teamIds };
   }
   // ADMIN/SUPER_ADMIN see all
 
