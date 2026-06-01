@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { SOLUTION_AREAS } from '@/lib/eorbitor-constants';
 
 interface LeadDetail {
   id: string;
@@ -10,6 +11,7 @@ interface LeadDetail {
   email: string;
   phone?: string;
   company: string;
+  address?: string;
   source: string;
   status: string;
   leadScore: number;
@@ -19,8 +21,12 @@ interface LeadDetail {
   quoteValue?: number;
   rfqDate?: string;
   followUpDate?: string;
+  expectedClosureDate?: string;
   closedAt?: string;
   closureReason?: string;
+  solutionAreas?: string[];
+  oemNames?: string[];
+  presalesIds?: string[];
   assignedTo: { id: string; firstName: string; lastName: string };
   broughtBy?: { id: string; firstName: string; lastName: string };
   linkedCustomer?: { id: string; companyName: string };
@@ -513,7 +519,8 @@ export default function LeadDetailPage() {
 
   const [editData, setEditData] = useState({
     qualificationNotes: '', remarks: '',
-    quoteNo: '', quoteValue: '', rfqDate: '', followUpDate: '',
+    quoteNo: '', quoteValue: '', rfqDate: '', followUpDate: '', expectedClosureDate: '',
+    address: '',
   });
 
   useEffect(() => {
@@ -537,6 +544,8 @@ export default function LeadDetailPage() {
         quoteValue: data.quoteValue != null ? String(data.quoteValue) : '',
         rfqDate: data.rfqDate ? data.rfqDate.split('T')[0] : '',
         followUpDate: data.followUpDate ? data.followUpDate.split('T')[0] : '',
+        expectedClosureDate: data.expectedClosureDate ? data.expectedClosureDate.split('T')[0] : '',
+        address: data.address || '',
       });
     } catch {
       /* silent */
@@ -842,6 +851,12 @@ export default function LeadDetailPage() {
                   <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Phone</p>
                   <p className="text-gray-700">{lead.phone || '—'}</p>
                 </div>
+                {lead.address && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Address</p>
+                    <p className="text-gray-700">{lead.address}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Source</p>
                   <p className="text-gray-700">{lead.source}</p>
@@ -876,6 +891,12 @@ export default function LeadDetailPage() {
                       placeholder="Budget, Authority, Need, Timeline…"
                       className="w-full h-20 border rounded-lg px-3 py-2 text-sm" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Address</label>
+                    <input type="text" value={editData.address}
+                      onChange={e => setEditData({ ...editData, address: e.target.value })}
+                      placeholder="Full address" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium mb-1">Quote No.</label>
@@ -899,6 +920,12 @@ export default function LeadDetailPage() {
                       <label className="block text-sm font-medium mb-1">Follow-up Date</label>
                       <input type="date" value={editData.followUpDate}
                         onChange={e => setEditData({ ...editData, followUpDate: e.target.value })}
+                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
+                      <input type="date" value={editData.expectedClosureDate}
+                        onChange={e => setEditData({ ...editData, expectedClosureDate: e.target.value })}
                         className="w-full border rounded-lg px-3 py-2 text-sm" />
                     </div>
                   </div>
@@ -1027,6 +1054,59 @@ export default function LeadDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Solution Profile */}
+            {(lead.solutionAreas?.length > 0 || lead.oemNames?.length > 0) && (
+              <div className="bg-white rounded-xl border p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Solution Profile</h3>
+                <div className="space-y-3">
+                  {lead.solutionAreas && lead.solutionAreas.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-2">Solution Areas</p>
+                      <div className="flex flex-wrap gap-2">
+                        {lead.solutionAreas.map(areaId => {
+                          const area = SOLUTION_AREAS.find(sa => sa.id === areaId);
+                          return (
+                            <span key={areaId} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                              {area?.label || areaId}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {lead.oemNames && lead.oemNames.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-2">OEM Names</p>
+                      <div className="flex flex-wrap gap-2">
+                        {lead.oemNames.map((oem, i) => (
+                          <span key={i} className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">
+                            {oem}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Presales Members */}
+            {lead.presalesIds && lead.presalesIds.length > 0 && (
+              <div className="bg-white rounded-xl border p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Presales Members</h3>
+                <div className="space-y-2">
+                  {lead.presalesIds.map((userId, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        •
+                      </div>
+                      <span className="text-sm text-gray-700">{userId}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Created */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">

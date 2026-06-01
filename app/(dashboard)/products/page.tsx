@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 
 interface Product {
   id: string;
@@ -85,9 +86,13 @@ function ProductModal({
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category</label>
-              <input type="text" value={form.category} onChange={e => set('category', e.target.value)}
-                placeholder="e.g. Laptops, Printers"
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              <select value={form.category} onChange={e => set('category', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <option value="">Select Solution Area</option>
+                {SOLUTION_AREAS.map(sa => (
+                  <option key={sa.id} value={sa.id}>{sa.label}</option>
+                ))}
+              </select>
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">

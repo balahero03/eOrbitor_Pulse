@@ -52,9 +52,10 @@ export async function PATCH(
 
     const body = await req.json();
     const {
-      name, email, phone, company, source, status, leadScore,
+      name, email, phone, company, address, source, status, leadScore,
       assignedToId, broughtById, linkedCustomerId, qualificationNotes,
-      remarks, quoteNo, quoteValue, rfqDate, followUpDate,
+      remarks, quoteNo, quoteValue, rfqDate, followUpDate, expectedClosureDate,
+      solutionAreas, oemNames, presalesIds,
     } = body;
 
     let resolvedCustomerId = linkedCustomerId;
@@ -66,6 +67,7 @@ export async function PATCH(
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
         ...(company !== undefined && { company }),
+        ...(address !== undefined && { address }),
         ...(source !== undefined && { source }),
         ...(status !== undefined && { status: status as any }),
         ...(leadScore !== undefined && { leadScore }),
@@ -78,6 +80,10 @@ export async function PATCH(
         ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
         ...(rfqDate !== undefined && { rfqDate: rfqDate ? new Date(rfqDate) : null }),
         ...(followUpDate !== undefined && { followUpDate: followUpDate ? new Date(followUpDate) : null }),
+        ...(expectedClosureDate !== undefined && { expectedClosureDate: expectedClosureDate ? new Date(expectedClosureDate) : null }),
+        ...(solutionAreas !== undefined && { solutionAreas }),
+        ...(oemNames !== undefined && { oemNames }),
+        ...(presalesIds !== undefined && { presalesIds }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },

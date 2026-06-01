@@ -52,6 +52,7 @@ model Lead {
   email              String
   phone              String?
   company            String
+  address            String?
   source             LeadSource
   status             LeadStatus        @default(NEW)
   leadScore          Int               @default(0)
@@ -70,8 +71,12 @@ model Lead {
   remarks            String?
   rfqDate            DateTime?
   closedAt           DateTime?
+  expectedClosureDate DateTime?
   closureReason      String?
   closureDetails     Json?
+  solutionAreas      String[]
+  oemNames           String[]
+  presalesIds        String[]
   activityLogs       ActivityLog[]
   approvalRequests   ApprovalRequest[]
   deals              Deal[]

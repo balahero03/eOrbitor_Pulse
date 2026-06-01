@@ -107,8 +107,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const {
-    name, email, phone, company, source, assignedToId, broughtById,
-    status, quoteNo, quoteValue, rfqDate, followUpDate, remarks,
+    name, email, phone, company, address, source, assignedToId, broughtById,
+    status, quoteNo, quoteValue, rfqDate, followUpDate, expectedClosureDate, remarks,
+    solutionAreas, oemNames, presalesIds,
   } = await req.json();
 
   if (!name || !company) {
@@ -121,6 +122,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
       phone: phone || null,
       company,
+      address: address || null,
       source: source || 'EMAIL',
       status: status || 'SUSPECT',
       leadScore: 0,
@@ -130,7 +132,11 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
       ...(rfqDate && { rfqDate: new Date(rfqDate) }),
       ...(followUpDate && { followUpDate: new Date(followUpDate) }),
+      ...(expectedClosureDate && { expectedClosureDate: new Date(expectedClosureDate) }),
       ...(remarks && { remarks }),
+      ...(solutionAreas && solutionAreas.length > 0 && { solutionAreas }),
+      ...(oemNames && oemNames.length > 0 && { oemNames }),
+      ...(presalesIds && presalesIds.length > 0 && { presalesIds }),
     },
     include: {
       assignedTo: { select: { firstName: true, lastName: true } },

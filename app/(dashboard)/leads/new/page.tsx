@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import MultiSelectSearch from '@/components/MultiSelectSearch';
+import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 
 // New leads always start as Suspect
 const INITIAL_STATUS = 'SUSPECT';
@@ -23,15 +25,20 @@ export default function NewLeadPage() {
     company: '',
     email: '',
     phone: '',
+    address: '',
     source: 'EMAIL',
     status: INITIAL_STATUS,
     quoteNo: '',
     quoteValue: '',
     rfqDate: '',
     followUpDate: '',
+    expectedClosureDate: '',
     remarks: '',
     assignedToId: '',
     broughtById: '',
+    solutionAreas: [] as string[],
+    oemNames: [] as string[],
+    presalesIds: [] as string[],
   });
 
   useEffect(() => {
@@ -45,6 +52,10 @@ export default function NewLeadPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMultiSelectChange = (field: string) => (selected: string[]) => {
+    setFormData(prev => ({ ...prev, [field]: selected }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,6 +75,13 @@ export default function NewLeadPage() {
       if (!payload.remarks) delete payload.remarks;
       if (!payload.assignedToId) delete payload.assignedToId;
       if (!payload.broughtById) delete payload.broughtById;
+
+      // Remove optional fields if empty
+      if (!payload.address) delete payload.address;
+      if (!payload.expectedClosureDate) delete payload.expectedClosureDate;
+      if (payload.solutionAreas?.length === 0) delete payload.solutionAreas;
+      if (payload.oemNames?.length === 0) delete payload.oemNames;
+      if (payload.presalesIds?.length === 0) delete payload.presalesIds;
 
       const res = await fetch('/api/leads', {
         method: 'POST',
@@ -205,6 +223,16 @@ export default function NewLeadPage() {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
+                <input
+                  type="date"
+                  name="expectedClosureDate"
+                  value={formData.expectedClosureDate}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
             </div>
           </div>
 
@@ -240,6 +268,15 @@ export default function NewLeadPage() {
                   ))}
                 </select>
               </div>
+              <div className="col-span-1 md:col-span-2">
+                <MultiSelectSearch
+                  options={users.map(u => ({ id: u.id, label: `${u.firstName} ${u.lastName}` }))}
+                  selected={formData.presalesIds}
+                  onChange={handleMultiSelectChange('presalesIds')}
+                  placeholder="Search team members..."
+                  label="Presales Members Involved"
+                />
+              </div>
             </div>
           </div>
 
@@ -269,6 +306,39 @@ export default function NewLeadPage() {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Address</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Full address of the customer"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Solution Profile */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Solution Profile</h3>
+            <div className="space-y-4">
+              <MultiSelectSearch
+                options={SOLUTION_AREAS}
+                selected={formData.solutionAreas}
+                onChange={handleMultiSelectChange('solutionAreas')}
+                placeholder="Search solution areas..."
+                label="Solution Areas"
+              />
+              <MultiSelectSearch
+                options={OEM_LIST.map(name => ({ id: name, label: name }))}
+                selected={formData.oemNames}
+                onChange={handleMultiSelectChange('oemNames')}
+                placeholder="Search OEM names..."
+                label="OEM Names"
+                allowCustom={true}
+              />
             </div>
           </div>
 
