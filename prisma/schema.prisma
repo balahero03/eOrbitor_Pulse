@@ -68,6 +68,8 @@ model Lead {
   quoteValue         Decimal?
   remarks            String?
   rfqDate            DateTime?
+  closedAt           DateTime?
+  closureReason      String?
   activityLogs       ActivityLog[]
   approvalRequests   ApprovalRequest[]
   deals              Deal[]
@@ -488,14 +490,16 @@ enum LeadStatus {
   QUALIFIED
   REJECTED
   CONVERTED
-  WON
-  LOST
   SUSPECT
   PROSPECT
+  APPROACH
   NEGOTIATION
-  COMMIT
+  CLOSURE
+  WON
+  LOST
   DROPPED
   ON_HOLD
+  ORDER
 }
 
 enum CustomerCategory {
