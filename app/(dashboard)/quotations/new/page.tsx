@@ -18,8 +18,11 @@ interface Product {
   id: string;
   sku: string;
   name: string;
+  description?: string;
+  category?: string;
   basePrice: string;
   tax: string;
+  attributes?: Record<string, string>;
 }
 
 interface LineItem {
@@ -301,8 +304,25 @@ export default function NewQuotationPage() {
                       onMouseDown={() => addProduct(p)}
                       className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0"
                     >
-                      <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                      <p className="text-xs text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                          {p.description && <p className="text-xs text-gray-400 truncate">{p.description}</p>}
+                          {p.attributes && Object.keys(p.attributes).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {Object.entries(p.attributes).slice(0, 3).map(([k, v]) => (
+                                <span key={k} className="text-[10px] px-1 py-0.5 bg-gray-100 text-gray-500 rounded">
+                                  {k}: {String(v)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {p.category && (
+                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{p.category}</span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>

@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { name, category, description, basePrice, tax, isActive } = body;
+  const { name, category, description, basePrice, tax, isActive, attributes } = body;
 
   const product = await prisma.product.update({
     where: { id },
@@ -57,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(basePrice !== undefined && { basePrice: parseFloat(basePrice) }),
       ...(tax !== undefined && { tax: parseFloat(tax) }),
       ...(isActive !== undefined && { isActive }),
+      ...(attributes !== undefined && { attributes }),
     },
     include: {
       inventory: true,

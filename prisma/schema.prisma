@@ -276,6 +276,7 @@ model Product {
   description    String?
   basePrice      Decimal
   tax            Decimal
+  attributes     Json?
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
