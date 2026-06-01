@@ -147,11 +147,11 @@ export default function FollowUpsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Follow-ups</h1>
-        <Link href="/followups/new" className="btn btn-primary">+ Schedule Follow-up</Link>
+        <Link href="/followups/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ Schedule Follow-up</Link>
       </div>
 
       {/* View Toggle */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium">View:</span>
           <button
@@ -189,7 +189,7 @@ export default function FollowUpsPage() {
 
       {viewMode === 'list' ? (
         // List View
-        <div className="card overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="p-6 text-center text-gray-600">Loading...</div>
           ) : followUps.length === 0 ? (
@@ -271,7 +271,7 @@ export default function FollowUpsPage() {
                     <button
                       onClick={() => setPage(Math.max(1, page - 1))}
                       disabled={page === 1}
-                      className="btn btn-secondary disabled:opacity-50"
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
                     >
                       Previous
                     </button>
@@ -279,7 +279,7 @@ export default function FollowUpsPage() {
                     <button
                       onClick={() => setPage(Math.min(pagination.pages, page + 1))}
                       disabled={page === pagination.pages}
-                      className="btn btn-secondary disabled:opacity-50"
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
                     >
                       Next
                     </button>
@@ -292,11 +292,11 @@ export default function FollowUpsPage() {
       ) : (
         // Calendar View
         <div className="space-y-4">
-          <div className="card p-4">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                className="btn btn-secondary"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 ← Prev
               </button>
@@ -305,7 +305,7 @@ export default function FollowUpsPage() {
               </h2>
               <button
                 onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                className="btn btn-secondary"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 Next →
               </button>

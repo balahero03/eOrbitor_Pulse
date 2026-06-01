@@ -129,13 +129,13 @@ export default function ApprovalsPage() {
       </div>
 
       {requests.length === 0 ? (
-        <div className="card p-8 text-center text-gray-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center text-gray-500">
           No {tab.toLowerCase()} requests
         </div>
       ) : (
         <div className="space-y-4">
           {requests.map((req) => (
-            <div key={req.id} className="card p-6 border-l-4 border-blue-500">
+            <div key={req.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-l-4 border-blue-500">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -189,13 +189,13 @@ export default function ApprovalsPage() {
                     <button
                       onClick={() => handleApprove(req.id)}
                       disabled={processingId === req.id}
-                      className="btn btn-sm btn-success"
+                      className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700"
                     >
                       {processingId === req.id ? 'Processing...' : 'Approve'}
                     </button>
                     <button
                       onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className="btn btn-sm btn-error"
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
                     >
                       Reject
                     </button>
@@ -216,7 +216,7 @@ export default function ApprovalsPage() {
                     <button
                       onClick={() => handleReject(req.id)}
                       disabled={processingId === req.id}
-                      className="btn btn-sm btn-error"
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
                     >
                       {processingId === req.id ? 'Processing...' : 'Confirm Rejection'}
                     </button>
@@ -225,7 +225,7 @@ export default function ApprovalsPage() {
                         setShowRejectForm(null);
                         setRejectionReason('');
                       }}
-                      className="btn btn-sm btn-outline"
+                      className="px-3 py-1 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50"
                     >
                       Cancel
                     </button>

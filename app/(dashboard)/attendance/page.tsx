@@ -103,7 +103,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Controls */}
-      <div className="card p-4 mb-6 flex flex-wrap gap-4 items-end">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Employee</label>
           <select
@@ -124,13 +124,13 @@ export default function AttendancePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-              className="btn btn-secondary btn-sm"
+              className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
             >←</button>
             <span className="font-semibold text-sm px-2">{monthName}</span>
             <button
               onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
               disabled={currentMonth >= new Date()}
-              className="btn btn-secondary btn-sm disabled:opacity-40"
+              className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
             >→</button>
           </div>
         </div>
@@ -218,7 +218,7 @@ export default function AttendancePage() {
         </div>
 
         {/* Detail Panel */}
-        <div className="card p-6 sticky top-20 self-start">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sticky top-20 self-start">
           {selectedDay ? (
             <>
               <h3 className="font-bold text-gray-800 mb-4">

@@ -166,7 +166,7 @@ export default function AnnouncementsPage() {
         </div>
         <button
           onClick={openCreate}
-          className="btn btn-primary flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2"
         >
           <span className="text-lg">+</span> Create Announcement
         </button>
@@ -349,14 +349,14 @@ export default function AnnouncementsPage() {
                     setShowModal(false);
                     resetForm();
                   }}
-                  className="btn btn-secondary flex-1"
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
                   disabled={saving}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary flex-1"
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
                   disabled={saving}
                 >
                   {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
@@ -368,7 +368,7 @@ export default function AnnouncementsPage() {
       )}
 
       <div className="mt-6">
-        <Link href="/dashboard" className="btn btn-secondary">
+        <Link href="/dashboard" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
           ← Back to Dashboard
         </Link>
       </div>

@@ -102,7 +102,7 @@ export default function DailyActivityPage() {
         />
       </div>
 
-      <div className="card p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">
             Activities
@@ -111,7 +111,7 @@ export default function DailyActivityPage() {
             )}
           </h2>
           {isEditable && !editing && (
-            <button onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">
+            <button onClick={() => setEditing(true)} className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
               ✏️ Edit
             </button>
           )}
@@ -133,7 +133,7 @@ export default function DailyActivityPage() {
                 className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                 autoFocus
               />
-              <button onClick={handleAddActivity} className="btn btn-primary btn-sm">Add</button>
+              <button onClick={handleAddActivity} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Add</button>
             </div>
 
             {/* List */}
@@ -166,7 +166,7 @@ export default function DailyActivityPage() {
             </div>
 
             <div className="flex gap-2 pt-2 border-t">
-              <button onClick={handleSave} disabled={saving} className="btn btn-primary flex-1">
+              <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button
@@ -175,7 +175,7 @@ export default function DailyActivityPage() {
                   setActivities(activity?.activities || []);
                   setNotes(activity?.notes || '');
                 }}
-                className="btn btn-secondary flex-1"
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 Cancel
               </button>

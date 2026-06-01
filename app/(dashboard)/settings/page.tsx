@@ -37,7 +37,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* User Management */}
-        <Link href="/users" className="card p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-blue-500">
+        <Link href="/users" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-blue-500">
           <div className="flex items-start justify-between mb-3">
             <h2 className="text-lg font-bold">User Management</h2>
             <span className="text-3xl">👤</span>
@@ -51,7 +51,7 @@ export default function SettingsPage() {
         </Link>
 
         {/* Announcements */}
-        <Link href="/announcements" className="card p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-green-500">
+        <Link href="/announcements" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-green-500">
           <div className="flex items-start justify-between mb-3">
             <h2 className="text-lg font-bold">Announcements</h2>
             <span className="text-3xl">📢</span>
@@ -65,7 +65,7 @@ export default function SettingsPage() {
         </Link>
 
         {/* Approvals */}
-        <Link href="/approvals" className="card p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-orange-500">
+        <Link href="/approvals" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-orange-500">
           <div className="flex items-start justify-between mb-3">
             <h2 className="text-lg font-bold">Approvals</h2>
             <span className="text-3xl">✅</span>
@@ -79,7 +79,7 @@ export default function SettingsPage() {
         </Link>
 
         {/* Attendance */}
-        <Link href="/attendance" className="card p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-purple-500">
+        <Link href="/attendance" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-purple-500">
           <div className="flex items-start justify-between mb-3">
             <h2 className="text-lg font-bold">Attendance</h2>
             <span className="text-3xl">📅</span>
@@ -94,7 +94,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-8">
-        <Link href="/dashboard" className="btn btn-secondary">
+        <Link href="/dashboard" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
           ← Back to Dashboard
         </Link>
       </div>

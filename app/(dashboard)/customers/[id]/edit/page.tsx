@@ -108,10 +108,10 @@ export default function EditCustomerPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Edit Customer</h1>
-        <Link href={`/customers/${id}`} className="btn btn-secondary">Back to Customer</Link>
+        <Link href={`/customers/${id}`} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Customer</Link>
       </div>
 
-      <div className="card p-8 max-w-2xl">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
@@ -213,14 +213,14 @@ export default function EditCustomerPage() {
             <button
               type="button"
               onClick={() => router.push(`/customers/${id}`)}
-              className="btn btn-secondary flex-1"
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary flex-1"
+              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
               disabled={saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}

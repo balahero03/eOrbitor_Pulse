@@ -281,7 +281,7 @@ export default function UsersPage() {
             Team Structure
           </button>
           {canEdit && (
-            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+            <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
               <span className="text-lg">+</span> Add User
             </button>
           )}
@@ -302,7 +302,7 @@ export default function UsersPage() {
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</h2>
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
-                <div className="card overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
@@ -554,8 +554,8 @@ export default function UsersPage() {
               </div>
 
               <div className="flex gap-3 pt-2 border-t">
-                <button type="button" onClick={closeModal} className="btn btn-secondary flex-1" disabled={saving}>Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
+                <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
                   {saving ? 'Saving...' : 'Save Assignment'}
                 </button>
               </div>
@@ -633,8 +633,8 @@ export default function UsersPage() {
               )}
 
               <div className="flex gap-3 pt-2 border-t">
-                <button type="button" onClick={closeModal} className="btn btn-secondary flex-1" disabled={saving}>Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
+                <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
                   {saving ? 'Creating...' : 'Create User'}
                 </button>
               </div>
@@ -720,8 +720,8 @@ export default function UsersPage() {
               )}
 
               <div className="flex gap-3 pt-2 border-t">
-                <button type="button" onClick={closeModal} className="btn btn-secondary flex-1" disabled={saving}>Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
+                <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -780,8 +780,8 @@ export default function UsersPage() {
               </div>
 
               <div className="flex gap-3 pt-2 border-t">
-                <button type="button" onClick={closeModal} className="btn btn-secondary flex-1" disabled={saving}>Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1" disabled={saving || pwForm.newPassword !== pwForm.confirmPassword}>
+                <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving || pwForm.newPassword !== pwForm.confirmPassword}>
                   {saving ? 'Updating...' : 'Update Password'}
                 </button>
               </div>

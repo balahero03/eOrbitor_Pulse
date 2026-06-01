@@ -108,31 +108,31 @@ export default function SupportPage() {
           <h1 className="text-3xl font-bold">Support Tickets</h1>
           <p className="text-sm text-gray-500 mt-1">{scopeLabel} · {pagination?.total ?? 0} total</p>
         </div>
-        <Link href="/support/new" className="btn btn-primary">+ New Ticket</Link>
+        <Link href="/support/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Ticket</Link>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="card p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Total</p>
           <p className="text-3xl font-bold text-blue-700 mt-1">{pagination?.total ?? 0}</p>
         </div>
-        <div className="card p-5 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Open</p>
           <p className="text-3xl font-bold text-red-700 mt-1">{openCount}</p>
         </div>
-        <div className="card p-5 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Urgent</p>
           <p className="text-3xl font-bold text-orange-700 mt-1">{urgentCount}</p>
         </div>
-        <div className="card p-5 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Resolved</p>
           <p className="text-3xl font-bold text-green-700 mt-1">{resolvedCount}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <form
           onSubmit={(e) => { e.preventDefault(); setPage(1); fetchTickets(); }}
           className="flex flex-wrap gap-3 items-end"
@@ -166,12 +166,12 @@ export default function SupportPage() {
             <option value="HIGH">High</option>
             <option value="URGENT">Urgent</option>
           </select>
-          <button type="submit" className="btn btn-primary">Search</button>
+          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Search</button>
         </form>
       </div>
 
       {/* Tickets Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-400">Loading...</div>
         ) : tickets.length === 0 ? (
@@ -229,10 +229,10 @@ export default function SupportPage() {
                 </p>
                 <div className="flex gap-2">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="btn btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40">← Prev</button>
                   <span className="px-3 py-1 text-gray-600">{page} / {pagination.pages}</span>
                   <button onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={page === pagination.pages}
-                    className="btn btn-secondary btn-sm disabled:opacity-40">Next →</button>
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40">Next →</button>
                 </div>
               </div>
             )}

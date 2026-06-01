@@ -154,21 +154,21 @@ export default function TicketDetailPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{ticket.ticketNumber}</h1>
-        <Link href="/support" className="btn btn-secondary">Back to Support</Link>
+        <Link href="/support" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Support</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           {/* Ticket Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-bold mb-2">{ticket.subject}</h2>
                 <p className="text-gray-600">{ticket.description}</p>
               </div>
               {editable && !editing && (
-                <button onClick={() => setEditing(true)} className="btn btn-secondary">
+                <button onClick={() => setEditing(true)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
                   Edit
                 </button>
               )}
@@ -214,10 +214,10 @@ export default function TicketDetailPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="btn btn-primary">
+                  <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
                     {saving ? 'Saving...' : 'Save'}
                   </button>
-                  <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">
+                  <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>
@@ -251,9 +251,9 @@ export default function TicketDetailPage() {
 
           {/* Resolve Ticket — only for editable roles */}
           {editable && ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED' && (
-            <div className="card p-6 bg-blue-50 border-l-4 border-blue-500">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-blue-50 border-l-4 border-blue-500">
               {!showResolutionForm ? (
-                <button onClick={() => setShowResolutionForm(true)} className="btn btn-primary">
+                <button onClick={() => setShowResolutionForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
                   Mark as Resolved
                 </button>
               ) : (
@@ -286,10 +286,10 @@ export default function TicketDetailPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button type="submit" disabled={saving} className="btn btn-primary">
+                    <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
                       {saving ? 'Resolving...' : 'Resolve Ticket'}
                     </button>
-                    <button type="button" onClick={() => setShowResolutionForm(false)} className="btn btn-secondary">
+                    <button type="button" onClick={() => setShowResolutionForm(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
                       Cancel
                     </button>
                   </div>
@@ -301,7 +301,7 @@ export default function TicketDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Customer</h3>
             <p className="text-sm text-gray-600">Company</p>
             <p className="font-medium text-blue-600">
@@ -312,7 +312,7 @@ export default function TicketDetailPage() {
           </div>
 
           {ticket.deal && (
-            <div className="card p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
               <p className="text-sm text-gray-600">Deal</p>
               <p className="font-medium text-blue-600">
@@ -323,7 +323,7 @@ export default function TicketDetailPage() {
             </div>
           )}
 
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Details</h3>
             <div className="space-y-3 text-sm">
               <div>

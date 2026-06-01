@@ -138,18 +138,18 @@ export default function VendorDetailPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{vendor.vendorName}</h1>
-        <Link href="/vendors" className="btn btn-secondary">Back to Vendors</Link>
+        <Link href="/vendors" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Vendors</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           {/* Vendor Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="btn btn-secondary mb-4"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
               >
                 Edit
               </button>
@@ -228,14 +228,14 @@ export default function VendorDetailPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn btn-primary"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="btn btn-secondary"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -281,7 +281,7 @@ export default function VendorDetailPage() {
 
           {/* Vendor Products */}
           {vendor.products && vendor.products.length > 0 && (
-            <div className="card p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-lg font-bold mb-4">Products ({vendor.products.length})</h2>
               <div className="space-y-3">
                 {vendor.products.map((vp) => (
@@ -322,7 +322,7 @@ export default function VendorDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Rating */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Rating</h3>
             {vendor.rating ? (
               <div className="text-center">
@@ -335,7 +335,7 @@ export default function VendorDetailPage() {
           </div>
 
           {/* Meta */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-2 text-xs text-gray-600">
               <p>
@@ -357,10 +357,10 @@ export default function VendorDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <button
               onClick={handleDeleteVendor}
-              className="btn btn-danger w-full"
+              className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
             >
               Deactivate Vendor
             </button>

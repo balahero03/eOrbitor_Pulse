@@ -164,7 +164,7 @@ export default function CustomerDetailPage() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="card p-6 bg-red-50 border border-red-200">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-red-50 border border-red-200">
           <p className="text-red-700">{error}</p>
           {error.includes('deleted') && <p className="text-sm text-red-600 mt-2">Redirecting to customers list...</p>}
         </div>
@@ -180,14 +180,14 @@ export default function CustomerDetailPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{customer.companyName}</h1>
-        <Link href="/customers" className="btn btn-secondary">Back to Customers</Link>
+        <Link href="/customers" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Customers</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="col-span-2 space-y-4">
           {/* Company Details */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="text-lg font-bold mb-4">Company Details</h2>
             <div className="grid grid-cols-2 gap-6">
               <div>
@@ -212,7 +212,7 @@ export default function CustomerDetailPage() {
           </div>
 
           {/* Contacts */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Contacts ({customer.contacts.length})</h2>
               <button
@@ -221,7 +221,7 @@ export default function CustomerDetailPage() {
                   setEditingId(null);
                   setContactForm({ name: '', email: '', phone: '', designation: '', isPrimary: false });
                 }}
-                className="btn btn-secondary text-sm"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 {showContactForm ? 'Cancel' : '+ Add Contact'}
               </button>
@@ -265,7 +265,7 @@ export default function CustomerDetailPage() {
                   />
                   <span className="text-sm font-medium">Primary Contact</span>
                 </label>
-                <button onClick={handleAddContact} className="btn btn-primary w-full">
+                <button onClick={handleAddContact} className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
                   {editingId ? 'Update Contact' : 'Add Contact'}
                 </button>
               </div>
@@ -307,7 +307,7 @@ export default function CustomerDetailPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="text-lg font-bold mb-4">Recent Activity</h2>
             {customer.activityLogs.length === 0 ? (
               <p className="text-gray-600">No activity yet</p>
@@ -327,7 +327,7 @@ export default function CustomerDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Deals Summary */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Active Deals</h3>
             <div className="text-3xl font-bold mb-2">{customer.deals.length}</div>
             <p className="text-sm text-gray-600 mb-4">
@@ -349,7 +349,7 @@ export default function CustomerDetailPage() {
           </div>
 
           {/* Created Date */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-2">Created</h3>
             <p className="text-sm">
               {new Date(customer.createdAt).toLocaleDateString()}
@@ -359,11 +359,11 @@ export default function CustomerDetailPage() {
           {/* Actions */}
           {currentUserRole !== 'SUPPORT' && (
           <div className="space-y-2">
-            <Link href={`/customers/${customer.id}/edit`} className="btn btn-primary w-full text-center">
+            <Link href={`/customers/${customer.id}/edit`} className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 text-center">
               Edit Customer
             </Link>
             <button
-              className="btn btn-secondary w-full"
+              className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               onClick={() => router.push(`/pipeline/new?customerId=${customer.id}`)}
             >
               + New Deal

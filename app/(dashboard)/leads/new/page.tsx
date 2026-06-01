@@ -92,10 +92,10 @@ export default function NewLeadPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">New Lead</h1>
-        <Link href="/leads" className="btn btn-secondary">Back to Leads</Link>
+        <Link href="/leads" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Leads</Link>
       </div>
 
-      <div className="card p-8 max-w-3xl">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-3xl">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
@@ -290,11 +290,11 @@ export default function NewLeadPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn btn-primary flex-1"
+              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Lead'}
             </button>
-            <Link href="/leads" className="btn btn-secondary flex-1 text-center">
+            <Link href="/leads" className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center">
               Cancel
             </Link>
           </div>

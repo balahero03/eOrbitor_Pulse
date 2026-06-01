@@ -132,11 +132,11 @@ export default function PipelinePage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Sales Pipeline</h1>
-        <Link href="/pipeline/new" className="btn btn-primary">+ New Deal</Link>
+        <Link href="/pipeline/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Deal</Link>
       </div>
 
       {/* Search */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <input
           type="text"
           placeholder="Search deals by name or company..."

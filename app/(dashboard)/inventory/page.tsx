@@ -80,11 +80,11 @@ export default function InventoryPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Inventory</h1>
-        <Link href="/products/new" className="btn btn-primary">+ New Product</Link>
+        <Link href="/products/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Product</Link>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <form onSubmit={handleSearch} className="flex items-end gap-4">
           <div className="flex-1">
             <input
@@ -109,14 +109,14 @@ export default function InventoryPage() {
             <span className="text-sm font-medium">Low Stock Only</span>
           </label>
 
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
             Search
           </button>
         </form>
       </div>
 
       {/* Inventory Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-6 text-center text-gray-600">Loading...</div>
         ) : inventory.length === 0 ? (
@@ -199,7 +199,7 @@ export default function InventoryPage() {
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
                   >
                     Previous
                   </button>
@@ -207,7 +207,7 @@ export default function InventoryPage() {
                   <button
                     onClick={() => setPage(Math.min(pagination.pages, page + 1))}
                     disabled={page === pagination.pages}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
                   >
                     Next
                   </button>

@@ -74,11 +74,11 @@ export default function RevenueAnalysisPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Revenue Analysis</h1>
-        <Link href="/reports" className="btn btn-secondary">Back to Reports</Link>
+        <Link href="/reports" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Reports</Link>
       </div>
 
       {/* Date Range Filter */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start Date</label>
@@ -103,19 +103,19 @@ export default function RevenueAnalysisPage() {
 
       {/* Revenue KPI Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="card p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
           <p className="text-gray-600 text-sm font-medium">Completed Revenue</p>
           <p className="text-2xl font-bold text-green-700">{formatCurrency(report.revenue.completed)}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500">
           <p className="text-gray-600 text-sm font-medium">Pending Revenue</p>
           <p className="text-2xl font-bold text-yellow-700">{formatCurrency(report.revenue.pending)}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
           <p className="text-gray-600 text-sm font-medium">Paid Revenue</p>
           <p className="text-2xl font-bold text-blue-700">{formatCurrency(report.revenue.paid)}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-600 text-sm font-medium">Unpaid Revenue</p>
           <p className="text-2xl font-bold text-red-700">{formatCurrency(report.revenue.unpaid)}</p>
         </div>
@@ -124,7 +124,7 @@ export default function RevenueAnalysisPage() {
       {/* Order Status and Payment Status */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Orders by Status */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Orders by Status</h2>
           <div className="space-y-3">
             {report.orders.byStatus.map((status) => (
@@ -142,7 +142,7 @@ export default function RevenueAnalysisPage() {
         </div>
 
         {/* Payment Status */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Payment Status</h2>
           <div className="space-y-3">
             {report.orders.byPaymentStatus.map((ps) => (
@@ -161,7 +161,7 @@ export default function RevenueAnalysisPage() {
       </div>
 
       {/* Top Customers */}
-      <div className="card p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <h2 className="text-xl font-bold mb-4">Top Customers by Revenue</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

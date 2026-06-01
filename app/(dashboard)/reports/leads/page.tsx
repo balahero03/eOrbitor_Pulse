@@ -62,11 +62,11 @@ export default function LeadsAnalysisPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Lead Analysis</h1>
-        <Link href="/reports" className="btn btn-secondary">Back to Reports</Link>
+        <Link href="/reports" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Reports</Link>
       </div>
 
       {/* Date Range Filter */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start Date</label>
@@ -91,19 +91,19 @@ export default function LeadsAnalysisPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="card p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
           <p className="text-gray-600 text-sm font-medium">Total Leads</p>
           <p className="text-3xl font-bold text-blue-700">{report.summary.total}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
           <p className="text-gray-600 text-sm font-medium">Converted</p>
           <p className="text-3xl font-bold text-green-700">{report.summary.converted}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
           <p className="text-gray-600 text-sm font-medium">New This Period</p>
           <p className="text-3xl font-bold text-purple-700">{report.summary.newThisPeriod}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500">
           <p className="text-gray-600 text-sm font-medium">Conversion Rate</p>
           <p className="text-3xl font-bold text-yellow-700">{report.summary.conversionRate.toFixed(1)}%</p>
         </div>
@@ -112,7 +112,7 @@ export default function LeadsAnalysisPage() {
       {/* Analysis Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Lead Source Distribution */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Leads by Source</h2>
           <div className="space-y-3">
             {report.bySource.map((source) => {
@@ -136,7 +136,7 @@ export default function LeadsAnalysisPage() {
         </div>
 
         {/* Lead Status Distribution */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Leads by Status</h2>
           <div className="space-y-3">
             {report.byStatus.map((status) => (
@@ -155,7 +155,7 @@ export default function LeadsAnalysisPage() {
       </div>
 
       {/* Lead Quality Metrics */}
-      <div className="card p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <h2 className="text-xl font-bold mb-4">Lead Quality Metrics</h2>
         <div className="grid grid-cols-3 gap-6">
           <div>

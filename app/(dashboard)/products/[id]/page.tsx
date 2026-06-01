@@ -142,18 +142,18 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{product.name}</h1>
-        <Link href="/products" className="btn btn-secondary">Back to Products</Link>
+        <Link href="/products" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Products</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           {/* Product Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="btn btn-secondary mb-4"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
               >
                 Edit
               </button>
@@ -218,14 +218,14 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn btn-primary"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="btn btn-secondary"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -269,7 +269,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
           {/* Vendors */}
           {product.vendorProducts && product.vendorProducts.length > 0 && (
-            <div className="card p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-lg font-bold mb-4">Vendors & Pricing</h2>
               <div className="space-y-3">
                 {product.vendorProducts.map((vp) => (
@@ -304,7 +304,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Inventory Status */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Stock Status</h3>
             {product.inventory ? (
               <div className="space-y-3">
@@ -343,7 +343,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
 
           {/* Meta */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-2 text-xs text-gray-600">
               <p>
@@ -360,10 +360,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
 
           {/* Actions */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <button
               onClick={handleDeleteProduct}
-              className="btn btn-danger w-full"
+              className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
             >
               Deactivate Product
             </button>

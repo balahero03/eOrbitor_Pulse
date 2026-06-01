@@ -95,11 +95,11 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold">Tasks</h1>
           <p className="text-gray-500 text-sm mt-1">{total} total tasks</p>
         </div>
-        <Link href="/tasks/new" className="btn btn-primary">+ New Task</Link>
+        <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Task</Link>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-48">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
@@ -141,8 +141,8 @@ export default function TasksPage() {
             </select>
           </div>
           <div className="flex gap-2">
-            <button onClick={applyFilters} className="btn btn-primary">Apply</button>
-            <button onClick={resetFilters} className="btn btn-secondary">Reset</button>
+            <button onClick={applyFilters} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Apply</button>
+            <button onClick={resetFilters} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Reset</button>
           </div>
         </div>
       </div>
@@ -164,7 +164,7 @@ export default function TasksPage() {
         ))}
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading tasks...</div>
         ) : tasks.length === 0 ? (
@@ -246,14 +246,14 @@ export default function TasksPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="btn btn-secondary text-sm py-1 px-3 disabled:opacity-40"
+                className="px-3 py-1 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-40"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="btn btn-secondary text-sm py-1 px-3 disabled:opacity-40"
+                className="px-3 py-1 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-40"
               >
                 Next
               </button>

@@ -56,27 +56,27 @@ export default function ReportsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="card p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
           <p className="text-gray-600 text-sm font-medium">Total Leads</p>
           <p className="text-4xl font-bold text-blue-700">{data.kpis.totalLeads}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
           <p className="text-gray-600 text-sm font-medium">Total Customers</p>
           <p className="text-4xl font-bold text-green-700">{data.kpis.totalCustomers}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
           <p className="text-gray-600 text-sm font-medium">Active Deals</p>
           <p className="text-4xl font-bold text-purple-700">{data.kpis.activeDeals}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-600 text-sm font-medium">Open Tickets</p>
           <p className="text-4xl font-bold text-red-700">{data.kpis.openTickets}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
           <p className="text-gray-600 text-sm font-medium">Overdue Tasks</p>
           <p className="text-4xl font-bold text-orange-700">{data.kpis.overdueTasks}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border-l-4 border-indigo-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border-l-4 border-indigo-500">
           <p className="text-gray-600 text-sm font-medium">Pipeline Value</p>
           <p className="text-2xl font-bold text-indigo-700">{fmt(pipelineTotal)}</p>
         </div>
@@ -84,7 +84,7 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Pipeline Value by Stage */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Pipeline by Stage</h2>
           {data.pipeline.length === 0 ? (
             <p className="text-gray-500 text-sm">No active deals in pipeline.</p>
@@ -114,19 +114,19 @@ export default function ReportsPage() {
 
         {/* Report Links */}
         <div className="space-y-3">
-          <Link href="/reports/sales" className="card p-6 hover:shadow-lg transition block">
+          <Link href="/reports/sales" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition block">
             <h3 className="text-lg font-bold mb-2">Sales Report</h3>
             <p className="text-gray-600 text-sm">Pipeline, revenue, win rate, and deal analytics</p>
           </Link>
-          <Link href="/reports/leads" className="card p-6 hover:shadow-lg transition block">
+          <Link href="/reports/leads" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition block">
             <h3 className="text-lg font-bold mb-2">Lead Analysis</h3>
             <p className="text-gray-600 text-sm">Source distribution, conversion rate, and scoring</p>
           </Link>
-          <Link href="/reports/team" className="card p-6 hover:shadow-lg transition block">
+          <Link href="/reports/team" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition block">
             <h3 className="text-lg font-bold mb-2">Team Performance</h3>
             <p className="text-gray-600 text-sm">Individual metrics, deals won, and productivity</p>
           </Link>
-          <Link href="/reports/revenue" className="card p-6 hover:shadow-lg transition block">
+          <Link href="/reports/revenue" className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition block">
             <h3 className="text-lg font-bold mb-2">Revenue Analysis</h3>
             <p className="text-gray-600 text-sm">Orders, payment status, and customer insights</p>
           </Link>

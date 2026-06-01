@@ -31,12 +31,10 @@ interface User {
 const ALL_STATUSES = [
   { value: 'SUSPECT',     label: 'Suspect' },
   { value: 'PROSPECT',    label: 'Prospect' },
+  { value: 'APPROACH',    label: 'Approach' },
   { value: 'NEGOTIATION', label: 'Negotiation' },
-  { value: 'WON',         label: 'Won' },
-  { value: 'LOST',        label: 'Lost' },
-  { value: 'DROPPED',     label: 'Dropped' },
+  { value: 'CLOSURE',     label: 'Closure' },
   { value: 'ON_HOLD',     label: 'On Hold' },
-  { value: 'REJECTED',    label: 'Rejected' },
 ];
 
 const ALL_SOURCES = [
@@ -50,16 +48,18 @@ const ALL_SOURCES = [
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'WON':         return 'bg-green-100 text-green-800';
-    case 'LOST':        return 'bg-red-100 text-red-800';
-    case 'CONVERTED':   return 'bg-purple-100 text-purple-800';
-    case 'NEGOTIATION': return 'bg-orange-100 text-orange-800';
-    case 'PROSPECT':    return 'bg-cyan-100 text-cyan-800';
-    case 'SUSPECT':     return 'bg-indigo-100 text-indigo-800';
-    case 'DROPPED':     return 'bg-gray-100 text-gray-500';
-    case 'ON_HOLD':     return 'bg-amber-100 text-amber-800';
-    case 'REJECTED':    return 'bg-red-200 text-red-900';
-    default:            return 'bg-blue-50 text-blue-700';
+    case 'WON':         return 'bg-green-100 text-green-800 border-green-300';
+    case 'LOST':        return 'bg-red-100 text-red-800 border-red-300';
+    case 'CONVERTED':   return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'NEGOTIATION': return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'PROSPECT':    return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+    case 'SUSPECT':     return 'bg-slate-100 text-slate-700 border-slate-300';
+    case 'APPROACH':    return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+    case 'CLOSURE':     return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'DROPPED':     return 'bg-gray-100 text-gray-500 border-gray-300';
+    case 'ON_HOLD':     return 'bg-amber-100 text-amber-800 border-amber-300';
+    case 'REJECTED':    return 'bg-red-200 text-red-900 border-red-400';
+    default:            return 'bg-blue-50 text-blue-700 border-blue-200';
   }
 }
 
@@ -293,13 +293,30 @@ export default function LeadsPage() {
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Leads</h1>
-        <a href="/leads/new" className="btn btn-primary">+ New Lead</a>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Active pipeline — Suspect through Closure</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href="/leads/closed"
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            View Closed Leads →
+          </a>
+          <a
+            href="/leads/new"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            + New Lead
+          </a>
+        </div>
       </div>
 
       {/* Search bar + filter toggle */}
-      <div className="card p-4 mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
         <div className="flex gap-3 flex-wrap items-center">
           <input
             type="text"
@@ -307,14 +324,14 @@ export default function LeadsPage() {
             value={filters.search}
             onChange={(e) => setF('search', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
-            className="border rounded px-3 py-2 flex-1 min-w-64"
+            className="border border-gray-200 rounded-lg px-3 py-2 flex-1 min-w-64 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
             onClick={() => setShowFilters(f => !f)}
-            className={`flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
               showFilters || activeFilterCount > 0
                 ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,7 +344,12 @@ export default function LeadsPage() {
               </span>
             )}
           </button>
-          <button onClick={applyFilters} className="btn btn-primary px-6">Search</button>
+          <button
+            onClick={applyFilters}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Search
+          </button>
           {activeFilterCount > 0 && (
             <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-600 underline">
               Clear all
@@ -346,7 +368,7 @@ export default function LeadsPage() {
                 <select
                   value={filters.status}
                   onChange={(e) => setF('status', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Statuses</option>
                   {ALL_STATUSES.map(s => (
@@ -361,7 +383,7 @@ export default function LeadsPage() {
                 <select
                   value={filters.source}
                   onChange={(e) => setF('source', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Sources</option>
                   {ALL_SOURCES.map(s => (
@@ -376,7 +398,7 @@ export default function LeadsPage() {
                 <select
                   value={filters.assignedToId}
                   onChange={(e) => setF('assignedToId', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Managers</option>
                   {users.map(u => (
@@ -391,7 +413,7 @@ export default function LeadsPage() {
                 <select
                   value={filters.hasFollowUp}
                   onChange={(e) => setF('hasFollowUp', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Any</option>
                   <option value="yes">Has Follow-up Date</option>
@@ -406,7 +428,7 @@ export default function LeadsPage() {
                   type="date"
                   value={filters.rfqFrom}
                   onChange={(e) => setF('rfqFrom', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -415,7 +437,7 @@ export default function LeadsPage() {
                   type="date"
                   value={filters.rfqTo}
                   onChange={(e) => setF('rfqTo', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -426,7 +448,7 @@ export default function LeadsPage() {
                   type="date"
                   value={filters.followUpFrom}
                   onChange={(e) => setF('followUpFrom', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -435,7 +457,7 @@ export default function LeadsPage() {
                   type="date"
                   value={filters.followUpTo}
                   onChange={(e) => setF('followUpTo', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -447,7 +469,7 @@ export default function LeadsPage() {
                   placeholder="e.g. 10000"
                   value={filters.quoteValueMin}
                   onChange={(e) => setF('quoteValueMin', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -457,14 +479,24 @@ export default function LeadsPage() {
                   placeholder="e.g. 500000"
                   value={filters.quoteValueMax}
                   onChange={(e) => setF('quoteValueMax', e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
             <div className="flex gap-3 mt-4">
-              <button onClick={applyFilters} className="btn btn-primary px-8">Apply Filters</button>
-              <button onClick={clearFilters} className="btn btn-secondary">Clear All</button>
+              <button
+                onClick={applyFilters}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Apply Filters
+              </button>
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Clear All
+              </button>
             </div>
           </div>
         )}
@@ -491,7 +523,7 @@ export default function LeadsPage() {
             }}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
               applied.status === s.value
-                ? getStatusColor(s.value) + ' border-current'
+                ? getStatusColor(s.value)
                 : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
             }`}
           >
@@ -551,7 +583,7 @@ export default function LeadsPage() {
       )}
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-500">Loading...</div>
         ) : leads.length === 0 ? (
@@ -565,18 +597,18 @@ export default function LeadsPage() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Quote No</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Opportunity</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Customer</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Source</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Quote Value</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">RFQ Date</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Follow-up</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Account Manager</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Remarks</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Quote No</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Opportunity</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Source</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Quote Value</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">RFQ Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Follow-up</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Account Manager</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -608,7 +640,7 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(lead.status)}`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
                           {lead.status.replace('_', ' ')}
                         </span>
                       </td>
@@ -654,14 +686,26 @@ export default function LeadsPage() {
             </div>
 
             {pagination && pagination.pages > 1 && (
-              <div className="p-4 border-t flex items-center justify-between text-sm text-gray-600">
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
                 <span>
                   Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of {pagination.total}
                 </span>
-                <div className="flex gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-secondary disabled:opacity-40">Prev</button>
+                <div className="flex gap-2 items-center">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Prev
+                  </button>
                   <span className="px-3 py-1">{page} / {pagination.pages}</span>
-                  <button onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={page === pagination.pages} className="btn btn-secondary disabled:opacity-40">Next</button>
+                  <button
+                    onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                    disabled={page === pagination.pages}
+                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             )}
@@ -672,10 +716,10 @@ export default function LeadsPage() {
       {/* Convert to Customer Modal */}
       {convertModal && convertTarget.current && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
-            <h2 className="text-lg font-bold mb-3">Convert to Customer?</h2>
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl border border-gray-200">
+            <h2 className="text-lg font-bold mb-3 text-gray-900">Convert to Customer?</h2>
             <p className="text-sm text-gray-600 mb-1">This will create a new customer record for:</p>
-            <div className="bg-gray-50 rounded p-3 mb-4">
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
               <p className="font-semibold text-gray-800">{convertTarget.current.company}</p>
               <p className="text-sm text-gray-500">{convertTarget.current.name}</p>
             </div>
@@ -683,8 +727,18 @@ export default function LeadsPage() {
               The lead status will be updated to <strong>CONVERTED</strong> and linked to the new customer.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setConvertModal(false)} className="btn btn-secondary flex-1" disabled={converting}>Cancel</button>
-              <button onClick={handleConvert} className="btn btn-primary flex-1 disabled:opacity-50" disabled={converting}>
+              <button
+                onClick={() => setConvertModal(false)}
+                disabled={converting}
+                className="flex-1 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConvert}
+                disabled={converting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
                 {converting ? 'Converting...' : 'Yes, Convert'}
               </button>
             </div>
@@ -697,7 +751,7 @@ export default function LeadsPage() {
 
 function FilterTag({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">
       {label}
       <button onClick={onRemove} className="hover:text-blue-900 ml-0.5">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -79,11 +79,11 @@ export default function SalesDashboardPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Sales Dashboard</h1>
-        <Link href="/reports" className="btn btn-secondary">Back to Reports</Link>
+        <Link href="/reports" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Reports</Link>
       </div>
 
       {/* Date Range Filter */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start Date</label>
@@ -108,19 +108,19 @@ export default function SalesDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="card p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
           <p className="text-gray-600 text-sm font-medium">Total Deals</p>
           <p className="text-3xl font-bold text-blue-700">{report.deals.total}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
           <p className="text-gray-600 text-sm font-medium">Deals Won</p>
           <p className="text-3xl font-bold text-green-700">{report.deals.won}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-600 text-sm font-medium">Deals Lost</p>
           <p className="text-3xl font-bold text-red-700">{report.deals.lost}</p>
         </div>
-        <div className="card p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
           <p className="text-gray-600 text-sm font-medium">Win Rate</p>
           <p className="text-3xl font-bold text-purple-700">{report.deals.winRate.toFixed(1)}%</p>
         </div>
@@ -129,7 +129,7 @@ export default function SalesDashboardPage() {
       {/* Pipeline and Revenue */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Pipeline by Stage */}
-        <div className="card p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-xl font-bold mb-4">Pipeline by Stage</h2>
           <div className="space-y-4">
             {report.pipeline.byStage.map((stage) => (
@@ -163,7 +163,7 @@ export default function SalesDashboardPage() {
 
         {/* Revenue Metrics */}
         <div className="space-y-4">
-          <div className="card p-6 bg-green-50 border-l-4 border-green-500">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-green-50 border-l-4 border-green-500">
             <p className="text-gray-600 text-sm font-medium">Completed Revenue</p>
             <p className="text-3xl font-bold text-green-700 mb-2">
               {formatCurrency(report.revenue.completed)}
@@ -171,7 +171,7 @@ export default function SalesDashboardPage() {
             <p className="text-xs text-gray-600">{report.revenue.ordersCount} orders</p>
           </div>
 
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="font-bold mb-3">Deal Summary</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">

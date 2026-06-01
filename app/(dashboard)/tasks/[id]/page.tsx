@@ -164,14 +164,14 @@ export default function TaskDetailPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{task.title}</h1>
-        <Link href="/tasks" className="btn btn-secondary">Back to Tasks</Link>
+        <Link href="/tasks" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Tasks</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           {/* Status Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center gap-4 mb-4">
               <span className={`badge px-3 py-1 rounded font-medium ${getStatusColor(task.status)}`}>
                 {task.status.replace('_', ' ')}
@@ -184,7 +184,7 @@ export default function TaskDetailPage() {
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="btn btn-secondary mb-4"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
               >
                 Edit
               </button>
@@ -266,14 +266,14 @@ export default function TaskDetailPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn btn-primary"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="btn btn-secondary"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -318,7 +318,7 @@ export default function TaskDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Assignment */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Assignment</h3>
             <div className="space-y-2 text-sm">
               <p>
@@ -336,7 +336,7 @@ export default function TaskDetailPage() {
 
           {/* Deal Link */}
           {task.relatedDeal && (
-            <div className="card p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
               <Link
                 href={`/pipeline/${task.relatedDeal.id}`}
@@ -348,13 +348,13 @@ export default function TaskDetailPage() {
           )}
 
           {/* Actions */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Actions</h3>
             <div className="space-y-2">
               {task.status !== 'COMPLETED' && (
                 <button
                   onClick={handleCompleteTask}
-                  className="btn btn-primary w-full"
+                  className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
                 >
                   Mark Complete
                 </button>
@@ -362,7 +362,7 @@ export default function TaskDetailPage() {
 
               <button
                 onClick={handleDeleteTask}
-                className="btn btn-danger w-full"
+                className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
               >
                 Delete Task
               </button>
@@ -370,7 +370,7 @@ export default function TaskDetailPage() {
           </div>
 
           {/* Meta */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-2 text-xs text-gray-600">
               <p>

@@ -92,21 +92,21 @@ export default function OrdersPage() {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'CONFIRMED': return 'bg-blue-100 text-blue-800';
-      case 'FULFILLED': return 'bg-green-100 text-green-800';
-      case 'INVOICED': return 'bg-purple-100 text-purple-800';
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PENDING':   return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'CONFIRMED': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'FULFILLED': return 'bg-green-100 text-green-800 border-green-300';
+      case 'INVOICED':  return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
   const getPaymentBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-red-100 text-red-800';
-      case 'PARTIAL': return 'bg-orange-100 text-orange-800';
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PENDING':   return 'bg-red-100 text-red-800 border-red-300';
+      case 'PARTIAL':   return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-300';
+      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -126,13 +126,37 @@ export default function OrdersPage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Orders</h1>
-        <Link href="/orders/new" className="btn btn-primary">+ New Order</Link>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Purchase orders from won leads</p>
+        </div>
+        <Link
+          href="/orders/new"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          + New Order
+        </Link>
+      </div>
+
+      {/* Info banner */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6">
+        <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-sm text-blue-700">
+          Orders are created when a lead is marked <span className="font-semibold">Won</span> in the pipeline.
+          View your{' '}
+          <Link href="/leads/closed" className="underline font-medium hover:text-blue-900">
+            closed leads
+          </Link>{' '}
+          to see WON leads ready for order creation.
+        </p>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <input
@@ -140,7 +164,7 @@ export default function OrdersPage() {
               placeholder="Search by order number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -150,7 +174,7 @@ export default function OrdersPage() {
               setStatus(e.target.value);
               setPage(1);
             }}
-            className="w-full"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
@@ -166,7 +190,7 @@ export default function OrdersPage() {
               setPaymentStatus(e.target.value);
               setPage(1);
             }}
-            className="w-full"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Payments</option>
             <option value="PENDING">Unpaid</option>
@@ -174,62 +198,65 @@ export default function OrdersPage() {
             <option value="COMPLETED">Paid</option>
           </select>
 
-          <button type="submit" className="btn btn-primary">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
             Search
           </button>
         </form>
       </div>
 
       {/* Orders Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-6 text-center text-gray-600">Loading...</div>
+          <div className="p-10 text-center text-gray-500">Loading...</div>
         ) : orders.length === 0 ? (
-          <div className="p-6 text-center text-gray-600">No orders found</div>
+          <div className="p-10 text-center text-gray-500">No orders found</div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Order #</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Payment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">PO Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Order #</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Payment</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">PO Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium">{order.orderNumber}</td>
+                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900">{order.orderNumber}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{order.customer.companyName}</td>
-                      <td className="px-6 py-4 font-medium">{formatCurrency(order.totalAmount)}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{formatCurrency(order.totalAmount)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded h-2">
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
                             <div
-                              className="bg-blue-600 h-2 rounded"
+                              className="bg-blue-600 h-2 rounded-full"
                               style={{ width: `${getPaymentProgress(order.totalAmount, order.amountPaid)}%` }}
-                            ></div>
+                            />
                           </div>
-                          <span className={`badge px-2 py-1 rounded text-xs font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
+                          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
                             {order.paymentStatus}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`badge px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(order.status)}`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusBadgeColor(order.status)}`}>
                           {order.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        {order.poDate ? new Date(order.poDate).toLocaleDateString() : '-'}
+                        {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN') : '—'}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-3">
                           <Link
                             href={`/orders/${order.id}`}
                             className="text-blue-600 hover:text-blue-800 font-medium"
@@ -252,24 +279,23 @@ export default function OrdersPage() {
 
             {/* Pagination */}
             {pagination && pagination.pages > 1 && (
-              <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Showing {(page - 1) * pagination.limit + 1} to{' '}
-                  {Math.min(page * pagination.limit, pagination.total)} of {pagination.total}
-                </div>
-                <div className="flex gap-2">
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
+                <span>
+                  Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of {pagination.total}
+                </span>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     Previous
                   </button>
-                  <span className="px-4 py-2">{page} of {pagination.pages}</span>
+                  <span className="px-3 py-1">{page} of {pagination.pages}</span>
                   <button
                     onClick={() => setPage(Math.min(pagination.pages, page + 1))}
                     disabled={page === pagination.pages}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     Next
                   </button>

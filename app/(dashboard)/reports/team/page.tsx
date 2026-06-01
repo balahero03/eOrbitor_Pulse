@@ -72,11 +72,11 @@ export default function TeamPerformancePage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Team Performance</h1>
-        <Link href="/reports" className="btn btn-secondary">Back to Reports</Link>
+        <Link href="/reports" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Reports</Link>
       </div>
 
       {/* Date Range Filter */}
-      <div className="card p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start Date</label>
@@ -100,7 +100,7 @@ export default function TeamPerformancePage() {
       </div>
 
       {/* Team Performance Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -126,7 +126,7 @@ export default function TeamPerformancePage() {
                   </td>
                   <td className="px-6 py-4 text-center font-medium">{member.dealsAssigned}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className="badge bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                    <span className="text-xs px-2.5 py-1 rounded-full border font-medium bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
                       {member.dealsWon}
                     </span>
                   </td>
@@ -135,7 +135,7 @@ export default function TeamPerformancePage() {
                   </td>
                   <td className="px-6 py-4 text-center font-medium">{member.leadsAssigned}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className="badge bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">
+                    <span className="text-xs px-2.5 py-1 rounded-full border font-medium bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">
                       {member.leadsConverted}
                     </span>
                   </td>

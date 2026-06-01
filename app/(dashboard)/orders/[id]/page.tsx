@@ -144,21 +144,21 @@ export default function OrderDetailPage() {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'CONFIRMED': return 'bg-blue-100 text-blue-800';
-      case 'FULFILLED': return 'bg-green-100 text-green-800';
-      case 'INVOICED': return 'bg-purple-100 text-purple-800';
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PENDING':   return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'CONFIRMED': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'FULFILLED': return 'bg-green-100 text-green-800 border-green-300';
+      case 'INVOICED':  return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
   const getPaymentBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-red-100 text-red-800';
-      case 'PARTIAL': return 'bg-orange-100 text-orange-800';
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PENDING':   return 'bg-red-100 text-red-800 border-red-300';
+      case 'PARTIAL':   return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-300';
+      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -176,81 +176,96 @@ export default function OrderDetailPage() {
     return (paid / total) * 100;
   };
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
-  if (!order) return <div className="p-6 text-center">Order not found</div>;
+  if (loading) return (
+    <div className="p-6 text-center text-gray-500">Loading...</div>
+  );
+  if (!order) return (
+    <div className="p-6 text-center text-gray-500">Order not found</div>
+  );
 
   const remainingAmount = parseFloat(order.totalAmount) - parseFloat(order.amountPaid);
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{order.orderNumber}</h1>
-        <Link href="/orders" className="btn btn-secondary">Back to Orders</Link>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{order.customer.companyName}</p>
+        </div>
+        <Link
+          href="/orders"
+          className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          ← Back to Orders
+        </Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           {/* Header Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Customer</p>
-                <p className="text-lg font-medium">{order.customer.companyName}</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
+                <p className="text-lg font-semibold text-gray-900">{order.customer.companyName}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Order Status</p>
-                <span className={`badge px-3 py-1 rounded font-medium ${getStatusBadgeColor(order.status)}`}>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Order Status</p>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusBadgeColor(order.status)}`}>
                   {order.status}
                 </span>
               </div>
               {order.quotation && (
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Quotation</p>
-                  <p className="text-lg font-medium">{order.quotation.quotationNumber}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Quotation</p>
+                  <p className="text-lg font-semibold text-gray-900">{order.quotation.quotationNumber}</p>
                 </div>
               )}
               {order.deal && (
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Deal</p>
-                  <p className="text-lg font-medium">{order.deal.dealName}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Deal</p>
+                  <p className="text-lg font-semibold text-gray-900">{order.deal.dealName}</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* PO Details */}
-          <div className="card p-6">
-            <h2 className="text-lg font-bold mb-4">PO Details</h2>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-4">PO Details</h2>
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">PO Number</p>
-                <p className="text-lg font-medium">{order.poNumber || 'N/A'}</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">PO Number</p>
+                <p className="text-base font-medium text-gray-900">{order.poNumber || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">PO Date</p>
-                <p className="text-lg font-medium">
-                  {order.poDate ? new Date(order.poDate).toLocaleDateString() : 'N/A'}
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">PO Date</p>
+                <p className="text-base font-medium text-gray-900">
+                  {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN') : 'N/A'}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Order Amount */}
-          <div className="card p-6">
-            <h2 className="text-lg font-bold mb-4">Order Amount</h2>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-4">Order Amount</h2>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span>Order Total:</span>
-                <span className="font-medium">{formatCurrency(order.totalAmount)}</span>
+                <span className="text-gray-600">Order Total:</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(order.totalAmount)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Amount Paid:</span>
-                <span className="font-medium">{formatCurrency(order.amountPaid)}</span>
+                <span className="text-gray-600">Amount Paid:</span>
+                <span className="font-semibold text-green-700">{formatCurrency(order.amountPaid)}</span>
               </div>
-              <div className="border-t pt-2 flex justify-between font-bold">
-                <span>Outstanding:</span>
-                <span>{formatCurrency(remainingAmount.toString())}</span>
+              <div className="border-t border-gray-100 pt-3 flex justify-between font-bold">
+                <span className="text-gray-900">Outstanding:</span>
+                <span className={remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}>
+                  {formatCurrency(remainingAmount.toString())}
+                </span>
               </div>
 
               {/* Payment Progress */}
@@ -258,10 +273,10 @@ export default function OrderDetailPage() {
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="bg-blue-600 h-3 rounded-full transition-all"
-                    style={{ width: `${getPaymentProgress()}%` }}
-                  ></div>
+                    style={{ width: `${Math.min(getPaymentProgress(), 100)}%` }}
+                  />
                 </div>
-                <p className="text-xs text-gray-600 mt-2">
+                <p className="text-xs text-gray-500 mt-2">
                   {getPaymentProgress().toFixed(0)}% paid
                 </p>
               </div>
@@ -270,21 +285,21 @@ export default function OrderDetailPage() {
 
           {/* Payment Input */}
           {order.paymentStatus !== 'COMPLETED' && (
-            <div className="card p-6">
-              <h2 className="text-lg font-bold mb-4">Add Payment</h2>
-              <div className="flex gap-2">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+              <h2 className="text-base font-bold text-gray-900 mb-4">Add Payment</h2>
+              <div className="flex gap-3">
                 <input
                   type="number"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="Amount to pay"
                   step="0.01"
-                  className="flex-1"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   onClick={handleAddPayment}
                   disabled={updating}
-                  className="btn btn-primary"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {updating ? 'Processing...' : 'Add Payment'}
                 </button>
@@ -296,26 +311,32 @@ export default function OrderDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Payment Status */}
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold mb-3">Payment Status</h3>
-            <span className={`badge px-3 py-1 rounded font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Status</h3>
+            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
               {order.paymentStatus}
             </span>
-            <div className="mt-4 text-sm space-y-2">
-              <p>Due: <span className="font-medium">{formatCurrency(remainingAmount.toString())}</span></p>
-              <p>Paid: <span className="font-medium">{formatCurrency(order.amountPaid)}</span></p>
+            <div className="mt-4 text-sm space-y-2 text-gray-600">
+              <div className="flex justify-between">
+                <span>Due:</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(remainingAmount.toString())}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Paid:</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(order.amountPaid)}</span>
+              </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold mb-3">Actions</h3>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Actions</h3>
             <div className="space-y-2">
               {order.status === 'PENDING' && (
                 <button
                   onClick={handleConfirm}
                   disabled={updating}
-                  className="btn btn-primary w-full"
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {updating ? 'Confirming...' : 'Confirm Order'}
                 </button>
@@ -325,21 +346,21 @@ export default function OrderDetailPage() {
                 <button
                   onClick={handleFulfill}
                   disabled={updating}
-                  className="btn btn-primary w-full"
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {updating ? 'Fulfilling...' : 'Mark as Fulfilled'}
                 </button>
               )}
 
               {order.status === 'FULFILLED' && (
-                <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
-                  Delivered on {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : 'N/A'}
+                <p className="text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg">
+                  Delivered on {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : 'N/A'}
                 </p>
               )}
 
               <button
                 onClick={handleDelete}
-                className="btn btn-danger w-full"
+                className="w-full px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
               >
                 Delete Order
               </button>
@@ -347,34 +368,34 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Timeline */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Order Timeline</h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">✓</span>
+                <span className="text-blue-600 font-bold mt-0.5">✓</span>
                 <div>
-                  <p className="font-medium">Order Created</p>
-                  <p className="text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</p>
+                  <p className="font-medium text-gray-900">Order Created</p>
+                  <p className="text-gray-500">{new Date(order.createdAt).toLocaleDateString('en-IN')}</p>
                 </div>
               </div>
 
               {order.status !== 'PENDING' && (
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">✓</span>
+                  <span className="text-blue-600 font-bold mt-0.5">✓</span>
                   <div>
-                    <p className="font-medium">Order Confirmed</p>
-                    <p className="text-gray-600">-</p>
+                    <p className="font-medium text-gray-900">Order Confirmed</p>
+                    <p className="text-gray-500">—</p>
                   </div>
                 </div>
               )}
 
               {order.status === 'FULFILLED' && (
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">✓</span>
+                  <span className="text-green-600 font-bold mt-0.5">✓</span>
                   <div>
-                    <p className="font-medium">Fulfilled</p>
-                    <p className="text-gray-600">
-                      {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : '-'}
+                    <p className="font-medium text-gray-900">Fulfilled</p>
+                    <p className="text-gray-500">
+                      {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—'}
                     </p>
                   </div>
                 </div>
@@ -384,16 +405,25 @@ export default function OrderDetailPage() {
 
           {/* Links */}
           <div className="space-y-2">
-            <Link href={`/customers/${order.customer.id}`} className="btn btn-secondary w-full text-center">
+            <Link
+              href={`/customers/${order.customer.id}`}
+              className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
               View Customer
             </Link>
             {order.quotation && (
-              <Link href={`/quotations/${order.quotation.id}`} className="btn btn-secondary w-full text-center">
+              <Link
+                href={`/quotations/${order.quotation.id}`}
+                className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
                 View Quotation
               </Link>
             )}
             {order.deal && (
-              <Link href={`/pipeline/${order.deal.id}`} className="btn btn-secondary w-full text-center">
+              <Link
+                href={`/pipeline/${order.deal.id}`}
+                className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
                 View Deal
               </Link>
             )}

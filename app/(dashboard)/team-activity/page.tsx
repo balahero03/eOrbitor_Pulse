@@ -93,18 +93,18 @@ export default function TeamActivityPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="card p-5 border-l-4 border-green-500 bg-green-50">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-green-500 bg-green-50">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Members Reported</p>
           <p className="text-4xl font-bold text-green-700 mt-1">{filtered.length}</p>
         </div>
-        <div className="card p-5 border-l-4 border-purple-500 bg-purple-50">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-purple-500 bg-purple-50">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Activities</p>
           <p className="text-4xl font-bold text-purple-700 mt-1">{totalActivities}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap gap-3 items-center">
         <input
           type="text"
           placeholder="Search by name or email..."
@@ -132,14 +132,14 @@ export default function TeamActivityPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="card p-12 text-center text-gray-400">Loading...</div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center text-gray-400">Loading...</div>
       ) : filtered.length === 0 ? (
-        <div className="card p-12 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
           <p className="text-4xl mb-3">📋</p>
           <p className="text-gray-500">No activity reported for this date</p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>

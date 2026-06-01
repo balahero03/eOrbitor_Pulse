@@ -156,19 +156,19 @@ export default function DealDetailPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{deal.dealName}</h1>
-        <Link href="/pipeline" className="btn btn-secondary">Back to Pipeline</Link>
+        <Link href="/pipeline" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Pipeline</Link>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="col-span-2 space-y-4">
           {/* Deal Details */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Deal Details</h2>
               <button
                 onClick={() => setEditing(!editing)}
-                className="btn btn-secondary text-sm"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 {editing ? 'Cancel' : 'Edit'}
               </button>
@@ -220,7 +220,7 @@ export default function DealDetailPage() {
                   />
                 </div>
 
-                <button onClick={handleUpdate} className="btn btn-primary w-full">
+                <button onClick={handleUpdate} className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
                   Save Changes
                 </button>
               </div>
@@ -258,7 +258,7 @@ export default function DealDetailPage() {
           </div>
 
           {/* Activity */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="text-lg font-bold mb-4">Recent Activity</h2>
             {deal.activityLogs.length === 0 ? (
               <p className="text-gray-600">No activity yet</p>
@@ -278,7 +278,7 @@ export default function DealDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Stage */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Pipeline Stage</h3>
             <select
               value={deal.stage}
@@ -292,7 +292,7 @@ export default function DealDetailPage() {
           </div>
 
           {/* Deal Info */}
-          <div className="card p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Deal Info</h3>
             <div className="space-y-3 text-sm">
               <div>
@@ -316,13 +316,13 @@ export default function DealDetailPage() {
           <div className="space-y-2">
             <Link
               href={`/customers/${deal.customer.id}`}
-              className="btn btn-primary w-full text-center"
+              className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 text-center"
             >
               View Customer
             </Link>
             <button
               onClick={handleDelete}
-              className="btn btn-danger w-full"
+              className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
             >
               Delete Deal
             </button>
