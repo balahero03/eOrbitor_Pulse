@@ -36,9 +36,10 @@ model User {
   tasks              Task[]
   assignedTickets    Ticket[]          @relation("assignedTo")
   createdTickets     Ticket[]          @relation("createdBy")
-  timeLogs           TimeLog[]
-  manager            User?             @relation("UserManager", fields: [managerId], references: [id])
-  subordinates       User[]            @relation("UserManager")
+  timeLogs              TimeLog[]
+  activityUnlockRequests ActivityUnlockRequest[]
+  manager               User?             @relation("UserManager", fields: [managerId], references: [id])
+  subordinates          User[]            @relation("UserManager")
 
   @@index([email])
   @@index([role])
@@ -426,18 +427,20 @@ model ApprovalRequest {
 }
 
 model DailyActivity {
-  id         String    @id @default(cuid())
-  userId     String
-  date       String
-  activities String
-  loginTime  DateTime?
-  logoutTime DateTime?
-  totalHours Decimal?
-  notes      String?
-  isEditable Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  userId       String
+  date         String
+  activities   String
+  loginTime    DateTime?
+  logoutTime   DateTime?
+  totalHours   Decimal?
+  notes        String?
+  isEditable   Boolean   @default(true)
+  unlockedBy   String?
+  unlockedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
@@ -609,6 +612,21 @@ enum NotificationType {
   ORDER_CONFIRMED
   PAYMENT_RECEIVED
   TICKET_ASSIGNED
+}
+
+model ActivityUnlockRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  date        String
+  reason      String
+  status      String    @default("PENDING")
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
 
 enum ApprovalType {
