@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { SOLUTION_AREAS } from '@/lib/eorbitor-constants';
+import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 
 interface LeadDetail {
   id: string;
@@ -109,6 +109,7 @@ function SpancoKanban({
   changing,
   onClosureClick,
   onRequestReopen,
+  onShowConvertModal,
 }: {
   lead: LeadDetail;
   canEdit: boolean;
@@ -116,6 +117,7 @@ function SpancoKanban({
   changing: boolean;
   onClosureClick: () => void;
   onRequestReopen?: () => void;
+  onShowConvertModal?: () => void;
 }) {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -166,6 +168,11 @@ function SpancoKanban({
               onDrop={e => !isClosed && canEdit && handleDrop(e, stage.key)}
               onClick={() => {
                 if (!isClickable) return;
+                // For SUSPECT → PROSPECT conversion, show modal instead of direct change
+                if (lead.status === 'SUSPECT' && stage.key === 'PROSPECT') {
+                  onShowConvertModal?.();
+                  return;
+                }
                 onStageChange(stage.key);
               }}
               className={`
@@ -176,15 +183,15 @@ function SpancoKanban({
               `}
             >
               {/* Column header */}
-              <div className={`${stage.headerBg} px-2 py-1.5 flex items-center justify-between`}>
+              <div className={`${isPast ? 'bg-green-600' : stage.headerBg} px-2 py-1.5 flex items-center justify-between transition-colors`}>
                 <span className="text-white text-xs font-semibold truncate">{stage.icon} {stage.label}</span>
-                {isPast && <span className="text-white text-xs opacity-70 flex-shrink-0">✓</span>}
-                {isActive && <span className="text-white font-black text-xs flex-shrink-0">●</span>}
+                {isPast && <span className="text-white text-sm font-bold flex-shrink-0">✓ Completed</span>}
+                {isActive && <span className="text-white font-black text-xs flex-shrink-0">● Active</span>}
               </div>
 
               {/* Column body */}
-              <div className="flex-1 flex flex-col items-center p-2 gap-1">
-                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5">{stage.desc}</p>
+              <div className={`flex-1 flex flex-col items-center p-2 gap-1 ${isPast ? 'bg-green-50' : ''}`}>
+                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5">{isPast ? '✓ ' : ''}{stage.desc}</p>
 
                 {/* Lead card in active column */}
                 {isActive && (
@@ -233,7 +240,13 @@ function SpancoKanban({
       {canEdit && !isClosed && (
         <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-400 font-medium">Mark as:</span>
-          {lead.status !== 'ON_HOLD' && (
+          {lead.status === 'SUSPECT' && (
+            <button onClick={() => setShowConvertModal(true)} disabled={changing}
+              className="text-xs px-3 py-1 rounded-full border bg-cyan-50 text-cyan-700 border-cyan-200 hover:opacity-80 disabled:opacity-40 font-semibold">
+              📋 Convert to Prospect
+            </button>
+          )}
+          {lead.status !== 'ON_HOLD' && lead.status !== 'SUSPECT' && (
             <button onClick={() => onStageChange('ON_HOLD')} disabled={changing}
               className="text-xs px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 hover:opacity-80 disabled:opacity-40">
               ⏸️ On Hold
@@ -498,6 +511,7 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -521,12 +535,31 @@ export default function LeadDetailPage() {
     qualificationNotes: '', remarks: '',
     quoteNo: '', quoteValue: '', rfqDate: '', followUpDate: '', expectedClosureDate: '',
     address: '',
+    solutionAreas: [] as string[],
+    oemNames: [] as string[],
+    presalesIds: [] as string[],
+    employeeCount: 0,
+    industry: '',
+    annualRevenue: 0,
+    yearEstablished: 0,
+    website: '',
+    keyContacts: '',
+    currentInfra: '',
+    budgetStatus: '',
+    prospectNotes: '',
   });
+
+  const [oemSearch, setOemSearch] = useState('');
+  const [teamSearch, setTeamSearch] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setCurrentUser).catch(console.error);
+    fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setUsers(Array.isArray(d.users) ? d.users : Array.isArray(d) ? d : []))
+      .catch(console.error);
     fetchLead();
   }, [id]);
 
@@ -561,6 +594,13 @@ export default function LeadDetailPage() {
 
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
+
+    // Prevent going back to SUSPECT from PROSPECT or later stages
+    if (lead.status !== 'SUSPECT' && newStatus === 'SUSPECT') {
+      alert('Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back to Suspect stage.');
+      return;
+    }
+
     setStageChanging(true);
     try {
       const token = localStorage.getItem('token');
@@ -698,6 +738,45 @@ export default function LeadDetailPage() {
     finally { setConverting(false); }
   };
 
+  const handleConvertToProspect = async () => {
+    if (!lead) return;
+    setConverting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const prospectDetails = {
+        employeeCount: editData.employeeCount || 0,
+        industry: editData.industry || '',
+        annualRevenue: editData.annualRevenue || 0,
+        yearEstablished: editData.yearEstablished || 0,
+        website: editData.website || '',
+        keyContacts: editData.keyContacts || '',
+        currentInfra: editData.currentInfra || '',
+        budgetStatus: editData.budgetStatus || '',
+        prospectNotes: editData.prospectNotes || '',
+        convertedAt: new Date().toISOString(),
+      };
+
+      const payload = {
+        status: 'PROSPECT',
+        address: editData.address || '',
+        expectedClosureDate: editData.expectedClosureDate || null,
+        solutionAreas: editData.solutionAreas || [],
+        oemNames: editData.oemNames || [],
+        presalesIds: editData.presalesIds || [],
+        prospectDetails,
+      };
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const e = await res.json(); alert(`Failed: ${e.message}`); return; }
+      setShowConvertModal(false);
+      fetchLead();
+    } catch { alert('An error occurred.'); }
+    finally { setConverting(false); }
+  };
+
   const handleDeleteRequest = async () => {
     setDeleting(true);
     try {
@@ -800,6 +879,7 @@ export default function LeadDetailPage() {
           changing={stageChanging}
           onClosureClick={() => setShowClosureModal(true)}
           onRequestReopen={() => setShowReopenModal(true)}
+          onShowConvertModal={() => setShowConvertModal(true)}
         />
       </div>
 
@@ -965,43 +1045,6 @@ export default function LeadDetailPage() {
           {/* Right sidebar */}
           <div className="space-y-4">
 
-            {/* Commercial */}
-            <div className="bg-white rounded-xl border p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3">Commercial</h3>
-              <div className="space-y-3">
-                {lead.quoteNo && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase mb-0.5">Quote No</p>
-                    <p className="text-sm font-mono font-medium">{lead.quoteNo}</p>
-                  </div>
-                )}
-                {lead.quoteValue ? (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase mb-0.5">Quote Value</p>
-                    <p className="text-xl font-bold text-green-700">{fmt(lead.quoteValue)}</p>
-                  </div>
-                ) : null}
-                {lead.rfqDate && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase mb-0.5">RFQ Date</p>
-                    <p className="text-sm">{new Date(lead.rfqDate).toLocaleDateString('en-IN')}</p>
-                  </div>
-                )}
-                {lead.followUpDate && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase mb-0.5">Next Follow-up</p>
-                    <p className={`text-sm font-medium ${new Date(lead.followUpDate) < new Date() ? 'text-red-600' : 'text-gray-700'}`}>
-                      {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
-                      {new Date(lead.followUpDate) < new Date() ? ' ⚠️' : ''}
-                    </p>
-                  </div>
-                )}
-                {!lead.quoteNo && !lead.quoteValue && !lead.rfqDate && !lead.followUpDate && (
-                  <p className="text-xs text-gray-400 text-center py-1">No data yet</p>
-                )}
-              </div>
-            </div>
-
             {/* People */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-600 mb-3">People</h3>
@@ -1082,6 +1125,69 @@ export default function LeadDetailPage() {
               </div>
             )}
 
+            {/* Prospect Details */}
+            {lead.closureDetails && lead.status === 'PROSPECT' && (
+              <div className="bg-white rounded-xl border p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Prospect Information</h3>
+                <div className="space-y-2">
+                  {(lead.closureDetails as any).employeeCount > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Employees</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).employeeCount}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).industry && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Industry</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).industry}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).annualRevenue > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Annual Revenue</p>
+                      <p className="text-sm font-medium">₹{(lead.closureDetails as any).annualRevenue.toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).yearEstablished > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Year Established</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).yearEstablished}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).website && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Website</p>
+                      <p className="text-sm font-medium break-all">{(lead.closureDetails as any).website}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).budgetStatus && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Budget Status</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).budgetStatus}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).keyContacts && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Key Contacts</p>
+                      <p className="text-sm">{(lead.closureDetails as any).keyContacts}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).currentInfra && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Current Infrastructure</p>
+                      <p className="text-sm">{(lead.closureDetails as any).currentInfra}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).prospectNotes && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Notes</p>
+                      <p className="text-sm">{(lead.closureDetails as any).prospectNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Created */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-600 mb-1">Created</h3>
@@ -1126,21 +1232,329 @@ export default function LeadDetailPage() {
         />
       )}
 
-      {showConvertModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-            <h2 className="text-lg font-bold mb-3">Convert to Customer?</h2>
-            <div className="bg-gray-50 rounded-lg p-3 mb-4">
-              <p className="font-semibold">{lead.company}</p>
-              <p className="text-sm text-gray-500">{lead.name}</p>
+      {showConvertModal && lead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-6">
+              <h2 className="text-lg font-bold">Convert Suspect to Prospect</h2>
+              <p className="text-sm text-gray-600 mt-1">{lead.company} • {lead.name}</p>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowConvertModal(false)} disabled={converting}
-                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm">Cancel</button>
-              <button onClick={handleConvertToCustomer} disabled={converting}
-                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-                {converting ? 'Converting…' : 'Convert'}
-              </button>
+            <div className="p-6 space-y-6">
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+                <p className="text-sm text-cyan-800">
+                  <strong>Prospect Stage:</strong> Add detailed information about solution requirements, OEM partners involved, and presales team.
+                </p>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Address</label>
+                <input
+                  type="text"
+                  defaultValue={lead.address || ''}
+                  onChange={e => setEditData({ ...editData, address: e.target.value })}
+                  placeholder="Full address of the customer"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Solution Areas */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Solution Areas</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                  {SOLUTION_AREAS.map(area => (
+                    <label key={area.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        value={area.id}
+                        checked={editData.solutionAreas?.includes(area.id) || false}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setEditData(prev => ({
+                            ...prev,
+                            solutionAreas: checked
+                              ? [...(prev.solutionAreas || []), area.id]
+                              : (prev.solutionAreas || []).filter(s => s !== area.id),
+                          }));
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700">{area.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* OEM Names */}
+              <div>
+                <label className="block text-sm font-medium mb-2">OEM Partners Involved</label>
+                <div className="space-y-3">
+                  {/* Search input */}
+                  <input
+                    type="text"
+                    placeholder="Search OEM partners..."
+                    value={oemSearch}
+                    onChange={e => setOemSearch(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+
+                  {/* Predefined OEM list as checkboxes */}
+                  <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                    {OEM_LIST.filter(oem => oem.toLowerCase().includes(oemSearch.toLowerCase())).map(oem => (
+                      <label key={oem} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editData.oemNames?.includes(oem) || false}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            setEditData(prev => ({
+                              ...prev,
+                              oemNames: checked
+                                ? [...(prev.oemNames || []), oem]
+                                : (prev.oemNames || []).filter(o => o !== oem),
+                            }));
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-700">{oem}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Custom OEM input */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Add Other OEM (if not in list)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        id="customOem"
+                        placeholder="Enter custom OEM name..."
+                        className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.getElementById('customOem') as HTMLInputElement;
+                          const customOem = input?.value.trim();
+                          if (!customOem) {
+                            alert('Please enter an OEM name');
+                            return;
+                          }
+                          if (editData.oemNames?.includes(customOem)) {
+                            alert('This OEM is already added');
+                            return;
+                          }
+                          setEditData(prev => ({
+                            ...prev,
+                            oemNames: [...(prev.oemNames || []), customOem],
+                          }));
+                          input.value = '';
+                        }}
+                        className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected OEMs display */}
+                {editData.oemNames && editData.oemNames.length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Selected OEMs:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {editData.oemNames.map(oem => (
+                        <div key={oem} className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                          <span>{oem}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditData(prev => ({
+                                ...prev,
+                                oemNames: (prev.oemNames || []).filter(o => o !== oem),
+                              }));
+                            }}
+                            className="ml-1 hover:text-blue-900 font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Presales Members */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Presales Team Members</label>
+                <div className="space-y-3">
+                  {/* Search input */}
+                  <input
+                    type="text"
+                    placeholder="Search team members..."
+                    value={teamSearch}
+                    onChange={e => setTeamSearch(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+
+                  {/* Team members list */}
+                  <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-3">
+                    {users.filter(u => `${u.firstName} ${u.lastName}`.toLowerCase().includes(teamSearch.toLowerCase())).map(u => (
+                    <label key={u.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        value={u.id}
+                        checked={editData.presalesIds?.includes(u.id) || false}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setEditData(prev => ({
+                            ...prev,
+                            presalesIds: checked
+                              ? [...(prev.presalesIds || []), u.id]
+                              : (prev.presalesIds || []).filter(p => p !== u.id),
+                          }));
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700">{u.firstName} {u.lastName}</span>
+                    </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Expected Closure Date */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
+                <input
+                  type="date"
+                  defaultValue={lead.expectedClosureDate ? lead.expectedClosureDate.split('T')[0] : ''}
+                  onChange={e => setEditData({ ...editData, expectedClosureDate: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Company Information */}
+              <div className="border-t pt-6">
+                <h4 className="text-sm font-semibold text-gray-800 mb-4">Company Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">No. of Employees</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 500"
+                      onChange={e => setEditData({ ...editData, employeeCount: parseInt(e.target.value) || 0 })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Industry</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. IT, Manufacturing, Finance"
+                      onChange={e => setEditData({ ...editData, industry: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Total Company Worth (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 10000000"
+                      onChange={e => setEditData({ ...editData, annualRevenue: parseFloat(e.target.value) || 0 })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Year Established</label>
+                    <input
+                      type="number"
+                      min="1900"
+                      max={new Date().getFullYear()}
+                      placeholder="e.g. 2010"
+                      onChange={e => setEditData({ ...editData, yearEstablished: parseInt(e.target.value) || 0 })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Website</label>
+                  <input
+                    type="url"
+                    placeholder="e.g. https://company.com"
+                    onChange={e => setEditData({ ...editData, website: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Other Attributes */}
+              <div className="border-t pt-6">
+                <h4 className="text-sm font-semibold text-gray-800 mb-4">Additional Attributes</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Key Contacts</label>
+                    <textarea
+                      placeholder="e.g. CEO: John Doe, CTO: Jane Smith"
+                      rows={2}
+                      onChange={e => setEditData({ ...editData, keyContacts: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Current IT Infrastructure</label>
+                    <textarea
+                      placeholder="e.g. AWS, Dell servers, Cisco networking"
+                      rows={2}
+                      onChange={e => setEditData({ ...editData, currentInfra: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Budget Approval Status</label>
+                    <select
+                      onChange={e => setEditData({ ...editData, budgetStatus: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">Select status...</option>
+                      <option value="Not Allocated">Not Allocated</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Approved">Approved</option>
+                      <option value="In Use">In Use</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Any other notes</label>
+                    <textarea
+                      placeholder="Any additional information about the prospect..."
+                      rows={3}
+                      onChange={e => setEditData({ ...editData, prospectNotes: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={() => setShowConvertModal(false)}
+                  disabled={converting}
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConvertToProspect}
+                  disabled={converting}
+                  className="flex-1 py-2.5 bg-cyan-600 text-white rounded-lg text-sm font-semibold hover:bg-cyan-700 disabled:opacity-50"
+                >
+                  {converting ? 'Converting…' : 'Convert to Prospect'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

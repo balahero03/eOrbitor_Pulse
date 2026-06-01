@@ -35,7 +35,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     throw new ForbiddenError('Only admins can create announcements');
   }
 
-  const { title, content, priority = 'NORMAL', expiresAt } = await req.json();
+  const { title, content, priority = 'NORMAL', expiresAt, isPublished = false } = await req.json();
 
   if (!title || !content) {
     return NextResponse.json({ message: 'Title and content are required' }, { status: 400 });
@@ -43,7 +43,11 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const announcement = await prisma.announcement.create({
     data: {
-      title, content, priority,
+      title,
+      content,
+      priority,
+      isPublished,
+      publishedAt: isPublished ? new Date() : null,
       createdById: user.id,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     },

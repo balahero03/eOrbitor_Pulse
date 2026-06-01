@@ -57,8 +57,6 @@ const NAV_GROUPS: NavGroup[] = [
     roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'],
     items: [
       { label: 'Products', href: '/products', icon: '🗂️' },
-      { label: 'Inventory', href: '/inventory', icon: '🏭' },
-      { label: 'Vendors', href: '/vendors', icon: '🤝' },
     ],
   },
   {

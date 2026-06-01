@@ -64,10 +64,21 @@ export async function PATCH(
       name, email, phone, company, address, source, status, leadScore,
       assignedToId, broughtById, linkedCustomerId, qualificationNotes,
       remarks, quoteNo, quoteValue, rfqDate, followUpDate, expectedClosureDate,
-      solutionAreas, oemNames, presalesIds,
+      solutionAreas, oemNames, presalesIds, prospectDetails, closureDetails,
     } = body;
 
     let resolvedCustomerId = linkedCustomerId;
+
+    // Prevent reverting from PROSPECT or later back to SUSPECT
+    if (status && status === 'SUSPECT') {
+      const existingLead = await prisma.lead.findUnique({ where: { id }, select: { status: true } });
+      if (existingLead && existingLead.status !== 'SUSPECT') {
+        return NextResponse.json(
+          { message: 'Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back.' },
+          { status: 400 }
+        );
+      }
+    }
 
     const lead = await prisma.lead.update({
       where: { id },
@@ -93,6 +104,7 @@ export async function PATCH(
         ...(solutionAreas !== undefined && { solutionAreas }),
         ...(oemNames !== undefined && { oemNames }),
         ...(presalesIds !== undefined && { presalesIds }),
+        ...(prospectDetails !== undefined && { closureDetails: prospectDetails }),
       },
       include: {
         assignedTo: { select: { firstName: true, lastName: true } },

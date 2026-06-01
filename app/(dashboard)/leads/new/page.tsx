@@ -3,17 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import MultiSelectSearch from '@/components/MultiSelectSearch';
-import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
-
-// New leads always start as Suspect
-const INITIAL_STATUS = 'SUSPECT';
 
 interface User {
   id: string;
   firstName: string;
   lastName: string;
 }
+
+const INITIAL_STATUS = 'SUSPECT';
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -25,16 +22,9 @@ export default function NewLeadPage() {
     company: '',
     email: '',
     phone: '',
-    address: '',
     source: 'EMAIL',
-    status: INITIAL_STATUS,
-    expectedClosureDate: '',
     remarks: '',
     assignedToId: '',
-    broughtById: '',
-    solutionAreas: [] as string[],
-    oemNames: [] as string[],
-    presalesIds: [] as string[],
   });
 
   useEffect(() => {
@@ -50,10 +40,6 @@ export default function NewLeadPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleMultiSelectChange = (field: string) => (selected: string[]) => {
-    setFormData(prev => ({ ...prev, [field]: selected }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -62,18 +48,11 @@ export default function NewLeadPage() {
     try {
       const token = localStorage.getItem('token');
       const payload: any = { ...formData };
+      
       if (!payload.email) delete payload.email;
       if (!payload.phone) delete payload.phone;
       if (!payload.remarks) delete payload.remarks;
       if (!payload.assignedToId) delete payload.assignedToId;
-      if (!payload.broughtById) delete payload.broughtById;
-
-      // Remove optional fields if empty
-      if (!payload.address) delete payload.address;
-      if (!payload.expectedClosureDate) delete payload.expectedClosureDate;
-      if (payload.solutionAreas?.length === 0) delete payload.solutionAreas;
-      if (payload.oemNames?.length === 0) delete payload.oemNames;
-      if (payload.presalesIds?.length === 0) delete payload.presalesIds;
 
       const res = await fetch('/api/leads', {
         method: 'POST',
@@ -101,23 +80,29 @@ export default function NewLeadPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">New Lead</h1>
+        <h1 className="text-3xl font-bold">New Lead (Suspect)</h1>
         <Link href="/leads" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Leads</Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-3xl">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
           </div>
         )}
 
+        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <p className="text-sm text-indigo-800">
+            <strong>Suspect Stage:</strong> Enter basic lead information. Later, you can convert this to Prospect and add solution areas, OEM partners, and presales team details.
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Opportunity & Customer */}
+          {/* Basic Lead Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Opportunity Details</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Lead Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Opportunity Name *</label>
                 <input
                   type="text"
@@ -130,7 +115,7 @@ export default function NewLeadPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Customer / Company *</label>
+                <label className="block text-sm font-medium mb-1">Company / Organization *</label>
                 <input
                   type="text"
                   name="company"
@@ -140,13 +125,6 @@ export default function NewLeadPage() {
                   required
                   className="w-full border rounded px-3 py-2"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <div className="flex items-center gap-2 border rounded px-3 py-2 bg-indigo-50">
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-800">Suspect</span>
-                  <span className="text-xs text-gray-500">All new leads start as Suspect</span>
-                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Source</label>
@@ -163,50 +141,6 @@ export default function NewLeadPage() {
                   <option value="WEBSITE">Website</option>
                   <option value="ADVERTISEMENT">Advertisement</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Team */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Team Assignment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Account Manager (Assigned To)</label>
-                <select
-                  name="assignedToId"
-                  value={formData.assignedToId}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">— Current User —</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Sourced By (Brought By)</label>
-                <select
-                  name="broughtById"
-                  value={formData.broughtById}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">— Same as Account Manager —</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-1 md:col-span-2">
-                <MultiSelectSearch
-                  options={users.map(u => ({ id: u.id, label: `${u.firstName} ${u.lastName}` }))}
-                  selected={formData.presalesIds}
-                  onChange={handleMultiSelectChange('presalesIds')}
-                  placeholder="Search team members..."
-                  label="Presales Members Involved"
-                />
               </div>
             </div>
           </div>
@@ -237,39 +171,25 @@ export default function NewLeadPage() {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Address</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="Full address of the customer"
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Solution Profile */}
+          {/* Assignment */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Solution Profile</h3>
-            <div className="space-y-4">
-              <MultiSelectSearch
-                options={SOLUTION_AREAS}
-                selected={formData.solutionAreas}
-                onChange={handleMultiSelectChange('solutionAreas')}
-                placeholder="Search solution areas..."
-                label="Solution Areas"
-              />
-              <MultiSelectSearch
-                options={OEM_LIST.map(name => ({ id: name, label: name }))}
-                selected={formData.oemNames}
-                onChange={handleMultiSelectChange('oemNames')}
-                placeholder="Search OEM names..."
-                label="OEM Names"
-                allowCustom={true}
-              />
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Assignment</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">Account Manager</label>
+              <select
+                name="assignedToId"
+                value={formData.assignedToId}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">— Current User —</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -293,7 +213,7 @@ export default function NewLeadPage() {
               disabled={loading}
               className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Lead'}
+              {loading ? 'Creating...' : 'Create Suspect Lead'}
             </button>
             <Link href="/leads" className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center">
               Cancel

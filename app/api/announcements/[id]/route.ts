@@ -1,93 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    jwt.verify(token, JWT_SECRET);
-    const announcement = await prisma.announcement.findUnique({
-      where: { id: params.id },
-      include: {
-        createdBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-
-    if (!announcement) {
-      return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(announcement);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch announcement' }, { status: 500 });
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop();
+  if (!id) {
+    return NextResponse.json({ error: 'Announcement ID required' }, { status: 400 });
   }
-}
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const announcement = await prisma.announcement.findUnique({
+    where: { id },
+    include: {
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
-      return NextResponse.json({ error: 'Only admins can update announcements' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { title, content, priority, isPublished, expiresAt } = body;
-
-    const announcement = await prisma.announcement.update({
-      where: { id: params.id },
-      data: {
-        ...(title && { title }),
-        ...(content && { content }),
-        ...(priority && { priority }),
-        ...(typeof isPublished === 'boolean' && {
-          isPublished,
-          publishedAt: isPublished ? new Date() : null,
-        }),
-        ...(expiresAt && { expiresAt: new Date(expiresAt) }),
-      },
-      include: {
-        createdBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-
-    return NextResponse.json(announcement);
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: error.message || 'Failed to update announcement' }, { status: 500 });
+  if (!announcement) {
+    return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
   }
-}
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return NextResponse.json(announcement);
+});
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (!['SUPER_ADMIN','ADMIN'].includes(decoded.role)) {
-      return NextResponse.json({ error: 'Only admins can delete announcements' }, { status: 403 });
-    }
-
-    await prisma.announcement.delete({ where: { id: params.id } });
-    return NextResponse.json({ message: 'Announcement deleted' });
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: error.message || 'Failed to delete announcement' }, { status: 500 });
+export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Only admins can update announcements');
   }
-}
+
+  const id = req.nextUrl.pathname.split('/').pop();
+  if (!id) {
+    return NextResponse.json({ error: 'Announcement ID required' }, { status: 400 });
+  }
+
+  const body = await req.json();
+  const { title, content, priority, isPublished, expiresAt } = body;
+
+  const updateData: any = {};
+
+  // Only add fields that are explicitly provided
+  if (title !== undefined) updateData.title = title;
+  if (content !== undefined) updateData.content = content;
+  if (priority !== undefined) updateData.priority = priority;
+  if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+  // Handle isPublished with publishedAt timestamp
+  if (typeof isPublished === 'boolean') {
+    updateData.isPublished = isPublished;
+    updateData.publishedAt = isPublished ? new Date() : null;
+  }
+
+  const announcement = await prisma.announcement.update({
+    where: { id },
+    data: updateData,
+    include: {
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  return NextResponse.json(announcement);
+});
+
+export const DELETE = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Only admins can delete announcements');
+  }
+
+  const id = req.nextUrl.pathname.split('/').pop();
+  if (!id) {
+    return NextResponse.json({ error: 'Announcement ID required' }, { status: 400 });
+  }
+
+  await prisma.announcement.delete({ where: { id } });
+  return NextResponse.json({ message: 'Announcement deleted' });
+});
