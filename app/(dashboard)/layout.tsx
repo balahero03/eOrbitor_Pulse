@@ -32,7 +32,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Leads', href: '/leads', icon: '🎯' },
       { label: 'Closed Leads', href: '/closed-leads', icon: '📁' },
       { label: 'Follow-ups', href: '/followups', icon: '🔔' },
-      { label: 'Quotations', href: '/quotations', icon: '📄' },
       { label: 'Orders', href: '/orders', icon: '📦' },
       { label: 'Pipeline', href: '/pipeline', icon: '🗂️' },
     ],

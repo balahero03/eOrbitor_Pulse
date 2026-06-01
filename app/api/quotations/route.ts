@@ -9,20 +9,25 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
+  const leadId = searchParams.get('leadId');
+
   const where: any = {};
 
-  // Role-based scoping: SALES_EXEC sees only their own quotations
-  if (user.role === 'SALES_EXEC') {
-    where.createdById = user.id;
-  } else if (user.role === 'SALES_MANAGER') {
-    const teamMembers = await prisma.user.findMany({
-      where: { managerId: user.id },
-      select: { id: true },
-    });
-    const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
-    where.createdById = { in: teamIds };
+  // If fetching by leadId, skip role scoping — the lead page already enforces access
+  if (!leadId) {
+    if (user.role === 'SALES_EXEC') {
+      where.createdById = user.id;
+    } else if (user.role === 'SALES_MANAGER') {
+      const teamMembers = await prisma.user.findMany({
+        where: { managerId: user.id },
+        select: { id: true },
+      });
+      const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
+      where.createdById = { in: teamIds };
+    }
   }
 
+  if (leadId) where.leadId = leadId;
   if (status) where.status = status;
   if (search) {
     where.OR = [
@@ -38,11 +43,13 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       skip,
       take: limit,
       select: {
-        id: true, quotationNumber: true, status: true,
+        id: true, quotationNumber: true, status: true, leadId: true,
         customer: { select: { id: true, companyName: true } },
-        deal: { select: { dealName: true } },
-        subtotal: true, taxAmount: true, totalAmount: true,
-        issueDate: true, expiryDate: true,
+        deal: { select: { id: true, dealName: true } },
+        subtotal: true, taxAmount: true, discountAmount: true, totalAmount: true,
+        issueDate: true, expiryDate: true, sentAt: true, approvedAt: true,
+        priceValidity: true, taxDetails: true, warranty: true, amcPeriod: true,
+        deliveryEstimate: true, paymentTerms: true, notes: true, items: true,
         createdBy: { select: { firstName: true, lastName: true } },
         createdAt: true,
       },

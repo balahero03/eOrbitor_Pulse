@@ -31,6 +31,7 @@ interface LeadDetail {
   presalesUsers?: Array<{ id: string; firstName: string; lastName: string }>;
   assignedTo: { id: string; firstName: string; lastName: string };
   broughtBy?: { id: string; firstName: string; lastName: string };
+  linkedCustomerId?: string;
   linkedCustomer?: { id: string; companyName: string };
   followUps?: Array<{ id: string; type: string; scheduledDate: string; outcome?: string; notes?: string }>;
   createdAt: string;
@@ -102,6 +103,497 @@ const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'WHATSAPP', 'SITE_VISIT'];
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+
+// ─── Quotations Section ───────────────────────────────────────────────────────
+interface LineItem {
+  productId?: string;
+  productName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+}
+
+interface QuotationRecord {
+  id: string;
+  quotationNumber: string;
+  status: string;
+  totalAmount: string;
+  subtotal: string;
+  taxAmount: string;
+  discountAmount: string;
+  issueDate: string;
+  expiryDate?: string;
+  sentAt?: string;
+  approvedAt?: string;
+  priceValidity?: string;
+  taxDetails?: string;
+  warranty?: string;
+  amcPeriod?: string;
+  deliveryEstimate?: string;
+  paymentTerms?: string;
+  notes?: string;
+  items: any[];
+  customer: { id: string; companyName: string };
+  createdBy: { firstName: string; lastName: string };
+  createdAt: string;
+}
+
+function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: LeadDetail; canEdit: boolean }) {
+  const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
+  const [loadingQ, setLoadingQ] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Product search
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<any[]>([]);
+  const [showProductDrop, setShowProductDrop] = useState(false);
+
+  // Line items + terms
+  const [items, setItems] = useState<LineItem[]>([]);
+  const [terms, setTerms] = useState({
+    priceValidity: '', taxDetails: '', warranty: '',
+    amcPeriod: '', deliveryEstimate: '', paymentTerms: '',
+    notes: '', discountAmount: '',
+  });
+  const [submittingQ, setSubmittingQ] = useState(false);
+  const [qError, setQError] = useState('');
+
+  // Action states
+  const [actionId, setActionId] = useState<string | null>(null);
+
+  const fetchQuotations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quotations?leadId=${leadId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { const d = await res.json(); setQuotations(d.quotations || []); }
+    } catch { /* silent */ }
+    finally { setLoadingQ(false); }
+  };
+
+  useEffect(() => { fetchQuotations(); }, [leadId]);
+
+  const fetchQProducts = async (q: string) => {
+    const token = localStorage.getItem('token');
+    const url = q.trim() ? `/api/products?search=${encodeURIComponent(q)}&limit=15` : `/api/products?limit=15`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) { const d = await res.json(); setProductResults(d.products || []); }
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchQProducts(productSearch), productSearch.trim() ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  const addProduct = (p: any) => {
+    setItems(prev => [...prev, {
+      productId: p.id, productName: p.name, description: '',
+      quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: parseFloat(p.tax),
+    }]);
+    setProductSearch(''); setProductResults([]); setShowProductDrop(false);
+  };
+
+  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+  const updateItem = (idx: number, field: keyof LineItem, val: any) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
+
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
+  const discount = parseFloat(terms.discountAmount || '0') || 0;
+  const grandTotal = subtotal + taxTotal - discount;
+
+  const handleCreateQuotation = async () => {
+    setQError('');
+    if (items.length === 0) { setQError('Add at least one line item.'); return; }
+    if (items.some(i => !i.productName.trim())) { setQError('All items must have a name.'); return; }
+    if (!lead.linkedCustomerId) {
+      setQError('This lead has no linked customer. The lead must be won first (which auto-creates a customer).');
+      return;
+    }
+    setSubmittingQ(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/quotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          leadId,
+          customerId: lead.linkedCustomerId,
+          items: items.map(i => ({
+            productId: i.productId, productName: i.productName,
+            description: i.description, quantity: i.quantity,
+            unitPrice: i.unitPrice, taxRate: i.taxRate,
+          })),
+          ...terms,
+          discountAmount: discount,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+      setShowCreateForm(false);
+      setItems([]); setTerms({ priceValidity: '', taxDetails: '', warranty: '', amcPeriod: '', deliveryEstimate: '', paymentTerms: '', notes: '', discountAmount: '' });
+      fetchQuotations();
+    } catch (err: any) { setQError(err.message || 'An error occurred'); }
+    finally { setSubmittingQ(false); }
+  };
+
+  const handleAction = async (qId: string, action: 'send' | 'approve' | 'delete') => {
+    if (action === 'delete' && !confirm('Delete this quotation?')) return;
+    setActionId(qId);
+    try {
+      const token = localStorage.getItem('token');
+      if (action === 'delete') {
+        await fetch(`/api/quotations/${qId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await fetch(`/api/quotations/${qId}/${action}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      }
+      fetchQuotations();
+    } catch { alert('Action failed.'); }
+    finally { setActionId(null); }
+  };
+
+  const statusColor: Record<string, string> = {
+    DRAFT: 'bg-gray-100 text-gray-700 border-gray-300',
+    SENT: 'bg-blue-100 text-blue-800 border-blue-300',
+    ACCEPTED: 'bg-green-100 text-green-800 border-green-300',
+    REJECTED: 'bg-red-100 text-red-800 border-red-300',
+    EXPIRED: 'bg-orange-100 text-orange-800 border-orange-300',
+  };
+
+  return (
+    <div className="bg-white rounded-xl border p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-800">📄 Quotations</h2>
+        {canEdit && !showCreateForm && (
+          <button onClick={() => setShowCreateForm(true)}
+            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+            + New Quotation
+          </button>
+        )}
+        {showCreateForm && (
+          <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); }}
+            className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+        )}
+      </div>
+
+      {/* Create Form */}
+      {showCreateForm && (
+        <div className="border border-blue-100 rounded-xl p-4 mb-5 space-y-4 bg-blue-50/30">
+          {qError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{qError}</p>}
+
+          {!lead.linkedCustomerId && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠ No customer linked to this lead. Win the deal first — a customer is auto-created on winning.
+            </p>
+          )}
+
+          {/* Product search + line items */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase">Line Items</span>
+              <div className="relative flex-1">
+                <input type="text" value={productSearch}
+                  onChange={e => { setProductSearch(e.target.value); setShowProductDrop(true); }}
+                  onFocus={() => { setShowProductDrop(true); fetchQProducts(productSearch); }}
+                  onBlur={() => setTimeout(() => setShowProductDrop(false), 150)}
+                  placeholder="Search or browse products…"
+                  className="w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                {showProductDrop && (
+                  <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    {productResults.length > 0 ? (
+                      <>
+                        {productResults.map((p: any) => (
+                          <button key={p.id} type="button" onMouseDown={() => addProduct(p)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-xs font-medium text-gray-900">{p.name}</p>
+                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                              </div>
+                              {p.category && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{p.category}</span>}
+                            </div>
+                          </button>
+                        ))}
+                        {productSearch.trim() && (
+                          <button type="button" onMouseDown={() => {
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setProductSearch(''); setProductResults([]); setShowProductDrop(false);
+                          }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
+                            + Add "{productSearch.trim()}" as custom item
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="px-3 py-3 text-center">
+                        <p className="text-xs text-gray-400 mb-2">{productSearch.trim() ? `No products found for "${productSearch}"` : 'No products in catalog yet'}</p>
+                        {productSearch.trim() && (
+                          <button type="button" onMouseDown={() => {
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setProductSearch(''); setProductResults([]); setShowProductDrop(false);
+                          }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            + Add "{productSearch.trim()}" as custom item
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button type="button" onClick={addBlank}
+                className="text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0">
+                + Blank
+              </button>
+            </div>
+
+            {items.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4 border border-dashed rounded-lg">No items yet — search product or add blank row</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Item</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Price ₹</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Amount</th>
+                      <th className="w-6"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {items.map((item, idx) => {
+                      const lineAmt = item.quantity * item.unitPrice * (1 + item.taxRate / 100);
+                      return (
+                        <tr key={idx}>
+                          <td className="px-2 py-1.5">
+                            <input type="text" value={item.productName}
+                              onChange={e => updateItem(idx, 'productName', e.target.value)}
+                              placeholder="Item name" className="w-full border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.quantity} min="1"
+                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.unitPrice} step="0.01" min="0"
+                              onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.taxRate} step="0.5" min="0"
+                              onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
+                          <td className="px-1 py-1.5">
+                            <button type="button" onClick={() => removeItem(idx)}
+                              className="text-gray-300 hover:text-red-500 text-base leading-none">×</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Totals */}
+            {items.length > 0 && (
+              <div className="flex justify-end mt-3">
+                <div className="w-64 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>GST / Tax</span><span className="font-medium">{fmt(taxTotal)}</span></div>
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span>Discount ₹</span>
+                    <input type="number" value={terms.discountAmount}
+                      onChange={e => setTerms(t => ({ ...t, discountAmount: e.target.value }))}
+                      placeholder="0" min="0" className="w-20 text-right border rounded px-2 py-0.5 text-xs" />
+                  </div>
+                  <div className="flex justify-between border-t pt-1.5 text-sm font-bold text-gray-900">
+                    <span>Grand Total</span><span className="text-green-700">{fmt(grandTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Terms */}
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Terms &amp; Conditions</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'priceValidity', label: 'Price Validity', placeholder: 'e.g. 30 days from quotation date' },
+                { key: 'taxDetails', label: 'Taxes', placeholder: 'e.g. GST 18% extra as applicable' },
+                { key: 'warranty', label: 'Warranty', placeholder: 'e.g. 1 year onsite warranty' },
+                { key: 'amcPeriod', label: 'AMC Period', placeholder: 'e.g. 1 year post-warranty' },
+                { key: 'deliveryEstimate', label: 'Delivery Estimate', placeholder: 'e.g. 7–10 working days after PO' },
+                { key: 'paymentTerms', label: 'Payment Terms', placeholder: 'e.g. 50% advance, 50% on delivery' },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{label}</label>
+                  <input type="text" value={(terms as any)[key]}
+                    onChange={e => setTerms(t => ({ ...t, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                </div>
+              ))}
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Additional Notes</label>
+                <textarea value={terms.notes} onChange={e => setTerms(t => ({ ...t, notes: e.target.value }))}
+                  placeholder="Any other terms or conditions…" rows={2}
+                  className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+            </div>
+          </div>
+
+          <button onClick={handleCreateQuotation} disabled={submittingQ}
+            className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+            {submittingQ ? 'Creating…' : 'Create Quotation'}
+          </button>
+        </div>
+      )}
+
+      {/* Quotations list */}
+      {loadingQ ? (
+        <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
+      ) : quotations.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-4">No quotations yet</p>
+      ) : (
+        <div className="space-y-3">
+          {quotations.map(q => (
+            <div key={q.id} className="border rounded-xl overflow-hidden">
+              {/* Row header */}
+              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
+                <span className="font-mono text-xs font-bold text-gray-700">{q.quotationNumber}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusColor[q.status] || statusColor.DRAFT}`}>
+                  {q.status}
+                </span>
+                <span className="ml-auto text-sm font-bold text-green-700">{fmt(parseFloat(q.totalAmount))}</span>
+                <span className="text-xs text-gray-400">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
+                <span className="text-gray-400 text-xs">{expandedId === q.id ? '▲' : '▼'}</span>
+              </div>
+
+              {/* Expanded detail */}
+              {expandedId === q.id && (
+                <div className="px-4 pb-4 pt-3 space-y-4 border-t border-gray-100">
+                  {/* Items table */}
+                  {q.items && q.items.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Product</th>
+                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
+                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Unit Price</th>
+                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
+                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {q.items.map((item: any, idx: number) => (
+                            <tr key={idx}>
+                              <td className="px-2 py-1.5 text-gray-800">{item.productName || item.productId || '—'}</td>
+                              <td className="px-2 py-1.5 text-right text-gray-600">{item.quantity}</td>
+                              <td className="px-2 py-1.5 text-right text-gray-600">{fmt(item.unitPrice)}</td>
+                              <td className="px-2 py-1.5 text-right text-gray-500">{item.taxRate ?? '—'}%</td>
+                              <td className="px-2 py-1.5 text-right font-medium text-gray-800">
+                                {fmt(item.quantity * item.unitPrice * (1 + (item.taxRate || 0) / 100))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Totals summary */}
+                  <div className="flex justify-end">
+                    <div className="w-56 space-y-1 text-xs">
+                      <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(parseFloat(q.subtotal))}</span></div>
+                      <div className="flex justify-between text-gray-500"><span>Tax</span><span>{fmt(parseFloat(q.taxAmount))}</span></div>
+                      {parseFloat(q.discountAmount) > 0 && (
+                        <div className="flex justify-between text-gray-500"><span>Discount</span><span>-{fmt(parseFloat(q.discountAmount))}</span></div>
+                      )}
+                      <div className="flex justify-between border-t pt-1 text-sm font-bold text-gray-900"><span>Total</span><span className="text-green-700">{fmt(parseFloat(q.totalAmount))}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Terms */}
+                  {[
+                    { l: 'Price Validity', v: q.priceValidity },
+                    { l: 'Taxes', v: q.taxDetails },
+                    { l: 'Warranty', v: q.warranty },
+                    { l: 'AMC Period', v: q.amcPeriod },
+                    { l: 'Delivery Estimate', v: q.deliveryEstimate },
+                    { l: 'Payment Terms', v: q.paymentTerms },
+                  ].filter(f => f.v).length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      {[
+                        { l: 'Price Validity', v: q.priceValidity },
+                        { l: 'Taxes', v: q.taxDetails },
+                        { l: 'Warranty', v: q.warranty },
+                        { l: 'AMC Period', v: q.amcPeriod },
+                        { l: 'Delivery Estimate', v: q.deliveryEstimate },
+                        { l: 'Payment Terms', v: q.paymentTerms },
+                      ].filter(f => f.v).map(f => (
+                        <div key={f.l}>
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">{f.l}</p>
+                          <p className="text-xs text-gray-700">{f.v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {q.notes && (
+                    <div className="pt-2 border-t">
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Notes</p>
+                      <p className="text-xs text-gray-700">{q.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  {canEdit && (
+                    <div className="flex gap-2 pt-2 border-t flex-wrap">
+                      {q.status === 'DRAFT' && (
+                        <button onClick={() => handleAction(q.id, 'send')}
+                          disabled={actionId === q.id}
+                          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                          {actionId === q.id ? '…' : 'Send'}
+                        </button>
+                      )}
+                      {q.status === 'SENT' && (
+                        <button onClick={() => handleAction(q.id, 'approve')}
+                          disabled={actionId === q.id}
+                          className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                          {actionId === q.id ? '…' : 'Accept'}
+                        </button>
+                      )}
+                      <button onClick={() => handleAction(q.id, 'delete')}
+                        disabled={actionId === q.id}
+                        className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                        {actionId === q.id ? '…' : 'Delete'}
+                      </button>
+                      <span className="ml-auto text-[10px] text-gray-400 self-center">
+                        By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
+                        {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
+                        {q.approvedAt && ` · Accepted ${new Date(q.approvedAt).toLocaleDateString('en-IN')}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Kanban Board ────────────────────────────────────────────────────────────
 function SpancoKanban({
@@ -670,7 +1162,6 @@ function ApproachModal({ lead, onClose, onSubmit, submitting }: {
 
 // ─── Negotiation Stage Modal ──────────────────────────────────────────────────
 interface NegotiationFormData {
-  quoteNumber: string;
   quoteValue: string;
   discount: string;
   paymentTerms: string;
@@ -679,23 +1170,89 @@ interface NegotiationFormData {
   objections: string;
   decisionTimeline: string;
   competingVendors: string;
+  // quotation line items + terms
+  items: LineItem[];
+  priceValidity: string;
+  taxDetails: string;
+  warranty: string;
+  amcPeriod: string;
+  deliveryEstimate: string;
+  qNotes: string;
 }
 
 function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
   lead: LeadDetail; onClose: () => void;
   onSubmit: (data: NegotiationFormData) => void; submitting: boolean;
 }) {
-  const [form, setForm] = useState<NegotiationFormData>({
-    quoteNumber: lead.quoteNo || '', quoteValue: lead.quoteValue ? String(lead.quoteValue) : '',
+  const [meta, setMeta] = useState({
     discount: '', paymentTerms: '', deliveryTimeline: '',
     negotiationPoints: '', objections: '', decisionTimeline: '', competingVendors: '',
   });
-  const set = (k: keyof NegotiationFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const canSubmit = form.quoteNumber && form.quoteValue && form.paymentTerms;
+  const setM = (k: keyof typeof meta, v: string) => setMeta(m => ({ ...m, [k]: v }));
+
+  // Inline quotation builder
+  const [items, setItems] = useState<LineItem[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<any[]>([]);
+  const [showDrop, setShowDrop] = useState(false);
+  const [terms, setTerms] = useState({
+    priceValidity: '', taxDetails: '', warranty: '',
+    amcPeriod: '', deliveryEstimate: '', qNotes: '',
+  });
+
+  const fetchNegProducts = async (q: string) => {
+    const token = localStorage.getItem('token');
+    const url = q.trim()
+      ? `/api/products?search=${encodeURIComponent(q)}&limit=15`
+      : `/api/products?limit=15`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) { const d = await res.json(); setProductResults(d.products || []); }
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchNegProducts(productSearch), productSearch.trim() ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  const addProduct = (p: any) => {
+    setItems(prev => [...prev, { productId: p.id, productName: p.name, description: '', quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: parseFloat(p.tax) }]);
+    setProductSearch(''); setProductResults([]); setShowDrop(false);
+  };
+  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+  const updateItem = (idx: number, field: keyof LineItem, val: any) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
+
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
+  const discountAmt = parseFloat(meta.discount || '0') || 0;
+  const grandTotal = subtotal + taxTotal - discountAmt;
+
+  const canSubmit = meta.paymentTerms && items.every(i => i.productName.trim());
+
+  const handleSubmit = () => {
+    onSubmit({
+      quoteValue: String(grandTotal),
+      discount: meta.discount,
+      paymentTerms: meta.paymentTerms,
+      deliveryTimeline: meta.deliveryTimeline,
+      negotiationPoints: meta.negotiationPoints,
+      objections: meta.objections,
+      decisionTimeline: meta.decisionTimeline,
+      competingVendors: meta.competingVendors,
+      items,
+      priceValidity: terms.priceValidity,
+      taxDetails: terms.taxDetails,
+      warranty: terms.warranty,
+      amcPeriod: terms.amcPeriod,
+      deliveryEstimate: terms.deliveryEstimate,
+      qNotes: terms.qNotes,
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[94vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">🤝 Negotiation Stage Details</h2>
@@ -703,66 +1260,215 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
           <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-800">
-            Fill in quote and negotiation details before moving to Negotiation stage. Required fields marked with *.
+            Add line items to auto-calculate quote value. Quote number is generated automatically. Payment Terms is required.
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote/Proposal No. <span className="text-red-400">*</span></label>
-              <input type="text" value={form.quoteNumber} onChange={e => set('quoteNumber', e.target.value)}
-                placeholder="e.g. QT-2026-001" className="w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Value (₹) <span className="text-red-400">*</span></label>
-              <input type="number" value={form.quoteValue} onChange={e => set('quoteValue', e.target.value)}
-                placeholder="e.g. 2500000" className="w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Discount Offered (%)</label>
-              <input type="number" value={form.discount} onChange={e => set('discount', e.target.value)}
-                placeholder="e.g. 10" min="0" max="100" className="w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms <span className="text-red-400">*</span></label>
-              <input type="text" value={form.paymentTerms} onChange={e => set('paymentTerms', e.target.value)}
-                placeholder="e.g. 30% advance, 70% on delivery" className="w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
-          </div>
+
+          {/* ── Line Items ── */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline</label>
-            <input type="text" value={form.deliveryTimeline} onChange={e => set('deliveryTimeline', e.target.value)}
-              placeholder="e.g. 4-6 weeks from PO" className="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Negotiation Points</label>
-            <textarea value={form.negotiationPoints} onChange={e => set('negotiationPoints', e.target.value)}
-              rows={2} placeholder="Key price/terms/timeline points being negotiated…"
-              className="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Objections &amp; Resolutions</label>
-            <textarea value={form.objections} onChange={e => set('objections', e.target.value)}
-              rows={2} placeholder="e.g. Price too high → offered 10% discount + extended warranty…"
-              className="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Decision Timeline</label>
-              <input type="text" value={form.decisionTimeline} onChange={e => set('decisionTimeline', e.target.value)}
-                placeholder="e.g. End of Q2 2026" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase">Quotation Line Items</span>
+              <div className="relative flex-1">
+                <input type="text" value={productSearch}
+                  onChange={e => { setProductSearch(e.target.value); setShowDrop(true); }}
+                  onFocus={() => { setShowDrop(true); fetchNegProducts(productSearch); }}
+                  onBlur={() => setTimeout(() => setShowDrop(false), 150)}
+                  placeholder="Search or browse products…"
+                  className="w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200" />
+                {showDrop && (
+                  <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    {productResults.length > 0 ? (
+                      <>
+                        {productResults.map((p: any) => (
+                          <button key={p.id} type="button" onMouseDown={() => addProduct(p)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-orange-50 border-b border-gray-50 last:border-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-xs font-medium text-gray-900">{p.name}</p>
+                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                              </div>
+                              {p.category && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{p.category}</span>}
+                            </div>
+                          </button>
+                        ))}
+                        {productSearch.trim() && (
+                          <button type="button" onMouseDown={() => {
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setProductSearch(''); setProductResults([]); setShowDrop(false);
+                          }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
+                            + Add "{productSearch.trim()}" as custom item
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="px-3 py-3 text-center">
+                        <p className="text-xs text-gray-400 mb-2">{productSearch.trim() ? `No products found for "${productSearch}"` : 'No products in catalog yet'}</p>
+                        {productSearch.trim() && (
+                          <button type="button" onMouseDown={() => {
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setProductSearch(''); setProductResults([]); setShowDrop(false);
+                          }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            + Add "{productSearch.trim()}" as custom item
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button type="button" onClick={addBlank}
+                className="text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0">
+                + Blank
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competing Vendors</label>
-              <input type="text" value={form.competingVendors} onChange={e => set('competingVendors', e.target.value)}
-                placeholder="e.g. HP India, Dell" className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+            {items.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-3 border border-dashed rounded-lg">Search a product or add blank row</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Item</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Price ₹</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
+                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Amount</th>
+                      <th className="w-6"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {items.map((item, idx) => {
+                      const lineAmt = item.quantity * item.unitPrice * (1 + item.taxRate / 100);
+                      return (
+                        <tr key={idx}>
+                          <td className="px-2 py-1.5">
+                            <input type="text" value={item.productName}
+                              onChange={e => updateItem(idx, 'productName', e.target.value)}
+                              placeholder="Item name" className="w-full border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.quantity} min="1"
+                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.unitPrice} step="0.01" min="0"
+                              onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input type="number" value={item.taxRate} step="0.5" min="0"
+                              onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
+                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
+                          <td className="px-1 py-1.5">
+                            <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 text-base leading-none">×</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Totals */}
+            {items.length > 0 && (
+              <div className="flex justify-end mt-3">
+                <div className="w-60 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+                  <div className="flex justify-between text-gray-500"><span>GST / Tax</span><span>{fmt(taxTotal)}</span></div>
+                  <div className="flex justify-between text-gray-500 items-center">
+                    <span>Discount (₹)</span>
+                    <input type="number" value={meta.discount}
+                      onChange={e => setM('discount', e.target.value)}
+                      placeholder="0" min="0" className="w-20 text-right border rounded px-2 py-0.5 text-xs" />
+                  </div>
+                  <div className="flex justify-between border-t pt-1.5 text-sm font-bold text-gray-900">
+                    <span>Quote Value</span><span className="text-orange-700">{fmt(grandTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Terms & Conditions ── */}
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Terms &amp; Conditions</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'priceValidity', label: 'Price Validity', ph: 'e.g. 30 days from quotation date' },
+                { key: 'taxDetails', label: 'Taxes', ph: 'e.g. GST 18% extra as applicable' },
+                { key: 'warranty', label: 'Warranty', ph: 'e.g. 1 year onsite warranty' },
+                { key: 'amcPeriod', label: 'AMC Period', ph: 'e.g. 1 year post-warranty' },
+                { key: 'deliveryEstimate', label: 'Delivery Estimate', ph: 'e.g. 7–10 working days after PO' },
+              ].map(({ key, label, ph }) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{label}</label>
+                  <input type="text" value={(terms as any)[key]}
+                    onChange={e => setTerms(t => ({ ...t, [key]: e.target.value }))}
+                    placeholder={ph} className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200" />
+                </div>
+              ))}
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Additional Notes</label>
+                <textarea value={terms.qNotes} onChange={e => setTerms(t => ({ ...t, qNotes: e.target.value }))}
+                  placeholder="Any other terms or conditions…" rows={2}
+                  className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200" />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Negotiation Metadata ── */}
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Negotiation Details</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms <span className="text-red-400">*</span></label>
+                <input type="text" value={meta.paymentTerms} onChange={e => setM('paymentTerms', e.target.value)}
+                  placeholder="e.g. 30% advance, 70% on delivery" className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline</label>
+                  <input type="text" value={meta.deliveryTimeline} onChange={e => setM('deliveryTimeline', e.target.value)}
+                    placeholder="e.g. 4-6 weeks from PO" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competing Vendors</label>
+                  <input type="text" value={meta.competingVendors} onChange={e => setM('competingVendors', e.target.value)}
+                    placeholder="e.g. HP India, Dell" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Decision Timeline</label>
+                  <input type="text" value={meta.decisionTimeline} onChange={e => setM('decisionTimeline', e.target.value)}
+                    placeholder="e.g. End of Q2 2026" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Negotiation Points</label>
+                <textarea value={meta.negotiationPoints} onChange={e => setM('negotiationPoints', e.target.value)}
+                  rows={2} placeholder="Key price/terms/timeline points being negotiated…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Objections &amp; Resolutions</label>
+                <textarea value={meta.objections} onChange={e => setM('objections', e.target.value)}
+                  rows={2} placeholder="e.g. Price too high → offered 10% discount + extended warranty…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
             </div>
           </div>
         </div>
+
         <div className="px-6 py-4 border-t flex gap-3 flex-shrink-0">
           <button onClick={onClose} disabled={submitting}
             className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
-          <button onClick={() => onSubmit(form)} disabled={submitting || !canSubmit}
+          <button onClick={handleSubmit} disabled={submitting || !canSubmit}
             className="flex-1 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
             {submitting ? 'Saving…' : 'Move to Negotiation →'}
           </button>
@@ -964,7 +1670,46 @@ export default function LeadDetailPage() {
     setStageSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const negotiationDetails = { ...data, capturedAt: new Date().toISOString() };
+
+      // Auto-create quotation if lead has a linked customer
+      let quoteNumber: string | undefined;
+      if (lead?.linkedCustomerId && data.items.length > 0) {
+        const qRes = await fetch('/api/quotations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            leadId: id,
+            customerId: lead.linkedCustomerId,
+            items: data.items.map(i => ({
+              productId: i.productId, productName: i.productName,
+              description: i.description, quantity: i.quantity,
+              unitPrice: i.unitPrice, taxRate: i.taxRate,
+            })),
+            priceValidity: data.priceValidity,
+            taxDetails: data.taxDetails,
+            warranty: data.warranty,
+            amcPeriod: data.amcPeriod,
+            deliveryEstimate: data.deliveryEstimate,
+            paymentTerms: data.paymentTerms,
+            notes: data.qNotes,
+            discountAmount: parseFloat(data.discount || '0') || 0,
+          }),
+        });
+        if (qRes.ok) { const q = await qRes.json(); quoteNumber = q.quotationNumber; }
+      }
+
+      const negotiationDetails = {
+        quoteValue: data.quoteValue,
+        discount: data.discount,
+        paymentTerms: data.paymentTerms,
+        deliveryTimeline: data.deliveryTimeline,
+        negotiationPoints: data.negotiationPoints,
+        objections: data.objections,
+        decisionTimeline: data.decisionTimeline,
+        competingVendors: data.competingVendors,
+        quoteNumber,
+        capturedAt: new Date().toISOString(),
+      };
       const existing = (lead?.closureDetails as any) || {};
       const merged = { ...existing, negotiation: negotiationDetails };
 
@@ -974,7 +1719,7 @@ export default function LeadDetailPage() {
         body: JSON.stringify({
           status: 'NEGOTIATION',
           closureDetails: merged,
-          quoteNo: data.quoteNumber,
+          ...(quoteNumber && { quoteNo: quoteNumber }),
           quoteValue: data.quoteValue,
         }),
       });
@@ -1383,6 +2128,9 @@ export default function LeadDetailPage() {
                 <p className="text-gray-700 text-sm">{lead.qualificationNotes}</p>
               </div>
             )}
+
+            {/* Quotations */}
+            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} />
 
             {/* Follow-ups */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">
