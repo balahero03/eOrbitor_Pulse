@@ -33,8 +33,8 @@ export function withAuth(handler: Handler) {
       return await handler(req, user);
     } catch (err: any) {
       const status: number = err.status || 500;
-      const message: string = status < 500 ? err.message : 'Internal server error';
-      if (status >= 500) console.error('[API ERROR]', err);
+      const message: string = err.message || 'Internal server error';
+      if (status >= 500) console.error('[API ERROR]', err?.message, err?.code, err?.meta);
       return NextResponse.json({ message }, { status });
     }
   };

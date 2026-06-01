@@ -11,43 +11,22 @@ export async function POST(
   const { id } = await params;
 
   return withAuth(async (req: NextRequest, user: AuthUser) => {
-    // Parse multipart form OR JSON
-    let outcome: string, reason: string, quoteRef: string, poNumber: string,
-        reasonOfWin: string, whatWentWell: string, competitor: string, whatToImprove: string;
-    const attachments: MailAttachment[] = [];
-
-    const contentType = req.headers.get('content-type') || '';
-
-    if (contentType.includes('multipart/form-data')) {
-      const form = await req.formData();
-      outcome       = String(form.get('outcome') || '');
-      reason        = String(form.get('reason') || '');
-      quoteRef      = String(form.get('quoteRef') || '');
-      poNumber      = String(form.get('poNumber') || '');
-      reasonOfWin   = String(form.get('reasonOfWin') || '');
-      whatWentWell  = String(form.get('whatWentWell') || '');
-      competitor    = String(form.get('competitor') || '');
-      whatToImprove = String(form.get('whatToImprove') || '');
-
-      // Up to 3 file attachments
-      for (const key of ['attachment1', 'attachment2', 'attachment3']) {
-        const file = form.get(key) as File | null;
-        if (file && file.size > 0) {
-          const buf = Buffer.from(await file.arrayBuffer());
-          attachments.push({ filename: file.name, content: buf, contentType: file.type || 'application/octet-stream' });
-        }
-      }
-    } else {
-      const body = await req.json();
-      outcome       = body.outcome || '';
-      reason        = body.reason || '';
-      quoteRef      = body.quoteRef || '';
-      poNumber      = body.poNumber || '';
-      reasonOfWin   = body.reasonOfWin || '';
-      whatWentWell  = body.whatWentWell || '';
-      competitor    = body.competitor || '';
-      whatToImprove = body.whatToImprove || '';
-    }
+    // Body: JSON with optional base64 attachments
+    // { outcome, reason, quoteRef, poNumber, reasonOfWin, whatWentWell,
+    //   competitor, whatToImprove,
+    //   attachments: [{ filename, contentType, dataBase64 }] }
+    const body = await req.json();
+    const {
+      outcome,
+      reason        = '',
+      quoteRef      = '',
+      poNumber      = '',
+      reasonOfWin   = '',
+      whatWentWell  = '',
+      competitor    = '',
+      whatToImprove = '',
+      attachments: rawAttachments = [],
+    } = body;
 
     if (!['WON', 'LOST', 'DROPPED'].includes(outcome)) {
       throw new ValidationError('outcome must be WON, LOST, or DROPPED');
@@ -74,6 +53,15 @@ export async function POST(
       throw new ValidationError('Lead must be at CLOSURE stage before closing');
     }
 
+    // Build mail attachments from base64
+    const attachments: MailAttachment[] = (rawAttachments as any[])
+      .filter((a: any) => a?.dataBase64 && a?.filename)
+      .map((a: any) => ({
+        filename: a.filename,
+        content: Buffer.from(a.dataBase64, 'base64'),
+        contentType: a.contentType || 'application/octet-stream',
+      }));
+
     // Recipients
     const [managers, admins] = await Promise.all([
       prisma.user.findMany({
@@ -92,10 +80,11 @@ export async function POST(
     ])].filter(Boolean) as string[];
 
     const repName     = `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}`;
-    const managerName = managers[0] ? `${managers[0].firstName} ${managers[0].lastName}` : 'Manager';
+    const managerName = managers[0]
+      ? `${managers[0].firstName} ${managers[0].lastName}`
+      : 'Manager';
     const attachmentNames = attachments.map(a => a.filename);
 
-    // Closure details stored in JSON
     const closureDetails =
       outcome === 'WON'
         ? { quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames }
@@ -105,11 +94,11 @@ export async function POST(
       const updated = await prisma.lead.update({
         where: { id },
         data: {
-          status: 'ORDER' as any,
+          status: 'ORDER',
           closedAt: new Date(),
-          closureReason: reasonOfWin || reason || null,
-          closureDetails,
-        },
+          closureReason: reasonOfWin || null,
+          closureDetails: closureDetails as any,
+        } as any,
         include: {
           assignedTo: { select: { firstName: true, lastName: true } },
           linkedCustomer: { select: { id: true, companyName: true } },
@@ -120,7 +109,11 @@ export async function POST(
         await sendMail({
           to: notifyEmails,
           subject: `🏆 Lead WON — ${lead.company} (${lead.name})${lead.quoteValue ? ` · ₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : ''}`,
-          html: buildWonEmail({ lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue }, rep: repName, manager: managerName, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames }),
+          html: buildWonEmail({
+            lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
+            rep: repName, manager: managerName,
+            quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames,
+          }),
           attachments,
         });
       }
@@ -134,11 +127,11 @@ export async function POST(
     const updated = await prisma.lead.update({
       where: { id },
       data: {
-        status: newStatus as any,
+        status: newStatus,
         closedAt: new Date(),
         closureReason: reason || null,
-        closureDetails,
-      },
+        closureDetails: closureDetails as any,
+      } as any,
       include: { assignedTo: { select: { firstName: true, lastName: true } } },
     });
 
@@ -146,7 +139,11 @@ export async function POST(
       await sendMail({
         to: notifyEmails,
         subject: `${outcome === 'LOST' ? '❌ Lead LOST' : '🚫 Lead DROPPED'} — ${lead.company} (${lead.name})`,
-        html: buildLostEmail({ lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue }, outcome: outcome as 'LOST' | 'DROPPED', reason, rep: repName, competitor, whatToImprove, attachmentNames }),
+        html: buildLostEmail({
+          lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
+          outcome: outcome as 'LOST' | 'DROPPED',
+          reason, rep: repName, competitor, whatToImprove, attachmentNames,
+        }),
         attachments,
       });
     }

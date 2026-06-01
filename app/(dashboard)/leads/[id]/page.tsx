@@ -569,27 +569,37 @@ export default function LeadDetailPage() {
     setClosureSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const fd = new FormData();
-      fd.append('outcome',       form.outcome);
-      fd.append('reason',        form.reason);
-      fd.append('quoteRef',      form.quoteRef);
-      fd.append('poNumber',      form.poNumber);
-      fd.append('reasonOfWin',   form.reasonOfWin);
-      fd.append('whatWentWell',  form.whatWentWell);
-      fd.append('competitor',    form.competitor);
-      fd.append('whatToImprove', form.whatToImprove);
-      form.files.forEach((file, idx) => {
-        if (file) fd.append(`attachment${idx + 1}`, file);
-      });
+
+      // Convert files to base64 for JSON transport
+      const attachments: { filename: string; contentType: string; dataBase64: string }[] = [];
+      for (const file of form.files) {
+        if (!file) continue;
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        // Safe base64 encoding (avoids stack overflow on large files)
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        attachments.push({ filename: file.name, contentType: file.type || 'application/octet-stream', dataBase64: btoa(binary) });
+      }
 
       const res = await fetch(`/api/leads/${id}/close`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          outcome:       form.outcome,
+          reason:        form.reason,
+          quoteRef:      form.quoteRef,
+          poNumber:      form.poNumber,
+          reasonOfWin:   form.reasonOfWin,
+          whatWentWell:  form.whatWentWell,
+          competitor:    form.competitor,
+          whatToImprove: form.whatToImprove,
+          attachments,
+        }),
       });
       if (!res.ok) {
-        const e = await res.json();
-        alert(e.message || 'Failed to close lead');
+        const e = await res.json().catch(() => ({}));
+        alert(e.message || `Server error ${res.status}`);
         return;
       }
       setShowClosureModal(false);
@@ -598,8 +608,8 @@ export default function LeadDetailPage() {
       } else {
         router.push('/closed-leads');
       }
-    } catch {
-      alert('An error occurred.');
+    } catch (err: any) {
+      alert(`Failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setClosureSubmitting(false);
     }
