@@ -102,12 +102,14 @@ function SpancoKanban({
   onStageChange,
   changing,
   onClosureClick,
+  onRequestReopen,
 }: {
   lead: LeadDetail;
   canEdit: boolean;
   onStageChange: (stage: string) => void;
   changing: boolean;
   onClosureClick: () => void;
+  onRequestReopen?: () => void;
 }) {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -121,7 +123,7 @@ function SpancoKanban({
   const handleDrop = (e: React.DragEvent, stageKey: string) => {
     e.preventDefault();
     setDragOver(null);
-    if (stageKey === lead.status || !canEdit || changing) return;
+    if (isClosed || stageKey === lead.status || !canEdit || changing) return;
     onStageChange(stageKey);
   };
 
@@ -147,15 +149,15 @@ function SpancoKanban({
         {SPANCO.map((stage, idx) => {
           const isActive = stage.key === lead.status;
           const isPast = !isClosed && activeIdx > idx;
-          const isDropTarget = dragOver === stage.key && stage.key !== lead.status;
-          const isClickable = canEdit && !isActive && !changing;
+          const isDropTarget = !isClosed && dragOver === stage.key && stage.key !== lead.status;
+          const isClickable = !isClosed && canEdit && !isActive && !changing;
 
           return (
             <div
               key={stage.key}
-              onDragOver={e => { e.preventDefault(); canEdit && setDragOver(stage.key); }}
+              onDragOver={e => { e.preventDefault(); !isClosed && canEdit && setDragOver(stage.key); }}
               onDragLeave={() => setDragOver(null)}
-              onDrop={e => canEdit && handleDrop(e, stage.key)}
+              onDrop={e => !isClosed && canEdit && handleDrop(e, stage.key)}
               onClick={() => {
                 if (!isClickable) return;
                 onStageChange(stage.key);
@@ -242,15 +244,17 @@ function SpancoKanban({
         </div>
       )}
 
-      {isClosed && canEdit && (
-        <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400 font-medium">Re-open:</span>
-          {SPANCO.map(s => (
-            <button key={s.key} onClick={() => onStageChange(s.key)} disabled={changing}
-              className={`text-xs px-3 py-1 rounded-full border ${s.badge} hover:opacity-80 disabled:opacity-40`}>
-              ↩ {s.label}
+      {isClosed && (
+        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2">
+          <span className="text-xs text-amber-700 font-medium">
+            🔒 This lead is closed and cannot be moved. Request admin approval to re-open.
+          </span>
+          {onRequestReopen && (
+            <button onClick={onRequestReopen}
+              className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 flex-shrink-0">
+              Request Re-open
             </button>
-          ))}
+          )}
         </div>
       )}
     </div>
@@ -495,6 +499,10 @@ export default function LeadDetailPage() {
   const [showClosureModal, setShowClosureModal] = useState(false);
   const [closureSubmitting, setClosureSubmitting] = useState(false);
 
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [requestingReopen, setRequestingReopen] = useState(false);
+
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
@@ -632,6 +640,31 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleReopenRequest = async () => {
+    if (!reopenReason.trim()) { alert('Please provide a reason for re-opening.'); return; }
+    setRequestingReopen(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: `RE-OPEN REQUEST: ${reopenReason}` }),
+      });
+      if (res.ok) {
+        alert('Re-open request submitted. An admin will review and re-open the lead.');
+        setShowReopenModal(false);
+        setReopenReason('');
+      } else {
+        const e = await res.json();
+        alert(e.message || 'Failed to submit request');
+      }
+    } catch {
+      alert('An error occurred.');
+    } finally {
+      setRequestingReopen(false);
+    }
+  };
+
   const handleConvertToCustomer = async () => {
     if (!lead) return;
     setConverting(true);
@@ -757,6 +790,7 @@ export default function LeadDetailPage() {
           onStageChange={handleStageChange}
           changing={stageChanging}
           onClosureClick={() => setShowClosureModal(true)}
+          onRequestReopen={() => setShowReopenModal(true)}
         />
       </div>
 
@@ -1094,6 +1128,34 @@ export default function LeadDetailPage() {
               <button onClick={handleAddFollowUp} disabled={savingFollowUp}
                 className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">
                 {savingFollowUp ? 'Saving…' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReopenModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-amber-600 mb-1">Request Re-open</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              This lead is closed. Submit a reason — an admin will review and re-open it if approved.
+            </p>
+            <textarea
+              value={reopenReason}
+              onChange={e => setReopenReason(e.target.value)}
+              placeholder="Why should this lead be re-opened?"
+              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 focus:outline-none focus:ring-2 focus:ring-amber-200"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setShowReopenModal(false); setReopenReason(''); }}
+                disabled={requestingReopen}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={handleReopenRequest} disabled={requestingReopen || !reopenReason.trim()}
+                className="flex-1 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50">
+                {requestingReopen ? 'Submitting…' : 'Submit Request'}
               </button>
             </div>
           </div>
