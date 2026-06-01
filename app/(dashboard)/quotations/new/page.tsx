@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface Deal {
+interface WonLead {
   id: string;
-  dealName: string;
-  customerId: string;
-  customer: { companyName: string };
+  name: string;
+  company: string;
+  quoteValue: string | null;
+  linkedCustomerId: string | null;
+  linkedCustomer: { id: string; companyName: string } | null;
+  assignedTo: { firstName: string; lastName: string };
 }
 
 interface Product {
@@ -17,388 +20,513 @@ interface Product {
   name: string;
   basePrice: string;
   tax: string;
-  inventory?: { quantity: number };
 }
 
-interface QuotationItem {
-  productId: string;
-  product?: Product;
+interface LineItem {
+  productId?: string;
+  productName: string;
+  description: string;
   quantity: number;
   unitPrice: number;
+  taxRate: number;
 }
+
+const fmt = (v: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(v);
 
 export default function NewQuotationPage() {
   const router = useRouter();
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [searchProduct, setSearchProduct] = useState('');
-  const [showProductSearch, setShowProductSearch] = useState(false);
 
-  const [formData, setFormData] = useState({
-    dealId: '',
-    customerId: '',
+  // Lead / customer selection
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadResults, setLeadResults] = useState<WonLead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<WonLead | null>(null);
+  const [showLeadDropdown, setShowLeadDropdown] = useState(false);
+  const leadSearchRef = useRef<HTMLDivElement>(null);
+
+  // Product search
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<Product[]>([]);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const productSearchRef = useRef<HTMLDivElement>(null);
+
+  // Line items
+  const [items, setItems] = useState<LineItem[]>([]);
+
+  // Terms fields
+  const [terms, setTerms] = useState({
+    priceValidity: '',
+    taxDetails: '',
+    warranty: '',
+    amcPeriod: '',
+    deliveryEstimate: '',
+    paymentTerms: '',
     notes: '',
+    discountAmount: '',
   });
 
-  const [items, setItems] = useState<QuotationItem[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
+  // Search won leads
   useEffect(() => {
-    fetchDeals();
-    fetchProducts();
+    if (!leadSearch.trim()) { setLeadResults([]); return; }
+    const t = setTimeout(async () => {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/leads/won?search=${encodeURIComponent(leadSearch)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { const d = await res.json(); setLeadResults(d.leads); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [leadSearch]);
+
+  // Search products
+  useEffect(() => {
+    if (!productSearch.trim()) { setProductResults([]); return; }
+    const t = setTimeout(async () => {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/products?search=${encodeURIComponent(productSearch)}&limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { const d = await res.json(); setProductResults(d.products); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (leadSearchRef.current && !leadSearchRef.current.contains(e.target as Node))
+        setShowLeadDropdown(false);
+      if (productSearchRef.current && !productSearchRef.current.contains(e.target as Node))
+        setShowProductDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchDeals = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/deals?limit=1000', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch deals');
-
-      const data = await res.json();
-      setDeals(data.deals);
-    } catch (err) {
-      console.error(err);
-    }
+  const selectLead = (lead: WonLead) => {
+    setSelectedLead(lead);
+    setLeadSearch(`${lead.name} — ${lead.company}`);
+    setShowLeadDropdown(false);
+    setLeadResults([]);
   };
 
-  const fetchProducts = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        ...(searchProduct && { search: searchProduct }),
-      });
-
-      const res = await fetch(`/api/products?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch products');
-
-      const data = await res.json();
-      setProducts(data.products);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDealChange = (dealId: string) => {
-    const deal = deals.find(d => d.id === dealId);
-    setFormData({
-      ...formData,
-      dealId,
-      customerId: deal?.customerId || '',
-    });
-  };
-
-  const handleAddProduct = (product: Product) => {
-    const newItem: QuotationItem = {
-      productId: product.id,
-      product,
+  const addProduct = (p: Product) => {
+    setItems(prev => [...prev, {
+      productId: p.id,
+      productName: p.name,
+      description: '',
       quantity: 1,
-      unitPrice: parseFloat(product.basePrice),
-    };
-    setItems([...items, newItem]);
-    setShowProductSearch(false);
-    setSearchProduct('');
+      unitPrice: parseFloat(p.basePrice),
+      taxRate: parseFloat(p.tax),
+    }]);
+    setProductSearch('');
+    setProductResults([]);
+    setShowProductDropdown(false);
   };
 
-  const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+  const addBlankItem = () => {
+    setItems(prev => [...prev, {
+      productName: '',
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      taxRate: 18,
+    }]);
   };
 
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
+  const updateItem = (idx: number, field: keyof LineItem, value: any) => {
+    setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   };
 
-  const calculateTotals = () => {
-    let subtotal = 0;
-    let taxAmount = 0;
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
-    items.forEach(item => {
-      const lineSubtotal = item.quantity * item.unitPrice;
-      subtotal += lineSubtotal;
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
+  const discount = parseFloat(terms.discountAmount || '0') || 0;
+  const grandTotal = subtotal + taxTotal - discount;
 
-      if (item.product) {
-        const lineTax = lineSubtotal * (parseFloat(item.product.tax) / 100);
-        taxAmount += lineTax;
-      }
-    });
-
-    return { subtotal, taxAmount, total: subtotal + taxAmount };
-  };
-
-  const totals = calculateTotals();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
-    setLoading(true);
+    if (!selectedLead) { setError('Please select a won lead / customer.'); return; }
+    if (items.length === 0) { setError('Add at least one line item.'); return; }
+    if (items.some(i => !i.productName.trim())) { setError('All items must have a name.'); return; }
 
+    const customerId = selectedLead.linkedCustomerId;
+    if (!customerId) {
+      setError('This lead has no linked customer. Please link a customer to the lead first.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      if (!formData.dealId || !formData.customerId || items.length === 0) {
-        throw new Error('Deal, customer, and at least one product item are required');
-      }
-
       const token = localStorage.getItem('token');
       const res = await fetch('/api/quotations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          dealId: formData.dealId,
-          customerId: formData.customerId,
-          items: items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
+          leadId: selectedLead.id,
+          customerId,
+          items: items.map(i => ({
+            productId: i.productId,
+            productName: i.productName,
+            description: i.description,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            taxRate: i.taxRate,
           })),
-          notes: formData.notes || undefined,
+          ...terms,
+          discountAmount: discount,
         }),
       });
-
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Failed to create quotation');
+        const e = await res.json();
+        throw new Error(e.message || 'Failed to create quotation');
       }
-
-      const newQuotation = await res.json();
-      router.push(`/quotations/${newQuotation.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const q = await res.json();
+      router.push(`/quotations/${q.id}`);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Create New Quotation</h1>
-        <Link href="/quotations" className="btn btn-secondary">Back to Quotations</Link>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">New Quotation</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Create a quotation from a won lead</p>
+        </div>
+        <Link href="/quotations" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          ← Back
+        </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Form Section */}
-        <div className="col-span-2">
-          <div className="card p-8">
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                {error}
-              </div>
-            )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+      )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Deal & Customer */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Deal Information</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Deal *</label>
-                    <select
-                      value={formData.dealId}
-                      onChange={(e) => handleDealChange(e.target.value)}
-                      required
-                      className="w-full"
-                    >
-                      <option value="">Select a deal</option>
-                      {deals.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.dealName} - {d.customer.companyName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Customer</label>
-                    <input
-                      type="text"
-                      value={formData.customerId ? 'Selected' : ''}
-                      disabled
-                      className="w-full bg-gray-100"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Products */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Products & Items</h3>
-
-                {/* Add Product */}
-                <div className="mb-4 relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowProductSearch(!showProductSearch)}
-                    className="btn btn-secondary w-full"
-                  >
-                    + Add Product
-                  </button>
-
-                  {showProductSearch && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded shadow-lg z-10">
-                      <input
-                        type="text"
-                        placeholder="Search products..."
-                        value={searchProduct}
-                        onChange={(e) => {
-                          setSearchProduct(e.target.value);
-                        }}
-                        onBlur={() => setTimeout(() => fetchProducts(), 100)}
-                        className="w-full p-2 border-b"
-                        autoFocus
-                      />
-                      <div className="max-h-48 overflow-y-auto">
-                        {products.length === 0 ? (
-                          <p className="p-3 text-gray-500 text-sm">No products found</p>
-                        ) : (
-                          products.map(p => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => handleAddProduct(p)}
-                              className="w-full text-left p-3 hover:bg-gray-100 border-b text-sm"
-                            >
-                              <p className="font-medium">{p.name}</p>
-                              <p className="text-xs text-gray-600">{p.sku} - {formatCurrency(parseFloat(p.basePrice))}</p>
-                            </button>
-                          ))
-                        )}
-                      </div>
+      {/* Lead / Customer selection */}
+      <div className="bg-white rounded-xl border shadow-sm p-5">
+        <h2 className="text-base font-semibold text-gray-800 mb-4">Customer (from Won Lead)</h2>
+        <div ref={leadSearchRef} className="relative">
+          <input
+            type="text"
+            value={leadSearch}
+            onChange={e => { setLeadSearch(e.target.value); setShowLeadDropdown(true); setSelectedLead(null); }}
+            onFocus={() => setShowLeadDropdown(true)}
+            placeholder="Search by lead name or company…"
+            className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+          {showLeadDropdown && leadResults.length > 0 && (
+            <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              {leadResults.map(lead => (
+                <button
+                  key={lead.id}
+                  type="button"
+                  onMouseDown={() => selectLead(lead)}
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-50 last:border-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{lead.name}</p>
+                      <p className="text-xs text-gray-500">{lead.company}</p>
                     </div>
-                  )}
-                </div>
-
-                {/* Items Table */}
-                {items.length > 0 && (
-                  <div className="overflow-x-auto border border-gray-200 rounded mb-4">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Product</th>
-                          <th className="px-4 py-2 text-right w-20">Qty</th>
-                          <th className="px-4 py-2 text-right w-32">Unit Price</th>
-                          <th className="px-4 py-2 text-right w-32">Tax %</th>
-                          <th className="px-4 py-2 text-right w-32">Total</th>
-                          <th className="px-4 py-2 w-12"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, idx) => {
-                          const lineTotal = item.quantity * item.unitPrice;
-                          const taxPercent = item.product?.tax || '0';
-                          const lineTax = lineTotal * (parseFloat(taxPercent) / 100);
-                          const lineGrandTotal = lineTotal + lineTax;
-
-                          return (
-                            <tr key={idx} className="border-b">
-                              <td className="px-4 py-2">{item.product?.name}</td>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => handleItemChange(idx, 'quantity', parseInt(e.target.value))}
-                                  min="1"
-                                  className="w-full text-right"
-                                />
-                              </td>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="number"
-                                  value={item.unitPrice}
-                                  onChange={(e) => handleItemChange(idx, 'unitPrice', parseFloat(e.target.value))}
-                                  step="0.01"
-                                  className="w-full text-right"
-                                />
-                              </td>
-                              <td className="px-4 py-2 text-right">{taxPercent}%</td>
-                              <td className="px-4 py-2 text-right font-medium">{formatCurrency(lineGrandTotal)}</td>
-                              <td className="px-4 py-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveItem(idx)}
-                                  className="text-red-600 hover:text-red-800 text-sm"
-                                >
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="text-right">
+                      {lead.quoteValue && (
+                        <p className="text-xs font-semibold text-green-700">{fmt(Number(lead.quoteValue))}</p>
+                      )}
+                      {lead.linkedCustomer ? (
+                        <p className="text-xs text-blue-600">✓ {lead.linkedCustomer.companyName}</p>
+                      ) : (
+                        <p className="text-xs text-amber-500">⚠ No customer linked</p>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {showLeadDropdown && leadSearch.trim() && leadResults.length === 0 && (
+            <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border rounded-xl shadow-lg p-4 text-sm text-gray-400 text-center">
+              No won leads found for "{leadSearch}"
+            </div>
+          )}
+        </div>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Terms, conditions, special notes..."
-                  className="w-full h-20"
+        {selectedLead && (
+          <div className="mt-3 flex items-center gap-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">{selectedLead.name}</p>
+              <p className="text-xs text-gray-500">{selectedLead.company}</p>
+            </div>
+            {selectedLead.linkedCustomer ? (
+              <div className="text-right">
+                <p className="text-xs text-gray-400 uppercase font-medium">Customer</p>
+                <p className="text-sm font-medium text-blue-700">{selectedLead.linkedCustomer.companyName}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-amber-600 font-medium">⚠ Link a customer to this lead before creating a quotation</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Line Items */}
+      <div className="bg-white rounded-xl border shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-800">Line Items</h2>
+          <div className="flex gap-2">
+            {/* Product search */}
+            <div ref={productSearchRef} className="relative">
+              <input
+                type="text"
+                value={productSearch}
+                onChange={e => { setProductSearch(e.target.value); setShowProductDropdown(true); }}
+                onFocus={() => setShowProductDropdown(true)}
+                placeholder="Search product…"
+                className="border rounded-lg px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              {showProductDropdown && productResults.length > 0 && (
+                <div className="absolute z-20 top-full mt-1 right-0 w-72 bg-white border rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                  {productResults.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={() => addProduct(p)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0"
+                    >
+                      <p className="text-sm font-medium text-gray-900">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={addBlankItem}
+              className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+            >
+              + Blank Row
+            </button>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="text-center py-8 text-gray-400 text-sm border border-dashed rounded-lg">
+            Search for a product above or add a blank row
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Item / Product</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-20">Qty</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Unit Price ₹</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-24">GST %</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Amount</th>
+                  <th className="w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {items.map((item, idx) => {
+                  const lineAmt = item.quantity * item.unitPrice;
+                  const lineTax = lineAmt * (item.taxRate / 100);
+                  return (
+                    <tr key={idx}>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={item.productName}
+                          onChange={e => updateItem(idx, 'productName', e.target.value)}
+                          placeholder="Item name"
+                          className="w-full border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={e => updateItem(idx, 'description', e.target.value)}
+                          placeholder="Optional"
+                          className="w-full border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                          min="1"
+                          className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={item.unitPrice}
+                          onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          step="0.01"
+                          min="0"
+                          className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={item.taxRate}
+                          onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
+                          step="0.5"
+                          min="0"
+                          className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium text-gray-800">
+                        {fmt(lineAmt + lineTax)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => removeItem(idx)}
+                          className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Totals */}
+        {items.length > 0 && (
+          <div className="mt-4 flex justify-end">
+            <div className="w-72 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-medium">{fmt(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>GST / Tax</span>
+                <span className="font-medium">{fmt(taxTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Discount</span>
+                <input
+                  type="number"
+                  value={terms.discountAmount}
+                  onChange={e => setTerms(t => ({ ...t, discountAmount: e.target.value }))}
+                  placeholder="0"
+                  min="0"
+                  className="w-28 text-right border rounded px-2 py-1 text-sm"
                 />
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-4 pt-4 border-t border-gray-200">
-                <button
-                  type="submit"
-                  disabled={loading || items.length === 0}
-                  className="btn btn-primary flex-1"
-                >
-                  {loading ? 'Creating...' : 'Create Quotation'}
-                </button>
-                <Link href="/quotations" className="btn btn-secondary flex-1 text-center">
-                  Cancel
-                </Link>
+              <div className="flex justify-between border-t pt-2 text-base font-bold text-gray-900">
+                <span>Grand Total</span>
+                <span className="text-green-700">{fmt(grandTotal)}</span>
               </div>
-            </form>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Terms & Conditions */}
+      <div className="bg-white rounded-xl border shadow-sm p-5">
+        <h2 className="text-base font-semibold text-gray-800 mb-4">Terms &amp; Conditions</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Price Validity</label>
+            <input
+              type="text"
+              value={terms.priceValidity}
+              onChange={e => setTerms(t => ({ ...t, priceValidity: e.target.value }))}
+              placeholder="e.g. 30 days from date of quotation"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Taxes</label>
+            <input
+              type="text"
+              value={terms.taxDetails}
+              onChange={e => setTerms(t => ({ ...t, taxDetails: e.target.value }))}
+              placeholder="e.g. GST 18% extra as applicable"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Warranty</label>
+            <input
+              type="text"
+              value={terms.warranty}
+              onChange={e => setTerms(t => ({ ...t, warranty: e.target.value }))}
+              placeholder="e.g. 1 year onsite warranty"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">AMC Period</label>
+            <input
+              type="text"
+              value={terms.amcPeriod}
+              onChange={e => setTerms(t => ({ ...t, amcPeriod: e.target.value }))}
+              placeholder="e.g. 1 year post-warranty AMC"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Estimate</label>
+            <input
+              type="text"
+              value={terms.deliveryEstimate}
+              onChange={e => setTerms(t => ({ ...t, deliveryEstimate: e.target.value }))}
+              placeholder="e.g. 7–10 working days after PO"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms</label>
+            <input
+              type="text"
+              value={terms.paymentTerms}
+              onChange={e => setTerms(t => ({ ...t, paymentTerms: e.target.value }))}
+              placeholder="e.g. 50% advance, 50% on delivery"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Additional Notes</label>
+            <textarea
+              value={terms.notes}
+              onChange={e => setTerms(t => ({ ...t, notes: e.target.value }))}
+              placeholder="Any other terms, conditions, or notes…"
+              className="w-full border rounded-lg px-3 py-2 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
           </div>
         </div>
+      </div>
 
-        {/* Summary Sidebar */}
-        <div className="card p-6 h-fit">
-          <h3 className="text-lg font-semibold mb-4">Summary</h3>
-
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax:</span>
-              <span className="font-medium">{formatCurrency(totals.taxAmount)}</span>
-            </div>
-            <div className="border-t pt-3 flex justify-between">
-              <span className="font-semibold">Total:</span>
-              <span className="text-lg font-bold">{formatCurrency(totals.total)}</span>
-            </div>
-          </div>
-
-          <div className="mt-6 p-3 bg-blue-50 rounded border border-blue-200 text-xs text-blue-800">
-            <p className="font-semibold mb-1">Items: {items.length}</p>
-            <p>Add products from the list and adjust quantities and prices as needed.</p>
-          </div>
-        </div>
+      {/* Submit */}
+      <div className="flex gap-3 pb-6">
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Creating Quotation…' : 'Create Quotation'}
+        </button>
+        <Link href="/quotations"
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 text-center">
+          Cancel
+        </Link>
       </div>
     </div>
   );

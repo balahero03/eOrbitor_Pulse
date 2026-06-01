@@ -203,32 +203,39 @@ model Task {
 }
 
 model Quotation {
-  id              String          @id @default(cuid())
-  dealId          String
-  quotationNumber String          @unique
-  customerId      String
-  status          QuotationStatus @default(DRAFT)
-  issueDate       DateTime
-  expiryDate      DateTime?
-  items           Json
-  subtotal        Decimal
-  taxAmount       Decimal
-  discountAmount  Decimal
-  totalAmount     Decimal
-  notes           String?
-  pdfUrl          String?
-  sentAt          DateTime?
-  approvedById    String?
-  approvedAt      DateTime?
-  createdById     String
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  revision        Int             @default(1)
-  activityLogs    ActivityLog[]
-  orders          Order[]
-  createdBy       User            @relation(fields: [createdById], references: [id])
-  customer        Customer        @relation(fields: [customerId], references: [id])
-  deal            Deal            @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  id               String          @id @default(cuid())
+  dealId           String?
+  leadId           String?
+  quotationNumber  String          @unique
+  customerId       String
+  status           QuotationStatus @default(DRAFT)
+  issueDate        DateTime
+  expiryDate       DateTime?
+  priceValidity    String?
+  taxDetails       String?
+  warranty         String?
+  amcPeriod        String?
+  deliveryEstimate String?
+  paymentTerms     String?
+  items            Json
+  subtotal         Decimal
+  taxAmount        Decimal
+  discountAmount   Decimal
+  totalAmount      Decimal
+  notes            String?
+  pdfUrl           String?
+  sentAt           DateTime?
+  approvedById     String?
+  approvedAt       DateTime?
+  createdById      String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  revision         Int             @default(1)
+  activityLogs     ActivityLog[]
+  orders           Order[]
+  createdBy        User            @relation(fields: [createdById], references: [id])
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  deal             Deal?           @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([customerId])

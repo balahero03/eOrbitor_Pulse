@@ -58,11 +58,15 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 });
 
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
-  const { dealId, customerId, items, notes } = await req.json();
+  const {
+    leadId, customerId, items, notes,
+    priceValidity, taxDetails, warranty, amcPeriod, deliveryEstimate, paymentTerms,
+    discountAmount: discountInput,
+  } = await req.json();
 
-  if (!dealId || !customerId || !items || items.length === 0) {
+  if (!customerId || !items || items.length === 0) {
     return NextResponse.json(
-      { message: 'dealId, customerId, and items are required' },
+      { message: 'customerId and at least one item are required' },
       { status: 400 }
     );
   }
@@ -71,35 +75,45 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   let taxAmount = 0;
 
   for (const item of items) {
-    const product = await prisma.product.findUnique({ where: { id: item.productId } });
-    if (!product) {
-      return NextResponse.json({ message: `Product ${item.productId} not found` }, { status: 404 });
-    }
     const lineSubtotal = item.quantity * item.unitPrice;
     subtotal += lineSubtotal;
-    taxAmount += lineSubtotal * (Number(product.tax) / 100);
+    // Use per-item taxRate if provided, otherwise lookup product tax
+    if (item.taxRate !== undefined) {
+      taxAmount += lineSubtotal * (Number(item.taxRate) / 100);
+    } else if (item.productId) {
+      const product = await prisma.product.findUnique({ where: { id: item.productId } });
+      if (product) taxAmount += lineSubtotal * (Number(product.tax) / 100);
+    }
   }
 
-  const totalAmount = subtotal + taxAmount;
+  const discount = Number(discountInput || 0);
+  const totalAmount = subtotal + taxAmount - discount;
   const count = await prisma.quotation.count();
   const quotationNumber = `QT-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
 
   const quotation = await prisma.quotation.create({
     data: {
-      quotationNumber, dealId, customerId,
+      quotationNumber,
+      customerId,
+      ...(leadId && { leadId }),
       status: 'DRAFT',
       items,
       subtotal: subtotal.toString(),
       taxAmount: taxAmount.toString(),
-      discountAmount: '0',
+      discountAmount: discount.toString(),
       totalAmount: totalAmount.toString(),
       issueDate: new Date(),
-      notes,
+      ...(priceValidity && { priceValidity }),
+      ...(taxDetails && { taxDetails }),
+      ...(warranty && { warranty }),
+      ...(amcPeriod && { amcPeriod }),
+      ...(deliveryEstimate && { deliveryEstimate }),
+      ...(paymentTerms && { paymentTerms }),
+      ...(notes && { notes }),
       createdById: user.id,
     },
     include: {
       customer: { select: { companyName: true } },
-      deal: { select: { dealName: true } },
       createdBy: { select: { firstName: true, lastName: true } },
     },
   });
