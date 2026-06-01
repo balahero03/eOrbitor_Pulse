@@ -10,7 +10,6 @@ interface DashboardData {
     totalLeads: number;
     totalCustomers: number;
     activeDeals: number;
-    openTickets: number;
     overdueTasks: number;
   };
   pipeline: Array<{ stage: string; value: number; count: number }>;
@@ -70,7 +69,6 @@ export default function ReportsPage() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
           <p className="text-gray-600 text-sm font-medium">Open Tickets</p>
-          <p className="text-4xl font-bold text-red-700">{data.kpis.openTickets}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
           <p className="text-gray-600 text-sm font-medium">Overdue Tasks</p>

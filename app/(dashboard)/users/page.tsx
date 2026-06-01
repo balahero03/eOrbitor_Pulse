@@ -21,7 +21,7 @@ const ROLE_OPTIONS = [
   { value: 'ADMIN',         label: 'Admin',       desc: 'Full access to everything' },
   { value: 'SALES_MANAGER', label: 'Manager',     desc: 'Sees team leads & reports' },
   { value: 'SALES_EXEC',    label: 'Salesperson', desc: 'Sees own leads only' },
-  { value: 'SUPPORT',       label: 'Support',     desc: 'Support tickets access' },
+  { value: 'SUPPORT',       label: 'Support',     desc: 'Support staff' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {

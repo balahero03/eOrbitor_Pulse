@@ -34,8 +34,6 @@ model User {
   quotations         Quotation[]
   assignedTasks      Task[]            @relation("assignedTo")
   tasks              Task[]
-  assignedTickets    Ticket[]          @relation("assignedTo")
-  createdTickets     Ticket[]          @relation("createdBy")
   timeLogs              TimeLog[]
   activityUnlockRequests ActivityUnlockRequest[]
   manager               User?             @relation("UserManager", fields: [managerId], references: [id])
@@ -110,7 +108,6 @@ model Customer {
   leads            Lead[]
   orders           Order[]
   quotations       Quotation[]
-  tickets          Ticket[]
 
   @@index([gstNumber])
   @@index([createdAt])
@@ -153,7 +150,6 @@ model Deal {
   orders            Order[]
   quotations        Quotation[]
   tasks             Task[]
-  tickets           Ticket[]
 
   @@index([stage])
   @@index([customerId])
@@ -339,33 +335,6 @@ model VendorProduct {
   @@index([vendorId])
 }
 
-model Ticket {
-  id                         String         @id @default(cuid())
-  ticketNumber               String         @unique
-  customerId                 String
-  dealId                     String?
-  type                       TicketType
-  priority                   TicketPriority
-  status                     TicketStatus   @default(OPEN)
-  subject                    String
-  description                String
-  assignedToId               String
-  createdAt                  DateTime       @default(now())
-  resolvedAt                 DateTime?
-  closedAt                   DateTime?
-  slaBreached                Boolean        @default(false)
-  resolutionNotes            String?
-  customerSatisfactionRating Int?
-  createdById                String
-  assignedTo                 User           @relation("assignedTo", fields: [assignedToId], references: [id])
-  createdBy                  User           @relation("createdBy", fields: [createdById], references: [id])
-  customer                   Customer       @relation(fields: [customerId], references: [id])
-  deal                       Deal?          @relation(fields: [dealId], references: [id])
-
-  @@index([status])
-  @@index([assignedToId])
-  @@index([customerId])
-}
 
 model ActivityLog {
   id          String         @id @default(cuid())
@@ -579,25 +548,6 @@ enum PaymentStatus {
   COMPLETED
 }
 
-enum TicketType {
-  TECHNICAL
-  BILLING
-  GENERAL
-}
-
-enum TicketPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum TicketStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
-}
 
 enum ActivityAction {
   CREATE
@@ -616,7 +566,6 @@ enum NotificationType {
   QUOTATION_APPROVED
   ORDER_CONFIRMED
   PAYMENT_RECEIVED
-  TICKET_ASSIGNED
 }
 
 model ActivityUnlockRequest {

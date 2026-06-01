@@ -43,13 +43,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    group: 'Support',
-    items: [
-      { label: 'Support Tickets', href: '/support', icon: '🆘', roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
-      { label: 'My Tickets', href: '/support/my-tickets', icon: '🎟️', roles: ['SALES_EXEC', 'SALES_MANAGER', 'VIEWER'] },
-    ],
-  },
-  {
     group: 'Tasks & Activity',
     items: [
       { label: 'Tasks', href: '/tasks', icon: '✓', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },

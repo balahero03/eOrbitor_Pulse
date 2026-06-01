@@ -32,8 +32,8 @@ const STAGE_COLORS: Record<string, string> = {
 
 export default function AdminDashboard({ data }: { data: any }) {
   const { kpis, pipeline, recentActivity } = data;
-  const revenueGrowth = kpis.lastMonthRevenue > 0
-    ? (((kpis.monthRevenue - kpis.lastMonthRevenue) / kpis.lastMonthRevenue) * 100).toFixed(1)
+  const revenueGrowth = (kpis?.lastMonthRevenue && kpis.lastMonthRevenue > 0)
+    ? (((kpis?.monthRevenue - kpis.lastMonthRevenue) / kpis.lastMonthRevenue) * 100).toFixed(1)
     : null;
 
   return (
@@ -54,36 +54,36 @@ export default function AdminDashboard({ data }: { data: any }) {
       </div>
 
       {/* KPI Grid */}
+      {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total Leads" value={fmtNum(kpis.totalLeads)} color="text-blue-600" href="/leads" />
-        <KpiCard label="Total Customers" value={fmtNum(kpis.totalCustomers)} color="text-green-600" href="/customers" />
-        <KpiCard label="Active Deals" value={fmtNum(kpis.activeDeals)} color="text-purple-600" href="/pipeline" />
-        <KpiCard label="Pipeline Value" value={fmt(kpis.dealsPipelineValue)} color="text-indigo-600" />
+        <KpiCard label="Total Leads" value={fmtNum(kpis?.totalLeads || 0)} color="text-blue-600" href="/leads" />
+        <KpiCard label="Total Customers" value={fmtNum(kpis?.totalCustomers || 0)} color="text-green-600" href="/customers" />
+        <KpiCard label="Active Deals" value={fmtNum(kpis?.activeDeals || 0)} color="text-purple-600" href="/pipeline" />
+        <KpiCard label="Pipeline Value" value={fmt(kpis?.dealsPipelineValue || 0)} color="text-indigo-600" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="This Month Revenue"
-          value={fmt(kpis.monthRevenue)}
+          value={fmt(kpis?.monthRevenue || 0)}
           sub={revenueGrowth ? `${revenueGrowth}% vs last month` : undefined}
           color={revenueGrowth && Number(revenueGrowth) >= 0 ? 'text-green-600' : 'text-red-600'}
         />
-        <KpiCard label="Open Tickets" value={kpis.openTickets} color="text-red-600" href="/support" />
-        <KpiCard label="Overdue Tasks" value={kpis.overdueTasks} color="text-orange-600" href="/tasks" />
-        <KpiCard label="Pending Approvals" value={kpis.pendingApprovals} color="text-yellow-600" href="/approvals" />
+        <KpiCard label="Overdue Tasks" value={kpis?.overdueTasks || 0} color="text-orange-600" href="/tasks" />
+        <KpiCard label="Pending Approvals" value={kpis?.pendingApprovals || 0} color="text-yellow-600" href="/approvals" />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <KpiCard label="Active Users" value={kpis.totalUsers} color="text-gray-700" href="/users" />
+        <KpiCard label="Active Users" value={kpis?.totalUsers || 0} color="text-gray-700" href="/users" />
       </div>
 
       {/* Pipeline breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border p-5 shadow-sm">
           <h2 className="text-base font-semibold text-gray-800 mb-4">Pipeline by Stage</h2>
-          {pipeline.length === 0 ? (
+          {(pipeline || []).length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">No deals in pipeline yet</p>
           ) : (
             <div className="space-y-3">
-              {pipeline.map((p: any) => (
+              {(pipeline || []).map((p: any) => (
                 <div key={p.stage} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STAGE_COLORS[p.stage] || 'bg-gray-100 text-gray-600'}`}>
