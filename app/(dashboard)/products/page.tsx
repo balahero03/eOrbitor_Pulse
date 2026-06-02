@@ -8,6 +8,7 @@ interface Product {
   sku: string;
   name: string;
   category?: string;
+  oemName?: string;
   description?: string;
   basePrice: string;
   tax: string;
@@ -20,6 +21,7 @@ interface ProductForm {
   sku: string;
   name: string;
   category: string;
+  oemName: string;
   description: string;
   basePrice: string;
   tax: string;
@@ -30,7 +32,7 @@ interface ProductForm {
 }
 
 const emptyForm = (): ProductForm => ({
-  sku: '', name: '', category: '', description: '',
+  sku: '', name: '', category: '', oemName: '', description: '',
   basePrice: '', tax: '18',
   initialQuantity: '0', reorderLevel: '', warehouseLocation: '',
   attributes: [],
@@ -91,6 +93,16 @@ function ProductModal({
                 <option value="">Select Solution Area</option>
                 {SOLUTION_AREAS.map(sa => (
                   <option key={sa.id} value={sa.id}>{sa.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">OEM Partner</label>
+              <select value={form.oemName} onChange={e => set('oemName', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <option value="">Select OEM (Optional)</option>
+                {OEM_LIST.map(oem => (
+                  <option key={oem} value={oem}>{oem}</option>
                 ))}
               </select>
             </div>
@@ -304,7 +316,7 @@ export default function ProductsPage() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            name: form.name, category: form.category || null,
+            name: form.name, category: form.category || null, oemName: form.oemName || null,
             description: form.description || null,
             basePrice: form.basePrice, tax: form.tax,
             ...(Object.keys(attrs).length && { attributes: attrs }),
@@ -319,7 +331,7 @@ export default function ProductsPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             sku: form.sku, name: form.name,
-            category: form.category || null,
+            category: form.category || null, oemName: form.oemName || null,
             description: form.description || null,
             basePrice: form.basePrice, tax: form.tax,
             initialQuantity: form.initialQuantity,
@@ -355,7 +367,7 @@ export default function ProductsPage() {
 
   const formFromProduct = (p: Product): ProductForm => ({
     sku: p.sku, name: p.name,
-    category: p.category || '', description: p.description || '',
+    category: p.category || '', oemName: p.oemName || '', description: p.description || '',
     basePrice: String(p.basePrice), tax: String(p.tax),
     initialQuantity: '0',
     reorderLevel: String(p.inventory?.reorderLevel || ''),
@@ -437,7 +449,7 @@ export default function ProductsPage() {
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase w-12">Sr.</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">SKU</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Description / Name</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Category</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Category / OEM</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Unit Price</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">GST %</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Price + Tax</th>
@@ -477,7 +489,21 @@ export default function ProductsPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-gray-500 text-xs">{p.category || '—'}</td>
+                        <td className="px-4 py-3.5 text-gray-500 text-xs">
+                          <div className="space-y-1">
+                            {p.category && (
+                              <div className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded inline-block border border-blue-100">
+                                {p.category}
+                              </div>
+                            )}
+                            {p.oemName && (
+                              <div className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded inline-block border border-purple-100 ml-1">
+                                {p.oemName}
+                              </div>
+                            )}
+                            {!p.category && !p.oemName && <span className="text-gray-300">—</span>}
+                          </div>
+                        </td>
                         <td className="px-4 py-3.5 text-right font-semibold text-gray-800">{fmt(unitPrice)}</td>
                         <td className="px-4 py-3.5 text-center">
                           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium border border-blue-100">

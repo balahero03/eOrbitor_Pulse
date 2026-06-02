@@ -57,7 +57,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 });
 
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
-  const { quotationId, customerId, dealId, poNumber, poDate, totalAmount } = await req.json();
+  const { quotationId, customerId, dealId, poNumber, poDate, totalAmount, paymentMode, paymentRemarks, paymentProofUrl, amountPaid } = await req.json();
 
   if (!customerId || !totalAmount) {
     return NextResponse.json({ message: 'customerId and totalAmount are required' }, { status: 400 });
@@ -65,6 +65,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const count = await prisma.order.count();
   const orderNumber = `ORD-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
+
+  const paidAmt = parseFloat(amountPaid) || 0;
+  const totalAmt = parseFloat(totalAmount);
+  const paymentStatus = paidAmt >= totalAmt && paidAmt > 0 ? 'COMPLETED' : paidAmt > 0 ? 'PARTIAL' : 'PENDING';
 
   const order = await prisma.order.create({
     data: {
@@ -75,9 +79,12 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       poNumber: poNumber || null,
       poDate: poDate ? new Date(poDate) : null,
       status: 'PENDING',
-      paymentStatus: 'PENDING',
-      totalAmount: totalAmount.toString(),
-      amountPaid: '0',
+      paymentStatus,
+      totalAmount: totalAmt.toString(),
+      amountPaid: paidAmt.toString(),
+      paymentMode: paymentMode || null,
+      paymentRemarks: paymentRemarks || null,
+      paymentProofUrl: paymentProofUrl || null,
     },
     include: {
       customer: { select: { companyName: true } },

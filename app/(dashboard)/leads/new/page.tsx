@@ -22,9 +22,11 @@ export default function NewLeadPage() {
     company: '',
     email: '',
     phone: '',
+    address: '',
     source: 'EMAIL',
     remarks: '',
     assignedToId: '',
+    expectedClosureDate: '',
   });
 
   useEffect(() => {
@@ -48,11 +50,13 @@ export default function NewLeadPage() {
     try {
       const token = localStorage.getItem('token');
       const payload: any = { ...formData };
-      
+
       if (!payload.email) delete payload.email;
       if (!payload.phone) delete payload.phone;
+      if (!payload.address) delete payload.address;
       if (!payload.remarks) delete payload.remarks;
       if (!payload.assignedToId) delete payload.assignedToId;
+      if (!payload.expectedClosureDate) delete payload.expectedClosureDate;
 
       const res = await fetch('/api/leads', {
         method: 'POST',
@@ -147,7 +151,7 @@ export default function NewLeadPage() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Contact Info (Optional)</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Contact Details (Optional)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
@@ -171,6 +175,32 @@ export default function NewLeadPage() {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Address</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Complete office address"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Timeline</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">Expected Closure Date</label>
+              <input
+                type="date"
+                name="expectedClosureDate"
+                value={formData.expectedClosureDate}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              />
             </div>
           </div>
 

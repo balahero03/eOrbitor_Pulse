@@ -45,7 +45,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     throw new ForbiddenError('Only admins can create products');
   }
 
-  const { sku, name, category, description, basePrice, tax, initialQuantity, reorderLevel, warehouseLocation, attributes } = await req.json();
+  const { sku, name, category, oemName, description, basePrice, tax, initialQuantity, reorderLevel, warehouseLocation, attributes } = await req.json();
 
   if (!sku || !name || !basePrice) {
     return NextResponse.json({ message: 'SKU, name, and basePrice are required' }, { status: 400 });
@@ -60,6 +60,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     data: {
       sku, name,
       category: category || null,
+      oemName: oemName || null,
       description: description || null,
       basePrice: parseFloat(basePrice),
       tax: parseFloat(tax) || 0,

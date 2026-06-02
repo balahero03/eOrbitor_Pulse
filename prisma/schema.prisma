@@ -255,13 +255,16 @@ model Order {
   poDate        DateTime?
   status        OrderStatus   @default(PENDING)
   deliveryDate  DateTime?
-  invoiceUrl    String?
-  paymentStatus PaymentStatus @default(PENDING)
-  totalAmount   Decimal
-  amountPaid    Decimal       @default(0)
-  createdAt     DateTime      @default(now())
-  deliveredAt   DateTime?
-  updatedAt     DateTime      @updatedAt
+  invoiceUrl      String?
+  paymentStatus   PaymentStatus @default(PENDING)
+  totalAmount     Decimal
+  amountPaid      Decimal       @default(0)
+  paymentMode     String?
+  paymentRemarks  String?
+  paymentProofUrl String?
+  createdAt       DateTime      @default(now())
+  deliveredAt     DateTime?
+  updatedAt       DateTime      @updatedAt
   customer      Customer      @relation(fields: [customerId], references: [id])
   deal          Deal?         @relation(fields: [dealId], references: [id])
   quotation     Quotation?    @relation(fields: [quotationId], references: [id])
@@ -276,6 +279,7 @@ model Product {
   sku            String          @unique
   name           String
   category       String?
+  oemName        String?
   description    String?
   basePrice      Decimal
   tax            Decimal

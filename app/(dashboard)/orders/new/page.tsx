@@ -1,136 +1,144 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface Quotation {
+interface WonLead {
+  id: string;
+  name: string;
+  company: string;
+  quoteValue?: string;
+  linkedCustomerId?: string;
+}
+
+interface LeadQuotation {
   id: string;
   quotationNumber: string;
-  customerId: string;
-  customer: { companyName: string };
-  dealId: string;
-  deal: { dealName: string };
   totalAmount: string;
   status: string;
 }
 
-interface Deal {
-  id: string;
-  dealName: string;
-  customerId: string;
-  customer: { companyName: string };
-  dealValue: string;
-}
+const PAYMENT_MODES = ['Bank Transfer', 'Cheque', 'Cash', 'UPI', 'NEFT', 'RTGS', 'DD', 'Credit Card', 'Other'];
 
 export default function NewOrderPage() {
   const router = useRouter();
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [wonLeads, setWonLeads] = useState<WonLead[]>([]);
+  const [leadQuotations, setLeadQuotations] = useState<LeadQuotation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [orderType, setOrderType] = useState<'quotation' | 'deal'>('quotation');
+  const [proofFile, setProofFile] = useState<{ name: string; dataUrl: string } | null>(null);
 
   const [formData, setFormData] = useState({
+    leadId: '',
     quotationId: '',
-    dealId: '',
-    customerId: '',
     poNumber: '',
     poDate: '',
     totalAmount: '',
+    amountPaid: '',
+    paymentMode: '',
+    paymentRemarks: '',
   });
 
+  const selectedLead = wonLeads.find(l => l.id === formData.leadId);
+  const total = parseFloat(formData.totalAmount) || 0;
+  const paid = parseFloat(formData.amountPaid) || 0;
+  const balance = total - paid;
+  const paymentStatus = paid >= total && paid > 0 ? 'COMPLETED' : paid > 0 ? 'PARTIAL' : 'PENDING';
+
+  useEffect(() => { fetchWonLeads(); }, []);
+
   useEffect(() => {
-    fetchQuotations();
-    fetchDeals();
-  }, []);
+    if (formData.leadId) {
+      fetchLeadQuotations(formData.leadId);
+      const lead = wonLeads.find(l => l.id === formData.leadId);
+      if (lead?.quoteValue) {
+        setFormData(prev => ({ ...prev, totalAmount: String(lead.quoteValue), quotationId: '' }));
+      }
+    } else {
+      setLeadQuotations([]);
+    }
+  }, [formData.leadId]);
 
-  const fetchQuotations = async () => {
+  useEffect(() => {
+    if (formData.quotationId) {
+      const q = leadQuotations.find(q => q.id === formData.quotationId);
+      if (q) setFormData(prev => ({ ...prev, totalAmount: q.totalAmount }));
+    }
+  }, [formData.quotationId]);
+
+  const fetchWonLeads = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/quotations?status=ACCEPTED&limit=1000', {
+      const res = await fetch('/api/leads/won?limit=200', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) throw new Error('Failed to fetch quotations');
-
-      const data = await res.json();
-      setQuotations(data.quotations);
-    } catch (err) {
-      console.error(err);
-    }
+      if (res.ok) {
+        const data = await res.json();
+        setWonLeads(data.customers || []);
+      }
+    } catch (err) { console.error(err); }
   };
 
-  const fetchDeals = async () => {
+  const fetchLeadQuotations = async (leadId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/deals?limit=1000', {
+      const res = await fetch(`/api/quotations?leadId=${leadId}&limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) throw new Error('Failed to fetch deals');
-
-      const data = await res.json();
-      setDeals(data.deals);
-    } catch (err) {
-      console.error(err);
-    }
+      if (res.ok) {
+        const data = await res.json();
+        setLeadQuotations(data.quotations || []);
+      }
+    } catch (err) { console.error(err); }
   };
 
-  const handleQuotationChange = (quotationId: string) => {
-    const quotation = quotations.find(q => q.id === quotationId);
-    if (quotation) {
-      setFormData({
-        ...formData,
-        quotationId,
-        customerId: quotation.customerId,
-        dealId: quotation.dealId,
-        totalAmount: quotation.totalAmount,
-      });
-    }
-  };
-
-  const handleDealChange = (dealId: string) => {
-    const deal = deals.find(d => d.id === dealId);
-    if (deal) {
-      setFormData({
-        ...formData,
-        dealId,
-        customerId: deal.customerId,
-        totalAmount: deal.dealValue,
-      });
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('File must be under 5 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => setProofFile({ name: file.name, dataUrl: reader.result as string });
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!formData.leadId) { setError('Please select a customer'); return; }
+    if (!formData.totalAmount) { setError('Order total amount is required'); return; }
+
+    setLoading(true);
     try {
-      if (!formData.customerId || !formData.totalAmount) {
-        throw new Error('Customer and total amount are required');
+      const lead = wonLeads.find(l => l.id === formData.leadId);
+      const customerId = lead?.linkedCustomerId;
+      if (!customerId) {
+        setError('This lead does not have a linked customer record. Contact support.');
+        return;
       }
 
       const token = localStorage.getItem('token');
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          customerId,
           quotationId: formData.quotationId || undefined,
-          customerId: formData.customerId,
-          dealId: formData.dealId || undefined,
           poNumber: formData.poNumber || undefined,
           poDate: formData.poDate || undefined,
           totalAmount: parseFloat(formData.totalAmount),
+          amountPaid: parseFloat(formData.amountPaid) || 0,
+          paymentMode: formData.paymentMode || undefined,
+          paymentRemarks: formData.paymentRemarks || undefined,
+          paymentProofUrl: proofFile?.dataUrl || undefined,
         }),
       });
 
@@ -148,151 +156,249 @@ export default function NewOrderPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(parseFloat(value) || 0);
+  const fmt = (v: string | number | undefined) =>
+    v !== undefined && v !== ''
+      ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
+      : '';
+
+  const statusColor: Record<string, string> = {
+    PENDING: 'bg-yellow-100 text-yellow-700',
+    PARTIAL: 'bg-blue-100 text-blue-700',
+    COMPLETED: 'bg-green-100 text-green-700',
   };
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Create New Order</h1>
-        <Link href="/orders" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Orders</Link>
+        <Link href="/orders" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          Back to Orders
+        </Link>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
-          </div>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Order Type Selection */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Order Type</h3>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="quotation"
-                  checked={orderType === 'quotation'}
-                  onChange={(e) => {
-                    setOrderType(e.target.value as 'quotation' | 'deal');
-                    setFormData({ ...formData, dealId: '', totalAmount: '' });
-                  }}
-                />
-                <span>From Quotation</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="deal"
-                  checked={orderType === 'deal'}
-                  onChange={(e) => {
-                    setOrderType(e.target.value as 'quotation' | 'deal');
-                    setFormData({ ...formData, quotationId: '', totalAmount: '' });
-                  }}
-                />
-                <span>From Deal</span>
-              </label>
-            </div>
-          </div>
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          <strong>Note:</strong> Orders are auto-created when a lead is won. Use this form to create additional orders for existing customers.
+        </div>
 
-          {/* Deal/Quotation Selection */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Customer */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">
-              {orderType === 'quotation' ? 'Quotation' : 'Deal'} Details
-            </h3>
-            <div className="space-y-4">
-              {orderType === 'quotation' ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Quotation *</label>
-                    <select
-                      value={formData.quotationId}
-                      onChange={(e) => handleQuotationChange(e.target.value)}
-                      className="w-full"
-                      required
-                    >
-                      <option value="">Select a quotation</option>
-                      {quotations.map(q => (
-                        <option key={q.id} value={q.id}>
-                          {q.quotationNumber} - {q.customer.companyName} ({formatCurrency(q.totalAmount)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Deal *</label>
-                    <select
-                      value={formData.dealId}
-                      onChange={(e) => handleDealChange(e.target.value)}
-                      className="w-full"
-                      required
-                    >
-                      <option value="">Select a deal</option>
-                      {deals.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.dealName} - {d.customer.companyName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
+            <h3 className="text-lg font-semibold mb-4 border-b pb-2">Customer</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">Select Customer *</label>
+              <select
+                name="leadId"
+                value={formData.leadId}
+                onChange={handleChange}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                required
+              >
+                <option value="">— Select a won customer —</option>
+                {wonLeads.map(lead => (
+                  <option key={lead.id} value={lead.id}>
+                    {lead.company} — {lead.name}{lead.quoteValue ? ` (${fmt(lead.quoteValue)})` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedLead && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                  <strong>{selectedLead.company}</strong> · Contact: {selectedLead.name}
+                  {selectedLead.quoteValue && <span> · Won Value: {fmt(selectedLead.quoteValue)}</span>}
+                </div>
               )}
             </div>
           </div>
 
+          {/* Quotation */}
+          {formData.leadId && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 border-b pb-2">Link to Quotation (Optional)</h3>
+              {leadQuotations.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No quotations found for this customer</p>
+              ) : (
+                <select
+                  name="quotationId"
+                  value={formData.quotationId}
+                  onChange={handleChange}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="">— None (manual order) —</option>
+                  {leadQuotations.map(q => (
+                    <option key={q.id} value={q.id}>
+                      {q.quotationNumber} · {fmt(q.totalAmount)} · {q.status}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           {/* PO Details */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">PO Details</h3>
+            <h3 className="text-lg font-semibold mb-4 border-b pb-2">PO Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">PO Number</label>
+                <input
+                  type="text"
+                  name="poNumber"
+                  value={formData.poNumber}
+                  onChange={handleChange}
+                  placeholder="PO-2026-001"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">PO Date</label>
+                <input
+                  type="date"
+                  name="poDate"
+                  value={formData.poDate}
+                  onChange={handleChange}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Order Amount */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 border-b pb-2">Order Amount</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">Total Order Amount (₹) *</label>
+              <input
+                type="number"
+                name="totalAmount"
+                value={formData.totalAmount}
+                onChange={handleChange}
+                placeholder="0"
+                min="0"
+                step="0.01"
+                required
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              {formData.totalAmount && (
+                <p className="text-sm font-semibold text-gray-700 mt-1">{fmt(formData.totalAmount)}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 border-b pb-2">Payment Details</h3>
             <div className="space-y-4">
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">PO Number</label>
+                  <label className="block text-sm font-medium mb-1">Amount Paid (₹)</label>
                   <input
-                    type="text"
-                    name="poNumber"
-                    value={formData.poNumber}
+                    type="number"
+                    name="amountPaid"
+                    value={formData.amountPaid}
                     onChange={handleChange}
-                    placeholder="PO-2026-001"
+                    placeholder="0"
+                    min="0"
+                    step="0.01"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-1">PO Date</label>
-                  <input
-                    type="date"
-                    name="poDate"
-                    value={formData.poDate}
+                  <label className="block text-sm font-medium mb-1">Payment Mode</label>
+                  <select
+                    name="paymentMode"
+                    value={formData.paymentMode}
                     onChange={handleChange}
-                  />
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">— Select mode —</option>
+                    {PAYMENT_MODES.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
+              {/* Payment summary */}
+              {formData.totalAmount && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 uppercase font-medium">Total</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{fmt(total)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 uppercase font-medium">Paid</p>
+                    <p className="text-sm font-bold text-green-700 mt-1">{fmt(paid)}</p>
+                  </div>
+                  <div className={`rounded-lg p-3 text-center ${balance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase font-medium">Balance</p>
+                    <p className={`text-sm font-bold mt-1 ${balance > 0 ? 'text-red-600' : 'text-green-700'}`}>{fmt(balance)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment status badge */}
+              {formData.totalAmount && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-600">Payment Status:</span>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${statusColor[paymentStatus]}`}>
+                    {paymentStatus}
+                  </span>
+                </div>
+              )}
+
+              {/* Payment Proof */}
               <div>
-                <label className="block text-sm font-medium mb-1">Order Total Amount *</label>
+                <label className="block text-sm font-medium mb-1">Payment Proof (Optional)</label>
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  {proofFile ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-green-700">
+                      <span>📎</span>
+                      <span className="font-medium">{proofFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setProofFile(null); if (fileRef.current) fileRef.current.value = ''; }}
+                        className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">
+                      <p className="text-2xl mb-1">📄</p>
+                      <p className="text-sm font-medium">Click to upload payment proof</p>
+                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF — max 5 MB</p>
+                    </div>
+                  )}
+                </div>
                 <input
-                  type="number"
-                  name="totalAmount"
-                  value={formData.totalAmount}
-                  onChange={handleChange}
-                  placeholder="0"
-                  step="0.01"
-                  required
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
-                {formData.totalAmount && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    {formatCurrency(formData.totalAmount)}
-                  </p>
-                )}
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Payment Remarks</label>
+                <textarea
+                  name="paymentRemarks"
+                  value={formData.paymentRemarks}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="e.g. Partial advance received via NEFT, balance due by 30 Jun..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
               </div>
             </div>
           </div>
