@@ -12,6 +12,7 @@ interface LeadDetail {
   phone?: string;
   company: string;
   address?: string;
+  gstNumber?: string;
   source: string;
   status: string;
   leadScore: number;
@@ -1519,7 +1520,7 @@ export default function LeadDetailPage() {
   const [editData, setEditData] = useState({
     qualificationNotes: '', remarks: '',
     quoteNo: '', quoteValue: '', rfqDate: '', followUpDate: '', expectedClosureDate: '',
-    address: '',
+    address: '', gstNumber: '',
     solutionAreas: [] as string[],
     oemNames: [] as string[],
     presalesIds: [] as string[],
@@ -1564,6 +1565,7 @@ export default function LeadDetailPage() {
         followUpDate: data.followUpDate ? data.followUpDate.split('T')[0] : '',
         expectedClosureDate: data.expectedClosureDate ? data.expectedClosureDate.split('T')[0] : '',
         address: data.address || '',
+        gstNumber: data.gstNumber || '',
         solutionAreas: data.solutionAreas || [],
         oemNames: data.oemNames || [],
         presalesIds: data.presalesIds || [],
@@ -1872,6 +1874,7 @@ export default function LeadDetailPage() {
       const payload = {
         status: 'PROSPECT',
         address: editData.address || '',
+        gstNumber: editData.gstNumber || '',
         expectedClosureDate: editData.expectedClosureDate || null,
         solutionAreas: editData.solutionAreas || [],
         oemNames: editData.oemNames || [],
@@ -2530,6 +2533,18 @@ export default function LeadDetailPage() {
                   defaultValue={lead.address || ''}
                   onChange={e => setEditData({ ...editData, address: e.target.value })}
                   placeholder="Full address of the customer"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* GST Number */}
+              <div>
+                <label className="block text-sm font-medium mb-1">GST Number</label>
+                <input
+                  type="text"
+                  value={editData.gstNumber || ''}
+                  onChange={e => setEditData({ ...editData, gstNumber: e.target.value })}
+                  placeholder="Enter GST registration number (e.g., 27AABCU9603R1Z5)"
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                 />
               </div>

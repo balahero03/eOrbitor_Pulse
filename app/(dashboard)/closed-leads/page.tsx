@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const TABS = [
   { key: '',        label: 'All Closed',   icon: '📊' },
@@ -24,6 +25,7 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function ClosedLeadsPage() {
+  const router = useRouter();
   const [tab, setTab] = useState('');
   const [leads, setLeads] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -193,14 +195,13 @@ export default function ClosedLeadsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Closed By</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Closed On</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Reason</th>
-                    <th className="px-4 py-3 w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {leads.map(lead => {
                     const meta = STATUS_META[lead.status] ?? { label: lead.status, icon: '', style: 'bg-gray-100 text-gray-600 border-gray-200' };
                     return (
-                      <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={lead.id} onClick={() => router.push(`/leads/${lead.id}`)} className="hover:bg-blue-50 transition-colors cursor-pointer">
                         <td className="px-5 py-3.5 font-medium text-gray-900">{lead.name}</td>
                         <td className="px-4 py-3.5 text-gray-600">{lead.company}</td>
                         <td className="px-4 py-3.5">
@@ -221,11 +222,6 @@ export default function ClosedLeadsPage() {
                           <span className="truncate block" title={lead.closureReason || ''}>
                             {lead.closureReason || <span className="text-gray-300">—</span>}
                           </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <Link href={`/leads/${lead.id}`} className="text-xs text-blue-600 hover:underline font-medium">
-                            View
-                          </Link>
                         </td>
                       </tr>
                     );
