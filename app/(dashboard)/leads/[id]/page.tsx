@@ -267,16 +267,23 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
     <div className="bg-white rounded-xl border p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-800">📄 Quotations</h2>
-        {canEdit && !showCreateForm && (
-          <button onClick={() => setShowCreateForm(true)}
-            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
-            + New Quotation
-          </button>
-        )}
-        {showCreateForm && (
-          <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); }}
-            className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-        )}
+        <div className="flex items-center gap-2">
+          {canEdit && !showCreateForm && (
+            <>
+              <Link href="/products" className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+                + Add Product
+              </Link>
+              <button onClick={() => setShowCreateForm(true)}
+                className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+                + New Quotation
+              </button>
+            </>
+          )}
+          {showCreateForm && (
+            <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); }}
+              className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+          )}
+        </div>
       </div>
 
       {/* Create Form */}
