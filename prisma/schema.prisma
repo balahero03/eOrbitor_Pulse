@@ -387,6 +387,7 @@ model ApprovalRequest {
   type            ApprovalType
   entityType      String
   entityId        String
+  leadId          String?
   requestedBy     String
   approvedBy      String?
   status          ApprovalStatus @default(PENDING)
@@ -395,7 +396,7 @@ model ApprovalRequest {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   approvedByUser  User?          @relation("ApprovalApprovedBy", fields: [approvedBy], references: [id])
-  lead            Lead           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  lead            Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
   requestedByUser User           @relation("ApprovalRequestedBy", fields: [requestedBy], references: [id])
 
   @@index([status])
@@ -590,6 +591,7 @@ model ActivityUnlockRequest {
 enum ApprovalType {
   LEAD_DELETE
   LEAD_REOPEN
+  ORDER_DELETE
 }
 
 enum ApprovalStatus {

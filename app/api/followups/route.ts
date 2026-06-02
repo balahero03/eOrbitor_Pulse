@@ -10,8 +10,11 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const type = searchParams.get('type');
   const fromDate = searchParams.get('fromDate');
   const toDate = searchParams.get('toDate');
+  const search = searchParams.get('search');
+  const status = searchParams.get('status'); // 'pending' | 'completed' | 'overdue'
 
   const where: any = {};
+  const andConditions: any[] = [];
 
   // Role-based scoping
   if (user.role === 'SALES_EXEC') {
@@ -30,9 +33,26 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (fromDate || toDate) {
     where.scheduledDate = {
       ...(fromDate && { gte: new Date(fromDate) }),
-      ...(toDate && { lte: new Date(toDate) }),
+      ...(toDate && { lte: new Date(toDate + 'T23:59:59') }),
     };
   }
+  if (status === 'completed') where.actualDate = { not: null };
+  if (status === 'pending') { where.actualDate = null; }
+  if (status === 'overdue') {
+    where.actualDate = null;
+    andConditions.push({ scheduledDate: { lt: new Date() } });
+  }
+  if (search) {
+    andConditions.push({
+      OR: [
+        { deal: { customer: { companyName: { contains: search, mode: 'insensitive' } } } },
+        { lead: { name: { contains: search, mode: 'insensitive' } } },
+        { lead: { company: { contains: search, mode: 'insensitive' } } },
+        { notes: { contains: search, mode: 'insensitive' } },
+      ],
+    });
+  }
+  if (andConditions.length > 0) where.AND = andConditions;
 
   const [followUps, total] = await Promise.all([
     prisma.followUp.findMany({

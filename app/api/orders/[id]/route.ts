@@ -44,16 +44,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
 
     const body = await req.json();
-    const { status, paymentStatus, amountPaid, deliveryDate, poNumber, poDate } = body;
+    const { status, paymentStatus, amountPaid, totalAmount, deliveryDate, poNumber, poDate, paymentMode, paymentRemarks, paymentProofUrl } = body;
 
     const updateData: any = {};
 
     if (status) updateData.status = status;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
-    if (amountPaid !== undefined) updateData.amountPaid = amountPaid.toString();
+    if (amountPaid !== undefined) {
+      const paid = parseFloat(amountPaid);
+      const total = totalAmount !== undefined ? parseFloat(totalAmount) : null;
+      updateData.amountPaid = paid.toString();
+      if (total !== null) {
+        updateData.paymentStatus = paid >= total && paid > 0 ? 'COMPLETED' : paid > 0 ? 'PARTIAL' : 'PENDING';
+      }
+    }
+    if (totalAmount !== undefined) updateData.totalAmount = parseFloat(totalAmount).toString();
     if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
-    if (poNumber) updateData.poNumber = poNumber;
-    if (poDate) updateData.poDate = new Date(poDate);
+    if (poNumber !== undefined) updateData.poNumber = poNumber || null;
+    if (poDate !== undefined) updateData.poDate = poDate ? new Date(poDate) : null;
+    if (paymentMode !== undefined) updateData.paymentMode = paymentMode || null;
+    if (paymentRemarks !== undefined) updateData.paymentRemarks = paymentRemarks || null;
+    if (paymentProofUrl !== undefined) updateData.paymentProofUrl = paymentProofUrl || null;
 
     const order = await prisma.order.update({
       where: { id: id },

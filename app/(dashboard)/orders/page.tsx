@@ -118,12 +118,6 @@ export default function OrdersPage() {
     }).format(parseFloat(value));
   };
 
-  const getPaymentProgress = (totalAmount: string, amountPaid: string) => {
-    const total = parseFloat(totalAmount);
-    const paid = parseFloat(amountPaid);
-    return (paid / total) * 100;
-  };
-
   return (
     <div className="p-6">
       {/* Header */}
@@ -219,54 +213,46 @@ export default function OrdersPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Order #</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Payment</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">PO Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-40">Order #</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Total</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Paid</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Payment</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">PO Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">{order.orderNumber}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{order.customer.companyName}</td>
-                      <td className="px-6 py-4 font-medium text-gray-900">{formatCurrency(order.totalAmount)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${getPaymentProgress(order.totalAmount, order.amountPaid)}%` }}
-                            />
-                          </div>
-                          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
-                            {order.paymentStatus}
-                          </span>
-                        </div>
+                      <td className="px-4 py-3.5 font-mono text-sm font-medium text-gray-900">{order.orderNumber}</td>
+                      <td className="px-4 py-3.5 text-sm text-gray-700 font-medium">{order.customer.companyName}</td>
+                      <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 text-right">{formatCurrency(order.totalAmount)}</td>
+                      <td className="px-4 py-3.5 text-sm text-right">
+                        <span className={parseFloat(order.amountPaid) > 0 ? 'text-green-700 font-semibold' : 'text-gray-400'}>
+                          {parseFloat(order.amountPaid) > 0 ? formatCurrency(order.amountPaid) : '—'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusBadgeColor(order.status)}`}>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium whitespace-nowrap ${getPaymentBadgeColor(order.paymentStatus)}`}>
+                          {order.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium whitespace-nowrap ${getStatusBadgeColor(order.status)}`}>
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN') : '—'}
+                      <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">
+                        {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-4 py-3.5 text-sm">
                         <div className="flex items-center gap-3">
-                          <Link
-                            href={`/orders/${order.id}`}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
+                          <Link href={`/orders/${order.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
                             View
                           </Link>
-                          <button
-                            onClick={() => handleDelete(order.id)}
-                            className="text-red-600 hover:text-red-800 font-medium"
-                          >
+                          <button onClick={() => handleDelete(order.id)} className="text-red-500 hover:text-red-700 font-medium">
                             Delete
                           </button>
                         </div>

@@ -34,17 +34,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
     });
 
-    if (status === 'APPROVED' && approvalRequest.lead) {
-      if (approvalRequest.type === 'LEAD_DELETE') {
+    if (status === 'APPROVED') {
+      if (approvalRequest.type === 'LEAD_DELETE' && approvalRequest.lead) {
         await prisma.lead.update({
           where: { id: approvalRequest.lead.id },
           data: { deletedAt: new Date() },
         });
-      } else if (approvalRequest.type === 'LEAD_REOPEN') {
+      } else if (approvalRequest.type === 'LEAD_REOPEN' && approvalRequest.lead) {
         await prisma.lead.update({
           where: { id: approvalRequest.lead.id },
           data: { deletedAt: null, status: 'SUSPECT' },
         });
+      } else if ((approvalRequest.type as string) === 'ORDER_DELETE') {
+        await prisma.order.delete({ where: { id: approvalRequest.entityId } });
       }
     }
 

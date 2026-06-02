@@ -53,11 +53,15 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
   }
 
+  const isOrderType = type === 'ORDER_DELETE';
+  const entityType = isOrderType ? 'ORDER' : 'LEAD';
+
   const request = await prisma.approvalRequest.create({
     data: {
       type: type as any,
-      entityType: 'LEAD',
+      entityType,
       entityId,
+      leadId: isOrderType ? null : entityId,
       requestedBy: user.id,
       reason,
     },
