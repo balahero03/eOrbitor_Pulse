@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface TeamActivity {
@@ -152,9 +152,8 @@ export default function TeamActivityPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map(a => (
-                <>
+                <React.Fragment key={a.id}>
                   <tr
-                    key={a.id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => setExpanded(expanded === a.id ? null : a.id)}
                   >
@@ -233,7 +232,7 @@ export default function TeamActivityPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
