@@ -7,7 +7,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  allowedDevOrigins: ['192.168.1.143'],
+  allowedDevOrigins: ['192.168.1.143', '192.168.1.143:3000'],
 };
 
 module.exports = nextConfig;

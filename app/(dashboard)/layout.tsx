@@ -41,7 +41,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Tasks', href: '/tasks', icon: '✓', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
       { label: 'My Activity', href: '/daily-activity', icon: '📝' },
-      { label: 'Team Activity', href: '/team-activity', icon: '👥', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
       { label: 'Attendance', href: '/attendance', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },

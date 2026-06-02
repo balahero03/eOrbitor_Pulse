@@ -80,8 +80,8 @@ export default function ManagerDashboard({ data }: { data: any }) {
           <Link href="/reports" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
             Reports
           </Link>
-          <Link href="/team-activity" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-            Team Activity
+          <Link href="/attendance" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+            Attendance
           </Link>
         </div>
       </div>
@@ -201,7 +201,7 @@ export default function ManagerDashboard({ data }: { data: any }) {
           {[
             { href: '/leads/new', label: 'New Lead', icon: '➕' },
             { href: '/approvals', label: 'Approvals', icon: '✅' },
-            { href: '/team-activity', label: 'Team Activity', icon: '👥' },
+            { href: '/attendance', label: 'Attendance', icon: '📅' },
             { href: '/reports/sales', label: 'Sales Report', icon: '📊' },
           ].map((item) => (
             <Link key={item.href} href={item.href}
