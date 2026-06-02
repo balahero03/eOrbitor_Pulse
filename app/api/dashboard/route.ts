@@ -75,6 +75,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       }),
     ]);
 
+    const announcements = await prisma.announcement.findMany({
+      where: { isPublished: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      orderBy: [{ priority: 'desc' }, { publishedAt: 'desc' }],
+      select: { id: true, title: true, content: true, priority: true, publishedAt: true, expiresAt: true },
+    });
+
     return NextResponse.json({
       role: 'SALES_EXEC',
       today: today.toISOString(),
@@ -83,6 +89,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         followUpsToday: followUpsToday.length, overdueFollowUps: overdueFollowUps.length, wonThisMonth,
       },
       followUpsToday, overdueFollowUps, tasksToday, recentLeads, upcomingFollowUps, leadsByStatus,
+      announcements,
     });
   }
 
@@ -163,6 +170,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       })
     );
 
+    const announcements = await prisma.announcement.findMany({
+      where: { isPublished: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      orderBy: [{ priority: 'desc' }, { publishedAt: 'desc' }],
+      select: { id: true, title: true, content: true, priority: true, publishedAt: true, expiresAt: true },
+    });
+
     return NextResponse.json({
       role: 'SALES_MANAGER',
       teamName: `${subs.length + 1} member team`,
@@ -173,6 +186,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         stage: s.stage, value: s._sum?.dealValue || 0, count: s._count?.id || 0,
       })),
       recentLeads,
+      announcements,
     });
   }
 
@@ -209,6 +223,13 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     _sum: { dealValue: true },
   });
 
+  const announcements = await prisma.announcement.findMany({
+    where: { isPublished: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    orderBy: [{ priority: 'desc' }, { publishedAt: 'desc' }],
+    take: 5,
+    select: { id: true, title: true, content: true, priority: true, publishedAt: true, expiresAt: true },
+  });
+
   return NextResponse.json({
     role: 'ADMIN',
     kpis: {
@@ -225,5 +246,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     recentActivity: recentActivity.map((a) => ({
       id: a.id, action: a.action, entity: a.entityType, createdAt: a.createdAt.toISOString(),
     })),
+    announcements,
   });
 });

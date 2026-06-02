@@ -30,14 +30,55 @@ const STAGE_COLORS: Record<string, string> = {
   ONGOING: 'bg-blue-100 text-blue-700',
 };
 
+const PRIORITY_STYLE: Record<string, string> = {
+  HIGH:   'border-red-400 bg-red-50',
+  NORMAL: 'border-blue-200 bg-blue-50',
+  LOW:    'border-gray-200 bg-gray-50',
+};
+const PRIORITY_BADGE: Record<string, string> = {
+  HIGH:   'bg-red-100 text-red-700',
+  NORMAL: 'bg-blue-100 text-blue-700',
+  LOW:    'bg-gray-100 text-gray-500',
+};
+
+function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
+  if (!announcements?.length) return null;
+  return (
+    <div className="bg-white rounded-xl border p-5 shadow-sm">
+      <h2 className="text-base font-semibold text-gray-800 mb-4">📢 Announcements</h2>
+      <div className="space-y-3">
+        {announcements.map((a: any) => (
+          <div key={a.id} className={`rounded-lg border-l-4 px-4 py-3 ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.NORMAL}`}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-900">{a.title}</p>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${PRIORITY_BADGE[a.priority] || PRIORITY_BADGE.NORMAL}`}>
+                {a.priority}
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 mt-1">{a.content}</p>
+            {a.publishedAt && (
+              <p className="text-[10px] text-gray-400 mt-1">
+                {new Date(a.publishedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard({ data }: { data: any }) {
-  const { kpis, pipeline, recentActivity } = data;
+  const { kpis, pipeline, recentActivity, announcements } = data;
   const revenueGrowth = (kpis?.lastMonthRevenue && kpis.lastMonthRevenue > 0)
     ? (((kpis?.monthRevenue - kpis.lastMonthRevenue) / kpis.lastMonthRevenue) * 100).toFixed(1)
     : null;
 
   return (
     <div className="p-6 space-y-6">
+      {/* Announcements at the top */}
+      <AnnouncementsPanel announcements={announcements} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>

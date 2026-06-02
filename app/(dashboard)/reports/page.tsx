@@ -67,9 +67,6 @@ export default function ReportsPage() {
           <p className="text-gray-600 text-sm font-medium">Active Deals</p>
           <p className="text-4xl font-bold text-purple-700">{data.kpis.activeDeals}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500">
-          <p className="text-gray-600 text-sm font-medium">Open Tickets</p>
-        </div>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
           <p className="text-gray-600 text-sm font-medium">Overdue Tasks</p>
           <p className="text-4xl font-bold text-orange-700">{data.kpis.overdueTasks}</p>
