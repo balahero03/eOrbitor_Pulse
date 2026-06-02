@@ -338,12 +338,7 @@ export default function TaskDetailPage() {
           {task.relatedDeal && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
-              <Link
-                href={`/pipeline/${task.relatedDeal.id}`}
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                {task.relatedDeal.dealName}
-              </Link>
+              <p className="text-sm font-medium">{task.relatedDeal.dealName}</p>
             </div>
           )}
 

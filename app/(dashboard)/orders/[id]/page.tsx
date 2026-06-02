@@ -405,26 +405,12 @@ export default function OrderDetailPage() {
 
           {/* Links */}
           <div className="space-y-2">
-            <Link
-              href={`/customers/${order.customer.id}`}
-              className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              View Customer
-            </Link>
             {order.quotation && (
               <Link
                 href={`/quotations/${order.quotation.id}`}
                 className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 View Quotation
-              </Link>
-            )}
-            {order.deal && (
-              <Link
-                href={`/pipeline/${order.deal.id}`}
-                className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                View Deal
               </Link>
             )}
           </div>

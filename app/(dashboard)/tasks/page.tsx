@@ -223,13 +223,7 @@ export default function TasksPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {task.relatedDeal ? (
-                      <Link href={`/pipeline/${task.relatedDeal.id}`} className="hover:underline text-blue-600">
-                        {task.relatedDeal.dealName}
-                      </Link>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                    {task.relatedDeal ? task.relatedDeal.dealName : <span className="text-gray-400">—</span>}
                   </td>
                 </tr>
               ))}

@@ -214,14 +214,8 @@ export default function FollowUpsPage() {
                         <td className="px-6 py-4 font-medium">
                           {getTypeIcon(followUp.type)} {followUp.type}
                         </td>
-                        <td className="px-6 py-4">
-                          <Link
-                            href={`/pipeline/${followUp.deal.id}`}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            {followUp.deal.dealName}
-                          </Link>
-                          <div className="text-xs text-gray-600">{followUp.deal.customer.companyName}</div>
+                        <td className="px-6 py-4 text-sm">
+                          <div>{followUp.deal.dealName}</div>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           {new Date(followUp.scheduledDate).toLocaleDateString()} {new Date(followUp.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

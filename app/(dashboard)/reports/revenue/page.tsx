@@ -180,14 +180,7 @@ export default function RevenueAnalysisPage() {
 
                 return (
                   <tr key={customer.customerId} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium">
-                      <Link
-                        href={`/customers/${customer.customerId}`}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {customer.customerName}
-                      </Link>
-                    </td>
+                    <td className="px-4 py-2 font-medium">{customer.customerName}</td>
                     <td className="px-4 py-2">{customer.orders}</td>
                     <td className="px-4 py-2 font-medium text-blue-600">
                       {formatCurrency(Number(customer.totalRevenue))}

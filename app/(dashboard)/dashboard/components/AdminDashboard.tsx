@@ -96,10 +96,9 @@ export default function AdminDashboard({ data }: { data: any }) {
 
       {/* KPI Grid */}
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard label="Total Leads" value={fmtNum(kpis?.totalLeads || 0)} color="text-blue-600" href="/leads" />
-        <KpiCard label="Total Customers" value={fmtNum(kpis?.totalCustomers || 0)} color="text-green-600" href="/customers" />
-        <KpiCard label="Active Deals" value={fmtNum(kpis?.activeDeals || 0)} color="text-purple-600" href="/pipeline" />
+        <KpiCard label="Active Deals" value={fmtNum(kpis?.activeDeals || 0)} color="text-purple-600" />
         <KpiCard label="Pipeline Value" value={fmt(kpis?.dealsPipelineValue || 0)} color="text-indigo-600" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

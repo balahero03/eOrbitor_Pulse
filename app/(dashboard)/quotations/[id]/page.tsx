@@ -358,20 +358,7 @@ export default function QuotationDetailPage() {
           </div>
 
           {/* Links */}
-          <div className="space-y-2">
-            <Link
-              href={`/customers/${quotation.customer.id}`}
-              className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              View Customer
-            </Link>
-            <Link
-              href={`/pipeline/${quotation.deal.id}`}
-              className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              View Deal
-            </Link>
-          </div>
+          <div className="space-y-2"></div>
         </div>
       </div>
     </div>

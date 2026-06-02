@@ -39,7 +39,7 @@ export async function POST(
         assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } },
         broughtBy:  { select: { id: true, firstName: true, lastName: true, email: true } },
       },
-    });
+    }) as any;
 
     if (!lead || lead.deletedAt) {
       return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
@@ -110,6 +110,22 @@ export async function POST(
         });
         customerId = newCustomer.id;
       }
+
+      // Auto-create an Order record from the won lead
+      const orderCount = await prisma.order.count();
+      const orderNumber = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(5, '0')}`;
+
+      await prisma.order.create({
+        data: {
+          orderNumber,
+          customerId,
+          poNumber: poNumber || null,
+          totalAmount: lead.quoteValue ? lead.quoteValue.toString() : '0',
+          amountPaid: '0',
+          status: 'PENDING',
+          paymentStatus: 'PENDING',
+        },
+      });
 
       const updated = await prisma.lead.update({
         where: { id },

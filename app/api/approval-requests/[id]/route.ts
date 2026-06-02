@@ -35,10 +35,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
 
     if (status === 'APPROVED' && approvalRequest.lead) {
-      await prisma.lead.update({
-        where: { id: approvalRequest.lead.id },
-        data: { deletedAt: new Date() },
-      });
+      if (approvalRequest.type === 'LEAD_DELETE') {
+        await prisma.lead.update({
+          where: { id: approvalRequest.lead.id },
+          data: { deletedAt: new Date() },
+        });
+      } else if (approvalRequest.type === 'LEAD_REOPEN') {
+        await prisma.lead.update({
+          where: { id: approvalRequest.lead.id },
+          data: { deletedAt: null, status: 'SUSPECT' },
+        });
+      }
     }
 
     return NextResponse.json(approvalRequest);

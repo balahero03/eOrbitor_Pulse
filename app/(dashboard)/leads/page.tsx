@@ -66,12 +66,10 @@ function getStatusColor(status: string) {
 function ActionMenu({
   lead,
   onDelete,
-  onConvert,
   onStatusChange,
 }: {
   lead: Lead;
   onDelete: () => void;
-  onConvert: () => void;
   onStatusChange: (status: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -88,8 +86,6 @@ function ActionMenu({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const canConvert = ['PROSPECT', 'NEGOTIATION', 'WON'].includes(lead.status);
 
   return (
     <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
@@ -134,14 +130,6 @@ function ActionMenu({
           )}
 
           <div className="border-t border-gray-100 mt-1 pt-1">
-            {canConvert && (
-              <button
-                onClick={() => { onConvert(); setOpen(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-purple-700 hover:bg-purple-50"
-              >
-                Convert to Customer
-              </button>
-            )}
             <button
               onClick={() => { onDelete(); setOpen(false); }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -181,9 +169,6 @@ export default function LeadsPage() {
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [applied, setApplied] = useState({ ...EMPTY_FILTERS });
 
-  const convertTarget = useRef<Lead | null>(null);
-  const [convertModal, setConvertModal] = useState(false);
-  const [converting, setConverting] = useState(false);
 
   const activeFilterCount = Object.values(applied).filter(Boolean).length;
 
@@ -252,44 +237,6 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvert = async () => {
-    if (!convertTarget.current) return;
-    setConverting(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          companyName: convertTarget.current.company,
-          gstNumber: `PENDING-${Date.now()}`,
-          industry: 'Other',
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(`Failed: ${err.message || 'Unknown error'}`);
-        return;
-      }
-      const customer = await res.json();
-      await fetch(`/api/leads/${convertTarget.current.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: 'CONVERTED', linkedCustomerId: customer.id }),
-      });
-      setConvertModal(false);
-      router.push(`/customers/${customer.id}`);
-    } catch {
-      alert('An error occurred during conversion.');
-    } finally {
-      setConverting(false);
-    }
-  };
-
-  const openConvert = (lead: Lead) => {
-    convertTarget.current = lead;
-    setConvertModal(true);
-  };
 
   return (
     <div className="p-6">
@@ -675,7 +622,6 @@ export default function LeadsPage() {
                         <ActionMenu
                           lead={lead}
                           onDelete={() => handleDelete(lead.id)}
-                          onConvert={() => openConvert(lead)}
                           onStatusChange={(s) => handleStatusChange(lead.id, s)}
                         />
                       </td>
@@ -713,38 +659,6 @@ export default function LeadsPage() {
         )}
       </div>
 
-      {/* Convert to Customer Modal */}
-      {convertModal && convertTarget.current && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl border border-gray-200">
-            <h2 className="text-lg font-bold mb-3 text-gray-900">Convert to Customer?</h2>
-            <p className="text-sm text-gray-600 mb-1">This will create a new customer record for:</p>
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
-              <p className="font-semibold text-gray-800">{convertTarget.current.company}</p>
-              <p className="text-sm text-gray-500">{convertTarget.current.name}</p>
-            </div>
-            <p className="text-xs text-gray-400 mb-5">
-              The lead status will be updated to <strong>CONVERTED</strong> and linked to the new customer.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConvertModal(false)}
-                disabled={converting}
-                className="flex-1 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConvert}
-                disabled={converting}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {converting ? 'Converting...' : 'Yes, Convert'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

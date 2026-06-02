@@ -307,24 +307,8 @@ export default function FollowUpDetailPage() {
           {/* Deal Info */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
-            <Link
-              href={`/pipeline/${followUp.deal.id}`}
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {followUp.deal.dealName}
-            </Link>
-            <p className="text-sm text-gray-600 mt-1">{followUp.deal.customer.companyName}</p>
-          </div>
-
-          {/* Customer Link */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-3">Customer</h3>
-            <Link
-              href={`/customers/${followUp.deal.customer.id}`}
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {followUp.deal.customer.companyName}
-            </Link>
+            <p className="text-sm font-medium">{followUp.deal.dealName}</p>
+            <p className="text-sm text-gray-600 mt-1">{followUp.deal.customer?.companyName}</p>
           </div>
 
           {/* Meta */}

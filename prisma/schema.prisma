@@ -585,6 +585,7 @@ model ActivityUnlockRequest {
 
 enum ApprovalType {
   LEAD_DELETE
+  LEAD_REOPEN
 }
 
 enum ApprovalStatus {

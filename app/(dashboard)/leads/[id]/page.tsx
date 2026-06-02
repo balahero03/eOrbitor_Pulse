@@ -1825,15 +1825,20 @@ export default function LeadDetailPage() {
     setRequestingReopen(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/leads/${id}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/approval-requests', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reason: `RE-OPEN REQUEST: ${reopenReason}` }),
+        body: JSON.stringify({
+          type: 'LEAD_REOPEN',
+          entityId: id,
+          reason: reopenReason,
+        }),
       });
       if (res.ok) {
-        alert('Re-open request submitted. An admin will review and re-open the lead.');
+        alert('Re-open request submitted. An admin will review and approve.');
         setShowReopenModal(false);
         setReopenReason('');
+        router.push('/leads');
       } else {
         const e = await res.json();
         alert(e.message || 'Failed to submit request');
@@ -1845,29 +1850,6 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleConvertToCustomer = async () => {
-    if (!lead) return;
-    setConverting(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ companyName: lead.company, gstNumber: `PENDING-${Date.now()}`, industry: 'Other' }),
-      });
-      if (!res.ok) { const e = await res.json(); alert(`Failed: ${e.message}`); return; }
-      const customer = await res.json();
-      await fetch(`/api/leads/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: 'CONVERTED', linkedCustomerId: customer.id }),
-      });
-      setShowConvertModal(false);
-      fetchLead();
-      router.push('/customers');
-    } catch { alert('An error occurred.'); }
-    finally { setConverting(false); }
-  };
 
   const handleConvertToProspect = async () => {
     if (!lead) return;
@@ -2485,17 +2467,6 @@ export default function LeadDetailPage() {
 
             {/* Actions */}
             <div className="space-y-2">
-              {lead.linkedCustomer ? (
-                <Link href={`/customers/${lead.linkedCustomer.id}`}
-                  className="w-full block text-center py-2 px-4 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium hover:bg-purple-100">
-                  View Customer →
-                </Link>
-              ) : canEdit && ['PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'].includes(lead.status) ? (
-                <button onClick={() => setShowConvertModal(true)}
-                  className="w-full py-2 px-4 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-100">
-                  Convert to Customer
-                </button>
-              ) : null}
 
               {canEdit && !isClosed && (
                 <button onClick={() => setShowDeleteModal(true)}
