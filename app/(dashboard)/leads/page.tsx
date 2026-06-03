@@ -28,6 +28,8 @@ interface User {
   role: string;
 }
 
+const PIPELINE_STAGES = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
+
 const ALL_STATUSES = [
   { value: 'SUSPECT',     label: 'Suspect' },
   { value: 'PROSPECT',    label: 'Prospect' },
@@ -45,6 +47,26 @@ const ALL_SOURCES = [
   { value: 'CALL',          label: 'Call' },
   { value: 'ADVERTISEMENT', label: 'Advertisement' },
 ];
+
+function getAllowedStatuses(currentStatus: string): typeof ALL_STATUSES {
+  const currentIdx = PIPELINE_STAGES.indexOf(currentStatus);
+  const allowed: typeof ALL_STATUSES = [];
+
+  // Add next stage in pipeline
+  if (currentIdx >= 0 && currentIdx < PIPELINE_STAGES.length - 1) {
+    const nextStage = PIPELINE_STAGES[currentIdx + 1];
+    allowed.push(ALL_STATUSES.find(s => s.value === nextStage)!);
+  }
+
+  // Allow reversals between CLOSURE and NEGOTIATION
+  if (currentStatus === 'CLOSURE') {
+    allowed.push(ALL_STATUSES.find(s => s.value === 'NEGOTIATION')!);
+  } else if (currentStatus === 'NEGOTIATION') {
+    allowed.push(ALL_STATUSES.find(s => s.value === 'CLOSURE')!);
+  }
+
+  return allowed.filter(Boolean);
+}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -115,17 +137,20 @@ function ActionMenu({
 
           {showStatusMenu && (
             <div className="border-t border-gray-100 py-1">
-              {ALL_STATUSES.map(s => (
-                <button
-                  key={s.value}
-                  onClick={() => { onStatusChange(s.value); setOpen(false); setShowStatusMenu(false); }}
-                  className={`w-full text-left px-6 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2 ${lead.status === s.value ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
-                >
-                  <span className={`w-2 h-2 rounded-full inline-block ${getStatusColor(s.value).split(' ')[0]}`} />
-                  {s.label}
-                  {lead.status === s.value && ' ✓'}
-                </button>
-              ))}
+              {getAllowedStatuses(lead.status).length > 0 ? (
+                getAllowedStatuses(lead.status).map(s => (
+                  <button
+                    key={s.value}
+                    onClick={() => { onStatusChange(s.value); setOpen(false); setShowStatusMenu(false); }}
+                    className={`w-full text-left px-6 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700`}
+                  >
+                    <span className={`w-2 h-2 rounded-full inline-block ${getStatusColor(s.value).split(' ')[0]}`} />
+                    {s.label}
+                  </button>
+                ))
+              ) : (
+                <div className="px-6 py-2 text-xs text-gray-400">No valid transitions available</div>
+              )}
             </div>
           )}
 

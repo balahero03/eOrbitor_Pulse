@@ -634,6 +634,12 @@ function SpancoKanban({
     e.preventDefault();
     setDragOver(null);
     if (isClosed || stageKey === lead.status || !canEdit || changing) return;
+
+    const stageIdx = SPANCO.findIndex(s => s.key === stageKey);
+    const isNextStage = stageIdx === activeIdx + 1;
+    const isAllowedReversal = (lead.status === 'CLOSURE' && stageKey === 'NEGOTIATION') || (lead.status === 'NEGOTIATION' && stageKey === 'CLOSURE');
+
+    if (!isNextStage && !isAllowedReversal) return;
     onStageChange(stageKey);
   };
 
@@ -659,8 +665,10 @@ function SpancoKanban({
         {SPANCO.map((stage, idx) => {
           const isActive = stage.key === lead.status;
           const isPast = !isClosed && activeIdx > idx;
-          const isDropTarget = !isClosed && dragOver === stage.key && stage.key !== lead.status;
-          const isClickable = !isClosed && canEdit && !isActive && !changing;
+          const isNextStage = idx === activeIdx + 1;
+          const isAllowedReversal = (lead.status === 'CLOSURE' && stage.key === 'NEGOTIATION') || (lead.status === 'NEGOTIATION' && stage.key === 'CLOSURE');
+          const isClickable = !isClosed && canEdit && !isActive && !changing && (isNextStage || isAllowedReversal);
+          const isDropTarget = !isClosed && canEdit && dragOver === stage.key && stage.key !== lead.status && (isNextStage || isAllowedReversal);
 
           return (
             <div
@@ -1600,12 +1608,7 @@ export default function LeadDetailPage() {
     const currentIdx = STAGE_ORDER.indexOf(lead.status);
     const newIdx = STAGE_ORDER.indexOf(newStatus);
 
-    // SUSPECT is always blocked from reverting
-    if (lead.status !== 'SUSPECT' && newStatus === 'SUSPECT') {
-      alert('Cannot revert to Suspect. Once converted to Prospect, a lead cannot go back.');
-      return;
-    }
-    // APPROACH and NEGOTIATION can't go back — only NEGOTIATION↔CLOSURE is allowed
+    // Enforce sequential pipeline progression — no skipping stages
     if (newIdx < currentIdx) {
       const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
                           (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
@@ -1613,6 +1616,10 @@ export default function LeadDetailPage() {
         alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
         return;
       }
+    } else if (newIdx > currentIdx && newIdx !== currentIdx + 1) {
+      const nextStage = STAGE_ORDER[currentIdx + 1];
+      alert(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
+      return;
     }
 
     // Intercept forward moves that require data capture

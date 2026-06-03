@@ -69,7 +69,7 @@ export async function PATCH(
 
     let resolvedCustomerId = linkedCustomerId;
 
-    // Prevent illegal stage reversals
+    // Enforce sequential pipeline progression
     if (status) {
       const existingLead = await prisma.lead.findUnique({ where: { id }, select: { status: true } });
       const current = existingLead?.status;
@@ -77,16 +77,23 @@ export async function PATCH(
       const currentIdx = stageOrder.indexOf(current || '');
       const newIdx = stageOrder.indexOf(status);
 
-      if (currentIdx > 0 && newIdx >= 0 && newIdx < currentIdx) {
-        // Only CLOSURE → NEGOTIATION is allowed as a reversal
-        const allowedBack = (current === 'CLOSURE' && status === 'NEGOTIATION') ||
-                            (current === 'NEGOTIATION' && status === 'CLOSURE');
-        if (!allowedBack) {
-          return NextResponse.json(
-            { message: `Cannot revert from ${current} to ${status}. The pipeline moves forward only.` },
-            { status: 400 }
-          );
-        }
+      // Only allow moving to the next stage or allowed reversals (CLOSURE ↔ NEGOTIATION)
+      const allowedReversals = [
+        { from: 'CLOSURE', to: 'NEGOTIATION' },
+        { from: 'NEGOTIATION', to: 'CLOSURE' },
+      ];
+
+      const isAllowedReversal = allowedReversals.some(r => r.from === current && r.to === status);
+      const isNextStage = newIdx === currentIdx + 1;
+
+      if (!isAllowedReversal && !isNextStage) {
+        const nextStage = currentIdx >= 0 && currentIdx < stageOrder.length - 1
+          ? stageOrder[currentIdx + 1]
+          : 'end of pipeline';
+        return NextResponse.json(
+          { message: `Cannot skip stages. From ${current}, you must move to ${nextStage}. No stage skipping allowed.` },
+          { status: 400 }
+        );
       }
     }
 
