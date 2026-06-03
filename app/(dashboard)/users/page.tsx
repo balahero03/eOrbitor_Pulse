@@ -19,7 +19,7 @@ interface User {
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN',   label: 'Super Admin', desc: 'Unrestricted access — system owner' },
   { value: 'ADMIN',         label: 'Admin',       desc: 'Full access to everything' },
-  { value: 'SALES_MANAGER', label: 'Manager',     desc: 'Sees team leads & reports' },
+  { value: 'SALES_MANAGER', label: 'Manager',     desc: 'Sees team leads & team activity' },
   { value: 'SALES_EXEC',    label: 'Salesperson', desc: 'Sees own leads only' },
   { value: 'SUPPORT',       label: 'Support',     desc: 'Support staff' },
 ];

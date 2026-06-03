@@ -97,7 +97,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-gray-600 mt-6">
-            Default: admin@company.local / password
+            Contact your administrator if you don't have an account.
           </p>
         </div>
       </div>

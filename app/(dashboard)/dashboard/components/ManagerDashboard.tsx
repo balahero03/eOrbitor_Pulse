@@ -77,9 +77,6 @@ export default function ManagerDashboard({ data }: { data: any }) {
           <p className="text-sm text-gray-500">{data.teamName}</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/reports" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-            Reports
-          </Link>
           <Link href="/attendance" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
             Attendance
           </Link>
@@ -101,7 +98,6 @@ export default function ManagerDashboard({ data }: { data: any }) {
         <div className="bg-white rounded-xl border p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Team Leaderboard (This Month)</h2>
-            <Link href="/reports/team" className="text-xs text-blue-600 hover:underline">Full report</Link>
           </div>
           {(!leaderboard || leaderboard.length === 0) ? (
             <p className="text-sm text-gray-400 text-center py-4">No team members yet</p>
@@ -197,12 +193,11 @@ export default function ManagerDashboard({ data }: { data: any }) {
       {/* Quick Actions */}
       <div className="bg-white rounded-xl border p-5 shadow-sm">
         <h2 className="text-base font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
             { href: '/leads/new', label: 'New Lead', icon: '➕' },
             { href: '/approvals', label: 'Approvals', icon: '✅' },
             { href: '/attendance', label: 'Attendance', icon: '📅' },
-            { href: '/reports/sales', label: 'Sales Report', icon: '📊' },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-2 px-4 py-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
