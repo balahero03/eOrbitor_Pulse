@@ -107,13 +107,13 @@ export default function NewLeadPage() {
             <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Lead Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Opportunity Name *</label>
+                <label className="block text-sm font-medium mb-1"> Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="e.g. Solar Panel Supply - Phase 1"
+                  placeholder="Name of the opportunity or lead"
                   required
                   className="w-full border rounded px-3 py-2"
                 />
@@ -143,7 +143,8 @@ export default function NewLeadPage() {
                   <option value="WALKIN">Walk-in</option>
                   <option value="CALL">Phone Call</option>
                   <option value="WEBSITE">Website</option>
-                  <option value="ADVERTISEMENT">Advertisement</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="CAMPAIGN">Campaign</option>
                 </select>
               </div>
             </div>

@@ -84,7 +84,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Announcements at the top */}
       <AnnouncementsPanel announcements={announcements} />
 

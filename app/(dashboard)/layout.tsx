@@ -41,7 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Tasks', href: '/tasks', icon: '✓', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
       { label: 'My Activity', href: '/daily-activity', icon: '📝' },
-      { label: 'Attendance', href: '/attendance', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { label: 'Attendance', href: '/attendance', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
     ],
   },
   {
@@ -91,8 +91,20 @@ function isGroupVisible(group: NavGroup, role: string): boolean {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // On mobile the sidebar is hidden by default; on desktop it starts open
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // Initialise sidebar state from window width after mount (avoids SSR mismatch)
+  useEffect(() => {
+    setSidebarOpen(window.innerWidth >= 768);
+  }, []);
+
+  // Close mobile overlay when navigating
+  useEffect(() => {
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -117,6 +129,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
+  const handleToggle = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen((o) => !o);
+    } else {
+      setDesktopCollapsed((c) => !c);
+    }
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -129,107 +149,129 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const roleInfo = ROLE_LABELS[user.role] || { label: user.role, color: 'bg-gray-100 text-gray-600' };
+  // On desktop: full or icon-only. On mobile: overlay drawer or hidden.
+  const showLabels = !desktopCollapsed;
+
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div className="p-3 border-b border-gray-200 flex items-center justify-center min-h-[56px]">
+        {showLabels ? (
+          <div className="flex items-center gap-2">
+            <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
+            <div className="flex flex-col">
+              <span className="font-bold text-sm leading-tight">eOrbitor</span>
+              <span className="text-xs text-blue-600 font-semibold leading-tight">Pulse</span>
+            </div>
+          </div>
+        ) : (
+          <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 py-3 overflow-y-auto">
+        {NAV_GROUPS.map((group) => {
+          if (!isGroupVisible(group, user.role)) return null;
+          const visibleItems = group.items.filter((item) => isItemVisible(item, user.role));
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.group} className="mb-1">
+              {showLabels && (
+                <p className="px-4 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  {group.group}
+                </p>
+              )}
+              {visibleItems.map((item) => {
+                const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={!showLabels ? item.label : undefined}
+                    className={`flex items-center gap-3 mx-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
+                    {showLabels && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* User info + logout */}
+      <div className="p-3 border-t border-gray-200">
+        {showLabels ? (
+          <div className="mb-2 px-1">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {user.firstName.charAt(0)}{(user.lastName || '').charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{user.firstName} {user.lastName}</p>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              </div>
+            </div>
+            <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${roleInfo.color}`}>
+              {roleInfo.label}
+            </span>
+          </div>
+        ) : null}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <span>⏻</span>
+          {showLabels && <span>Logout</span>}
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-60' : 'w-14'} bg-white border-r border-gray-200 transition-all duration-300 flex flex-col overflow-hidden flex-shrink-0`}>
-        {/* Logo */}
-        <div className="p-3 border-b border-gray-200 flex items-center justify-center min-h-[56px]">
-          {sidebarOpen ? (
-            <div className="flex items-center gap-2">
-              <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm leading-tight">eOrbitor</span>
-                <span className="text-xs text-blue-600 font-semibold leading-tight">Pulse</span>
-              </div>
-            </div>
-          ) : (
-            <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
-          )}
-        </div>
+      {/* Mobile overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {NAV_GROUPS.map((group) => {
-            if (!isGroupVisible(group, user.role)) return null;
-            const visibleItems = group.items.filter((item) => isItemVisible(item, user.role));
-            if (visibleItems.length === 0) return null;
-
-            return (
-              <div key={group.group} className="mb-1">
-                {sidebarOpen && (
-                  <p className="px-4 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    {group.group}
-                  </p>
-                )}
-                {visibleItems.map((item) => {
-                  const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      title={!sidebarOpen ? item.label : undefined}
-                      className={`flex items-center gap-3 mx-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        active
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                      }`}
-                    >
-                      <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
-                      {sidebarOpen && <span className="truncate">{item.label}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* User info + logout */}
-        <div className="p-3 border-t border-gray-200">
-          {sidebarOpen ? (
-            <div className="mb-2 px-1">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {user.firstName.charAt(0)}{(user.lastName || '').charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.firstName} {user.lastName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-              </div>
-              <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${roleInfo.color}`}>
-                {roleInfo.label}
-              </span>
-            </div>
-          ) : null}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <span>⏻</span>
-            {sidebarOpen && <span>Logout</span>}
-          </button>
-        </div>
+      {/* Sidebar — mobile: fixed overlay drawer; desktop: static collapsed/expanded */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-30 bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300
+        md:static md:z-auto md:flex-shrink-0
+        ${sidebarOpen ? 'w-60 translate-x-0' : '-translate-x-full w-60'}
+        md:translate-x-0 ${desktopCollapsed ? 'md:w-14' : 'md:w-60'}
+      `}>
+        {sidebarContent}
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={handleToggle}
             className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+            aria-label="Toggle sidebar"
           >
             ☰
           </button>
-          <div className="flex items-center gap-3">
-            <span className={`text-xs px-2 py-1 rounded-full font-medium ${roleInfo.color}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
               {roleInfo.label}
             </span>
-            <span className="text-sm text-gray-600 hidden sm:block">{user.firstName} {user.lastName}</span>
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <span className="text-sm text-gray-600 hidden sm:block truncate">{user.firstName} {user.lastName}</span>
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {user.firstName.charAt(0)}{(user.lastName || '').charAt(0)}
             </div>
           </div>
