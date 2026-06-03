@@ -65,10 +65,15 @@ export default function ApprovalsPage() {
       });
 
       if (res.ok) {
+        alert('Request approved successfully');
         setRequests(requests.filter(r => r.id !== id));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to approve: ${err.error || 'Unknown error'}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Error: ${err.message || 'Failed to approve request'}`);
     } finally {
       setProcessingId(null);
     }
@@ -88,12 +93,17 @@ export default function ApprovalsPage() {
       });
 
       if (res.ok) {
+        alert('Request rejected successfully');
         setRequests(requests.filter(r => r.id !== id));
         setShowRejectForm(null);
         setRejectionReason('');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to reject: ${err.error || 'Unknown error'}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Error: ${err.message || 'Failed to reject request'}`);
     } finally {
       setProcessingId(null);
     }
@@ -134,12 +144,14 @@ export default function ApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {requests.map((req) => (
+          {requests.map((req) => {
+            const typeLabel = req.type === 'LEAD_DELETE' ? 'Delete Lead Request' : req.type === 'LEAD_REOPEN' ? 'Reopen Lead Request' : req.type === 'ORDER_DELETE' ? 'Delete Order Request' : 'Approval Request';
+            return (
             <div key={req.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-l-4 border-blue-500">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-bold text-lg">Delete Lead Request</h3>
+                    <h3 className="font-bold text-lg">{typeLabel}</h3>
                     <span className={`badge ${
                       req.status === 'PENDING' ? 'badge-warning' :
                       req.status === 'APPROVED' ? 'badge-success' :
@@ -233,7 +245,8 @@ export default function ApprovalsPage() {
                 </div>
               )}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

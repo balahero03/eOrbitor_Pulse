@@ -158,6 +158,7 @@ export async function DELETE(
         type: 'LEAD_DELETE',
         entityType: 'LEAD',
         entityId: id,
+        leadId: id,
         requestedBy: decoded.id,
         reason,
       },
@@ -169,7 +170,7 @@ export async function DELETE(
     return NextResponse.json({
       message: 'Deletion request submitted for approval',
       requestId: approvalRequest.id,
-    }, { status: 202 });
+    }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

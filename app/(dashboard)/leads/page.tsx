@@ -243,10 +243,25 @@ export default function LeadsPage() {
   const setF = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value }));
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this lead?')) return;
+    if (!confirm('Submit this lead for deletion approval?')) return;
     const token = localStorage.getItem('token');
-    const res = await fetch(`/api/leads/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) setLeads(leads.filter(l => l.id !== id));
+    try {
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: 'User requested deletion' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}`);
+        fetchLeads();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed: ${err.message || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message || 'Failed to submit deletion request'}`);
+    }
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {

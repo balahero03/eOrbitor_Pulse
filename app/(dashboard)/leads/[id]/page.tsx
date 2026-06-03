@@ -1901,6 +1901,10 @@ export default function LeadDetailPage() {
   };
 
   const handleDeleteRequest = async () => {
+    if (!deleteReason.trim()) {
+      alert('Please provide a reason for deletion.');
+      return;
+    }
     setDeleting(true);
     try {
       const token = localStorage.getItem('token');
@@ -1909,10 +1913,20 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reason: deleteReason }),
       });
-      if (res.ok) { alert('Deletion request submitted.'); router.push('/leads'); }
-      else { const e = await res.json(); alert(e.message || 'Failed'); }
-    } catch { alert('An error occurred.'); }
-    finally { setDeleting(false); setShowDeleteModal(false); }
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}\n\nAn admin will review your request.`);
+        router.push('/leads');
+      } else {
+        const e = await res.json();
+        alert(e.message || 'Failed to submit deletion request');
+      }
+    } catch (err: any) {
+      alert(`An error occurred: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
   };
 
   const handleAddFollowUp = async () => {
@@ -2931,15 +2945,27 @@ export default function LeadDetailPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-            <h2 className="text-lg font-bold mb-3 text-red-600">Request Deletion?</h2>
-            <textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)}
-              placeholder="Reason…" className="w-full border rounded-lg px-3 py-2 text-sm h-20 mb-4" />
+            <h2 className="text-lg font-bold mb-3 text-red-600">Request Lead Deletion</h2>
+            <p className="text-sm text-gray-600 mb-3">Provide a reason for deletion. An admin will review and approve this request.</p>
+            <textarea
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              placeholder="Reason for deletion (required)…"
+              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 resize-none"
+            />
             <div className="flex gap-3">
-              <button onClick={() => { setShowDeleteModal(false); setDeleteReason(''); }}
-                className="flex-1 py-2 border rounded-lg text-sm">Cancel</button>
-              <button onClick={handleDeleteRequest} disabled={deleting}
-                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50">
-                {deleting ? 'Submitting…' : 'Submit'}
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteReason(''); }}
+                className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRequest}
+                disabled={deleting || !deleteReason.trim()}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50 hover:bg-red-700"
+              >
+                {deleting ? 'Submitting…' : 'Submit for Approval'}
               </button>
             </div>
           </div>
