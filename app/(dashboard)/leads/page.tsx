@@ -28,17 +28,6 @@ interface User {
   role: string;
 }
 
-const PIPELINE_STAGES = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
-
-const ALL_STATUSES = [
-  { value: 'SUSPECT',     label: 'Suspect' },
-  { value: 'PROSPECT',    label: 'Prospect' },
-  { value: 'APPROACH',    label: 'Approach' },
-  { value: 'NEGOTIATION', label: 'Negotiation' },
-  { value: 'CLOSURE',     label: 'Closure' },
-  { value: 'ON_HOLD',     label: 'On Hold' },
-];
-
 const ALL_SOURCES = [
   { value: 'EMAIL',         label: 'Email' },
   { value: 'WEBSITE',       label: 'Website' },
@@ -47,26 +36,6 @@ const ALL_SOURCES = [
   { value: 'CALL',          label: 'Call' },
   { value: 'ADVERTISEMENT', label: 'Advertisement' },
 ];
-
-function getAllowedStatuses(currentStatus: string): typeof ALL_STATUSES {
-  const currentIdx = PIPELINE_STAGES.indexOf(currentStatus);
-  const allowed: typeof ALL_STATUSES = [];
-
-  // Add next stage in pipeline
-  if (currentIdx >= 0 && currentIdx < PIPELINE_STAGES.length - 1) {
-    const nextStage = PIPELINE_STAGES[currentIdx + 1];
-    allowed.push(ALL_STATUSES.find(s => s.value === nextStage)!);
-  }
-
-  // Allow reversals between CLOSURE and NEGOTIATION
-  if (currentStatus === 'CLOSURE') {
-    allowed.push(ALL_STATUSES.find(s => s.value === 'NEGOTIATION')!);
-  } else if (currentStatus === 'NEGOTIATION') {
-    allowed.push(ALL_STATUSES.find(s => s.value === 'CLOSURE')!);
-  }
-
-  return allowed.filter(Boolean);
-}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -88,21 +57,17 @@ function getStatusColor(status: string) {
 function ActionMenu({
   lead,
   onDelete,
-  onStatusChange,
 }: {
   lead: Lead;
   onDelete: () => void;
-  onStatusChange: (status: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
-        setShowStatusMenu(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -112,7 +77,7 @@ function ActionMenu({
   return (
     <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
       <button
-        onClick={() => { setOpen(!open); setShowStatusMenu(false); }}
+        onClick={() => setOpen(!open)}
         className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
         title="Actions"
       >
@@ -126,42 +91,11 @@ function ActionMenu({
       {open && (
         <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
           <button
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-            onClick={() => setShowStatusMenu(!showStatusMenu)}
+            onClick={() => { onDelete(); setOpen(false); }}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
           >
-            <span>Change Status</span>
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            Delete
           </button>
-
-          {showStatusMenu && (
-            <div className="border-t border-gray-100 py-1">
-              {getAllowedStatuses(lead.status).length > 0 ? (
-                getAllowedStatuses(lead.status).map(s => (
-                  <button
-                    key={s.value}
-                    onClick={() => { onStatusChange(s.value); setOpen(false); setShowStatusMenu(false); }}
-                    className={`w-full text-left px-6 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700`}
-                  >
-                    <span className={`w-2 h-2 rounded-full inline-block ${getStatusColor(s.value).split(' ')[0]}`} />
-                    {s.label}
-                  </button>
-                ))
-              ) : (
-                <div className="px-6 py-2 text-xs text-gray-400">No valid transitions available</div>
-              )}
-            </div>
-          )}
-
-          <div className="border-t border-gray-100 mt-1 pt-1">
-            <button
-              onClick={() => { onDelete(); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              Delete
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -263,20 +197,6 @@ export default function LeadsPage() {
       alert(`Error: ${err.message || 'Failed to submit deletion request'}`);
     }
   };
-
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`/api/leads/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setLeads(leads.map(l => l.id === id ? { ...l, status: newStatus, linkedCustomer: updated.linkedCustomer || l.linkedCustomer } : l));
-    }
-  };
-
 
   return (
     <div className="p-6">
@@ -662,7 +582,6 @@ export default function LeadsPage() {
                         <ActionMenu
                           lead={lead}
                           onDelete={() => handleDelete(lead.id)}
-                          onStatusChange={(s) => handleStatusChange(lead.id, s)}
                         />
                       </td>
                     </tr>
