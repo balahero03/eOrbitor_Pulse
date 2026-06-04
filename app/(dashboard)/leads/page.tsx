@@ -28,6 +28,15 @@ interface User {
   role: string;
 }
 
+const ALL_STATUSES = [
+  { value: 'SUSPECT',     label: 'Suspect' },
+  { value: 'PROSPECT',    label: 'Prospect' },
+  { value: 'PROPOSAL',    label: 'Proposal' },
+  { value: 'NEGOTIATION', label: 'Negotiation' },
+  { value: 'CLOSURE',     label: 'Closure' },
+  { value: 'ON_HOLD',     label: 'On Hold' },
+];
+
 const ALL_SOURCES = [
   { value: 'EMAIL',         label: 'Email' },
   { value: 'WEBSITE',       label: 'Website' },
@@ -45,7 +54,7 @@ function getStatusColor(status: string) {
     case 'NEGOTIATION': return 'bg-orange-100 text-orange-800 border-orange-300';
     case 'PROSPECT':    return 'bg-cyan-100 text-cyan-800 border-cyan-300';
     case 'SUSPECT':     return 'bg-slate-100 text-slate-700 border-slate-300';
-    case 'APPROACH':    return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+    case 'PROPOSAL':    return 'bg-indigo-100 text-indigo-800 border-indigo-300';
     case 'CLOSURE':     return 'bg-blue-100 text-blue-800 border-blue-300';
     case 'DROPPED':     return 'bg-gray-100 text-gray-500 border-gray-300';
     case 'ON_HOLD':     return 'bg-amber-100 text-amber-800 border-amber-300';

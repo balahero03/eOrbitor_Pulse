@@ -24,7 +24,7 @@ function KpiCard({
 const STAGE_COLORS: Record<string, string> = {
   SUSPECT: 'bg-indigo-100 text-indigo-700',
   PROSPECT: 'bg-cyan-100 text-cyan-700',
-  APPROACH: 'bg-yellow-100 text-yellow-700',
+  PROPOSAL: 'bg-yellow-100 text-yellow-700',
   NEGOTIATION: 'bg-orange-100 text-orange-700',
   CLOSURE: 'bg-green-100 text-green-700',
   ONGOING: 'bg-blue-100 text-blue-700',

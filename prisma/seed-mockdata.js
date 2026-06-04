@@ -376,7 +376,7 @@ const REMARKS_BY_STAGE = {
   QUALIFIED: ['Requirements discussed, matches our product portfolio', 'Decision maker identified', 'Budget range confirmed'],
   SUSPECT: ['Potential opportunity — needs further qualification', 'Received RFQ, evaluating requirements', 'Initial discussion done'],
   PROSPECT: ['Quote submitted, awaiting feedback', 'Customer reviewing proposal', 'Demo scheduled for next week'],
-  APPROACH: ['Detailed presentation done', 'Technical demo completed successfully', 'Pilot deployment being discussed'],
+  PROPOSAL: ['Detailed presentation done', 'Technical demo completed successfully', 'Pilot deployment being discussed'],
   NEGOTIATION: ['Negotiating on price and payment terms', 'Customer comparing with 2 other vendors', 'Final decision pending'],
   CLOSURE: ['Final approval with management', 'PO expected this week', 'Last round of pricing discussion'],
   ON_HOLD: ['Customer budget frozen till Q3', 'Project postponed due to internal restructuring', 'On hold pending board approval'],
@@ -434,8 +434,8 @@ async function seedDeals(users, customerMap) {
   console.log('\n--- Seeding Deals ---');
   const execs = [users.hema, users.jeevitha];
   const customers = Object.values(customerMap);
-  const stages = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE', 'ONGOING'];
-  const winProbs = { SUSPECT: 10, PROSPECT: 25, APPROACH: 40, NEGOTIATION: 60, CLOSURE: 80, ONGOING: 95 };
+  const stages = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE', 'ONGOING'];
+  const winProbs = { SUSPECT: 10, PROSPECT: 25, PROPOSAL: 40, NEGOTIATION: 60, CLOSURE: 80, ONGOING: 95 };
   const dealTemplates = [
     'Network Infrastructure Upgrade', 'Firewall & Security Overhaul', 'Server Consolidation Project',
     'Surveillance System Deployment', 'UPS and Power Backup', 'Wi-Fi Expansion Project',
@@ -481,7 +481,7 @@ async function seedLeads(users, customerMap) {
     { status: 'QUALIFIED', count: 12 },
     { status: 'SUSPECT', count: 30 },
     { status: 'PROSPECT', count: 28 },
-    { status: 'APPROACH', count: 22 },
+    { status: 'PROPOSAL', count: 22 },
     { status: 'NEGOTIATION', count: 18 },
     { status: 'CLOSURE', count: 15 },
     { status: 'WON', count: 20 },
@@ -548,7 +548,7 @@ async function seedLeads(users, customerMap) {
           closureDetails: isClosed ? { notes: remarks, processedBy: exec.id, designation } : null,
           linkedCustomerId,
           poReceivedDate,
-          qualificationNotes: ['QUALIFIED', 'APPROACH', 'NEGOTIATION', 'CLOSURE'].includes(status)
+          qualificationNotes: ['QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'].includes(status)
             ? `Requirements qualified. Contact: ${designation}. Budget confirmed.`
             : null,
         }
@@ -565,7 +565,7 @@ async function seedLeads(users, customerMap) {
 async function seedFollowUps(users, deals, leads) {
   console.log('\n--- Seeding Follow-ups ---');
   const execs = [users.hema, users.jeevitha];
-  const activeStatuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE', 'ON_HOLD'];
+  const activeStatuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE', 'ON_HOLD'];
   const activeLeads = leads.filter(l => activeStatuses.includes(l.status));
 
   // Map: exec id → deals they own

@@ -61,9 +61,9 @@ const SPANCO = [
     desc: 'Qualified and interested',
   },
   {
-    key: 'APPROACH',
-    label: 'Approach',
-    abbr: 'A',
+    key: 'PROPOSAL',
+    label: 'Proposal',
+    abbr: 'P',
     icon: '📣',
     headerBg: 'bg-indigo-600',
     cardBg: 'bg-indigo-50 border-indigo-300',
@@ -1081,8 +1081,9 @@ function ClosureModal({
   );
 }
 
-// ─── Approach Stage Modal ─────────────────────────────────────────────────────
-interface ApproachFormData {
+// ─── Proposal Stage Modal ─────────────────────────────────────────────────────
+interface ProposalFormData {
+  proposalDate: string;
   demoDate: string;
   demoLocation: string;
   clientAttendees: string;
@@ -1092,46 +1093,51 @@ interface ApproachFormData {
   materialsProvided: string;
 }
 
-function ApproachModal({ lead, onClose, onSubmit, submitting }: {
+function ProposalModal({ lead, onClose, onSubmit, submitting }: {
   lead: LeadDetail; onClose: () => void;
-  onSubmit: (data: ApproachFormData) => void; submitting: boolean;
+  onSubmit: (data: ProposalFormData) => void; submitting: boolean;
 }) {
-  const [form, setForm] = useState<ApproachFormData>({
-    demoDate: '', demoLocation: 'On-site', clientAttendees: '',
+  const [form, setForm] = useState<ProposalFormData>({
+    proposalDate: '', demoDate: '', demoLocation: 'On-site', clientAttendees: '',
     topicsCovered: '', clientFeedback: '', nextSteps: '', materialsProvided: '',
   });
-  const set = (k: keyof ApproachFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const canSubmit = form.demoDate && form.clientAttendees && form.topicsCovered;
+  const set = (k: keyof ProposalFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">📣 Approach Stage Details</h2>
+            <h2 className="text-lg font-bold text-gray-900">📣 Proposal Stage Details</h2>
             <p className="text-xs text-gray-500 mt-0.5">{lead.name} · {lead.company}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-800">
-            Fill in the demo/presentation details before moving to Approach stage. These fields are required.
+            Fill in the proposal and presentation details before moving to Proposal stage. These fields are required.
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Proposal Date <span className="text-red-400">*</span></label>
+              <input type="date" value={form.proposalDate} onChange={e => set('proposalDate', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Demo/Presentation Date <span className="text-red-400">*</span></label>
               <input type="date" value={form.demoDate} onChange={e => set('demoDate', e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>
-              <select value={form.demoLocation} onChange={e => set('demoLocation', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm">
-                <option>On-site</option>
-                <option>Virtual</option>
-                <option>Hybrid</option>
-              </select>
-            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>
+            <select value={form.demoLocation} onChange={e => set('demoLocation', e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm">
+              <option>On-site</option>
+              <option>Virtual</option>
+              <option>Hybrid</option>
+            </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Attendees <span className="text-red-400">*</span></label>
@@ -1168,7 +1174,7 @@ function ApproachModal({ lead, onClose, onSubmit, submitting }: {
             className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
           <button onClick={() => onSubmit(form)} disabled={submitting || !canSubmit}
             className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
-            {submitting ? 'Saving…' : 'Move to Approach →'}
+            {submitting ? 'Saving…' : 'Move to Proposal →'}
           </button>
         </div>
       </div>
@@ -1516,7 +1522,7 @@ export default function LeadDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Stage-specific modals
-  const [showApproachModal, setShowApproachModal] = useState(false);
+  const [showProposalModal, setShowProposalModal] = useState(false);
   const [showNegotiationModal, setShowNegotiationModal] = useState(false);
   const [stageSubmitting, setStageSubmitting] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
@@ -1600,7 +1606,7 @@ export default function LeadDetailPage() {
   ));
 
   // SPANCO stage order for reversal checks
-  const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
+  const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
 
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
@@ -1623,11 +1629,11 @@ export default function LeadDetailPage() {
     }
 
     // Intercept forward moves that require data capture
-    if (lead.status === 'PROSPECT' && newStatus === 'APPROACH') {
-      setShowApproachModal(true);
+    if (lead.status === 'PROSPECT' && newStatus === 'PROPOSAL') {
+      setShowProposalModal(true);
       return;
     }
-    if (lead.status === 'APPROACH' && newStatus === 'NEGOTIATION') {
+    if (lead.status === 'PROPOSAL' && newStatus === 'NEGOTIATION') {
       setShowNegotiationModal(true);
       return;
     }
@@ -1662,21 +1668,21 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleApproachSubmit = async (data: ApproachFormData) => {
+  const handleProposalSubmit = async (data: ProposalFormData) => {
     setStageSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const approachDetails = { ...data, capturedAt: new Date().toISOString() };
+      const proposalDetails = { ...data, capturedAt: new Date().toISOString() };
       const existing = (lead?.closureDetails as any) || {};
-      const merged = { ...existing, approach: approachDetails };
+      const merged = { ...existing, proposal: proposalDetails };
 
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: 'APPROACH', closureDetails: merged }),
+        body: JSON.stringify({ status: 'PROPOSAL', closureDetails: merged }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
-      setShowApproachModal(false);
+      setShowProposalModal(false);
       fetchLead();
     } catch { alert('An error occurred.'); }
     finally { setStageSubmitting(false); }
@@ -2322,51 +2328,57 @@ export default function LeadDetailPage() {
               </div>
             )}
 
-            {/* Approach Stage Details */}
-            {lead.closureDetails && (lead.closureDetails as any).approach && (
+            {/* Proposal Stage Details */}
+            {lead.closureDetails && (lead.closureDetails as any).proposal && (
               <div className="bg-white rounded-xl border border-indigo-100 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-indigo-700 mb-3">📣 Approach Details</h3>
+                <h3 className="text-sm font-semibold text-indigo-700 mb-3">📣 Proposal Details</h3>
                 <div className="space-y-2">
-                  {(lead.closureDetails as any).approach.demoDate && (
+                  {(lead.closureDetails as any).proposal.proposalDate && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Proposal Date</p>
+                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).proposal.proposalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {(lead.closureDetails as any).proposal.demoDate && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Demo Date</p>
-                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).approach.demoDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                      <p className="text-sm font-medium">{new Date((lead.closureDetails as any).proposal.demoDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.demoLocation && (
+                  {(lead.closureDetails as any).proposal.demoLocation && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Location</p>
-                      <p className="text-sm font-medium">{(lead.closureDetails as any).approach.demoLocation}</p>
+                      <p className="text-sm font-medium">{(lead.closureDetails as any).proposal.demoLocation}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.clientAttendees && (
+                  {(lead.closureDetails as any).proposal.clientAttendees && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Client Attendees</p>
-                      <p className="text-sm">{(lead.closureDetails as any).approach.clientAttendees}</p>
+                      <p className="text-sm">{(lead.closureDetails as any).proposal.clientAttendees}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.topicsCovered && (
+                  {(lead.closureDetails as any).proposal.topicsCovered && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Topics Covered</p>
-                      <p className="text-sm">{(lead.closureDetails as any).approach.topicsCovered}</p>
+                      <p className="text-sm">{(lead.closureDetails as any).proposal.topicsCovered}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.clientFeedback && (
+                  {(lead.closureDetails as any).proposal.clientFeedback && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Client Feedback</p>
-                      <p className="text-sm">{(lead.closureDetails as any).approach.clientFeedback}</p>
+                      <p className="text-sm">{(lead.closureDetails as any).proposal.clientFeedback}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.nextSteps && (
+                  {(lead.closureDetails as any).proposal.nextSteps && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Next Steps</p>
-                      <p className="text-sm">{(lead.closureDetails as any).approach.nextSteps}</p>
+                      <p className="text-sm">{(lead.closureDetails as any).proposal.nextSteps}</p>
                     </div>
                   )}
-                  {(lead.closureDetails as any).approach.materialsProvided && (
+                  {(lead.closureDetails as any).proposal.materialsProvided && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase mb-0.5">Materials Provided</p>
-                      <p className="text-sm">{(lead.closureDetails as any).approach.materialsProvided}</p>
+                      <p className="text-sm">{(lead.closureDetails as any).proposal.materialsProvided}</p>
                     </div>
                   )}
                 </div>
@@ -2514,11 +2526,11 @@ export default function LeadDetailPage() {
         />
       )}
 
-      {showApproachModal && lead && (
-        <ApproachModal
+      {showProposalModal && lead && (
+        <ProposalModal
           lead={lead}
-          onClose={() => setShowApproachModal(false)}
-          onSubmit={handleApproachSubmit}
+          onClose={() => setShowProposalModal(false)}
+          onSubmit={handleProposalSubmit}
           submitting={stageSubmitting}
         />
       )}

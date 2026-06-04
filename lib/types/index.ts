@@ -81,7 +81,7 @@ export type CustomerListItem = {
 // ─── Deal ───────────────────────────────────────────────────────────────────
 
 export type DealStage =
-  | 'SUSPECT' | 'PROSPECT' | 'APPROACH' | 'NEGOTIATION' | 'CLOSURE' | 'ONGOING';
+  | 'SUSPECT' | 'PROSPECT' | 'PROPOSAL' | 'NEGOTIATION' | 'CLOSURE' | 'ONGOING';
 
 export type DealListItem = {
   id: string;

@@ -73,7 +73,7 @@ export async function PATCH(
     if (status) {
       const existingLead = await prisma.lead.findUnique({ where: { id }, select: { status: true } });
       const current = existingLead?.status;
-      const stageOrder = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
+      const stageOrder = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
       const currentIdx = stageOrder.indexOf(current || '');
       const newIdx = stageOrder.indexOf(status);
 
