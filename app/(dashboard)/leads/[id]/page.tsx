@@ -908,13 +908,13 @@ function ClosureModal({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Reference</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Reference <span className="text-red-400">*</span></label>
                   <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
                     placeholder="e.g. QT-2026-00123"
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO Number</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO Number <span className="text-red-400">*</span></label>
                   <input type="text" value={form.poNumber} onChange={e => set('poNumber', e.target.value)}
                     placeholder="Customer PO #"
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
@@ -929,7 +929,7 @@ function ClosureModal({
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">✅ What Went Well</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">✅ What Went Well <span className="text-red-400">*</span></label>
                 <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
                   rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
@@ -941,13 +941,13 @@ function ClosureModal({
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value (₹)</label>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value (₹) <span className="text-red-400">*</span></label>
                       <input type="number" value={form.finalDealValue} onChange={e => set('finalDealValue', e.target.value)}
                         placeholder="Final agreed value"
                         className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contract Signed Date</label>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contract Signed Date <span className="text-red-400">*</span></label>
                       <input type="date" value={form.contractSignedDate} onChange={e => set('contractSignedDate', e.target.value)}
                         className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
                     </div>
@@ -1008,14 +1008,14 @@ function ClosureModal({
               </div>
               {form.outcome === 'LOST' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competitor (if any)</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competitor <span className="text-red-400">*</span></label>
                   <input type="text" value={form.competitor} onChange={e => set('competitor', e.target.value)}
                     placeholder="e.g. HP India, local vendor…"
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">💡 What to Improve</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">💡 What to Improve <span className="text-red-400">*</span></label>
                 <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
                   rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
@@ -1070,7 +1070,7 @@ function ClosureModal({
           </button>
           <button
             onClick={() => onSubmit(form)}
-            disabled={closing || (form.outcome === 'WON' ? !form.reasonOfWin.trim() : !form.reason.trim())}
+            disabled={closing || (form.outcome === 'WON' ? (!form.quoteRef.trim() || !form.poNumber.trim() || !form.reasonOfWin.trim() || !form.whatWentWell.trim() || !form.finalDealValue || !form.contractSignedDate) : (!form.reason.trim() || !form.whatToImprove.trim() || (form.outcome === 'LOST' && !form.competitor.trim())))}
             className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors ${cfg.btnColor}`}
           >
             {closing ? 'Closing…' : `Confirm ${cfg.icon} ${cfg.label}`}
@@ -1102,7 +1102,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting }: {
     topicsCovered: '', clientFeedback: '', nextSteps: '', materialsProvided: '',
   });
   const set = (k: keyof ProposalFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered;
+  const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered && form.clientFeedback && form.nextSteps && form.materialsProvided;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -1151,19 +1151,19 @@ function ProposalModal({ lead, onClose, onSubmit, submitting }: {
               className="w-full border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Feedback / Response</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Client Feedback / Response <span className="text-red-400">*</span></label>
             <textarea value={form.clientFeedback} onChange={e => set('clientFeedback', e.target.value)}
               rows={2} placeholder="Client's response, interest level, concerns…"
               className="w-full border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Next Steps Discussed</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Next Steps Discussed <span className="text-red-400">*</span></label>
             <textarea value={form.nextSteps} onChange={e => set('nextSteps', e.target.value)}
               rows={2} placeholder="e.g. Share proposal by Friday, schedule follow-up call…"
               className="w-full border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Materials Provided</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Materials Provided <span className="text-red-400">*</span></label>
             <input type="text" value={form.materialsProvided} onChange={e => set('materialsProvided', e.target.value)}
               placeholder="e.g. Brochure, Case studies, Demo video link"
               className="w-full border rounded-lg px-3 py-2 text-sm" />
@@ -1250,7 +1250,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
   const discountAmt = parseFloat(meta.discount || '0') || 0;
   const grandTotal = subtotal + taxTotal - discountAmt;
 
-  const canSubmit = meta.paymentTerms && items.every(i => i.productName.trim());
+  const canSubmit = meta.paymentTerms && meta.deliveryTimeline && meta.negotiationPoints && terms.priceValidity && terms.deliveryEstimate && items.every(i => i.productName.trim());
 
   const handleSubmit = () => {
     onSubmit({
@@ -1423,14 +1423,14 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
             <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Terms &amp; Conditions</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'priceValidity', label: 'Price Validity', ph: 'e.g. 30 days from quotation date' },
-                { key: 'taxDetails', label: 'Taxes', ph: 'e.g. GST 18% extra as applicable' },
-                { key: 'warranty', label: 'Warranty', ph: 'e.g. 1 year onsite warranty' },
-                { key: 'amcPeriod', label: 'AMC Period', ph: 'e.g. 1 year post-warranty' },
-                { key: 'deliveryEstimate', label: 'Delivery Estimate', ph: 'e.g. 7–10 working days after PO' },
-              ].map(({ key, label, ph }) => (
+                { key: 'priceValidity', label: 'Price Validity', ph: 'e.g. 30 days from quotation date', required: true },
+                { key: 'taxDetails', label: 'Taxes', ph: 'e.g. GST 18% extra as applicable', required: false },
+                { key: 'warranty', label: 'Warranty', ph: 'e.g. 1 year onsite warranty', required: false },
+                { key: 'amcPeriod', label: 'AMC Period', ph: 'e.g. 1 year post-warranty', required: false },
+                { key: 'deliveryEstimate', label: 'Delivery Estimate', ph: 'e.g. 7–10 working days after PO', required: true },
+              ].map(({ key, label, ph, required }) => (
                 <div key={key}>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{label}</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{label}{required && <span className="text-red-400">*</span>}</label>
                   <input type="text" value={(terms as any)[key]}
                     onChange={e => setTerms(t => ({ ...t, [key]: e.target.value }))}
                     placeholder={ph} className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200" />
@@ -1456,7 +1456,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline <span className="text-red-400">*</span></label>
                   <input type="text" value={meta.deliveryTimeline} onChange={e => setM('deliveryTimeline', e.target.value)}
                     placeholder="e.g. 4-6 weeks from PO" className="w-full border rounded-lg px-3 py-2 text-sm" />
                 </div>
@@ -1472,7 +1472,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Negotiation Points</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Negotiation Points <span className="text-red-400">*</span></label>
                 <textarea value={meta.negotiationPoints} onChange={e => setM('negotiationPoints', e.target.value)}
                   rows={2} placeholder="Key price/terms/timeline points being negotiated…"
                   className="w-full border rounded-lg px-3 py-2 text-sm" />
