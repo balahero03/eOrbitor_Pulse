@@ -38,6 +38,7 @@ model User {
   activityUnlockRequests ActivityUnlockRequest[]
   manager               User?             @relation("UserManager", fields: [managerId], references: [id])
   subordinates          User[]            @relation("UserManager")
+  reports               Report[]
 
   @@index([email])
   @@index([role])
@@ -598,4 +599,40 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model Report {
+  id          String    @id @default(cuid())
+  type        String
+  userId      String?
+  managerId   String?
+  startDate   DateTime
+  endDate     DateTime
+  data        Json
+  generatedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  @@index([type, createdById, startDate])
+  @@index([createdAt])
+}
+
+model ScheduledReport {
+  id              String    @id @default(cuid())
+  type            String
+  userId          String?
+  managerId       String?
+  frequency       String
+  dayOfWeek       Int?
+  dayOfMonth      Int?
+  recipients      String[]
+  isActive        Boolean   @default(true)
+  lastGeneratedAt DateTime?
+  nextRunAt       DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([nextRunAt, isActive])
 }
