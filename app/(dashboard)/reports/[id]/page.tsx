@@ -532,6 +532,104 @@ function PipelineView({ report }: { report: PipelineReport }) {
   );
 }
 
+// ─── CSV Helpers ──────────────────────────────────────────────────────────────
+
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPersonalCSV(report: PersonalReport) {
+  const { metrics, topDeals, period, user } = report;
+  const rows: string[][] = [
+    ['Personal Performance Report'],
+    ['User', user.name, 'Role', user.role],
+    ['Period', `${period.startDate} to ${period.endDate}`, 'Days', String(period.days)],
+    [],
+    ['--- KEY METRICS ---'],
+    ['Total Leads', String(metrics.leads.total)],
+    ['Converted Leads', String(metrics.leads.converted)],
+    ['Win Rate (%)', String(metrics.conversion.winRate)],
+    ['Conversion Rate (%)', String(metrics.conversion.conversionRate)],
+    ['Total Revenue (INR)', String(metrics.revenue.total)],
+    ['Pipeline Value (INR)', String(metrics.revenue.pipeline)],
+    ['Avg Deal Value (INR)', String(metrics.revenue.average)],
+    ['Activities Logged', String(metrics.activities.total)],
+    ['Follow-ups Completed', String(metrics.activities.followupsCompleted)],
+    ['Tasks Completed', String(metrics.activities.tasksCompleted)],
+    ['Avg Days to Close', String(metrics.salesCycle.avgDuration)],
+    ['Performance Score', String(metrics.performance.score)],
+    [],
+    ['--- REVENUE BY MONTH ---'],
+    ['Month', 'Revenue (INR)'],
+    ...metrics.revenue.byMonth.map(r => [r.month, String(r.revenue)]),
+    [],
+    ['--- TOP DEALS ---'],
+    ['Deal Name', 'Value (INR)', 'Closed Date', 'Status'],
+    ...topDeals.map(d => [d.dealName, String(d.value), d.closedDate, d.status]),
+    [],
+    ['--- CONVERSION BY SOURCE ---'],
+    ['Source', 'Total Leads', 'Won', 'Win Rate (%)'],
+    ...Object.entries(metrics.conversion.bySource).map(([src, d]) => [src, String(d.total), String(d.won), String(d.rate.toFixed(1))]),
+  ];
+  downloadCSV(`personal-report-${user.name.replace(/\s+/g, '-')}-${period.startDate}.csv`, rows);
+}
+
+function exportTeamCSV(report: TeamReport) {
+  const { metrics, period, manager } = report;
+  const rows: string[][] = [
+    ['Team Performance Report'],
+    ['Manager', manager.name, 'Role', manager.role],
+    ['Period', `${period.startDate} to ${period.endDate}`, 'Days', String(period.days)],
+    [],
+    ['--- TEAM TOTALS ---'],
+    ['Team Size', String(report.teamSize)],
+    ['Total Revenue (INR)', String(metrics.totals.totalRevenue)],
+    ['Total Leads', String(metrics.totals.totalLeads)],
+    ['Total Converted', String(metrics.totals.totalConverted)],
+    ['Avg Win Rate (%)', String(metrics.average.winRate)],
+    [],
+    ['--- TEAM LEADERBOARD ---'],
+    ['Rank', 'Name', 'Role', 'Revenue (INR)', 'Leads', 'Won', 'Win Rate (%)', 'Avg Deal (INR)', 'Activities'],
+    ...metrics.members.map(m => [
+      String(m.rank), m.name, m.role,
+      String(m.revenue), String(m.leads), String(m.converted),
+      String(m.winRate.toFixed(1)), String(m.avgDealValue), String(m.activities),
+    ]),
+  ];
+  downloadCSV(`team-report-${period.startDate}.csv`, rows);
+}
+
+function exportPipelineCSV(report: PipelineReport) {
+  const { metrics, period } = report;
+  const rows: string[][] = [
+    ['Pipeline Health Report'],
+    ['Period', `${period.startDate} to ${period.endDate}`, 'Days', String(period.days)],
+    [],
+    ['--- FORECAST ---'],
+    ['Total Pipeline Value (INR)', String(metrics.forecast.expectedRevenue)],
+    ['Total Active Deals', String(metrics.forecast.totalDeals)],
+    [],
+    ['--- PIPELINE BY STAGE ---'],
+    ['Stage', 'Deals', 'Total Value (INR)', 'Avg Value (INR)', 'Share (%)'],
+    ...metrics.stages.map(s => {
+      const share = metrics.forecast.expectedRevenue > 0
+        ? ((s.totalValue / metrics.forecast.expectedRevenue) * 100).toFixed(1)
+        : '0';
+      return [s.stage, String(s.dealCount), String(s.totalValue), String(s.avgValue), share];
+    }),
+  ];
+  downloadCSV(`pipeline-report-${period.startDate}.csv`, rows);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReportViewPage() {
@@ -612,12 +710,22 @@ export default function ReportViewPage() {
               <span className="ml-2 text-gray-400">({report.period.days} days)</span>
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                if (report.reportType === 'PERSONAL') exportPersonalCSV(report as PersonalReport);
+                else if (report.reportType === 'TEAM') exportTeamCSV(report as TeamReport);
+                else exportPipelineCSV(report as PipelineReport);
+              }}
+              className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Export CSV
+            </button>
             <button
               onClick={() => window.print()}
-              className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              Print
+              Export PDF
             </button>
           </div>
         </div>

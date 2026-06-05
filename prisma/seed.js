@@ -5,53 +5,53 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Starting database seed...');
+  console.log('Clearing all data...');
 
-  // Clear existing data
-  console.log('Clearing existing data...');
+  // Delete in dependency order so FK constraints are not violated
+  await prisma.scheduledReport.deleteMany({});
+  await prisma.report.deleteMany({});
+  await prisma.activityUnlockRequest.deleteMany({});
+  await prisma.timeLog.deleteMany({});
+  await prisma.dailyActivity.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.activityLog.deleteMany({});
+  await prisma.approvalRequest.deleteMany({});
+  await prisma.announcement.deleteMany({});
+  await prisma.task.deleteMany({});
+  await prisma.followUp.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.quotation.deleteMany({});
+  await prisma.deal.deleteMany({});
+  await prisma.lead.deleteMany({});
+  await prisma.vendorProduct.deleteMany({});
+  await prisma.inventory.deleteMany({});
+  await prisma.product.deleteMany({});
+  await prisma.vendor.deleteMany({});
+  await prisma.contact.deleteMany({});
+  await prisma.customer.deleteMany({});
   await prisma.user.deleteMany({});
 
-  // Create default admin user
-  const hashedPassword = await bcrypt.hash('password', 10);
+  console.log('All data cleared.');
 
-  const adminUser = await prisma.user.create({
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+
+  const superAdmin = await prisma.user.create({
     data: {
-      email: 'admin@company.local',
+      email: 'admin@eorbitor.com',
       passwordHash: hashedPassword,
       firstName: 'Admin',
-      lastName: 'User',
-      role: 'ADMIN',
-      department: 'Management',
+      lastName: '',
+      role: 'SUPER_ADMIN',
+      department: 'Administration',
       isActive: true,
     },
   });
-
-  console.log('Default admin user created:');
-  console.log(`  Email: ${adminUser.email}`);
-  console.log(`  Password: password`);
-  console.log(`  Role: ${adminUser.role}`);
-
-  // Create sample sales executive
-  const salesUser = await prisma.user.create({
-    data: {
-      email: 'sales@company.local',
-      passwordHash: hashedPassword,
-      firstName: 'John',
-      lastName: 'Sales',
-      role: 'SALES_EXEC',
-      department: 'Sales',
-      assignedTerritory: 'North India',
-      isActive: true,
-    },
-  });
-
-  console.log('\nSample sales user created:');
-  console.log(`  Email: ${salesUser.email}`);
-  console.log(`  Password: password`);
 
   console.log('\n✅ Database seed completed successfully!');
-  console.log('\nYou can now login with:');
-  console.log('  Admin: admin@company.local / password');
-  console.log('  Sales: sales@company.local / password');
+  console.log('\nLogin credentials:');
+  console.log(`  Email:    ${superAdmin.email}`);
+  console.log(`  Password: admin123`);
+  console.log(`  Role:     ${superAdmin.role}`);
 }
 
 main()

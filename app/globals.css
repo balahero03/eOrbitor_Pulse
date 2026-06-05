@@ -71,3 +71,13 @@ textarea {
 .badge-error {
   @apply bg-red-100 text-red-800;
 }
+
+@media print {
+  aside, header, .print\:hidden { display: none !important; }
+  body, html { height: auto; overflow: visible; }
+  main { overflow: visible !important; }
+  .flex.h-screen { display: block !important; }
+  .flex-1.flex.flex-col.overflow-hidden { overflow: visible !important; }
+  .min-h-screen { min-height: unset; }
+  @page { margin: 1cm; }
+}
