@@ -18,6 +18,15 @@ interface NavGroup {
   items: MenuItem[];
 }
 
+interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 const NAV_GROUPS: NavGroup[] = [
   {
     group: 'Main',
@@ -97,14 +106,60 @@ function isGroupVisible(group: NavGroup, role: string): boolean {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  // On mobile the sidebar is hidden by default; on desktop it starts open
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const fetchNotifications = (token: string) => {
+    fetch('/api/notifications?limit=20', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.notifications) setNotifications(data.notifications); })
+      .catch(() => {});
+  };
+
+  const markRead = async (id: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    await fetch(`/api/notifications/${id}/read`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const markAllRead = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    await fetch('/api/notifications/read-all', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
 
   // Initialise sidebar state from window width after mount (avoids SSR mismatch)
   useEffect(() => {
     setSidebarOpen(window.innerWidth >= 768);
+  }, []);
+
+  // Poll notifications every 30 s after user loads
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchNotifications(token);
+    const interval = setInterval(() => fetchNotifications(token), 30_000);
+    return () => clearInterval(interval);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // Close mobile overlay when navigating
@@ -273,6 +328,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ☰
           </button>
           <div className="flex items-center gap-3 min-w-0">
+            {/* Notification bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                className="relative p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                aria-label="Notifications"
+              >
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 top-10 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <span className="text-sm font-semibold text-gray-800">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline">
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-8">No notifications</p>
+                    ) : notifications.map(n => (
+                      <button
+                        key={n.id}
+                        onClick={() => markRead(n.id)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-blue-50' : ''}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: n.isRead ? '#d1d5db' : '#3b82f6', marginTop: 6 }} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-800 truncate">{n.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
               {roleInfo.label}
             </span>
