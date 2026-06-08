@@ -14,7 +14,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const where: any = {};
 
   // Role-based scoping
-  if (user.role === 'SALES_EXEC') {
+  if (user.role === 'SALES_EXEC' || user.role === 'SUPPORT' || user.role === 'VIEWER') {
     where.assignedToId = user.id;
   } else if (user.role === 'SALES_MANAGER') {
     const teamMembers = await prisma.user.findMany({

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AdminDashboard from './components/AdminDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
 import SalesExecDashboard from './components/SalesExecDashboard';
+import SupportDashboard from './components/SupportDashboard';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -55,5 +56,6 @@ export default function DashboardPage() {
 
   if (role === 'SALES_EXEC') return <SalesExecDashboard data={data} />;
   if (role === 'SALES_MANAGER') return <ManagerDashboard data={data} />;
+  if (role === 'SUPPORT' || role === 'VIEWER') return <SupportDashboard data={data} />;
   return <AdminDashboard data={data} />;
 }
