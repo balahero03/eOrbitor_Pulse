@@ -1609,6 +1609,8 @@ export default function LeadDetailPage() {
     ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) ||
     lead?.assignedTo?.id === currentUser.id
   ));
+  // Only managers/admins can open the Edit Details panel
+  const canEditDetails = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role));
 
   // SPANCO stage order for reversal checks
   const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
@@ -2019,7 +2021,7 @@ export default function LeadDetailPage() {
               className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg font-medium hover:bg-gray-50">
               + Follow-up
             </button>
-            {canEdit && (
+            {canEditDetails && (
               <button onClick={() => setEditing(!editing)}
                 className={`px-3 py-1.5 border text-sm rounded-lg font-medium transition-colors ${editing ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>
                 {editing ? 'Cancel' : 'Edit'}
