@@ -80,7 +80,6 @@ const NAV_GROUPS: NavGroup[] = [
     roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'],
     items: [
       { label: 'Users', href: '/users', icon: '👤', roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
-      { label: 'Settings', href: '/settings', icon: '⚙️', roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
 ];

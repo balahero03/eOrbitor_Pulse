@@ -2337,8 +2337,8 @@ export default function LeadDetailPage() {
                   )}
                   {(lead.closureDetails as any).annualRevenue > 0 && (
                     <div>
-                      <p className="text-xs text-gray-400 uppercase mb-0.5">Annual Revenue</p>
-                      <p className="text-sm font-medium">₹{(lead.closureDetails as any).annualRevenue.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-400 uppercase mb-0.5">Company Worth</p>
+                      <p className="text-sm font-medium">{((lead.closureDetails as any).annualRevenue / 10000000).toFixed(2)} Cr</p>
                     </div>
                   )}
                   {(lead.closureDetails as any).website && (
@@ -2830,12 +2830,13 @@ export default function LeadDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Total Company Worth (₹)</label>
+                    <label className="block text-sm font-medium mb-1">Total Company Worth (Cr)</label>
                     <input
                       type="number"
                       min="0"
-                      placeholder="e.g. 10000000"
-                      onChange={e => setEditData({ ...editData, annualRevenue: parseFloat(e.target.value) || 0 })}
+                      step="0.01"
+                      placeholder="e.g. 10.5"
+                      onChange={e => setEditData({ ...editData, annualRevenue: (parseFloat(e.target.value) || 0) * 10000000 })}
                       className="w-full border rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
