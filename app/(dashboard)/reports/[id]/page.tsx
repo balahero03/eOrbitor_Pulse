@@ -253,6 +253,95 @@ function PersonalView({ report }: { report: PersonalReport }) {
         )}
       </SectionCard>
 
+      {/* Daily Activity & Unproductive Hours */}
+      {(metrics as any).dailyActivity && (() => {
+        const da = (metrics as any).dailyActivity;
+        const prodPct = da.totalLoggedHours > 0
+          ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100)
+          : 0;
+        return (
+          <div className="mt-5">
+            <SectionCard title="Attendance & Productivity">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{da.daysPresent}</p>
+                  <p className="text-xs text-blue-600 mt-1">Days Present</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{da.totalLoggedHours}h</p>
+                  <p className="text-xs text-green-600 mt-1">Total Logged Hours</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-purple-700">{da.totalActivityHours}h</p>
+                  <p className="text-xs text-purple-600 mt-1">Activity-Covered Hours</p>
+                </div>
+                <div className={`rounded-lg p-3 text-center ${da.totalUnproductiveHours > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                  <p className={`text-2xl font-bold ${da.totalUnproductiveHours > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    {da.totalUnproductiveHours}h
+                  </p>
+                  <p className={`text-xs mt-1 ${da.totalUnproductiveHours > 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                    Unproductive Hours
+                  </p>
+                </div>
+              </div>
+
+              {/* Productivity bar */}
+              <div className="mb-5">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Productivity Rate</span>
+                  <span className={`font-bold ${prodPct >= 70 ? 'text-green-600' : prodPct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {prodPct}%
+                  </span>
+                </div>
+                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${prodPct >= 70 ? 'bg-green-500' : prodPct >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`}
+                    style={{ width: `${prodPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{da.unproductiveDays} day(s) with &gt;30 min unaccounted time</p>
+              </div>
+
+              {/* Daily breakdown table */}
+              {da.dailyBreakdown.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Date</th>
+                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Logged</th>
+                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Activity Covered</th>
+                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Unproductive</th>
+                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Entries</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {da.dailyBreakdown.map((d: any) => (
+                        <tr key={d.date} className={`border-b border-gray-50 hover:bg-gray-50 ${d.unproductiveHours > 0.5 ? 'bg-red-50/40' : ''}`}>
+                          <td className="py-2.5 px-3 text-gray-700">
+                            {new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-gray-600">{d.loggedHours}h</td>
+                          <td className="py-2.5 px-3 text-right text-green-700">{d.activityHours}h</td>
+                          <td className="py-2.5 px-3 text-right">
+                            {d.unproductiveHours > 0.5 ? (
+                              <span className="text-red-600 font-semibold">{d.unproductiveHours}h</span>
+                            ) : (
+                              <span className="text-gray-400">{d.unproductiveHours}h</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-gray-500">{d.activityCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </SectionCard>
+          </div>
+        );
+      })()}
+
       {/* Conversion by source + Sales cycle */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
         <SectionCard title="Conversion by Source">
@@ -371,43 +460,65 @@ function TeamView({ report }: { report: TeamReport }) {
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Leads</th>
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Won</th>
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Win Rate</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Avg Deal</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Activities</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Logged Hrs</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Unproductive</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Productivity</th>
                 </tr>
               </thead>
               <tbody>
-                {metrics.members.map(m => (
-                  <tr key={m.userId} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 px-3 text-center">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                        m.rank === 1 ? 'bg-yellow-100 text-yellow-700' :
-                        m.rank === 2 ? 'bg-gray-200 text-gray-700' :
-                        m.rank === 3 ? 'bg-orange-100 text-orange-700' :
-                        'bg-gray-100 text-gray-500'
-                      }`}>
-                        {m.rank === 1 ? '🥇' : m.rank === 2 ? '🥈' : m.rank === 3 ? '🥉' : m.rank}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3">
-                      <p className="font-semibold text-gray-800">{m.name}</p>
-                      <p className="text-xs text-gray-400">{m.role}</p>
-                    </td>
-                    <td className="py-3 px-3 text-right font-semibold text-green-700">{inr(m.revenue)}</td>
-                    <td className="py-3 px-3 text-right text-gray-600">{m.leads}</td>
-                    <td className="py-3 px-3 text-right text-gray-600">{m.converted}</td>
-                    <td className="py-3 px-3 text-right">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        m.winRate >= 70 ? 'bg-green-100 text-green-700' :
-                        m.winRate >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {m.winRate.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right text-gray-600">{inr(m.avgDealValue)}</td>
-                    <td className="py-3 px-3 text-right text-gray-600">{m.activities}</td>
-                  </tr>
-                ))}
+                {metrics.members.map((m: any) => {
+                  const da = m.dailyActivity;
+                  const prodPct = da && da.totalLoggedHours > 0
+                    ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100)
+                    : null;
+                  return (
+                    <tr key={m.userId} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                          m.rank === 1 ? 'bg-yellow-100 text-yellow-700' :
+                          m.rank === 2 ? 'bg-gray-200 text-gray-700' :
+                          m.rank === 3 ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {m.rank === 1 ? '🥇' : m.rank === 2 ? '🥈' : m.rank === 3 ? '🥉' : m.rank}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <p className="font-semibold text-gray-800">{m.name}</p>
+                        <p className="text-xs text-gray-400">{m.role}</p>
+                      </td>
+                      <td className="py-3 px-3 text-right font-semibold text-green-700">{inr(m.revenue)}</td>
+                      <td className="py-3 px-3 text-right text-gray-600">{m.leads}</td>
+                      <td className="py-3 px-3 text-right text-gray-600">{m.converted}</td>
+                      <td className="py-3 px-3 text-right">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          m.winRate >= 70 ? 'bg-green-100 text-green-700' :
+                          m.winRate >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {m.winRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right text-gray-600">{da ? `${da.totalLoggedHours}h` : '—'}</td>
+                      <td className="py-3 px-3 text-right">
+                        {da ? (
+                          da.totalUnproductiveHours > 0.5
+                            ? <span className="text-red-600 font-semibold">{da.totalUnproductiveHours}h</span>
+                            : <span className="text-gray-400">{da.totalUnproductiveHours}h</span>
+                        ) : '—'}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        {prodPct !== null ? (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            prodPct >= 70 ? 'bg-green-100 text-green-700' :
+                            prodPct >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>{prodPct}%</span>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 font-semibold text-gray-700">
@@ -416,8 +527,7 @@ function TeamView({ report }: { report: TeamReport }) {
                   <td className="py-3 px-3 text-right">{metrics.totals.totalLeads}</td>
                   <td className="py-3 px-3 text-right">{metrics.totals.totalConverted}</td>
                   <td className="py-3 px-3 text-right">{metrics.average.winRate.toFixed(1)}%</td>
-                  <td className="py-3 px-3 text-right">{inr(metrics.average.revenue)}</td>
-                  <td className="py-3 px-3 text-right">{metrics.totals.totalActivities}</td>
+                  <td className="py-3 px-3" colSpan={3} />
                 </tr>
               </tfoot>
             </table>

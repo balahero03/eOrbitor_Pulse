@@ -221,6 +221,74 @@ export class ReportCalculator {
     };
   }
 
+  async getDailyActivityMetrics(userId: string, dateRange: DateRange) {
+    const startStr = dateRange.startDate.toISOString().slice(0, 10);
+    const endStr   = dateRange.endDate.toISOString().slice(0, 10);
+
+    const records = await prisma.dailyActivity.findMany({
+      where: { userId, date: { gte: startStr, lte: endStr } },
+      select: { date: true, loginTime: true, logoutTime: true, totalHours: true, activities: true },
+      orderBy: { date: 'asc' },
+    });
+
+    let totalLoggedHours = 0;
+    let totalActivityMinutes = 0;
+    let unproductiveDays = 0;
+    const dailyBreakdown: {
+      date: string;
+      loggedHours: number;
+      activityHours: number;
+      unproductiveHours: number;
+      activityCount: number;
+    }[] = [];
+
+    for (const rec of records) {
+      const loggedHours = rec.totalHours ? Number(rec.totalHours) : 0;
+      totalLoggedHours += loggedHours;
+
+      let entries: any[] = [];
+      try { entries = JSON.parse(rec.activities || '[]'); } catch { entries = []; }
+
+      // Sum minutes covered by activity entries that have timeIn+timeOut
+      let coveredMinutes = 0;
+      for (const e of entries) {
+        if (e.timeIn && e.timeOut) {
+          const [h1, m1] = e.timeIn.split(':').map(Number);
+          const [h2, m2] = e.timeOut.split(':').map(Number);
+          const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+          if (mins > 0) coveredMinutes += mins;
+        }
+      }
+
+      totalActivityMinutes += coveredMinutes;
+      const activityHours = Math.round((coveredMinutes / 60) * 100) / 100;
+      const unproductiveHours = Math.max(0, Math.round((loggedHours - activityHours) * 100) / 100);
+      if (unproductiveHours > 0.5) unproductiveDays++;
+
+      dailyBreakdown.push({
+        date: rec.date,
+        loggedHours: Math.round(loggedHours * 100) / 100,
+        activityHours,
+        unproductiveHours,
+        activityCount: entries.length,
+      });
+    }
+
+    const totalUnproductiveHours = Math.max(
+      0,
+      Math.round((totalLoggedHours - totalActivityMinutes / 60) * 100) / 100
+    );
+
+    return {
+      totalLoggedHours: Math.round(totalLoggedHours * 100) / 100,
+      totalActivityHours: Math.round((totalActivityMinutes / 60) * 100) / 100,
+      totalUnproductiveHours,
+      unproductiveDays,
+      daysPresent: records.length,
+      dailyBreakdown,
+    };
+  }
+
   async getTeamMetrics(managerId: string, dateRange: DateRange) {
     // SUPER_ADMIN and ADMIN see everyone; managers see their direct reports
     const caller = await prisma.user.findUnique({ where: { id: managerId }, select: { role: true } });
@@ -241,11 +309,12 @@ export class ReportCalculator {
 
     const memberMetrics = await Promise.all(
       teamMembers.map(async member => {
-        const [leadsM, revenueM, conversionM, activitiesM] = await Promise.all([
+        const [leadsM, revenueM, conversionM, activitiesM, dailyM] = await Promise.all([
           this.getLeadMetrics(member.id, dateRange),
           this.getRevenueMetrics(member.id, dateRange),
           this.getConversionMetrics(member.id, dateRange),
           this.getActivityMetrics(member.id, dateRange),
+          this.getDailyActivityMetrics(member.id, dateRange),
         ]);
         return {
           userId: member.id,
@@ -257,6 +326,7 @@ export class ReportCalculator {
           avgDealValue: revenueM.average,
           winRate: conversionM.winRate,
           activities: activitiesM.total,
+          dailyActivity: dailyM,
         };
       })
     );
