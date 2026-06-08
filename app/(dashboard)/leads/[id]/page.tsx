@@ -1093,13 +1093,16 @@ interface ProposalFormData {
   materialsProvided: string;
 }
 
-function ProposalModal({ lead, onClose, onSubmit, submitting }: {
+function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editMode }: {
   lead: LeadDetail; onClose: () => void;
   onSubmit: (data: ProposalFormData) => void; submitting: boolean;
+  initialData?: Partial<ProposalFormData>; editMode?: boolean;
 }) {
   const [form, setForm] = useState<ProposalFormData>({
-    proposalDate: '', demoDate: '', demoLocation: 'On-site', clientAttendees: '',
-    topicsCovered: '', clientFeedback: '', nextSteps: '', materialsProvided: '',
+    proposalDate: initialData?.proposalDate || '', demoDate: initialData?.demoDate || '',
+    demoLocation: initialData?.demoLocation || 'On-site', clientAttendees: initialData?.clientAttendees || '',
+    topicsCovered: initialData?.topicsCovered || '', clientFeedback: initialData?.clientFeedback || '',
+    nextSteps: initialData?.nextSteps || '', materialsProvided: initialData?.materialsProvided || '',
   });
   const set = (k: keyof ProposalFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
   const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered && form.clientFeedback && form.nextSteps && form.materialsProvided;
@@ -1174,7 +1177,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting }: {
             className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
           <button onClick={() => onSubmit(form)} disabled={submitting || !canSubmit}
             className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
-            {submitting ? 'Saving…' : 'Move to Proposal →'}
+            {submitting ? 'Saving…' : editMode ? 'Save Changes' : 'Move to Proposal →'}
           </button>
         </div>
       </div>
@@ -1202,13 +1205,16 @@ interface NegotiationFormData {
   qNotes: string;
 }
 
-function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
+function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, editMode }: {
   lead: LeadDetail; onClose: () => void;
   onSubmit: (data: NegotiationFormData) => void; submitting: boolean;
+  initialData?: Partial<NegotiationFormData>; editMode?: boolean;
 }) {
   const [meta, setMeta] = useState({
-    discount: '', paymentTerms: '', deliveryTimeline: '',
-    negotiationPoints: '', objections: '', decisionTimeline: '', competingVendors: '',
+    discount: initialData?.discount || '', paymentTerms: initialData?.paymentTerms || '',
+    deliveryTimeline: initialData?.deliveryTimeline || '',
+    negotiationPoints: initialData?.negotiationPoints || '', objections: initialData?.objections || '',
+    decisionTimeline: initialData?.decisionTimeline || '', competingVendors: initialData?.competingVendors || '',
   });
   const setM = (k: keyof typeof meta, v: string) => setMeta(m => ({ ...m, [k]: v }));
 
@@ -1492,7 +1498,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting }: {
             className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
           <button onClick={handleSubmit} disabled={submitting || !canSubmit}
             className="flex-1 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
-            {submitting ? 'Saving…' : 'Move to Negotiation →'}
+            {submitting ? 'Saving…' : editMode ? 'Save Changes' : 'Move to Negotiation →'}
           </button>
         </div>
       </div>
@@ -1524,6 +1530,8 @@ export default function LeadDetailPage() {
   // Stage-specific modals
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showNegotiationModal, setShowNegotiationModal] = useState(false);
+  const [editProposalModal, setEditProposalModal] = useState(false);
+  const [editNegotiationModal, setEditNegotiationModal] = useState(false);
   const [stageSubmitting, setStageSubmitting] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -1757,6 +1765,49 @@ export default function LeadDetailPage() {
       });
       if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
       setShowNegotiationModal(false);
+      fetchLead();
+    } catch { alert('An error occurred.'); }
+    finally { setStageSubmitting(false); }
+  };
+
+  const handleEditProposalSubmit = async (data: ProposalFormData) => {
+    setStageSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const existing = (lead?.closureDetails as any) || {};
+      const merged = { ...existing, proposal: { ...data, capturedAt: new Date().toISOString() } };
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ closureDetails: merged }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      setEditProposalModal(false);
+      fetchLead();
+    } catch { alert('An error occurred.'); }
+    finally { setStageSubmitting(false); }
+  };
+
+  const handleEditNegotiationSubmit = async (data: NegotiationFormData) => {
+    setStageSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const negotiationDetails = {
+        quoteValue: data.quoteValue, discount: data.discount,
+        paymentTerms: data.paymentTerms, deliveryTimeline: data.deliveryTimeline,
+        negotiationPoints: data.negotiationPoints, objections: data.objections,
+        decisionTimeline: data.decisionTimeline, competingVendors: data.competingVendors,
+        capturedAt: new Date().toISOString(),
+      };
+      const existing = (lead?.closureDetails as any) || {};
+      const merged = { ...existing, negotiation: negotiationDetails };
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ closureDetails: merged, quoteValue: data.quoteValue }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      setEditNegotiationModal(false);
       fetchLead();
     } catch { alert('An error occurred.'); }
     finally { setStageSubmitting(false); }
@@ -2323,7 +2374,15 @@ export default function LeadDetailPage() {
             {/* Prospect Details */}
             {lead.closureDetails && ((lead.closureDetails as any).employeeCount > 0 || (lead.closureDetails as any).industry) && (
               <div className="bg-white rounded-xl border p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-cyan-700 mb-3">📋 Prospect Information</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-cyan-700">📋 Prospect Information</h3>
+                  {canEdit && !isClosed && lead.status === 'PROSPECT' && (
+                    <button onClick={() => setShowConvertModal(true)}
+                      className="text-xs px-2.5 py-1 border border-cyan-300 text-cyan-700 rounded-lg hover:bg-cyan-50 font-medium">
+                      Edit
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).employeeCount > 0 && (
                     <div>
@@ -2380,7 +2439,15 @@ export default function LeadDetailPage() {
             {/* Proposal Stage Details */}
             {lead.closureDetails && (lead.closureDetails as any).proposal && (
               <div className="bg-white rounded-xl border border-indigo-100 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-indigo-700 mb-3">📣 Proposal Details</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-indigo-700">📣 Proposal Details</h3>
+                  {canEdit && !isClosed && lead.status === 'PROPOSAL' && (
+                    <button onClick={() => setEditProposalModal(true)}
+                      className="text-xs px-2.5 py-1 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 font-medium">
+                      Edit
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).proposal.proposalDate && (
                     <div>
@@ -2437,7 +2504,15 @@ export default function LeadDetailPage() {
             {/* Negotiation Stage Details */}
             {lead.closureDetails && (lead.closureDetails as any).negotiation && (
               <div className="bg-white rounded-xl border border-orange-100 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-orange-700 mb-3">🤝 Negotiation Details</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-orange-700">🤝 Negotiation Details</h3>
+                  {canEdit && !isClosed && lead.status === 'NEGOTIATION' && (
+                    <button onClick={() => setEditNegotiationModal(true)}
+                      className="text-xs px-2.5 py-1 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 font-medium">
+                      Edit
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).negotiation.quoteNumber && (
                     <div>
@@ -2584,12 +2659,34 @@ export default function LeadDetailPage() {
         />
       )}
 
+      {editProposalModal && lead && (
+        <ProposalModal
+          lead={lead}
+          onClose={() => setEditProposalModal(false)}
+          onSubmit={handleEditProposalSubmit}
+          submitting={stageSubmitting}
+          editMode
+          initialData={(lead.closureDetails as any)?.proposal || {}}
+        />
+      )}
+
       {showNegotiationModal && lead && (
         <NegotiationModal
           lead={lead}
           onClose={() => setShowNegotiationModal(false)}
           onSubmit={handleNegotiationSubmit}
           submitting={stageSubmitting}
+        />
+      )}
+
+      {editNegotiationModal && lead && (
+        <NegotiationModal
+          lead={lead}
+          onClose={() => setEditNegotiationModal(false)}
+          onSubmit={handleEditNegotiationSubmit}
+          submitting={stageSubmitting}
+          editMode
+          initialData={(lead.closureDetails as any)?.negotiation || {}}
         />
       )}
 
