@@ -4,6 +4,38 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
+const ACTIVITY_MODES: Record<string, { label: string; icon: string }> = {
+  MEETING:     { label: 'Meeting',       icon: '🤝' },
+  CALL:        { label: 'Call',          icon: '📞' },
+  SITE_VISIT:  { label: 'Site Visit',    icon: '🏢' },
+  DEMO:        { label: 'Demo',          icon: '💻' },
+  PROPOSAL:    { label: 'Proposal',      icon: '📄' },
+  NEGOTIATION: { label: 'Negotiation',   icon: '🤜' },
+  FOLLOW_UP:   { label: 'Follow-up',     icon: '🔔' },
+  EMAIL:       { label: 'Email',         icon: '✉️' },
+  WORK:        { label: 'Internal Work', icon: '⚙️' },
+  TRAINING:    { label: 'Training',      icon: '📚' },
+  OTHER:       { label: 'Other',         icon: '📌' },
+};
+
+function fmt12(t: string) {
+  if (!t) return '—';
+  const [h, m] = t.split(':').map(Number);
+  return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+interface ActivityEntry {
+  id: string;
+  mode: string;
+  custName: string;
+  contactPerson: string;
+  timeIn: string;
+  timeOut: string;
+  quotationRef: string;
+  orderRef: string;
+  description: string;
+}
+
 interface DayRecord {
   id: string;
   userId: string;
@@ -11,9 +43,110 @@ interface DayRecord {
   loginTime: string | null;
   logoutTime: string | null;
   totalHours: number | null;
-  activities: string[];
+  activities: ActivityEntry[];
   notes: string | null;
   user: { id: string; firstName: string; lastName: string; role: string };
+}
+
+function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }) {
+  const entries: ActivityEntry[] = Array.isArray(rec.activities) ? rec.activities : [];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div>
+            <p className="font-bold text-gray-900 text-lg">{rec.user.firstName} {rec.user.lastName}</p>
+            <p className="text-xs text-gray-400">
+              {new Date(rec.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              {' · '}<span className="text-gray-500">{rec.user.role}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        {/* Login/logout bar */}
+        <div className="grid grid-cols-3 divide-x px-6 py-3 bg-gray-50 text-center text-sm border-b">
+          <div>
+            <p className="text-xs text-gray-400 font-semibold uppercase">First Login</p>
+            <p className="font-bold text-green-700">
+              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-semibold uppercase">Last Logout</p>
+            <p className="font-bold text-red-600">
+              {rec.logoutTime ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : <span className="text-orange-500">Active</span>}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-semibold uppercase">Total Hours</p>
+            <p className="font-bold text-blue-700">{rec.totalHours != null ? rec.totalHours.toFixed(2) : '—'}</p>
+          </div>
+        </div>
+
+        {/* Activity list */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+          {entries.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-10">No activities recorded</p>
+          ) : entries.map((a, i) => (
+            <div key={a.id || i} className="border rounded-xl p-4 space-y-2 bg-gray-50">
+              {/* Mode + time */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{ACTIVITY_MODES[a.mode]?.icon || '📌'}</span>
+                  <span className="font-semibold text-gray-800 text-sm">{ACTIVITY_MODES[a.mode]?.label || a.mode}</span>
+                </div>
+                {(a.timeIn || a.timeOut) && (
+                  <span className="text-xs text-gray-500 bg-white border rounded-full px-3 py-0.5">
+                    {fmt12(a.timeIn)} {a.timeOut ? `→ ${fmt12(a.timeOut)}` : ''}
+                  </span>
+                )}
+              </div>
+
+              {/* Customer / contact */}
+              {(a.custName || a.contactPerson) && (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {a.custName && (
+                    <div>
+                      <p className="text-gray-400 font-semibold uppercase mb-0.5">Customer</p>
+                      <p className="text-gray-700">{a.custName}</p>
+                    </div>
+                  )}
+                  {a.contactPerson && (
+                    <div>
+                      <p className="text-gray-400 font-semibold uppercase mb-0.5">Contact Person</p>
+                      <p className="text-gray-700">{a.contactPerson}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Refs */}
+              {(a.quotationRef || a.orderRef) && (
+                <div className="flex gap-3 text-xs">
+                  {a.quotationRef && <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded px-2 py-0.5">📄 {a.quotationRef}</span>}
+                  {a.orderRef && <span className="bg-green-50 text-green-700 border border-green-100 rounded px-2 py-0.5">📦 {a.orderRef}</span>}
+                </div>
+              )}
+
+              {/* Description */}
+              {a.description && (
+                <p className="text-xs text-gray-600 bg-white border rounded p-2">{a.description}</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {rec.notes && (
+          <div className="px-6 py-3 border-t bg-yellow-50">
+            <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Notes</p>
+            <p className="text-sm text-gray-700">{rec.notes}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function AttendancePage() {
@@ -25,6 +158,7 @@ export default function AttendancePage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [activityModal, setActivityModal] = useState<DayRecord | null>(null);
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
@@ -94,6 +228,7 @@ export default function AttendancePage() {
 
   return (
     <div className="p-4 md:p-6">
+      {activityModal && <ActivityModal rec={activityModal} onClose={() => setActivityModal(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Attendance</h1>
@@ -234,60 +369,71 @@ export default function AttendancePage() {
                   <p className="text-gray-500 text-sm">No login recorded</p>
                 </div>
               ) : (
-                <div className="space-y-5">
-                  {selectedDayRecords.map(rec => (
-                    <div key={rec.id} className="border rounded-lg p-4 space-y-3">
-                      {selectedUserId === 'all' && (
-                        <div className="flex items-center gap-2 pb-2 border-b">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-                            {rec.user.firstName[0]}{rec.user.lastName[0]}
+                <div className="space-y-3">
+                  {selectedDayRecords.map(rec => {
+                    const entries: ActivityEntry[] = Array.isArray(rec.activities) ? rec.activities : [];
+                    return (
+                      <div key={rec.id} className="border rounded-xl p-4 space-y-3">
+                        {/* User header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                              {rec.user.firstName[0]}{rec.user.lastName[0]}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm text-gray-800">{rec.user.firstName} {rec.user.lastName}</p>
+                              <p className="text-xs text-gray-400">{rec.user.role}</p>
+                            </div>
+                          </div>
+                          {entries.length > 0 && (
+                            <button
+                              onClick={() => setActivityModal(rec)}
+                              className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1"
+                            >
+                              📋 View Activities
+                              <span className="bg-blue-500 text-white text-[10px] rounded-full px-1.5 py-0.5">{entries.length}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Login / logout / hours */}
+                        <div className="grid grid-cols-3 gap-2 text-center text-xs bg-gray-50 rounded-lg p-2">
+                          <div>
+                            <p className="text-gray-400 font-semibold uppercase">Login</p>
+                            <p className="font-bold text-green-700 mt-0.5">
+                              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </p>
                           </div>
                           <div>
-                            <p className="font-semibold text-sm">{rec.user.firstName} {rec.user.lastName}</p>
-                            <p className="text-xs text-gray-400">{rec.user.role}</p>
+                            <p className="text-gray-400 font-semibold uppercase">Logout</p>
+                            <p className="font-bold text-red-600 mt-0.5">
+                              {rec.logoutTime
+                                ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                                : <span className="text-orange-500">Active</span>}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400 font-semibold uppercase">Hours</p>
+                            <p className="font-bold text-blue-700 mt-0.5">{rec.totalHours != null ? rec.totalHours.toFixed(1) : '—'}</p>
                           </div>
                         </div>
-                      )}
 
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs text-gray-400 font-semibold uppercase">First Login</p>
-                          <p className="font-semibold text-green-700">
-                            {rec.loginTime
-                              ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                              : '—'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 font-semibold uppercase">Last Logout</p>
-                          <p className="font-semibold text-red-600">
-                            {rec.logoutTime
-                              ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                              : <span className="text-orange-500">Active</span>}
-                          </p>
-                        </div>
-                      </div>
-
-                      {rec.totalHours != null && (
-                        <div className="bg-blue-50 rounded-lg p-3 text-center">
-                          <p className="text-xs text-gray-500 font-semibold uppercase">Total Hours</p>
-                          <p className="text-3xl font-bold text-blue-700">{rec.totalHours.toFixed(2)}</p>
-                          <p className="text-xs text-gray-400">hrs</p>
-                        </div>
-                      )}
-
-                      {rec.activities && rec.activities.length > 0 && (
-                        <div>
-                          <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Activities</p>
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {rec.activities.map((a, i) => (
-                              <p key={i} className="text-xs text-gray-700 bg-gray-50 rounded px-2 py-1">• {a}</p>
+                        {/* Activity summary pills */}
+                        {entries.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {entries.map((a, i) => (
+                              <span key={i} className="text-[11px] bg-white border rounded-full px-2 py-0.5 text-gray-600">
+                                {ACTIVITY_MODES[a.mode]?.icon || '📌'} {a.custName || ACTIVITY_MODES[a.mode]?.label || a.mode}
+                              </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                        {entries.length === 0 && (
+                          <p className="text-xs text-gray-400 text-center py-1">No activities recorded</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>
