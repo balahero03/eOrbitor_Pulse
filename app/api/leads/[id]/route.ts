@@ -57,7 +57,7 @@ export async function PATCH(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret') as any;
 
     const body = await req.json();
     const {
@@ -66,6 +66,12 @@ export async function PATCH(
       remarks, quoteNo, quoteValue, rfqDate, followUpDate, expectedClosureDate,
       solutionAreas, oemNames, presalesIds, prospectDetails, closureDetails,
     } = body;
+
+    // SALES_EXEC cannot change core identity fields
+    const isSalesExec = decoded.role === 'SALES_EXEC';
+    if (isSalesExec && (name !== undefined || company !== undefined)) {
+      return NextResponse.json({ message: 'Sales executives cannot edit the lead name or company.' }, { status: 403 });
+    }
 
     let resolvedCustomerId = linkedCustomerId;
 

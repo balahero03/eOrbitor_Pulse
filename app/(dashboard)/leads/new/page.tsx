@@ -51,9 +51,6 @@ export default function NewLeadPage() {
       const token = localStorage.getItem('token');
       const payload: any = { ...formData };
 
-      if (!payload.email) delete payload.email;
-      if (!payload.phone) delete payload.phone;
-      if (!payload.address) delete payload.address;
       if (!payload.remarks) delete payload.remarks;
       if (!payload.assignedToId) delete payload.assignedToId;
       if (!payload.expectedClosureDate) delete payload.expectedClosureDate;
@@ -152,38 +149,41 @@ export default function NewLeadPage() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Contact Details (Optional)</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Contact Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">Email *</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="contact@company.com"
+                  required
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Phone</label>
+                <label className="block text-sm font-medium mb-1">Phone *</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+91 98765 43210"
+                  required
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Address</label>
+                <label className="block text-sm font-medium mb-1">Address *</label>
                 <input
                   type="text"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   placeholder="Complete office address"
+                  required
                   className="w-full border rounded px-3 py-2"
                 />
               </div>

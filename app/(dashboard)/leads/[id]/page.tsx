@@ -1532,6 +1532,7 @@ export default function LeadDetailPage() {
   const [savingFollowUp, setSavingFollowUp] = useState(false);
 
   const [editData, setEditData] = useState({
+    name: '', company: '', email: '', phone: '',
     qualificationNotes: '', remarks: '',
     quoteNo: '', quoteValue: '', rfqDate: '', followUpDate: '', expectedClosureDate: '',
     address: '', gstNumber: '',
@@ -1571,6 +1572,10 @@ export default function LeadDetailPage() {
       const data = await res.json();
       setLead(data);
       setEditData({
+        name: data.name || '',
+        company: data.company || '',
+        email: data.email || '',
+        phone: data.phone || '',
         qualificationNotes: data.qualificationNotes || '',
         remarks: data.remarks || '',
         quoteNo: data.quoteNo || '',
@@ -1824,10 +1829,16 @@ export default function LeadDetailPage() {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('token');
+      const canEditCoreFields = currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role);
+      const payload = {
+        ...editData,
+        // Strip core identity fields for SALES_EXEC — server enforces this too
+        ...(canEditCoreFields ? {} : { name: undefined, company: undefined, email: undefined, phone: undefined }),
+      };
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
@@ -2110,6 +2121,39 @@ export default function LeadDetailPage() {
               <div className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm">
                 <h2 className="text-base font-semibold mb-4">Edit Details</h2>
                 <div className="space-y-4">
+                  {/* Name & Company — restricted to ADMIN / SUPER_ADMIN / SALES_MANAGER only */}
+                  {currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Name *</label>
+                          <input type="text" value={editData.name}
+                            onChange={e => setEditData({ ...editData, name: e.target.value })}
+                            required className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Company *</label>
+                          <input type="text" value={editData.company}
+                            onChange={e => setEditData({ ...editData, company: e.target.value })}
+                            required className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Email</label>
+                          <input type="email" value={editData.email}
+                            onChange={e => setEditData({ ...editData, email: e.target.value })}
+                            className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Phone</label>
+                          <input type="tel" value={editData.phone}
+                            onChange={e => setEditData({ ...editData, phone: e.target.value })}
+                            className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </>
+                  )}
                   <div>
                     <label className="block text-sm font-medium mb-1">Qualification Notes</label>
                     <textarea value={editData.qualificationNotes}
