@@ -1611,21 +1611,24 @@ export default function LeadDetailPage() {
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
 
-    const currentIdx = STAGE_ORDER.indexOf(lead.status);
-    const newIdx = STAGE_ORDER.indexOf(newStatus);
+    // ON_HOLD can be set from any pipeline stage — skip sequential validation
+    if (newStatus !== 'ON_HOLD') {
+      const currentIdx = STAGE_ORDER.indexOf(lead.status);
+      const newIdx = STAGE_ORDER.indexOf(newStatus);
 
-    // Enforce sequential pipeline progression — no skipping stages
-    if (newIdx < currentIdx) {
-      const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
-                          (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
-      if (!allowedBack) {
-        alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
+      // Enforce sequential pipeline progression — no skipping stages
+      if (newIdx < currentIdx) {
+        const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
+                            (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
+        if (!allowedBack) {
+          alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
+          return;
+        }
+      } else if (newIdx > currentIdx && newIdx !== currentIdx + 1) {
+        const nextStage = STAGE_ORDER[currentIdx + 1];
+        alert(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
         return;
       }
-    } else if (newIdx > currentIdx && newIdx !== currentIdx + 1) {
-      const nextStage = STAGE_ORDER[currentIdx + 1];
-      alert(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
-      return;
     }
 
     // Intercept forward moves that require data capture

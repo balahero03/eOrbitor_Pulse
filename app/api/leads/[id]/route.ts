@@ -70,7 +70,8 @@ export async function PATCH(
     let resolvedCustomerId = linkedCustomerId;
 
     // Enforce sequential pipeline progression
-    if (status) {
+    // ON_HOLD can be set from any pipeline stage — skip sequential validation
+    if (status && status !== 'ON_HOLD') {
       const existingLead = await prisma.lead.findUnique({ where: { id }, select: { status: true } });
       const current = existingLead?.status;
       const stageOrder = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
