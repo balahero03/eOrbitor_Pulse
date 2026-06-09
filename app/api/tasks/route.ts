@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { createNotification } from '@/lib/notify';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -82,6 +83,21 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       relatedDeal: { select: { id: true, dealName: true } },
     },
   });
+
+  // Notify assignee if different from creator
+  if (assignedToId !== user.id) {
+    const dueLabel = task.dueDate
+      ? ` Due: ${new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.`
+      : '';
+    await createNotification(
+      assignedToId,
+      'TASK_ASSIGNED',
+      'New Task Assigned',
+      `You have been assigned "${title}".${dueLabel}`,
+      'TASK',
+      task.id,
+    );
+  }
 
   return NextResponse.json(task, { status: 201 });
 });

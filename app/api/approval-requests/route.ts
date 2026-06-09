@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
+import { notifyAdminsAndManagers } from '@/lib/notify';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
@@ -70,6 +71,24 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       lead: { select: { name: true, company: true } },
     },
   });
+
+  const requesterName = `${request.requestedByUser.firstName} ${request.requestedByUser.lastName}`;
+  const leadLabel = request.lead ? ` for "${request.lead.name}"` : '';
+  const typeLabel: Record<string, string> = {
+    LEAD_DELETE: 'Lead Deletion',
+    LEAD_REOPEN: 'Lead Reopen',
+    ORDER_DELETE: 'Order Deletion',
+  };
+  const label = typeLabel[type] || type;
+
+  await notifyAdminsAndManagers(
+    'APPROVAL_REQUESTED',
+    `New ${label} Request`,
+    `${requesterName} has requested ${label.toLowerCase()}${leadLabel}.`,
+    entityType,
+    entityId,
+    user.id,
+  );
 
   return NextResponse.json(request, { status: 201 });
 });

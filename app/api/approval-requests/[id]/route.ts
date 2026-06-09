@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { createNotification } from '@/lib/notify';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         rejectionReason: status === 'REJECTED' ? rejectionReason : null,
       },
       include: {
-        requestedByUser: { select: { firstName: true, lastName: true } },
+        requestedByUser: { select: { id: true, firstName: true, lastName: true } },
         lead: { select: { id: true, name: true, company: true } },
         approvedByUser: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -79,6 +80,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         console.error('[APPROVAL ERROR] Failed to process approval action:', actionError);
         throw actionError;
       }
+    }
+
+    // Notify the requester
+    const approverName = `${approvalRequest.approvedByUser?.firstName ?? ''} ${approvalRequest.approvedByUser?.lastName ?? ''}`.trim();
+    const leadLabel = approvalRequest.lead ? ` for "${approvalRequest.lead.name}"` : '';
+    const typeLabel: Record<string, string> = {
+      LEAD_DELETE: 'lead deletion',
+      LEAD_REOPEN: 'lead reopen',
+      ORDER_DELETE: 'order deletion',
+    };
+    const label = typeLabel[originalRequest.type] || originalRequest.type.toLowerCase();
+
+    if (status === 'APPROVED') {
+      await createNotification(
+        approvalRequest.requestedByUser.id ?? '',
+        'APPROVAL_APPROVED',
+        'Request Approved',
+        `Your ${label} request${leadLabel} was approved by ${approverName}.`,
+        originalRequest.type.startsWith('ORDER') ? 'ORDER' : 'LEAD',
+        originalRequest.entityId,
+      );
+    } else {
+      await createNotification(
+        approvalRequest.requestedByUser.id ?? '',
+        'APPROVAL_REJECTED',
+        'Request Rejected',
+        `Your ${label} request${leadLabel} was rejected by ${approverName}.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
+        originalRequest.type.startsWith('ORDER') ? 'ORDER' : 'LEAD',
+        originalRequest.entityId,
+      );
     }
 
     return NextResponse.json(approvalRequest);
