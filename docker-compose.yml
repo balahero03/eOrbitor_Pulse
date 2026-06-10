@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16
+    container_name: eorbitor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eorbitor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eorbitor_pulse
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eorbitor -d eorbitor_pulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not exposed to host by default — only the app container reaches it.
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eorbitor-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      # Override DB host to the compose service name regardless of .env.local
+      DATABASE_URL: postgresql://eorbitor:${POSTGRES_PASSWORD}@db:5432/eorbitor_pulse
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Set SEED=true on first run to seed the admin user, then remove/set false
+      SEED: ${SEED:-false}
+    ports:
+      - "127.0.0.1:3000:3000"   # only localhost; Cloudflare Tunnel connects here
+
+volumes:
+  pgdata:

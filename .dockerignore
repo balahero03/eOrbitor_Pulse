@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+npm-debug.log
+*.log
+.env
+.env.local
+.env.*.local
+eOrbitor_logo.jpg
+tsconfig.tsbuildinfo
+docker/nginx/ssl
+README.md
+PROJECT_SPEC.md
