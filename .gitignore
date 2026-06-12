@@ -36,3 +36,6 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Server deployment logs (may contain secrets)
+deployserverlog*.md

@@ -57,32 +57,59 @@ export default function CustomerDetailPage() {
     try {
       const token = localStorage.getItem('token');
 
-      // Fetch lead details
+      // Fetch lead details (won-lead customers). Fall back to a manually
+      // created Customer record if this id isn't a lead.
       const leadRes = await fetch(`/api/leads/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (leadRes.ok) {
         const leadData = await leadRes.json();
         setLead(leadData);
-      }
-
-      // Fetch quotations for this lead
-      const quotRes = await fetch(`/api/quotations?leadId=${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (quotRes.ok) {
-        const data = await quotRes.json();
-        setQuotations(data.quotations || []);
-      }
-
-      // Fetch orders if customer has linkedCustomerId
-      if (lead?.linkedCustomerId) {
-        const ordRes = await fetch(`/api/orders`, {
+      } else {
+        const custRes = await fetch(`/api/customers/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (ordRes.ok) {
-          const data = await ordRes.json();
-          setOrders(data.orders || []);
+        if (custRes.ok) {
+          const c = await custRes.json();
+          const primary = (c.contacts || [])[0];
+          setLead({
+            id: c.id,
+            name: primary?.name || '—',
+            email: primary?.email || '—',
+            phone: primary?.phone,
+            company: c.companyName,
+            address: c.billingAddress?.street,
+            gstNumber: c.gstNumber,
+            source: 'CUSTOMER',
+            quoteValue: undefined,
+            closedAt: c.createdAt,
+            linkedCustomerId: c.id,
+          });
+          setQuotations(c.quotations || []);
+          setOrders(c.orders || []);
+        }
+      }
+
+      // For won-leads, quotations/orders come from the lead-scoped endpoints.
+      // (Manually created customers already had these set above.)
+      if (leadRes.ok) {
+        const quotRes = await fetch(`/api/quotations?leadId=${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (quotRes.ok) {
+          const data = await quotRes.json();
+          setQuotations(data.quotations || []);
+        }
+
+        // Fetch orders if customer has linkedCustomerId
+        if (lead?.linkedCustomerId) {
+          const ordRes = await fetch(`/api/orders`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (ordRes.ok) {
+            const data = await ordRes.json();
+            setOrders(data.orders || []);
+          }
         }
       }
     } catch (err) {

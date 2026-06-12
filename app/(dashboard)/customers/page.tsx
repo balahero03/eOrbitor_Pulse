@@ -14,6 +14,7 @@ interface Customer {
   quoteValue?: number;
   closedAt?: string;
   linkedCustomerId?: string;
+  source: 'lead' | 'manual';
 }
 
 const fmt = (v: number | undefined) =>
@@ -36,21 +37,57 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
       const params = new URLSearchParams({
         page: String(page),
         limit: '20',
         ...(search && { search }),
       });
 
-      const res = await fetch(`/api/leads/won?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Won leads (auto-converted) + manually added customers.
+      const [wonRes, custRes] = await Promise.all([
+        fetch(`/api/leads/won?${params}`, { headers }),
+        fetch(`/api/customers?${params}`, { headers }),
+      ]);
 
-      if (!res.ok) throw new Error('Failed to fetch customers');
+      if (!wonRes.ok) throw new Error('Failed to fetch customers');
 
-      const data = await res.json();
-      setCustomers(data.customers || []);
-      setPagination(data.pagination);
+      const wonData = await wonRes.json();
+      const wonList: Customer[] = (wonData.customers || []).map((c: any) => ({
+        ...c,
+        source: 'lead' as const,
+      }));
+
+      let manualList: Customer[] = [];
+      if (custRes.ok) {
+        const custData = await custRes.json();
+        // Avoid duplicating customers that are already linked to a won lead.
+        const linkedIds = new Set(
+          (wonData.customers || [])
+            .map((c: any) => c.linkedCustomerId)
+            .filter(Boolean)
+        );
+        manualList = (custData.customers || [])
+          .filter((c: any) => !linkedIds.has(c.id))
+          .map((c: any) => {
+            const primary = c.contacts?.[0];
+            return {
+              id: c.id,
+              name: primary?.name || '—',
+              company: c.companyName,
+              email: primary?.email || '—',
+              phone: primary?.phone || undefined,
+              address: c.billingAddress?.street || undefined,
+              gstNumber: c.gstNumber,
+              quoteValue: undefined,
+              closedAt: c.createdAt,
+              source: 'manual' as const,
+            };
+          });
+      }
+
+      setCustomers([...manualList, ...wonList]);
+      setPagination(wonData.pagination);
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,6 +106,9 @@ export default function CustomersPage() {
         <div className="flex gap-2">
           <Link href="/leads/new" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
             ← Back to Leads
+          </Link>
+          <Link href="/customers/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            + Add Existing Customer
           </Link>
         </div>
       </div>
@@ -103,7 +143,8 @@ export default function CustomersPage() {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">GST Number</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Address</th>
                     <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Won Value</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Won Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Source</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Added / Won Date</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
@@ -121,6 +162,13 @@ export default function CustomersPage() {
                       </td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.address || '—'}</td>
                       <td className="px-6 py-3 text-right font-semibold text-gray-800">{fmt(customer.quoteValue)}</td>
+                      <td className="px-6 py-3 text-sm">
+                        {customer.source === 'manual' ? (
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">Existing</span>
+                        ) : (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Won Lead</span>
+                        )}
+                      </td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{fmtDate(customer.closedAt)}</td>
                       <td className="px-6 py-3">
                         <div className="flex gap-2">
