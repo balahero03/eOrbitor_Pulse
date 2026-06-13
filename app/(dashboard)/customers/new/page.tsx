@@ -4,10 +4,91 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+const CSV_COLUMNS = [
+  'companyName',
+  'gstNumber',
+  'customerCategory',
+  'industry',
+  'website',
+  'annualRevenue',
+  'yearEstablished',
+  'billingAddress',
+  'shippingAddress',
+  'contactName',
+  'contactDesignation',
+  'contactEmail',
+  'contactPhone',
+];
+
+interface ImportResult {
+  row: number;
+  companyName?: string;
+  status: 'created' | 'skipped' | 'error';
+  message?: string;
+}
+
+// Minimal RFC-4180-ish CSV parser: handles quoted fields, embedded commas,
+// escaped double-quotes ("") and \r\n / \n line endings.
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = '';
+  let row: string[] = [];
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (ch === '\r') {
+      // ignore; handled by following \n (or EOF below)
+    } else {
+      field += ch;
+    }
+  }
+  // flush last field/row if file doesn't end with newline
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
 export default function NewCustomerPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<'single' | 'csv'>('single');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // CSV import state
+  const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [importResults, setImportResults] = useState<ImportResult[]>([]);
+  const [importSummary, setImportSummary] = useState<{
+    total: number;
+    created: number;
+    skipped: number;
+    errors: number;
+  } | null>(null);
+
   const [formData, setFormData] = useState({
     // Company
     companyName: '',
@@ -63,6 +144,98 @@ export default function NewCustomerPage() {
     }
   };
 
+  const downloadTemplate = () => {
+    const sample = [
+      'Acme Industries Pvt Ltd',
+      '22AAAAA0000A1Z5',
+      'ACTIVE',
+      'Manufacturing',
+      'https://acme.example.com',
+      '5000000',
+      '2010',
+      '12 MG Road, Bengaluru',
+      '',
+      'Ravi Kumar',
+      'Procurement Head',
+      'ravi@acme.example.com',
+      '+91 98765 43210',
+    ];
+    const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const csv = [CSV_COLUMNS.join(','), sample.map(esc).join(',')].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'customer-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    setImportResults([]);
+    setImportSummary(null);
+    setCsvRows([]);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '').replace(/^﻿/, ''); // strip BOM
+        const grid = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ''));
+        if (grid.length < 2) {
+          throw new Error('CSV must have a header row and at least one data row');
+        }
+        const header = grid[0].map((h) => h.trim());
+        const rows = grid.slice(1).map((cells) => {
+          const obj: Record<string, string> = {};
+          header.forEach((h, idx) => {
+            obj[h] = (cells[idx] ?? '').trim();
+          });
+          return obj;
+        });
+        setCsvRows(rows);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to read CSV');
+        setCsvFileName('');
+      }
+    };
+    reader.onerror = () => setError('Failed to read file');
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (csvRows.length === 0) {
+      setError('Choose a CSV file with at least one data row first');
+      return;
+    }
+    setError('');
+    setImportResults([]);
+    setImportSummary(null);
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/customers/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ rows: csvRows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Import failed');
+      setImportSummary(data.summary);
+      setImportResults(data.results || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -90,6 +263,125 @@ export default function NewCustomerPage() {
           </p>
         </div>
 
+        {/* Mode toggle */}
+        <div className="mb-6 inline-flex rounded-lg border border-gray-300 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => { setMode('single'); setError(''); }}
+            className={`px-4 py-2 text-sm font-medium ${mode === 'single' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+          >
+            Single Customer
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('csv'); setError(''); }}
+            className={`px-4 py-2 text-sm font-medium border-l border-gray-300 ${mode === 'csv' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+          >
+            Import from CSV
+          </button>
+        </div>
+
+        {mode === 'csv' ? (
+          <div className="space-y-6">
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 space-y-2">
+              <p>
+                Upload a CSV with these columns (header row required). Required:{' '}
+                <code className="bg-gray-200 px-1 rounded">companyName</code>,{' '}
+                <code className="bg-gray-200 px-1 rounded">gstNumber</code>,{' '}
+                <code className="bg-gray-200 px-1 rounded">contactName</code>,{' '}
+                <code className="bg-gray-200 px-1 rounded">contactEmail</code>.
+              </p>
+              <p className="text-xs text-gray-500 break-all">{CSV_COLUMNS.join(', ')}</p>
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="text-blue-600 hover:underline text-sm font-medium"
+              >
+                ↓ Download CSV template
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">CSV File</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleFile}
+                className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {csvFileName && csvRows.length > 0 && (
+                <p className="mt-2 text-sm text-gray-600">
+                  <strong>{csvFileName}</strong> — {csvRows.length} row{csvRows.length === 1 ? '' : 's'} ready to import.
+                </p>
+              )}
+            </div>
+
+            {importSummary && (
+              <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                <div className="flex flex-wrap gap-4 text-sm font-medium mb-3">
+                  <span className="text-gray-700">Total: {importSummary.total}</span>
+                  <span className="text-green-700">Created: {importSummary.created}</span>
+                  <span className="text-amber-700">Skipped: {importSummary.skipped}</span>
+                  <span className="text-red-700">Errors: {importSummary.errors}</span>
+                </div>
+                <div className="max-h-64 overflow-y-auto border border-gray-100 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Row</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Company</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Detail</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {importResults.map((r) => (
+                        <tr key={r.row}>
+                          <td className="px-3 py-2 text-gray-600">{r.row}</td>
+                          <td className="px-3 py-2 text-gray-800">{r.companyName || '—'}</td>
+                          <td className="px-3 py-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              r.status === 'created' ? 'bg-green-100 text-green-800'
+                              : r.status === 'skipped' ? 'bg-amber-100 text-amber-800'
+                              : 'bg-red-100 text-red-800'
+                            }`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-500">{r.message || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {importSummary.created > 0 && (
+                  <div className="mt-4">
+                    <Link href="/customers" className="text-blue-600 hover:underline text-sm font-medium">
+                      → View customers
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={loading || csvRows.length === 0}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Importing...' : `Import ${csvRows.length || ''} Customer${csvRows.length === 1 ? '' : 's'}`}
+              </button>
+              <Link
+                href="/customers"
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center"
+              >
+                Cancel
+              </Link>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Company Information */}
           <div>
@@ -292,6 +584,7 @@ export default function NewCustomerPage() {
             </Link>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
