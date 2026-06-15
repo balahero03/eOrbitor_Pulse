@@ -14,14 +14,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Sync code into the deployment directory
-        # The runner checks out into its own _work folder; copy the code into
-        # the live project dir (preserving .env, .env.local which are not in git).
+        # Copy the checked-out code into the live project dir, preserving files
+        # that are NOT in git (secrets, the runner itself, build artifacts).
         run: |
           rsync -a --delete \
             --exclude='.env' \
             --exclude='.env.local' \
             --exclude='node_modules' \
             --exclude='.next' \
+            --exclude='actions-runner' \
+            --exclude='.git' \
             ./ "$HOME/eOrbitor_pulse/"
 
       - name: Rebuild and restart containers
