@@ -8,8 +8,8 @@ interface Quotation {
   id: string;
   quotationNumber: string;
   status: string;
-  customer: { id: string; companyName: string };
-  deal: { id: string; dealName: string };
+  customer: { id: string; companyName: string } | null;
+  deal: { id: string; dealName: string } | null;
   items: any[];
   subtotal: string;
   taxAmount: string;
@@ -160,7 +160,7 @@ export default function QuotationDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{quotation.customer.companyName}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{quotation.customer?.companyName ?? '—'}</p>
         </div>
         <Link
           href="/quotations"
@@ -178,11 +178,11 @@ export default function QuotationDetailPage() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
-                <p className="text-base font-semibold text-gray-900">{quotation.customer.companyName}</p>
+                <p className="text-base font-semibold text-gray-900">{quotation.customer?.companyName ?? '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Deal</p>
-                <p className="text-base font-semibold text-gray-900">{quotation.deal.dealName}</p>
+                <p className="text-base font-semibold text-gray-900">{quotation.deal?.dealName ?? '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Issue Date</p>

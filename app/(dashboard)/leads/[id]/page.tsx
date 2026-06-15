@@ -211,10 +211,6 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
     setQError('');
     if (items.length === 0) { setQError('Add at least one line item.'); return; }
     if (items.some(i => !i.productName.trim())) { setQError('All items must have a name.'); return; }
-    if (!lead.linkedCustomerId) {
-      setQError('This lead has no linked customer. The lead must be won first (which auto-creates a customer).');
-      return;
-    }
     setSubmittingQ(true);
     try {
       const token = localStorage.getItem('token');
@@ -223,7 +219,9 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           leadId,
-          customerId: lead.linkedCustomerId,
+          // customerId omitted on purpose — the API auto-creates/links a customer
+          // from the lead when quoting before the deal is won.
+          ...(lead.linkedCustomerId && { customerId: lead.linkedCustomerId }),
           items: items.map(i => ({
             productId: i.productId, productName: i.productName,
             description: i.description, quantity: i.quantity,
@@ -293,8 +291,8 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
           {qError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{qError}</p>}
 
           {!lead.linkedCustomerId && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-              ⚠ No customer linked to this lead. Win the deal first — a customer is auto-created on winning.
+            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+              ℹ A customer record will be auto-created from this lead’s company when you save the first quotation.
             </p>
           )}
 

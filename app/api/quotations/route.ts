@@ -71,11 +71,50 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     discountAmount: discountInput,
   } = await req.json();
 
-  if (!customerId || !items || items.length === 0) {
+  if (!items || items.length === 0) {
     return NextResponse.json(
-      { message: 'customerId and at least one item are required' },
+      { message: 'At least one item is required' },
       { status: 400 }
     );
+  }
+
+  // Resolve the customer. Quotes can be raised from the PROSPECT stage before a
+  // lead is won — in that case no customer exists yet, so auto-create one from
+  // the lead (mirrors the win flow, which reuses linkedCustomer to avoid dupes).
+  let resolvedCustomerId: string | undefined = customerId;
+  if (!resolvedCustomerId) {
+    if (!leadId) {
+      return NextResponse.json(
+        { message: 'customerId or leadId is required' },
+        { status: 400 }
+      );
+    }
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { id: true, company: true, address: true, linkedCustomerId: true },
+    });
+    if (!lead) {
+      return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
+    }
+
+    if (lead.linkedCustomerId) {
+      resolvedCustomerId = lead.linkedCustomerId;
+    } else {
+      const newCustomer = await prisma.customer.create({
+        data: {
+          companyName: lead.company,
+          gstNumber: `PENDING-${Date.now()}`,
+          website: '',
+          industry: '',
+          billingAddress: lead.address ? { street: lead.address } : undefined,
+        },
+      });
+      resolvedCustomerId = newCustomer.id;
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { linkedCustomerId: newCustomer.id },
+      });
+    }
   }
 
   let subtotal = 0;
@@ -116,7 +155,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const quotation = await prisma.quotation.create({
     data: {
       quotationNumber,
-      customerId,
+      customerId: resolvedCustomerId!,
       ...(leadId && { leadId }),
       status: 'DRAFT',
       items,
