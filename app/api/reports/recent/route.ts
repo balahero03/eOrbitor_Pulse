@@ -15,6 +15,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
   }
 
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+  }
+
   const reports = await prisma.report.findMany({
     where: {
       OR: [{ createdById: decoded.id }, { userId: decoded.id }, { managerId: decoded.id }],

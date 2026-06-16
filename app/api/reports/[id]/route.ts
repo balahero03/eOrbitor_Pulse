@@ -9,10 +9,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  let decoded: any;
   try {
-    jwt.verify(auth.slice(7), process.env.JWT_SECRET ?? 'dev-secret');
+    decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET ?? 'dev-secret');
   } catch {
     return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+  }
+
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
   const report = await prisma.report.findUnique({ where: { id } });

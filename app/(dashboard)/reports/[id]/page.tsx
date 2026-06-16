@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -743,6 +744,8 @@ function exportPipelineCSV(report: PipelineReport) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReportViewPage() {
+  // Reports are admin-only; managers and sales execs are redirected away.
+  useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [report, setReport] = useState<ReportData | null>(null);

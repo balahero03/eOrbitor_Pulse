@@ -15,8 +15,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const role = searchParams.get('role');
   const search = searchParams.get('search');
+  // status=ex returns soft-deleted (ex-employee) users; default returns active records only.
+  const status = searchParams.get('status');
 
-  const where: any = {};
+  const where: any = status === 'ex' ? { deletedAt: { not: null } } : { deletedAt: null };
 
   // Managers only see their team
   if (user.role === 'SALES_MANAGER') {
@@ -39,6 +41,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, department: true, isActive: true, createdAt: true,
+        phone: true, employeeId: true, jobTitle: true, assignedTerritory: true,
+        deletedAt: true,
         managerId: true,
         manager: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -60,10 +64,24 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     throw new ForbiddenError('Only admins can create users');
   }
 
-  const { email, firstName, lastName, role, department, password, managerId } = await req.json();
+  const {
+    email, firstName, lastName, role, department, password, managerId,
+    phone, employeeId, jobTitle, assignedTerritory,
+  } = await req.json();
 
   if (!email || !firstName || !role || !password) {
     return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return NextResponse.json({ message: 'A user with this email already exists' }, { status: 400 });
+  }
+  if (employeeId) {
+    const idClash = await prisma.user.findUnique({ where: { employeeId } });
+    if (idClash) {
+      return NextResponse.json({ message: 'A user with this Employee ID already exists' }, { status: 400 });
+    }
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -74,6 +92,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       lastName: lastName || '',
       role, passwordHash,
       department: department || null,
+      phone: phone || null,
+      employeeId: employeeId || null,
+      jobTitle: jobTitle || null,
+      assignedTerritory: assignedTerritory || null,
       ...(managerId && { managerId }),
     },
     select: {

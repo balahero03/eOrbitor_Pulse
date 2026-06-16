@@ -10,7 +10,12 @@ interface User {
   lastName: string;
   role: string;
   department?: string;
+  phone?: string;
+  employeeId?: string;
+  jobTitle?: string;
+  assignedTerritory?: string;
   isActive: boolean;
+  deletedAt?: string | null;
   managerId?: string;
   manager?: { id: string; firstName: string; lastName: string };
   createdAt: string;
@@ -43,6 +48,7 @@ type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view';
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [exEmployees, setExEmployees] = useState<User[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -58,6 +64,7 @@ export default function UsersPage() {
     firstName: '', lastName: '', email: '',
     password: 'eOrbitor@2024',
     role: 'SALES_EXEC', department: 'Sales', managerId: '',
+    phone: '', employeeId: '', jobTitle: '', assignedTerritory: '',
   });
 
   // Password change form
@@ -82,12 +89,20 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
     try {
-      const res = await fetch('/api/users?limit=100', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
+      const [activeRes, exRes] = await Promise.all([
+        fetch('/api/users?limit=100', { headers }),
+        fetch('/api/users?status=ex&limit=100', { headers }),
+      ]);
+      const data = await activeRes.json();
       const all: User[] = data.users || [];
       setUsers(all);
       setManagers(all.filter(u => u.role === 'SALES_MANAGER' || u.role === 'ADMIN'));
+      if (exRes.ok) {
+        const exData = await exRes.json();
+        setExEmployees(exData.users || []);
+      }
     } finally {
       setLoading(false);
     }
@@ -95,7 +110,7 @@ export default function UsersPage() {
 
   const openAdd = () => {
     setSelectedUser(null);
-    setForm({ firstName: '', lastName: '', email: '', password: 'eOrbitor@2024', role: 'SALES_EXEC', department: 'Sales', managerId: '' });
+    setForm({ firstName: '', lastName: '', email: '', password: 'eOrbitor@2024', role: 'SALES_EXEC', department: 'Sales', managerId: '', phone: '', employeeId: '', jobTitle: '', assignedTerritory: '' });
     setError('');
     setModal('add');
   };
@@ -110,6 +125,10 @@ export default function UsersPage() {
       role: u.role,
       department: u.department || 'Sales',
       managerId: u.manager?.id || '',
+      phone: u.phone || '',
+      employeeId: u.employeeId || '',
+      jobTitle: u.jobTitle || '',
+      assignedTerritory: u.assignedTerritory || '',
     });
     setError('');
     setModal('edit');
@@ -167,6 +186,10 @@ export default function UsersPage() {
         role: form.role,
         department: form.department,
         managerId: form.managerId || null,
+        phone: form.phone,
+        employeeId: form.employeeId,
+        jobTitle: form.jobTitle,
+        assignedTerritory: form.assignedTerritory,
       };
       const res = await fetch(`/api/users/${selectedUser.id}`, {
         method: 'PATCH',
@@ -244,6 +267,55 @@ export default function UsersPage() {
       body: JSON.stringify({ isActive: !u.isActive }),
     });
     setUsers(users.map(x => x.id === u.id ? { ...x, isActive: !x.isActive } : x));
+  };
+
+  const handleDelete = async (u: User) => {
+    if (u.id === currentUser?.id) { alert("You can't delete your own account."); return; }
+    if (!confirm(
+      `Delete ${u.firstName} ${u.lastName}?\n\n` +
+      `If they own no records they'll be permanently removed. ` +
+      `If they own leads/deals/activity, they'll be marked as an ex-employee and their data preserved.`
+    )) return;
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${u.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to delete user'); return; }
+    alert(
+      data.deleted === 'soft'
+        ? `${u.firstName} was marked as an ex-employee (${data.recordCount} record(s) preserved).`
+        : `${u.firstName} was permanently deleted.`
+    );
+    fetchUsers();
+  };
+
+  const handleRestore = async (u: User) => {
+    if (!confirm(`Restore ${u.firstName} ${u.lastName} as an active user?`)) return;
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${u.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ restore: true }),
+    });
+    if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to restore'); return; }
+    fetchUsers();
+  };
+
+  const handlePermanentRemove = async (u: User) => {
+    if (!confirm(
+      `Permanently remove ${u.firstName} ${u.lastName}? This cannot be undone.\n\n` +
+      `Only possible if all their records have been reassigned.`
+    )) return;
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${u.id}?hard=true`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to remove user'); return; }
+    fetchUsers();
   };
 
   const groups = [
@@ -395,6 +467,15 @@ export default function UsersPage() {
                                   {u.isActive ? 'Deactivate' : 'Activate'}
                                 </button>
                               )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleDelete(u)}
+                                  disabled={u.id === currentUser?.id}
+                                  className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-30"
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -405,6 +486,71 @@ export default function UsersPage() {
               </div>
             );
           })}
+
+          {/* ── EX-EMPLOYEES ── */}
+          {exEmployees.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🚫</span>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Ex-Employees</h2>
+                <span className="text-xs text-gray-400">({exEmployees.length})</span>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Former Role</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Left On</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {exEmployees.map(u => (
+                      <tr key={u.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold">
+                              {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
+                            </div>
+                            <p className="font-medium text-gray-700">{u.firstName} {u.lastName}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                            {ROLE_LABELS[u.role] || u.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">
+                          {u.deletedAt ? new Date(u.deletedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {canEdit && (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <button
+                                onClick={() => handleRestore(u)}
+                                className="px-2 py-1 text-xs rounded border border-green-200 text-green-700 hover:bg-green-50"
+                              >
+                                Restore
+                              </button>
+                              <button
+                                onClick={() => handlePermanentRemove(u)}
+                                className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50"
+                              >
+                                Remove Permanently
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -588,10 +734,36 @@ export default function UsersPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
+                  <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="user@eorbitor.com" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+                  <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="+91 98765 43210" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
+                  <input value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. EMP-1024" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Job Title</label>
+                  <input value={form.jobTitle} onChange={e => setForm({...form, jobTitle: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. Senior Sales Executive" />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
-                <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="user@eorbitor.com" />
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Territory</label>
+                <input value={form.assignedTerritory} onChange={e => setForm({...form, assignedTerritory: e.target.value})}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. South India" />
               </div>
 
               <div>
@@ -689,6 +861,32 @@ export default function UsersPage() {
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+                  <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="+91 98765 43210" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
+                  <input value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. EMP-1024" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Job Title</label>
+                  <input value={form.jobTitle} onChange={e => setForm({...form, jobTitle: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. Senior Sales Executive" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Territory</label>
+                  <input value={form.assignedTerritory} onChange={e => setForm({...form, assignedTerritory: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. South India" />
                 </div>
               </div>
 

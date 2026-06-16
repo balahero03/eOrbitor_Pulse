@@ -21,6 +21,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
   }
 
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+  }
+
   const sp = req.nextUrl.searchParams;
   const managerId = sp.get('managerId') ?? decoded.id;
 

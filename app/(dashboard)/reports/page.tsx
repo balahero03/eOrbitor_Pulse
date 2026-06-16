@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useRequireRole } from '@/lib/hooks/useRequireRole';
 
 interface RecentReport {
   id: string;
@@ -43,6 +44,8 @@ function isoDate(d: Date) {
 
 export default function ReportsPage() {
   const router = useRouter();
+  // Reports are admin-only; managers and sales execs are redirected away.
+  useRequireRole(['SUPER_ADMIN', 'ADMIN']);
 
   const [reportType, setReportType] = useState<ReportType>('personal');
   const [selectedUserId, setSelectedUserId] = useState('');
