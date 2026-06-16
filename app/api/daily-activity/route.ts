@@ -60,24 +60,40 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (dateStr > today) return NextResponse.json({ error: 'Cannot log future dates' }, { status: 400 });
 
   const withinWindow = isWithinEditWindow(dateStr);
-  if (!withinWindow) {
-    const existing = await prisma.dailyActivity.findUnique({
-      where: { userId_date: { userId: user.id, date: dateStr } },
-    });
-    if (!existing?.unlockedBy) {
-      return NextResponse.json({ error: 'This date is locked. Request admin/support to unlock it.' }, { status: 403 });
-    }
+  const existing = await prisma.dailyActivity.findUnique({
+    where: { userId_date: { userId: user.id, date: dateStr } },
+  });
+
+  if (!withinWindow && !existing?.unlockedBy) {
+    return NextResponse.json({ error: 'This date is locked. Request admin/support to unlock it.' }, { status: 403 });
   }
+
+  // First login time is permanent: once recorded for the day it is never
+  // overwritten. Last logout time always advances to the most recent value.
+  const finalLoginTime = existing?.loginTime
+    ? existing.loginTime
+    : loginTime
+    ? new Date(loginTime)
+    : null;
+
+  const finalLogoutTime =
+    logoutTime !== undefined
+      ? logoutTime
+        ? new Date(logoutTime)
+        : existing?.logoutTime ?? null
+      : existing?.logoutTime ?? null;
 
   const data: any = {
     activities: JSON.stringify(activities || []),
     notes: notes || null,
-    ...(loginTime !== undefined && { loginTime: loginTime ? new Date(loginTime) : null }),
-    ...(logoutTime !== undefined && { logoutTime: logoutTime ? new Date(logoutTime) : null }),
+    loginTime: finalLoginTime,
+    logoutTime: finalLogoutTime,
   };
 
-  if (loginTime && logoutTime) {
-    data.totalHours = (new Date(logoutTime).getTime() - new Date(loginTime).getTime()) / (1000 * 60 * 60);
+  if (finalLoginTime && finalLogoutTime) {
+    data.totalHours = (finalLogoutTime.getTime() - finalLoginTime.getTime()) / (1000 * 60 * 60);
+  } else {
+    data.totalHours = null;
   }
 
   const activity = await prisma.dailyActivity.upsert({

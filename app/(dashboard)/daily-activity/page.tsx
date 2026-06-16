@@ -186,6 +186,8 @@ export default function DailyActivityPage() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loginTime, setLoginTime] = useState('');
   const [logoutTime, setLogoutTime] = useState('');
+  // True once a first login time has been saved for the selected day — it is permanent.
+  const [loginLocked, setLoginLocked] = useState(false);
   const [notes, setNotes] = useState('');
   const [isEditable, setIsEditable] = useState(true);
   const [unlockRequest, setUnlockRequest] = useState<any>(null);
@@ -215,9 +217,10 @@ export default function DailyActivityPage() {
         setEntries(acts);
         setLoginTime(json.data.loginTime ? new Date(json.data.loginTime).toTimeString().slice(0, 5) : '');
         setLogoutTime(json.data.logoutTime ? new Date(json.data.logoutTime).toTimeString().slice(0, 5) : '');
+        setLoginLocked(!!json.data.loginTime);
         setNotes(json.data.notes || '');
       } else {
-        setEntries([]); setLoginTime(''); setLogoutTime(''); setNotes('');
+        setEntries([]); setLoginTime(''); setLogoutTime(''); setLoginLocked(false); setNotes('');
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -322,16 +325,20 @@ export default function DailyActivityPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Work Hours</h2>
         <div className="grid grid-cols-3 gap-4 items-end">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Login Time</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">First Login Time</label>
             <input type="time" value={loginTime} onChange={e => setLoginTime(e.target.value)}
-              disabled={!isEditable}
+              disabled={!isEditable || loginLocked}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+            <p className="text-[11px] text-gray-400 mt-1">
+              {loginLocked ? 'Saved — first login is permanent.' : 'Recorded once and locked.'}
+            </p>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Logout Time</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Last Logout Time</label>
             <input type="time" value={logoutTime} onChange={e => setLogoutTime(e.target.value)}
               disabled={!isEditable}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+            <p className="text-[11px] text-gray-400 mt-1">Updates to your latest logout.</p>
           </div>
           <div>
             {workHoursMins ? (
