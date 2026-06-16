@@ -75,7 +75,7 @@ export default function ReportsPage() {
 
         const [meRes, usersRes, reportsRes] = await Promise.all([
           fetch('/api/auth/me', { headers }),
-          fetch('/api/users', { headers }),
+          fetch('/api/users?active=true', { headers }),
           fetch('/api/reports/recent', { headers }),
         ]);
 

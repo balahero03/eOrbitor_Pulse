@@ -1563,7 +1563,7 @@ export default function LeadDetailPage() {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setCurrentUser).catch(console.error);
-    fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/users?active=true', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setUsers(Array.isArray(d.users) ? d.users : Array.isArray(d) ? d : []))
       .catch(console.error);

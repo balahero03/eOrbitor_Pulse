@@ -172,7 +172,7 @@ export default function AttendancePage() {
 
   const loadUsers = async (token: string) => {
     try {
-      const res = await fetch('/api/users?limit=200', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/users?active=true&limit=200', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       // Super admin's activity is private; for managers the API already scopes to their team
       setUsers((data.users || []).filter((u: any) => u.email !== 'lokeswaran.k@eorbitor.com'));

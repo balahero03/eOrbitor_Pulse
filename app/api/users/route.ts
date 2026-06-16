@@ -17,8 +17,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const search = searchParams.get('search');
   // status=ex returns soft-deleted (ex-employee) users; default returns active records only.
   const status = searchParams.get('status');
+  // active=true restricts to currently-active users (for assignment pickers).
+  const activeOnly = searchParams.get('active') === 'true';
 
   const where: any = status === 'ex' ? { deletedAt: { not: null } } : { deletedAt: null };
+
+  if (activeOnly) where.isActive = true;
 
   // Managers only see their team
   if (user.role === 'SALES_MANAGER') {

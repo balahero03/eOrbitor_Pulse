@@ -58,7 +58,7 @@ export default function NewTaskPage() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/users', {
+      const res = await fetch('/api/users?active=true', {
         headers: { Authorization: `Bearer ${token}` },
       });
 

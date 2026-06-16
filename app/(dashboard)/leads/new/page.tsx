@@ -31,7 +31,7 @@ export default function NewLeadPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/users?active=true', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setUsers(Array.isArray(d.users) ? d.users : Array.isArray(d) ? d : []))
       .catch(() => {});

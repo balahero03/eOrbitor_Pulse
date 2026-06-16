@@ -142,7 +142,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('/api/users?limit=100', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/users?active=true&limit=100', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setUsers(d.users || []));
   }, []);
