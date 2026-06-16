@@ -145,7 +145,7 @@ export default function ApprovalsPage() {
       ) : (
         <div className="space-y-4">
           {requests.map((req) => {
-            const typeLabel = req.type === 'LEAD_DELETE' ? 'Delete Lead Request' : req.type === 'LEAD_REOPEN' ? 'Reopen Lead Request' : req.type === 'ORDER_DELETE' ? 'Delete Order Request' : 'Approval Request';
+            const typeLabel = req.type === 'LEAD_DELETE' ? 'Delete Lead Request' : req.type === 'LEAD_REOPEN' ? 'Reopen Lead Request' : req.type === 'ORDER_DELETE' ? 'Delete Order Request' : req.type === 'CUSTOMER_DELETE' ? 'Delete Customer Request' : 'Approval Request';
             return (
             <div key={req.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-l-4 border-blue-500">
               <div className="flex items-start justify-between gap-4">

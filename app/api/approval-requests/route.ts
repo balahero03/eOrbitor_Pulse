@@ -54,15 +54,17 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
   }
 
-  const isOrderType = type === 'ORDER_DELETE';
-  const entityType = isOrderType ? 'ORDER' : 'LEAD';
+  const entityType =
+    type === 'ORDER_DELETE' ? 'ORDER' : type === 'CUSTOMER_DELETE' ? 'CUSTOMER' : 'LEAD';
+  // Only lead-type requests carry a leadId FK.
+  const isLeadType = entityType === 'LEAD';
 
   const request = await prisma.approvalRequest.create({
     data: {
       type: type as any,
       entityType,
       entityId,
-      leadId: isOrderType ? null : entityId,
+      leadId: isLeadType ? entityId : null,
       requestedBy: user.id,
       reason,
     },
@@ -78,6 +80,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     LEAD_DELETE: 'Lead Deletion',
     LEAD_REOPEN: 'Lead Reopen',
     ORDER_DELETE: 'Order Deletion',
+    CUSTOMER_DELETE: 'Customer Deletion',
   };
   const label = typeLabel[type] || type;
 

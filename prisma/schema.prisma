@@ -599,6 +599,7 @@ enum ApprovalType {
   LEAD_DELETE
   LEAD_REOPEN
   ORDER_DELETE
+  CUSTOMER_DELETE
 }
 
 enum ApprovalStatus {

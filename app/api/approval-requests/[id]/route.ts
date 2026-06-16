@@ -73,6 +73,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         } else if (originalRequest.type === 'ORDER_DELETE') {
           console.log('[APPROVAL] Deleting order:', originalRequest.entityId);
           await prisma.order.delete({ where: { id: originalRequest.entityId } });
+        } else if (originalRequest.type === 'CUSTOMER_DELETE') {
+          console.log('[APPROVAL] Soft-deleting customer:', originalRequest.entityId);
+          await prisma.customer.update({
+            where: { id: originalRequest.entityId },
+            data: { deletedAt: new Date() },
+          });
         } else {
           console.log('[APPROVAL] No action matched for type:', originalRequest.type);
         }
@@ -89,8 +95,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       LEAD_DELETE: 'lead deletion',
       LEAD_REOPEN: 'lead reopen',
       ORDER_DELETE: 'order deletion',
+      CUSTOMER_DELETE: 'customer deletion',
     };
     const label = typeLabel[originalRequest.type] || originalRequest.type.toLowerCase();
+    const notifyEntityType = originalRequest.type.startsWith('ORDER')
+      ? 'ORDER'
+      : originalRequest.type.startsWith('CUSTOMER')
+      ? 'CUSTOMER'
+      : 'LEAD';
 
     if (status === 'APPROVED') {
       await createNotification(
@@ -98,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         'APPROVAL_APPROVED',
         'Request Approved',
         `Your ${label} request${leadLabel} was approved by ${approverName}.`,
-        originalRequest.type.startsWith('ORDER') ? 'ORDER' : 'LEAD',
+        notifyEntityType,
         originalRequest.entityId,
       );
     } else {
@@ -107,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         'APPROVAL_REJECTED',
         'Request Rejected',
         `Your ${label} request${leadLabel} was rejected by ${approverName}.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
-        originalRequest.type.startsWith('ORDER') ? 'ORDER' : 'LEAD',
+        notifyEntityType,
         originalRequest.entityId,
       );
     }
