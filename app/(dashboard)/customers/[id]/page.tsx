@@ -122,16 +122,15 @@ export default function CustomerDetailPage() {
     setEditError('');
     const customerId = lead?.linkedCustomerId;
     if (!customerId) return;
+    if (!editForm.companyName.trim()) { setEditError('Company name is required'); return; }
     if (!editForm.gstNumber.trim()) { setEditError('GST number is required'); return; }
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      // companyName is intentionally omitted — it cannot be edited.
-      const { companyName: _companyName, ...payload } = editForm;
       const res = await fetch(`/api/customers/${customerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(editForm),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed to update'); }
       setShowEditModal(false);

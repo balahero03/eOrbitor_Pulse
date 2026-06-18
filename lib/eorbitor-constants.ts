@@ -8,6 +8,8 @@ export const SOLUTION_AREAS = [
   { id: 'MANAGED_SERVICES', label: 'Managed Services' },
   { id: 'VIDEO_CONFERENCING', label: 'High-definition VC Systems' },
   { id: 'SPECIALIZATION', label: 'Specialization Zone (EOL/EOSL/TPM)' },
+  { id: 'Accessories', label: 'Accessories' },
+  { id: 'Other', label: 'Other' },
 ];
 
 export const OEM_LIST = [
