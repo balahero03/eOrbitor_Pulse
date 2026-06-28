@@ -136,11 +136,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { searchParams } = new URL(req.url);
     const hard = searchParams.get('hard') === 'true';
 
-    // Count every record this user owns/created. If any exist, the row cannot
-    // be hard-deleted without orphaning data.
+    // Business records have required FKs and would orphan data; they must be
+    // reassigned before deletion. Personal logs (dailyActivity, activityLog,
+    // timeLog, notifications, …) cascade automatically on user.delete().
     const [
       leads, broughtLeads, deals, quotations, followUps,
-      tasks, assignedTasks, dailyActivities, activityLogs, timeLogs, subordinates,
+      tasks, assignedTasks, subordinates,
     ] = await Promise.all([
       prisma.lead.count({ where: { assignedToId: id } }),
       prisma.lead.count({ where: { broughtById: id } }),
@@ -149,21 +150,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       prisma.followUp.count({ where: { createdById: id } }),
       prisma.task.count({ where: { createdById: id } }),
       prisma.task.count({ where: { assignedToId: id } }),
-      prisma.dailyActivity.count({ where: { userId: id } }),
-      prisma.activityLog.count({ where: { userId: id } }),
-      prisma.timeLog.count({ where: { userId: id } }),
       prisma.user.count({ where: { managerId: id } }),
     ]);
 
-    const recordCount =
+    const businessCount =
       leads + broughtLeads + deals + quotations + followUps +
-      tasks + assignedTasks + dailyActivities + activityLogs + timeLogs + subordinates;
+      tasks + assignedTasks + subordinates;
 
-    // Hard-delete: only when explicitly requested AND the user owns nothing.
+    // Hard-delete (permanent): Super Admin only, and only once all business
+    // records have been reassigned. Personal logs cascade away with the user.
     if (hard) {
-      if (recordCount > 0) {
+      if (auth.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Only the Super Admin can permanently remove a user' }, { status: 403 });
+      }
+      if (businessCount > 0) {
         return NextResponse.json(
-          { error: `Cannot permanently delete — user still owns ${recordCount} record(s). Reassign them first.` },
+          { error: `Cannot permanently delete — user still owns ${businessCount} business record(s). Reassign them first.` },
           { status: 409 }
         );
       }
@@ -171,8 +173,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard' });
     }
 
-    // Default delete: hard-delete if no records, otherwise mark as ex-employee.
-    if (recordCount === 0) {
+    // Default delete: hard-delete if no business records, otherwise mark as ex-employee.
+    if (businessCount === 0) {
       await prisma.user.delete({ where: { id } });
       return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard' });
     }
@@ -184,7 +186,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({
       message: 'User marked as ex-employee (records preserved)',
       deleted: 'soft',
-      recordCount,
+      recordCount: businessCount,
     });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });

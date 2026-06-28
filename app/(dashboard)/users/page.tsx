@@ -43,7 +43,16 @@ const ROLE_LABELS: Record<string, string> = {
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
 
-type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view';
+type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view' | 'ex-records';
+
+interface RecordRow { key: string; label: string; count: number; }
+interface RecordBreakdown {
+  business: RecordRow[];
+  personal: RecordRow[];
+  businessTotal: number;
+  personalTotal: number;
+  canHardDelete: boolean;
+}
 
 export default function UsersPage() {
   const router = useRouter();
@@ -73,6 +82,11 @@ export default function UsersPage() {
 
   // Assign-manager form
   const [assignManagerId, setAssignManagerId] = useState<string>('');
+
+  // Ex-employee records / reassign state
+  const [records, setRecords] = useState<RecordBreakdown | null>(null);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [reassignTargetId, setReassignTargetId] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -149,7 +163,7 @@ export default function UsersPage() {
     setModal('assign-manager');
   };
 
-  const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); };
+  const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId(''); };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,7 +320,8 @@ export default function UsersPage() {
   const handlePermanentRemove = async (u: User) => {
     if (!confirm(
       `Permanently remove ${u.firstName} ${u.lastName}? This cannot be undone.\n\n` +
-      `Only possible if all their records have been reassigned.`
+      `Their business records must already be reassigned. Their personal logs ` +
+      `(attendance, activity, time logs) will be deleted along with the account.`
     )) return;
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/users/${u.id}?hard=true`, {
@@ -315,7 +330,43 @@ export default function UsersPage() {
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || 'Failed to remove user'); return; }
+    closeModal();
     fetchUsers();
+  };
+
+  const fetchRecords = async (u: User) => {
+    setRecordsLoading(true);
+    setRecords(null);
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${u.id}/records`, { headers: { Authorization: `Bearer ${token}` } });
+    setRecordsLoading(false);
+    if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to load records'); return; }
+    setRecords(await res.json());
+  };
+
+  const openExRecords = (u: User) => {
+    setSelectedUser(u);
+    setReassignTargetId('');
+    setRecords(null);
+    setModal('ex-records');
+    fetchRecords(u);
+  };
+
+  const handleReassign = async () => {
+    if (!selectedUser || !reassignTargetId) return;
+    setSaving(true);
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${selectedUser.id}/reassign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ targetUserId: reassignTargetId }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { alert(data.error || 'Failed to reassign'); return; }
+    alert(data.message);
+    setReassignTargetId('');
+    fetchRecords(selectedUser);
   };
 
   const groups = [
@@ -336,6 +387,9 @@ export default function UsersPage() {
   const unassignedExecs = users.filter(u => u.role === 'SALES_EXEC' && !u.manager);
 
   const canEdit = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  // Active users available as reassignment targets (exclude the ex-employee being processed).
+  const reassignTargets = users.filter(u => u.isActive && u.id !== selectedUser?.id);
 
   return (
     <div className="p-6 max-w-6xl">
@@ -527,8 +581,14 @@ export default function UsersPage() {
                           {u.deletedAt ? new Date(u.deletedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3">
-                          {canEdit && (
+                          {isSuperAdmin ? (
                             <div className="flex items-center gap-1 flex-wrap">
+                              <button
+                                onClick={() => openExRecords(u)}
+                                className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                              >
+                                View Records
+                              </button>
                               <button
                                 onClick={() => handleRestore(u)}
                                 className="px-2 py-1 text-xs rounded border border-green-200 text-green-700 hover:bg-green-50"
@@ -542,6 +602,8 @@ export default function UsersPage() {
                                 Remove Permanently
                               </button>
                             </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">Super Admin only</span>
                           )}
                         </td>
                       </tr>
@@ -642,6 +704,115 @@ export default function UsersPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EX-EMPLOYEE RECORDS / ARCHIVE MODAL ── */}
+      {modal === 'ex-records' && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-bold">Ex-Employee Records</h2>
+                <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName} · {selectedUser.email}</p>
+              </div>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            <div className="overflow-y-auto p-6 space-y-5">
+              {recordsLoading && <p className="text-sm text-gray-400">Loading records…</p>}
+
+              {!recordsLoading && records && (
+                <>
+                  {/* Business records — must be reassigned */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">Business records</h3>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${records.businessTotal > 0 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                        {records.businessTotal} total
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-2">These must be reassigned to a current employee before this account can be removed.</p>
+                    <div className="border rounded-lg divide-y divide-gray-100">
+                      {records.business.filter(r => r.count > 0).length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-gray-400 italic">None — ready to remove.</p>
+                      ) : (
+                        records.business.filter(r => r.count > 0).map(r => (
+                          <div key={r.key} className="flex items-center justify-between px-3 py-2 text-sm">
+                            <span className="text-gray-700">{r.label}</span>
+                            <span className="font-semibold text-gray-900">{r.count}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Reassign control */}
+                  {records.businessTotal > 0 && (
+                    <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100 space-y-2">
+                      <label className="text-xs font-semibold text-indigo-800">Reassign all business records to</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={reassignTargetId}
+                          onChange={e => setReassignTargetId(e.target.value)}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                        >
+                          <option value="">Select an active employee…</option>
+                          {reassignTargets.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={handleReassign}
+                          disabled={!reassignTargetId || saving}
+                          className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {saving ? 'Reassigning…' : 'Reassign'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Personal records — deleted on removal */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">Personal records</h3>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{records.personalTotal} total</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-2">Attendance, activity and time logs. These are deleted automatically when the account is removed.</p>
+                    <div className="border rounded-lg divide-y divide-gray-100">
+                      {records.personal.filter(r => r.count > 0).length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-gray-400 italic">None.</p>
+                      ) : (
+                        records.personal.filter(r => r.count > 0).map(r => (
+                          <div key={r.key} className="flex items-center justify-between px-3 py-2 text-sm">
+                            <span className="text-gray-700">{r.label}</span>
+                            <span className="font-semibold text-gray-900">{r.count}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t flex items-center justify-between flex-shrink-0">
+              <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+                Close
+              </button>
+              <button
+                onClick={() => handlePermanentRemove(selectedUser)}
+                disabled={!records || !records.canHardDelete}
+                title={records && !records.canHardDelete ? 'Reassign all business records first' : ''}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                Remove Permanently
+              </button>
             </div>
           </div>
         </div>
