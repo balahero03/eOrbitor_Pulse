@@ -24,6 +24,24 @@ interface PersonalReport {
     activities: { total: number; followupsCompleted: number; tasksCompleted: number };
     salesCycle: { avgDuration: number; median: number };
     performance: { score: number; breakdown: { winRate: number; revenue: number; activity: number; leads: number } };
+    dailyActivity?: {
+      totalLoggedHours: number; totalActivityHours: number; totalUnproductiveHours: number;
+      unproductiveDays: number; daysPresent: number;
+      dailyBreakdown: { date: string; loggedHours: number; activityHours: number; unproductiveHours: number; activityCount: number }[];
+    };
+    comparison?: {
+      previousPeriod: { startDate: string; endDate: string };
+      metrics: Record<'revenue' | 'leads' | 'converted' | 'winRate' | 'activities', { current: number; previous: number; deltaPct: number }>;
+    };
+    followUpPunctuality?: { completed: number; onTime: number; late: number; onTimeRate: number; avgDelayDays: number };
+    lossAnalysis?: {
+      totalLost: number; lostCount: number; droppedCount: number; lostValue: number;
+      byReason: { reason: string; count: number; lostValue: number }[];
+    };
+    pipeline?: {
+      stages: { stage: string; dealCount: number; totalValue: number; weightedValue: number }[];
+      totalDeals: number; totalValue: number; weightedForecast: number;
+    };
   };
   topDeals: { id: string; dealName: string; value: number; closedDate: string; status: string }[];
 }
@@ -102,6 +120,17 @@ function EmptyChart() {
   );
 }
 
+// Up/down delta badge. `goodWhenUp` flips colour for metrics where a drop is good.
+function DeltaBadge({ pct }: { pct: number }) {
+  if (pct === 0) return <span className="text-xs font-medium text-gray-400">—</span>;
+  const up = pct > 0;
+  return (
+    <span className={`text-xs font-bold ${up ? 'text-green-600' : 'text-red-600'}`}>
+      {up ? '▲' : '▼'} {Math.abs(pct)}%
+    </span>
+  );
+}
+
 // ─── Personal Report Sections ────────────────────────────────────────────────
 
 function PersonalView({ report }: { report: PersonalReport }) {
@@ -133,6 +162,35 @@ function PersonalView({ report }: { report: PersonalReport }) {
         <MetricCard label="Total Revenue" value={inrShort(metrics.revenue.total)} sub={`Pipeline: ${inrShort(metrics.revenue.pipeline)}`} accent="text-green-600" />
         <MetricCard label="Avg Deal Value" value={inrShort(metrics.revenue.average)} sub={`${topDeals.length} deals won`} />
       </div>
+
+      {/* Period-over-period comparison */}
+      {metrics.comparison && (
+        <div className="mb-6">
+          <SectionCard title={`vs Previous Period (${new Date(metrics.comparison.previousPeriod.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(metrics.comparison.previousPeriod.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})`}>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              {[
+                { key: 'revenue', label: 'Revenue', fmt: (v: number) => inrShort(v) },
+                { key: 'leads', label: 'Leads', fmt: (v: number) => String(v) },
+                { key: 'converted', label: 'Converted', fmt: (v: number) => String(v) },
+                { key: 'winRate', label: 'Win Rate', fmt: (v: number) => `${v}%` },
+                { key: 'activities', label: 'Activities', fmt: (v: number) => String(v) },
+              ].map(({ key, label, fmt }) => {
+                const m = metrics.comparison!.metrics[key as keyof typeof metrics.comparison.metrics];
+                return (
+                  <div key={key} className="text-center">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">{fmt(m.current)}</p>
+                    <div className="mt-1 flex items-center justify-center gap-1">
+                      <DeltaBadge pct={m.deltaPct} />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">was {fmt(m.previous)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        </div>
+      )}
 
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
@@ -255,8 +313,8 @@ function PersonalView({ report }: { report: PersonalReport }) {
       </SectionCard>
 
       {/* Daily Activity & Unproductive Hours */}
-      {(metrics as any).dailyActivity && (() => {
-        const da = (metrics as any).dailyActivity;
+      {metrics.dailyActivity && (() => {
+        const da = metrics.dailyActivity;
         const prodPct = da.totalLoggedHours > 0
           ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100)
           : 0;
@@ -405,6 +463,127 @@ function PersonalView({ report }: { report: PersonalReport }) {
           </div>
         </SectionCard>
       </div>
+
+      {/* Own pipeline funnel + Follow-up punctuality */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+        {metrics.pipeline && (
+          <SectionCard title="Own Pipeline">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-blue-700">{metrics.pipeline.totalDeals}</p>
+                <p className="text-xs text-blue-600 mt-1">Active Deals</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-gray-800">{inrShort(metrics.pipeline.totalValue)}</p>
+                <p className="text-xs text-gray-500 mt-1">Total Value</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-green-700">{inrShort(metrics.pipeline.weightedForecast)}</p>
+                <p className="text-xs text-green-600 mt-1">Weighted Forecast</p>
+              </div>
+            </div>
+            {metrics.pipeline.stages.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">No active deals</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Deals</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Weighted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.pipeline.stages.map(s => (
+                    <tr key={s.stage} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2.5 px-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style={{ background: `${STAGE_COLORS[s.stage] ?? '#6b7280'}20`, color: STAGE_COLORS[s.stage] ?? '#6b7280' }}
+                        >
+                          {s.stage}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-gray-700">{s.dealCount}</td>
+                      <td className="py-2.5 px-3 text-right text-gray-800 font-medium">{inr(s.totalValue)}</td>
+                      <td className="py-2.5 px-3 text-right text-green-700">{inr(s.weightedValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </SectionCard>
+        )}
+
+        {metrics.followUpPunctuality && (
+          <SectionCard title="Follow-up Punctuality">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="relative w-24 h-24 flex-shrink-0">
+                <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none"
+                    stroke={metrics.followUpPunctuality.onTimeRate >= 70 ? '#10b981' : metrics.followUpPunctuality.onTimeRate >= 40 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="3"
+                    strokeDasharray={`${metrics.followUpPunctuality.onTimeRate} ${100 - metrics.followUpPunctuality.onTimeRate}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-lg font-bold text-gray-900">{metrics.followUpPunctuality.onTimeRate}%</span>
+                </div>
+              </div>
+              <div className="flex-1 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Completed</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality.completed}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">On time</span><span className="font-semibold text-green-700">{metrics.followUpPunctuality.onTime}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Late</span><span className="font-semibold text-red-600">{metrics.followUpPunctuality.late}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Avg delay</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality.avgDelayDays} days</span></div>
+              </div>
+            </div>
+          </SectionCard>
+        )}
+      </div>
+
+      {/* Loss analysis */}
+      {metrics.lossAnalysis && metrics.lossAnalysis.totalLost > 0 && (
+        <div className="mt-5">
+          <SectionCard title="Loss Analysis">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-red-600">{metrics.lossAnalysis.lostCount}</p>
+                <p className="text-xs text-red-500 mt-1">Lost</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-orange-600">{metrics.lossAnalysis.droppedCount}</p>
+                <p className="text-xs text-orange-500 mt-1">Dropped</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-gray-800">{inrShort(metrics.lossAnalysis.lostValue)}</p>
+                <p className="text-xs text-gray-500 mt-1">Lost Value</p>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Count</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.lossAnalysis.byReason.map(r => (
+                  <tr key={r.reason} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 px-3 text-gray-700">{r.reason}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-600">{r.count}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-800">{inr(r.lostValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </SectionCard>
+        </div>
+      )}
     </>
   );
 }
@@ -690,6 +869,38 @@ function exportPersonalCSV(report: PersonalReport) {
     ['--- CONVERSION BY SOURCE ---'],
     ['Source', 'Total Leads', 'Won', 'Win Rate (%)'],
     ...Object.entries(metrics.conversion.bySource).map(([src, d]) => [src, String(d.total), String(d.won), String(d.rate.toFixed(1))]),
+    ...(metrics.comparison ? [
+      [],
+      ['--- VS PREVIOUS PERIOD ---'],
+      ['Metric', 'Current', 'Previous', 'Change (%)'],
+      ...(['revenue', 'leads', 'converted', 'winRate', 'activities'] as const).map(k => {
+        const m = metrics.comparison!.metrics[k];
+        return [k, String(m.current), String(m.previous), String(m.deltaPct)];
+      }),
+    ] : []),
+    ...(metrics.followUpPunctuality ? [
+      [],
+      ['--- FOLLOW-UP PUNCTUALITY ---'],
+      ['Completed', String(metrics.followUpPunctuality.completed)],
+      ['On Time', String(metrics.followUpPunctuality.onTime)],
+      ['Late', String(metrics.followUpPunctuality.late)],
+      ['On-Time Rate (%)', String(metrics.followUpPunctuality.onTimeRate)],
+      ['Avg Delay (days)', String(metrics.followUpPunctuality.avgDelayDays)],
+    ] : []),
+    ...(metrics.pipeline ? [
+      [],
+      ['--- OWN PIPELINE ---'],
+      ['Stage', 'Deals', 'Total Value (INR)', 'Weighted (INR)'],
+      ...metrics.pipeline.stages.map(s => [s.stage, String(s.dealCount), String(s.totalValue), String(s.weightedValue)]),
+      ['Weighted Forecast (INR)', String(metrics.pipeline.weightedForecast)],
+    ] : []),
+    ...(metrics.lossAnalysis && metrics.lossAnalysis.totalLost > 0 ? [
+      [],
+      ['--- LOSS ANALYSIS ---'],
+      ['Lost', String(metrics.lossAnalysis.lostCount), 'Dropped', String(metrics.lossAnalysis.droppedCount), 'Lost Value (INR)', String(metrics.lossAnalysis.lostValue)],
+      ['Reason', 'Count', 'Value (INR)'],
+      ...metrics.lossAnalysis.byReason.map(r => [r.reason, String(r.count), String(r.lostValue)]),
+    ] : []),
   ];
   downloadCSV(`personal-report-${user.name.replace(/\s+/g, '-')}-${period.startDate}.csv`, rows);
 }

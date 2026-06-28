@@ -289,6 +289,157 @@ export class ReportCalculator {
     };
   }
 
+  // Compare core metrics against the immediately preceding window of equal length.
+  async getPeriodComparison(userId: string, dateRange: DateRange) {
+    const { startDate, endDate } = dateRange;
+    const spanMs = endDate.getTime() - startDate.getTime();
+    const prevEnd = new Date(startDate.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - spanMs);
+    const prevRange: DateRange = { startDate: prevStart, endDate: prevEnd };
+
+    const [curLeads, curRevenue, curConv, curAct, prevLeads, prevRevenue, prevConv, prevAct] = await Promise.all([
+      this.getLeadMetrics(userId, dateRange),
+      this.getRevenueMetrics(userId, dateRange),
+      this.getConversionMetrics(userId, dateRange),
+      this.getActivityMetrics(userId, dateRange),
+      this.getLeadMetrics(userId, prevRange),
+      this.getRevenueMetrics(userId, prevRange),
+      this.getConversionMetrics(userId, prevRange),
+      this.getActivityMetrics(userId, prevRange),
+    ]);
+
+    const delta = (cur: number, prev: number) =>
+      prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 1000) / 10;
+
+    return {
+      previousPeriod: {
+        startDate: prevStart.toISOString().split('T')[0],
+        endDate: prevEnd.toISOString().split('T')[0],
+      },
+      metrics: {
+        revenue:    { current: curRevenue.total, previous: prevRevenue.total, deltaPct: delta(curRevenue.total, prevRevenue.total) },
+        leads:      { current: curLeads.total,   previous: prevLeads.total,   deltaPct: delta(curLeads.total, prevLeads.total) },
+        converted:  { current: curLeads.converted, previous: prevLeads.converted, deltaPct: delta(curLeads.converted, prevLeads.converted) },
+        winRate:    { current: curConv.winRate,  previous: prevConv.winRate,  deltaPct: delta(curConv.winRate, prevConv.winRate) },
+        activities: { current: curAct.total,     previous: prevAct.total,     deltaPct: delta(curAct.total, prevAct.total) },
+      },
+    };
+  }
+
+  // Follow-up punctuality: completed follow-ups, on-time vs late vs scheduled date.
+  async getFollowUpPunctuality(userId: string, dateRange: DateRange) {
+    const { startDate, endDate } = dateRange;
+    const followUps = await prisma.followUp.findMany({
+      where: {
+        createdById: userId,
+        actualDate: { gte: startDate, lte: endDate, not: null },
+      },
+      select: { scheduledDate: true, actualDate: true },
+    });
+
+    let onTime = 0;
+    let late = 0;
+    let totalDelayDays = 0;
+    for (const f of followUps) {
+      if (!f.actualDate) continue;
+      // A buffer of same calendar day counts as on-time.
+      const delayMs = f.actualDate.getTime() - f.scheduledDate.getTime();
+      if (delayMs <= 86400000) {
+        onTime++;
+      } else {
+        late++;
+        totalDelayDays += Math.floor(delayMs / 86400000);
+      }
+    }
+
+    const completed = onTime + late;
+    return {
+      completed,
+      onTime,
+      late,
+      onTimeRate: completed > 0 ? Math.round((onTime / completed) * 1000) / 10 : 0,
+      avgDelayDays: late > 0 ? Math.round((totalDelayDays / late) * 10) / 10 : 0,
+    };
+  }
+
+  // Loss analysis: lost/dropped leads grouped by closureReason.
+  async getLossAnalysis(userId: string, dateRange: DateRange) {
+    const { startDate, endDate } = dateRange;
+    const lostLeads = await prisma.lead.findMany({
+      where: {
+        assignedToId: userId,
+        closedAt: { gte: startDate, lte: endDate },
+        status: { in: ['LOST', 'DROPPED'] },
+      },
+      select: { status: true, closureReason: true, quoteValue: true },
+    });
+
+    const reasonMap: Record<string, { count: number; lostValue: number }> = {};
+    let lostCount = 0;
+    let droppedCount = 0;
+    let lostValue = 0;
+    for (const l of lostLeads) {
+      if (l.status === 'LOST') lostCount++; else droppedCount++;
+      const val = toNumber(l.quoteValue);
+      lostValue += val;
+      const reason = l.closureReason?.trim() || 'Unspecified';
+      if (!reasonMap[reason]) reasonMap[reason] = { count: 0, lostValue: 0 };
+      reasonMap[reason].count++;
+      reasonMap[reason].lostValue += val;
+    }
+
+    const byReason = Object.entries(reasonMap)
+      .map(([reason, d]) => ({ reason, count: d.count, lostValue: d.lostValue }))
+      .sort((a, b) => b.count - a.count);
+
+    return { totalLost: lostLeads.length, lostCount, droppedCount, lostValue, byReason };
+  }
+
+  // This employee's own deal pipeline by stage, with weighted forecast.
+  async getEmployeePipeline(userId: string, dateRange: DateRange) {
+    const deals = await prisma.deal.findMany({
+      where: {
+        assignedToId: userId,
+        createdAt: { gte: dateRange.startDate, lte: dateRange.endDate },
+      },
+      select: { stage: true, dealValue: true, winProbability: true },
+    });
+
+    const stageOrder: Record<string, number> = {
+      SUSPECT: 0, PROSPECT: 1, APPROACH: 2, NEGOTIATION: 3, CLOSURE: 4, ONGOING: 5,
+    };
+
+    const stageMap: Record<string, { dealCount: number; totalValue: number; weightedValue: number }> = {};
+    let totalValue = 0;
+    let weightedValue = 0;
+    for (const d of deals) {
+      const val = toNumber(d.dealValue);
+      const weighted = (val * d.winProbability) / 100;
+      totalValue += val;
+      weightedValue += weighted;
+      if (!stageMap[d.stage]) stageMap[d.stage] = { dealCount: 0, totalValue: 0, weightedValue: 0 };
+      stageMap[d.stage].dealCount++;
+      stageMap[d.stage].totalValue += val;
+      stageMap[d.stage].weightedValue += weighted;
+    }
+
+    const stages = Object.entries(stageMap)
+      .map(([stage, d]) => ({
+        stage,
+        dealCount: d.dealCount,
+        totalValue: d.totalValue,
+        weightedValue: Math.round(d.weightedValue),
+      }))
+      .sort((a, b) => (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99));
+
+    return {
+      stages,
+      totalDeals: deals.length,
+      totalValue,
+      weightedForecast: Math.round(weightedValue),
+    };
+  }
+
   async getTeamMetrics(managerId: string, dateRange: DateRange) {
     // SUPER_ADMIN and ADMIN see everyone; managers see their direct reports
     const caller = await prisma.user.findUnique({ where: { id: managerId }, select: { role: true } });

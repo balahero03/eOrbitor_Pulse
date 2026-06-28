@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   const dateRange: DateRange = { startDate, endDate };
 
-  const [leads, revenue, conversion, activities, salesCycle, performance, topDeals, dailyActivity] = await Promise.all([
+  const [leads, revenue, conversion, activities, salesCycle, performance, topDeals, dailyActivity, comparison, followUpPunctuality, lossAnalysis, pipeline] = await Promise.all([
     reportCalculator.getLeadMetrics(userId, dateRange),
     reportCalculator.getRevenueMetrics(userId, dateRange),
     reportCalculator.getConversionMetrics(userId, dateRange),
@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
     reportCalculator.getPerformanceScore(userId, dateRange),
     reportCalculator.getTopDeals(userId, dateRange),
     reportCalculator.getDailyActivityMetrics(userId, dateRange),
+    reportCalculator.getPeriodComparison(userId, dateRange),
+    reportCalculator.getFollowUpPunctuality(userId, dateRange),
+    reportCalculator.getLossAnalysis(userId, dateRange),
+    reportCalculator.getEmployeePipeline(userId, dateRange),
   ]);
 
   const days = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000);
@@ -66,7 +70,7 @@ export async function GET(req: NextRequest) {
     reportType: 'PERSONAL',
     user: { id: user.id, name: `${user.firstName} ${user.lastName}`, email: user.email, role: user.role },
     period: { startDate: startDate.toISOString().split('T')[0], endDate: endDate.toISOString().split('T')[0], days },
-    metrics: { leads, revenue, conversion, activities, salesCycle, performance, dailyActivity },
+    metrics: { leads, revenue, conversion, activities, salesCycle, performance, dailyActivity, comparison, followUpPunctuality, lossAnalysis, pipeline },
     topDeals,
   };
 
