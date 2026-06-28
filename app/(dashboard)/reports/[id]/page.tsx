@@ -982,6 +982,13 @@ export default function ReportViewPage() {
     load();
   }, [params.id]);
 
+  // Recharts sizes its SVGs to the on-screen container; window.print() alone
+  // doesn't resize them for the page. Nudge a resize, then print next frame.
+  const handlePrint = () => {
+    window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -1034,7 +1041,7 @@ export default function ReportViewPage() {
               <span className="ml-2 text-gray-400">({report.period.days} days)</span>
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap print:hidden">
             <button
               onClick={() => {
                 if (report.reportType === 'PERSONAL') exportPersonalCSV(report as PersonalReport);
@@ -1046,7 +1053,7 @@ export default function ReportViewPage() {
               Export CSV
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
               Export PDF

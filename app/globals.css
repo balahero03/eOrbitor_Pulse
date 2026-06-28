@@ -80,4 +80,22 @@ textarea {
   .flex-1.flex.flex-col.overflow-hidden { overflow: visible !important; }
   .min-h-screen { min-height: unset; }
   @page { margin: 1cm; }
+
+  /* Print background colours (badges, bars, KPI tiles) instead of stripping them */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Use the full printable width and remove screen padding */
+  main, .min-h-screen, .max-w-6xl { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+
+  /* Avoid splitting cards / table rows across pages */
+  .bg-white.rounded-xl, .bg-white.border, table { break-inside: avoid; page-break-inside: avoid; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Recharts: let the SVG size to the page rather than the screen container */
+  .recharts-responsive-container, .recharts-wrapper, .recharts-surface {
+    width: 100% !important;
+  }
 }
