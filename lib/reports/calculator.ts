@@ -128,10 +128,15 @@ export class ReportCalculator {
 
   async getActivityMetrics(userId: string, dateRange: DateRange) {
     const { startDate, endDate } = dateRange;
+    // DailyActivity.date is a 'YYYY-MM-DD' string, so compare against string bounds.
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = endDate.toISOString().slice(0, 10);
 
-    const [totalActivities, followupsCompleted, tasksCompleted] = await Promise.all([
-      prisma.activityLog.count({
-        where: { userId, createdAt: { gte: startDate, lte: endDate } },
+    const [dailyRecords, followupsCompleted, tasksCompleted] = await Promise.all([
+      // Activities are the entries users log on their "My Activity" page.
+      prisma.dailyActivity.findMany({
+        where: { userId, date: { gte: startStr, lte: endStr } },
+        select: { activities: true },
       }),
       prisma.followUp.count({
         where: {
@@ -147,6 +152,17 @@ export class ReportCalculator {
         },
       }),
     ]);
+
+    // Total activity entries logged across all daily-activity records in range.
+    let totalActivities = 0;
+    for (const rec of dailyRecords) {
+      try {
+        const entries = JSON.parse(rec.activities || '[]');
+        if (Array.isArray(entries)) totalActivities += entries.length;
+      } catch {
+        // ignore malformed entries
+      }
+    }
 
     return { total: totalActivities, followupsCompleted, tasksCompleted };
   }
@@ -203,9 +219,17 @@ export class ReportCalculator {
       this.getLeadMetrics(userId, dateRange),
     ]);
 
+    // Scale the activity target to the report length: ~2 logged entries per day
+    // earns full marks (min 20 to stay meaningful for very short ranges).
+    const days = Math.max(
+      1,
+      Math.ceil((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / 86400000),
+    );
+    const activityTarget = Math.max(20, days * 2);
+
     const winRateScore = Math.min((conversion.winRate / 100) * 30, 30);
     const revenueScore = Math.min((revenue.total / 5_000_000) * 40, 40);
-    const activityScore = Math.min((activities.total / 500) * 20, 20);
+    const activityScore = Math.min((activities.total / activityTarget) * 20, 20);
     const leadScore = Math.min((leads.total / 150) * 10, 10);
 
     const total = winRateScore + revenueScore + activityScore + leadScore;

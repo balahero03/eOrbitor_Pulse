@@ -225,7 +225,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       teamMembers: subs.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })),
       leaderboard,
       pipeline: (pipelineByStage as any[]).map((s) => ({
-        stage: s.stage, value: s._sum?.dealValue || 0, count: s._count?.id || 0,
+        stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
       })),
       recentLeads,
       announcements,
@@ -249,7 +249,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     prisma.user.count({ where: { isActive: true } }),
     prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: monthStart } }, _sum: { totalAmount: true } }),
     prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: lastMonthStart, lt: monthStart } }, _sum: { totalAmount: true } }),
-    prisma.deal.groupBy({ by: ['stage'], _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
+    prisma.deal.groupBy({ by: ['stage'], where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } }, _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
     prisma.activityLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -280,7 +280,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       totalUsers, pendingApprovals,
     },
     pipeline: (pipelineByStage as any[]).map((s) => ({
-      stage: s.stage, value: s._sum?.dealValue || 0, count: s._count?.id || 0,
+      stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
     })),
     recentActivity: recentActivity.map((a) => ({
       id: a.id, action: a.action, entity: a.entityType, createdAt: a.createdAt.toISOString(),

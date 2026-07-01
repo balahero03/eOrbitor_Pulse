@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+const fmt = (v: number | string) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v) || 0);
 
-const fmtNum = (v: number) =>
-  new Intl.NumberFormat('en-IN').format(v);
+const fmtNum = (v: number | string) =>
+  new Intl.NumberFormat('en-IN').format(Number(v) || 0);
 
 function KpiCard({
   label, value, sub, color, href,
@@ -24,6 +24,7 @@ function KpiCard({
 const STAGE_COLORS: Record<string, string> = {
   SUSPECT: 'bg-indigo-100 text-indigo-700',
   PROSPECT: 'bg-cyan-100 text-cyan-700',
+  APPROACH: 'bg-sky-100 text-sky-700',
   PROPOSAL: 'bg-yellow-100 text-yellow-700',
   NEGOTIATION: 'bg-orange-100 text-orange-700',
   CLOSURE: 'bg-green-100 text-green-700',
@@ -158,7 +159,7 @@ export default function AdminDashboard({ data }: { data: any }) {
           {[
             { href: '/announcements', label: 'Announcements', icon: '📢' },
             { href: '/attendance', label: 'Attendance', icon: '📅' },
-            { href: '/settings', label: 'Settings', icon: '⚙️' },
+            { href: '/reports', label: 'Reports', icon: '📈' },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-2 px-4 py-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">

@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+const fmt = (v: number | string) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v) || 0);
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
@@ -11,11 +11,19 @@ const fmtDate = (d: string) =>
 const isOverdue = (d: string) => new Date(d) < new Date();
 
 const STATUS_COLORS: Record<string, string> = {
+  NEW: 'bg-slate-100 text-slate-700',
+  CONTACTED: 'bg-blue-100 text-blue-700',
+  QUALIFIED: 'bg-teal-100 text-teal-700',
   WON: 'bg-green-100 text-green-700',
   LOST: 'bg-red-100 text-red-700',
   SUSPECT: 'bg-indigo-100 text-indigo-700',
   PROSPECT: 'bg-cyan-100 text-cyan-700',
+  APPROACH: 'bg-sky-100 text-sky-700',
+  PROPOSAL: 'bg-yellow-100 text-yellow-700',
   NEGOTIATION: 'bg-orange-100 text-orange-700',
+  CLOSURE: 'bg-emerald-100 text-emerald-700',
+  ORDER: 'bg-green-100 text-green-700',
+  CONVERTED: 'bg-green-100 text-green-700',
   ON_HOLD: 'bg-amber-100 text-amber-700',
   DROPPED: 'bg-gray-100 text-gray-500',
   REJECTED: 'bg-red-200 text-red-800',
@@ -216,7 +224,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
             <p className="text-sm text-gray-400 text-center py-6">No leads yet</p>
           ) : (
             <div className="space-y-2">
-              {leadsByStatus
+              {[...leadsByStatus]
                 .sort((a: any, b: any) => b._count - a._count)
                 .map((s: any) => (
                   <div key={s.status} className="flex items-center justify-between">

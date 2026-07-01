@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+const fmt = (v: number | string) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v) || 0);
 
 function StatCard({ label, value, color, href }: { label: string; value: string | number; color: string; href?: string }) {
   const inner = (
@@ -16,13 +16,22 @@ function StatCard({ label, value, color, href }: { label: string; value: string 
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  NEW: 'bg-slate-100 text-slate-700',
+  CONTACTED: 'bg-blue-100 text-blue-700',
+  QUALIFIED: 'bg-teal-100 text-teal-700',
   WON: 'bg-green-100 text-green-700',
   LOST: 'bg-red-100 text-red-700',
   SUSPECT: 'bg-indigo-100 text-indigo-700',
   PROSPECT: 'bg-cyan-100 text-cyan-700',
+  APPROACH: 'bg-sky-100 text-sky-700',
+  PROPOSAL: 'bg-yellow-100 text-yellow-700',
   NEGOTIATION: 'bg-orange-100 text-orange-700',
+  CLOSURE: 'bg-emerald-100 text-emerald-700',
+  ORDER: 'bg-green-100 text-green-700',
+  CONVERTED: 'bg-green-100 text-green-700',
   ON_HOLD: 'bg-amber-100 text-amber-700',
   DROPPED: 'bg-gray-100 text-gray-500',
+  REJECTED: 'bg-red-200 text-red-800',
 };
 
 const PRIORITY_STYLE: Record<string, string> = {
@@ -103,7 +112,7 @@ export default function ManagerDashboard({ data }: { data: any }) {
             <p className="text-sm text-gray-400 text-center py-4">No team members yet</p>
           ) : (
             <div className="space-y-3">
-              {leaderboard
+              {[...leaderboard]
                 .sort((a: any, b: any) => b.wonThisMonth - a.wonThisMonth)
                 .map((m: any, i: number) => (
                   <div key={m.userId} className="flex items-center gap-3">
