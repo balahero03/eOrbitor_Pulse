@@ -5,10 +5,7 @@ import { ForbiddenError } from '@/lib/errors';
 import bcrypt from 'bcryptjs';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
-  // Only admins and support can list users
-  if (!['SUPER_ADMIN', 'ADMIN', 'SUPPORT', 'SALES_MANAGER'].includes(user.role)) {
-    throw new ForbiddenError();
-  }
+  // Any authenticated user can list users (needed for assignment pickers)
 
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -23,11 +20,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const where: any = status === 'ex' ? { deletedAt: { not: null } } : { deletedAt: null };
 
   if (activeOnly) where.isActive = true;
-
-  // Managers only see their team
-  if (user.role === 'SALES_MANAGER') {
-    where.managerId = user.id;
-  }
 
   if (role) where.role = role;
   if (search) {
