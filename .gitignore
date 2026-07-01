@@ -38,6 +38,9 @@ tsconfig.tsbuildinfo
 logs/
 *.log
 
+# Uploaded files (persisted attachments)
+uploads/
+
 # OS
 Thumbs.db
 .DS_Store

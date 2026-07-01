@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
 import { sendMail, buildWonEmail, buildLostEmail, MailAttachment } from '@/lib/mail';
+import { saveBase64Files } from '@/lib/storage';
 
 export async function POST(
   req: NextRequest,
@@ -54,7 +55,13 @@ export async function POST(
       throw new ValidationError('Lead must be at CLOSURE stage before closing');
     }
 
-    // Build mail attachments from base64
+    // Persist uploads to disk (durable storage, downloadable later)
+    const storedFiles = saveBase64Files(
+      `leads/${id}`,
+      (rawAttachments as any[]).filter((a: any) => a?.dataBase64 && a?.filename),
+    );
+
+    // Build mail attachments from base64 (transient — for the notification email)
     const attachments: MailAttachment[] = (rawAttachments as any[])
       .filter((a: any) => a?.dataBase64 && a?.filename)
       .map((a: any) => ({
@@ -85,15 +92,30 @@ export async function POST(
       ? `${managers[0].firstName} ${managers[0].lastName}`
       : 'Manager';
     const attachmentNames = attachments.map(a => a.filename);
+    // Metadata for the download UI — excludes storagePath from the client-facing shape
+    const attachmentMeta = storedFiles.map(f => ({
+      id: f.id,
+      filename: f.filename,
+      contentType: f.contentType,
+      size: f.size,
+      storagePath: f.storagePath,
+      uploadedAt: f.uploadedAt,
+    }));
 
     // Merge with existing stage details (approach/negotiation captured during pipeline)
     const existingStageDetails = (lead.closureDetails as any) || {};
     const baseClosureDetails = incomingClosureDetails || existingStageDetails;
 
+    // Preserve any attachments stored on a prior save, append the new ones
+    const priorAttachments = Array.isArray(existingStageDetails.attachments)
+      ? existingStageDetails.attachments
+      : [];
+    const allAttachments = [...priorAttachments, ...attachmentMeta];
+
     const closureDetails =
       outcome === 'WON'
-        ? { ...baseClosureDetails, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames }
-        : { ...baseClosureDetails, reason, competitor, whatToImprove, attachmentNames };
+        ? { ...baseClosureDetails, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames, attachments: allAttachments }
+        : { ...baseClosureDetails, reason, competitor, whatToImprove, attachmentNames, attachments: allAttachments };
 
     if (outcome === 'WON') {
       // Auto-create a Customer from the won lead if one doesn't already exist

@@ -1811,6 +1811,31 @@ export default function LeadDetailPage() {
     finally { setStageSubmitting(false); }
   };
 
+  const downloadAttachment = async (fileId: string, filename: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/leads/${id}/attachments/${fileId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        alert(e.message || 'Could not download file');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Download failed.');
+    }
+  };
+
   const handleClosureSumbit = async (form: ClosureFormData) => {
     setClosureSubmitting(true);
     try {
@@ -2611,6 +2636,30 @@ export default function LeadDetailPage() {
                       <p className="text-sm">{(lead.closureDetails as any).closure.specialConditions}</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Closure attachments (downloadable) */}
+            {lead.closureDetails && Array.isArray((lead.closureDetails as any).attachments) && (lead.closureDetails as any).attachments.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">📎 Attachments</h3>
+                <div className="space-y-2">
+                  {(lead.closureDetails as any).attachments.map((att: any) => (
+                    <button
+                      key={att.id}
+                      onClick={() => downloadAttachment(att.id, att.filename)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base flex-shrink-0">📄</span>
+                        <span className="text-sm text-gray-800 truncate">{att.filename}</span>
+                      </div>
+                      <span className="text-xs text-blue-600 flex-shrink-0">
+                        {att.size ? `${(att.size / 1024).toFixed(0)} KB · ` : ''}Download
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
