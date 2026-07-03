@@ -1709,15 +1709,17 @@ export default function LeadDetailPage() {
     try {
       const token = localStorage.getItem('token');
 
-      // Auto-create quotation if lead has a linked customer
+      // Always persist the line items as a real Quotation. If the lead has no
+      // linked customer yet, the quotations API auto-creates one from the lead
+      // (and links it back), so we don't need to pre-check linkedCustomerId.
       let quoteNumber: string | undefined;
-      if (lead?.linkedCustomerId && data.items.length > 0) {
+      if (data.items.length > 0) {
         const qRes = await fetch('/api/quotations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             leadId: id,
-            customerId: lead.linkedCustomerId,
+            ...(lead?.linkedCustomerId && { customerId: lead.linkedCustomerId }),
             items: data.items.map(i => ({
               productId: i.productId, productName: i.productName,
               description: i.description, quantity: i.quantity,
@@ -1733,7 +1735,15 @@ export default function LeadDetailPage() {
             discountAmount: parseFloat(data.discount || '0') || 0,
           }),
         });
-        if (qRes.ok) { const q = await qRes.json(); quoteNumber = q.quotationNumber; }
+        if (qRes.ok) {
+          const q = await qRes.json();
+          quoteNumber = q.quotationNumber;
+        } else {
+          // Don't silently drop the itemized quotation — abort so the user can retry.
+          const e = await qRes.json().catch(() => ({}));
+          alert(e.message || 'Failed to save the quotation. Please try again.');
+          return;
+        }
       }
 
       const negotiationDetails = {
@@ -1790,11 +1800,51 @@ export default function LeadDetailPage() {
     setStageSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+
+      // If the user added line items while editing, persist them as a new
+      // Quotation (the edit modal opens with an empty items table, so a
+      // non-empty list here means the user wants an itemized quote saved).
+      let quoteNumber: string | undefined;
+      if (data.items.length > 0) {
+        const qRes = await fetch('/api/quotations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            leadId: id,
+            ...(lead?.linkedCustomerId && { customerId: lead.linkedCustomerId }),
+            items: data.items.map(i => ({
+              productId: i.productId, productName: i.productName,
+              description: i.description, quantity: i.quantity,
+              unitPrice: i.unitPrice, taxRate: i.taxRate,
+            })),
+            priceValidity: data.priceValidity,
+            taxDetails: data.taxDetails,
+            warranty: data.warranty,
+            amcPeriod: data.amcPeriod,
+            deliveryEstimate: data.deliveryEstimate,
+            paymentTerms: data.paymentTerms,
+            notes: data.qNotes,
+            discountAmount: parseFloat(data.discount || '0') || 0,
+          }),
+        });
+        if (qRes.ok) {
+          const q = await qRes.json();
+          quoteNumber = q.quotationNumber;
+        } else {
+          const e = await qRes.json().catch(() => ({}));
+          alert(e.message || 'Failed to save the quotation. Please try again.');
+          return;
+        }
+      }
+
+      const existingNeg = (lead?.closureDetails as any)?.negotiation || {};
       const negotiationDetails = {
         quoteValue: data.quoteValue, discount: data.discount,
         paymentTerms: data.paymentTerms, deliveryTimeline: data.deliveryTimeline,
         negotiationPoints: data.negotiationPoints, objections: data.objections,
         decisionTimeline: data.decisionTimeline, competingVendors: data.competingVendors,
+        // Keep any prior quote number unless this edit created a new quotation
+        quoteNumber: quoteNumber ?? existingNeg.quoteNumber,
         capturedAt: new Date().toISOString(),
       };
       const existing = (lead?.closureDetails as any) || {};
@@ -1802,7 +1852,11 @@ export default function LeadDetailPage() {
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ closureDetails: merged, quoteValue: data.quoteValue }),
+        body: JSON.stringify({
+          closureDetails: merged,
+          quoteValue: data.quoteValue,
+          ...(quoteNumber && { quoteNo: quoteNumber }),
+        }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
       setEditNegotiationModal(false);
@@ -2063,8 +2117,8 @@ export default function LeadDetailPage() {
   return (
     <div className="flex flex-col min-h-full">
 
-      {/* ── TOP HALF: kanban board (sticky) ─────────────────────────────── */}
-      <div className="bg-gray-50 border-b border-gray-200 px-6 pt-5 pb-5 sticky top-0 z-10 shadow-sm">
+      {/* ── TOP HALF: kanban board (scrolls with the page) ──────────────── */}
+      <div className="bg-gray-50 border-b border-gray-200 px-6 pt-5 pb-5 shadow-sm">
 
         {/* Header */}
         <div className="flex items-start gap-3 mb-4">
