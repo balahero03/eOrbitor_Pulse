@@ -2446,12 +2446,16 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-400 uppercase mb-1">Assigned To</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {lead.assignedTo.firstName.charAt(0)}{lead.assignedTo.lastName.charAt(0)}
+                  {lead.assignedTo ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {lead.assignedTo.firstName.charAt(0)}{lead.assignedTo.lastName.charAt(0)}
+                      </div>
+                      <span className="text-sm font-medium">{lead.assignedTo.firstName} {lead.assignedTo.lastName}</span>
                     </div>
-                    <span className="text-sm font-medium">{lead.assignedTo.firstName} {lead.assignedTo.lastName}</span>
-                  </div>
+                  ) : (
+                    <span className="text-sm text-gray-400 italic">Unassigned</span>
+                  )}
                 </div>
                 {lead.broughtBy && (
                   <div>

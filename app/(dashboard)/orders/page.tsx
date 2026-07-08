@@ -142,7 +142,7 @@ export default function OrdersPage() {
         <p className="text-sm text-blue-700">
           Orders are created when a lead is marked <span className="font-semibold">Won</span> in the pipeline.
           View your{' '}
-          <Link href="/leads/closed" className="underline font-medium hover:text-blue-900">
+          <Link href="/closed-leads" className="underline font-medium hover:text-blue-900">
             closed leads
           </Link>{' '}
           to see WON leads ready for order creation.

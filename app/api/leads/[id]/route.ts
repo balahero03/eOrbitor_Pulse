@@ -137,6 +137,17 @@ export async function PATCH(
       },
     });
 
+    // Keep the lead's backing Deal (auto-created for pipeline reporting — see
+    // leads/[id]/followups) in sync with the quote value. Deal.dealValue is
+    // otherwise stuck at its initial 0 forever, which silently breaks the
+    // dashboard's Pipeline Value figure.
+    if (quoteValue !== undefined && quoteValue !== '') {
+      await prisma.deal.updateMany({
+        where: { leadId: id },
+        data: { dealValue: parseFloat(quoteValue) },
+      });
+    }
+
     return NextResponse.json(lead);
   } catch (error: any) {
     console.error('[LEAD PATCH ERROR]', error?.message, error?.code, error?.meta);

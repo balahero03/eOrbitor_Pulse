@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
     if (openLog) {
       const openDate = openLog.loginTime.toISOString().slice(0, 10);
       if (openDate !== dateStr) {
-        // Close the previous day's session at midnight of that day
+        // Close the stale session so it doesn't stay open forever. This is
+        // TimeLog cleanup only — it must NOT touch DailyActivity.logoutTime,
+        // since the client wants that field set only by the employee
+        // explicitly declaring their exit time, never guessed by the system.
         const midnight = new Date(openLog.loginTime);
         midnight.setHours(23, 59, 59, 0);
         const duration = Math.floor((midnight.getTime() - openLog.loginTime.getTime()) / 1000);
@@ -48,28 +51,6 @@ export async function POST(req: NextRequest) {
           where: { id: openLog.id },
           data: { logoutTime: midnight, sessionDuration: duration },
         });
-
-        // Update previous day's DailyActivity logoutTime + totalHours
-        const prevDailyActivity = await prisma.dailyActivity.findUnique({
-          where: { userId_date: { userId: user.id, date: openDate } },
-        });
-        if (prevDailyActivity) {
-          const totalSecs = await prisma.timeLog.findMany({
-            where: {
-              userId: user.id,
-              loginTime: { gte: new Date(openDate), lt: new Date(dateStr) },
-              logoutTime: { not: null },
-            },
-          }).then(logs => logs.reduce((s, l) => s + (l.sessionDuration || 0), 0));
-
-          await prisma.dailyActivity.update({
-            where: { id: prevDailyActivity.id },
-            data: {
-              logoutTime: midnight,
-              totalHours: parseFloat((totalSecs / 3600).toFixed(2)),
-            },
-          });
-        }
       }
     }
 

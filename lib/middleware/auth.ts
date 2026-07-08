@@ -9,7 +9,7 @@ export type AuthUser = {
   lastName?: string;
 };
 
-type Handler = (req: NextRequest, user: AuthUser) => Promise<NextResponse>;
+type Handler = (req: NextRequest, user: AuthUser, context?: any) => Promise<NextResponse>;
 
 export function withAuth(handler: Handler) {
   return async (req: NextRequest, context?: any): Promise<NextResponse> => {
@@ -30,7 +30,7 @@ export function withAuth(handler: Handler) {
     }
 
     try {
-      return await handler(req, user);
+      return await handler(req, user, context);
     } catch (err: any) {
       const status: number = err.status || 500;
       const message: string = err.message || 'Internal server error';
@@ -42,11 +42,11 @@ export function withAuth(handler: Handler) {
 
 export function requireRoles(allowedRoles: string[]) {
   return function (handler: Handler): Handler {
-    return async (req: NextRequest, user: AuthUser): Promise<NextResponse> => {
+    return async (req: NextRequest, user: AuthUser, context?: any): Promise<NextResponse> => {
       if (!allowedRoles.includes(user.role)) {
         return NextResponse.json({ message: 'Access denied' }, { status: 403 });
       }
-      return handler(req, user);
+      return handler(req, user, context);
     };
   };
 }

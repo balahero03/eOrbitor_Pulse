@@ -79,7 +79,7 @@ export async function POST(
       const deal = await prisma.deal.create({
         data: {
           dealName: `${lead.name} - ${lead.company}`,
-          dealValue: 0,
+          dealValue: lead.quoteValue ?? 0,
           stage: 'SUSPECT',
           customerId,
           leadId,

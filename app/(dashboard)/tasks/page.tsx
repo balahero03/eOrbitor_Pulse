@@ -210,7 +210,7 @@ export default function TasksPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    {task.assignedTo.firstName} {task.assignedTo.lastName}
+                    {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : <span className="text-gray-400 italic">Unassigned</span>}
                   </td>
                   <td className="px-4 py-3">
                     {task.dueDate ? (

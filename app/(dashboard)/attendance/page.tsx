@@ -24,6 +24,34 @@ function fmt12(t: string) {
   return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
+function toMin(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+
+function restrictedMinutes(start: string, end: string): number {
+  const startMin = toMin(start);
+  const endMin = toMin(end);
+  const wraps = startMin > endMin;
+  return wraps ? (24 * 60 - startMin) + endMin : endMin - startMin;
+}
+
+// Spells out what the raw HH:mm window actually means in practice — native
+// time inputs make an AM/PM slip (e.g. picking 6:00 PM instead of 6:00 AM)
+// easy to miss, and that slip silently flips which hours are restricted.
+function describeWindow(start: string, end: string): string {
+  const wraps = toMin(start) > toMin(end);
+  const mins = restrictedMinutes(start, end);
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  const dur = `${hours}h${remMins ? ` ${remMins}m` : ''}`;
+  return wraps
+    ? `Restricted from ${fmt12(start)} tonight through ${fmt12(end)} the next day — ${dur} blocked, access allowed only from ${fmt12(end)} to ${fmt12(start)}.`
+    : `Restricted from ${fmt12(start)} to ${fmt12(end)} — ${dur} blocked, access allowed the rest of the day.`;
+}
+
+const WINDOW_PRESETS = [
+  { label: '9 PM – 6 AM', start: '21:00', end: '06:00' },
+  { label: '10 PM – 8 AM', start: '22:00', end: '08:00' },
+];
+
 interface ActivityEntry {
   id: string;
   mode: string;
@@ -149,6 +177,325 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
   );
 }
 
+const RESTRICTABLE_ROLES = [
+  { value: 'SALES_MANAGER', label: 'Sales Manager' },
+  { value: 'SALES_EXEC', label: 'Sales Executive' },
+  { value: 'SUPPORT', label: 'Support' },
+  { value: 'VIEWER', label: 'Viewer' },
+];
+
+interface AccessPolicy {
+  enabled: boolean;
+  restrictedRoles: string[];
+  windowStart: string;
+  windowEnd: string;
+  forceCutoff: boolean;
+  currentlyRestricting?: boolean;
+}
+
+interface AccessRequestRow {
+  id: string;
+  date: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  user: { firstName: string; lastName: string; email: string; role: string };
+}
+
+// Admin-only, collapsed-by-default section — keeps this off most admins'/
+// managers' screens by default (this page is also visible to SALES_MANAGER,
+// who should never see this panel at all).
+function AccessPolicySection() {
+  const [expanded, setExpanded] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [policy, setPolicy] = useState<AccessPolicy | null>(null);
+  const [savedPolicy, setSavedPolicy] = useState<AccessPolicy | null>(null);
+  const [requests, setRequests] = useState<AccessRequestRow[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<AccessRequestRow | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const dirty = policy && savedPolicy && JSON.stringify(policy) !== JSON.stringify(savedPolicy);
+
+  const load = async () => {
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+    const [pRes, rRes] = await Promise.all([
+      fetch('/api/access-policy', { headers }),
+      fetch('/api/access-requests?status=PENDING', { headers }),
+    ]);
+    if (pRes.ok) {
+      const p = await pRes.json();
+      setPolicy(p);
+      setSavedPolicy(p);
+    }
+    if (rRes.ok) setRequests((await rRes.json()).requests || []);
+    setLoaded(true);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const toggleRole = (role: string) => {
+    if (!policy) return;
+    setSaveMessage(null);
+    setPolicy({
+      ...policy,
+      restrictedRoles: policy.restrictedRoles.includes(role)
+        ? policy.restrictedRoles.filter(r => r !== role)
+        : [...policy.restrictedRoles, role],
+    });
+  };
+
+  const updatePolicy = (patch: Partial<AccessPolicy>) => {
+    if (!policy) return;
+    setSaveMessage(null);
+    setPolicy({ ...policy, ...patch });
+  };
+
+  const applyPreset = (start: string, end: string) => updatePolicy({ windowStart: start, windowEnd: end });
+
+  const savePolicy = async () => {
+    if (!policy) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/access-policy', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(policy),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPolicy(data);
+        setSavedPolicy(data);
+        setSaveMessage({ type: 'success', text: '✓ Policy saved' });
+      } else {
+        setSaveMessage({ type: 'error', text: data.message || 'Failed to save policy' });
+      }
+    } catch {
+      setSaveMessage({ type: 'error', text: 'Failed to save policy — check your connection and try again' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!saveMessage || saveMessage.type !== 'success') return;
+    const t = setTimeout(() => setSaveMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [saveMessage]);
+
+  const reviewRequest = async (id: string, action: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
+    setActingId(id);
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/access-requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, rejectionReason }),
+      });
+      setRequests(prev => prev.filter(r => r.id !== id));
+      setRejectTarget(null);
+      setRejectReason('');
+    } catch {
+      setSaveMessage({ type: 'error', text: 'That action failed — please try again' });
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const statusStrip = policy && loaded && (
+    !policy.enabled ? (
+      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-xs">
+        ⚪ Policy is off — nobody is restricted right now.
+      </div>
+    ) : policy.currentlyRestricting ? (
+      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs font-medium">
+        🔴 As of right now: restricted roles are currently <strong>blocked</strong>.
+      </div>
+    ) : (
+      <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs font-medium">
+        🟢 As of right now: restricted roles currently <strong>have access</strong> — we're outside the restricted window.
+      </div>
+    )
+  );
+
+  const durationHours = policy ? restrictedMinutes(policy.windowStart, policy.windowEnd) / 60 : 0;
+  const longWindowWarning = durationHours > 16;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm text-gray-800">🔒 Access Policy</span>
+          {loaded && policy?.enabled && (
+            <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium">ON</span>
+          )}
+          {requests.length > 0 && (
+            <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium">
+              {requests.length} pending
+            </span>
+          )}
+        </div>
+        <span className="text-gray-400 text-sm">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && policy && (
+        <div className="border-t px-4 py-4 space-y-6">
+          {/* Policy settings */}
+          <div className="space-y-3">
+            {statusStrip}
+
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input type="checkbox" checked={policy.enabled}
+                onChange={e => updatePolicy({ enabled: e.target.checked })} />
+              Restrict CRM access outside allowed hours
+            </label>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Restricted roles</p>
+              <div className="flex flex-wrap gap-3">
+                {RESTRICTABLE_ROLES.map(r => (
+                  <label key={r.value} className="flex items-center gap-1.5 text-sm text-gray-700">
+                    <input type="checkbox" checked={policy.restrictedRoles.includes(r.value)}
+                      onChange={() => toggleRole(r.value)} />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">Super Admin and Admin can never be restricted.</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Quick presets</p>
+                {WINDOW_PRESETS.map(p => (
+                  <button key={p.label} type="button" onClick={() => applyPreset(p.start, p.end)}
+                    className="text-xs px-2.5 py-1 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50">
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-4 items-end flex-wrap">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction starts at</label>
+                  <input type="time" value={policy.windowStart}
+                    onChange={e => updatePolicy({ windowStart: e.target.value })}
+                    className="border rounded-lg px-3 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction ends at</label>
+                  <input type="time" value={policy.windowEnd}
+                    onChange={e => updatePolicy({ windowEnd: e.target.value })}
+                    className="border rounded-lg px-3 py-1.5 text-sm" />
+                </div>
+              </div>
+              {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
+                <p className={`text-xs rounded-lg px-3 py-2 mt-2 border ${
+                  longWindowWarning
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-blue-50 border-blue-100 text-blue-700'
+                }`}>
+                  {longWindowWarning && <strong>⚠ Double-check the AM/PM on each time — </strong>}
+                  {describeWindow(policy.windowStart, policy.windowEnd)}
+                </p>
+              )}
+            </div>
+
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={policy.forceCutoff} className="mt-0.5"
+                onChange={e => updatePolicy({ forceCutoff: e.target.checked })} />
+              <span>
+                Also cut off already-logged-in sessions at the cutoff
+                <span className="block text-[11px] text-gray-400">Off: anyone already working when the window starts can keep going. On: everyone in a restricted role is gated the moment the window starts, no matter when they logged in.</span>
+              </span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <button onClick={savePolicy} disabled={saving || !dirty}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                {saving ? 'Saving…' : dirty ? 'Save Policy' : 'Saved'}
+              </button>
+              {saveMessage && (
+                <span className={`text-sm font-medium ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {saveMessage.text}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Pending requests */}
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Pending access requests</p>
+            {requests.length === 0 ? (
+              <p className="text-sm text-gray-400">No pending requests.</p>
+            ) : (
+              <div className="space-y-2">
+                {requests.map(r => (
+                  <div key={r.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {r.user.firstName} {r.user.lastName} <span className="text-gray-400 font-normal">({r.user.role})</span>
+                      </p>
+                      <p className="text-xs text-gray-500">{r.date} · {r.reason}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => reviewRequest(r.id, 'APPROVE')} disabled={actingId === r.id}
+                        className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
+                        Approve
+                      </button>
+                      <button onClick={() => { setRejectTarget(r); setRejectReason(''); }} disabled={actingId === r.id}
+                        className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {rejectTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-red-600 mb-1">Reject Access Request</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {rejectTarget.user.firstName} {rejectTarget.user.lastName} · {rejectTarget.date}
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (optional)…"
+              autoFocus
+              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+                disabled={actingId === rejectTarget.id}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={() => reviewRequest(rejectTarget.id, 'REJECT', rejectReason.trim() || undefined)}
+                disabled={actingId === rejectTarget.id}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                {actingId === rejectTarget.id ? 'Rejecting…' : 'Reject Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AttendancePage() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
   const router = useRouter();
@@ -159,12 +506,14 @@ export default function AttendancePage() {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const [activityModal, setActivityModal] = useState<DayRecord | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
         if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(u.role)) { router.push('/dashboard'); return; }
+        setCurrentUser(u);
         loadUsers(token!);
       })
       .catch(() => router.push('/login'));
@@ -235,6 +584,8 @@ export default function AttendancePage() {
           <p className="text-sm text-gray-500 mt-1">Employee login/logout tracking</p>
         </div>
       </div>
+
+      {currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) && <AccessPolicySection />}
 
       {/* Controls */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">

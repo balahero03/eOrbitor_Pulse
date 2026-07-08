@@ -121,12 +121,115 @@ function isGroupVisible(group: NavGroup, role: string): boolean {
   return group.items.some((item) => isItemVisible(item, role));
 }
 
+function fmt12(hm: string) {
+  const [h, m] = hm.split(':').map(Number);
+  return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+interface AccessRequest {
+  id: string;
+  date: string;
+  status: string;
+  rejectionReason: string | null;
+}
+
+function AccessRestrictedScreen({
+  blocked,
+  onLogout,
+}: {
+  blocked: { date: string; windowStart: string; windowEnd: string };
+  onLogout: () => void;
+}) {
+  const [myRequest, setMyRequest] = useState<AccessRequest | null | undefined>(undefined); // undefined = loading
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = () => {
+    const token = localStorage.getItem('token');
+    fetch('/api/access-requests', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        const requests: AccessRequest[] = d.requests || [];
+        setMyRequest(requests.find(r => r.date === blocked.date) || null);
+      })
+      .catch(() => setMyRequest(null));
+  };
+
+  useEffect(() => { load(); }, [blocked.date]);
+
+  const submitRequest = async () => {
+    if (!reason.trim()) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/access-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      if (!res.ok) { const e = await res.json(); setError(e.message || 'Failed to submit request'); return; }
+      load();
+    } catch { setError('Failed to submit request'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-50 p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm max-w-md w-full p-6 text-center space-y-4">
+        <p className="text-4xl">🔒</p>
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Access Restricted</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            CRM access is restricted between {fmt12(blocked.windowStart)} and {fmt12(blocked.windowEnd)}.
+            Contact your admin, or request access below.
+          </p>
+        </div>
+
+        {myRequest === undefined ? (
+          <p className="text-sm text-gray-400">Loading…</p>
+        ) : myRequest?.status === 'PENDING' ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+            Your request is pending admin review. This screen will update automatically once it's approved.
+          </div>
+        ) : (
+          <div className="space-y-2 text-left">
+            {myRequest?.status === 'REJECTED' && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                Your last request was rejected{myRequest.rejectionReason ? `: ${myRequest.rejectionReason}` : '.'} You can submit a new one below.
+              </div>
+            )}
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="Why do you need access right now?"
+              className="w-full border rounded-lg px-3 py-2 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            <button onClick={submitRequest} disabled={submitting || !reason.trim()}
+              className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+              {submitting ? 'Submitting…' : 'Request Access'}
+            </button>
+          </div>
+        )}
+
+        <button onClick={onLogout} className="text-sm text-gray-500 hover:text-gray-700 underline">
+          Log out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [accessBlocked, setAccessBlocked] = useState<{ date: string; windowStart: string; windowEnd: string } | null>(null);
+  const [accessChecked, setAccessChecked] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -168,6 +271,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = setInterval(() => fetchNotifications(token), 30_000);
     return () => clearInterval(interval);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll access-status every 15s once the user is known. This is what makes
+  // an admin's approval take effect automatically — no re-login required —
+  // and what catches a live session as soon as a restricted window starts.
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const checkAccess = () => {
+      fetch('/api/access-status', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => setAccessBlocked(d.blocked ? d : null))
+        .catch(() => {}) // fail open — a network hiccup shouldn't lock someone out
+        .finally(() => setAccessChecked(true));
+    };
+    checkAccess();
+    const interval = setInterval(checkAccess, 15_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Close notification dropdown when clicking outside
   useEffect(() => {
@@ -216,7 +338,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  if (!user) {
+  // Keep the loading screen up until the access-hours check has actually
+  // come back — otherwise the real dashboard renders for one frame between
+  // "user loaded" and "access-status resolved" before flipping to the
+  // restricted screen, which flashes real data a blocked user shouldn't see.
+  if (!user || !accessChecked) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center space-y-3">
@@ -225,6 +351,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     );
+  }
+
+  if (accessBlocked) {
+    return <AccessRestrictedScreen blocked={accessBlocked} onLogout={handleLogout} />;
   }
 
   const roleInfo = ROLE_LABELS[user.role] || { label: user.role, color: 'bg-gray-100 text-gray-600' };

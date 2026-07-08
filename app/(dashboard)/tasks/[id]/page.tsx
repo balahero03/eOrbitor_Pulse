@@ -321,16 +321,22 @@ export default function TaskDetailPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Assignment</h3>
             <div className="space-y-2 text-sm">
-              <p>
-                <span className="text-gray-500">Assigned to:</span>
-                <br />
-                <span className="font-medium">{task.assignedTo.firstName} {task.assignedTo.lastName}</span>
-              </p>
-              <p>
-                <span className="text-gray-500">Email:</span>
-                <br />
-                <span className="font-medium">{task.assignedTo.email}</span>
-              </p>
+              {task.assignedTo ? (
+                <>
+                  <p>
+                    <span className="text-gray-500">Assigned to:</span>
+                    <br />
+                    <span className="font-medium">{task.assignedTo.firstName} {task.assignedTo.lastName}</span>
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Email:</span>
+                    <br />
+                    <span className="font-medium">{task.assignedTo.email}</span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-gray-400 italic">Unassigned</p>
+              )}
             </div>
           </div>
 

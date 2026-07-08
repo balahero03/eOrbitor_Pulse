@@ -334,11 +334,19 @@ export default function DailyActivityPage() {
             </p>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Last Logout Time</label>
-            <input type="time" value={logoutTime} onChange={e => setLogoutTime(e.target.value)}
-              disabled={!isEditable}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
-            <p className="text-[11px] text-gray-400 mt-1">Updates to your latest logout.</p>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exit Time</label>
+            <div className="flex gap-2">
+              <input type="time" value={logoutTime} onChange={e => setLogoutTime(e.target.value)}
+                disabled={!isEditable}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+              {isEditable && selectedDate === today && (
+                <button type="button" onClick={() => setLogoutTime(new Date().toTimeString().slice(0, 5))}
+                  className="px-3 py-2 text-xs font-medium border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+                  Mark Exit Now
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">Set this when you're actually leaving for the day — the system never guesses it for you.</p>
           </div>
           <div>
             {workHoursMins ? (

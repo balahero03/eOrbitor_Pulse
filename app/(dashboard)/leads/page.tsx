@@ -217,7 +217,7 @@ export default function LeadsPage() {
         </div>
         <div className="flex items-center gap-3">
           <a
-            href="/leads/closed"
+            href="/closed-leads"
             className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors"
           >
             View Closed Leads →
@@ -577,12 +577,16 @@ export default function LeadsPage() {
                         ) : '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {lead.assignedTo.firstName.charAt(0)}
+                        {lead.assignedTo ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {lead.assignedTo.firstName.charAt(0)}
+                            </div>
+                            <span className="text-gray-700">{lead.assignedTo.firstName}</span>
                           </div>
-                          <span className="text-gray-700">{lead.assignedTo.firstName}</span>
-                        </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Unassigned</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs max-w-40 truncate" title={lead.remarks || ''}>
                         {lead.remarks || '—'}

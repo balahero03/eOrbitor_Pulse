@@ -39,6 +39,7 @@ model User {
   tasks              Task[]
   timeLogs              TimeLog[]
   activityUnlockRequests ActivityUnlockRequest[]
+  afterHoursAccessRequests AfterHoursAccessRequest[]
   manager               User?             @relation("UserManager", fields: [managerId], references: [id])
   subordinates          User[]            @relation("UserManager")
   reports               Report[]
@@ -597,6 +598,35 @@ model ActivityUnlockRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+model AccessPolicy {
+  id              String     @id @default("singleton")
+  enabled         Boolean    @default(false)
+  restrictedRoles UserRole[] @default([])
+  windowStart     String     @default("21:00")
+  windowEnd       String     @default("08:00")
+  forceCutoff     Boolean    @default(false)
+  updatedBy       String?
+  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime   @default(now())
+}
+
+model AfterHoursAccessRequest {
+  id              String         @id @default(cuid())
+  userId          String
+  date            String
+  reason          String
+  status          ApprovalStatus @default(PENDING)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, date])
 }
 
 enum ApprovalType {
