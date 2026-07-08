@@ -236,7 +236,7 @@ export default function LeadsPage() {
         <div className="flex gap-3 flex-wrap items-center">
           <input
             type="text"
-            placeholder="Search by name, company, quote no, remarks..."
+            placeholder="Search by name, company, lead number, remarks..."
             value={filters.search}
             onChange={(e) => setF('search', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
@@ -515,7 +515,7 @@ export default function LeadsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Quote No</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Lead Number</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Opportunity</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>

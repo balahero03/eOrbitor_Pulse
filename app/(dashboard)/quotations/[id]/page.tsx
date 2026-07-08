@@ -29,6 +29,7 @@ interface Quotation {
   amcPeriod?: string;
   deliveryEstimate?: string;
   paymentTerms?: string;
+  rejectionReason?: string;
 }
 
 export default function QuotationDetailPage() {
@@ -37,6 +38,8 @@ export default function QuotationDetailPage() {
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     fetchQuotation();
@@ -95,6 +98,39 @@ export default function QuotationDetailPage() {
       setQuotation(updated);
     } catch (err) {
       console.error(err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Rejection needs a typed reason, so it gets its own in-page modal rather
+  // than window.prompt() — native browser dialogs are unreliable inside some
+  // embedded/dev preview environments (they can flash and auto-dismiss).
+  const handleReject = () => { setRejectReason(''); setShowRejectModal(true); };
+
+  const submitReject = async () => {
+    if (!rejectReason.trim()) return;
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quotations/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ rejectionReason: rejectReason.trim() }),
+      });
+
+      if (!res.ok) throw new Error('Failed to reject quotation');
+
+      const updated = await res.json();
+      setQuotation(updated);
+      setShowRejectModal(false);
+      setRejectReason('');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reject quotation');
     } finally {
       setUpdating(false);
     }
@@ -303,8 +339,12 @@ export default function QuotationDetailPage() {
                   >
                     {updating ? 'Approving...' : 'Accept Quotation'}
                   </button>
-                  <button className="w-full px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
-                    Reject
+                  <button
+                    onClick={handleReject}
+                    disabled={updating}
+                    className="w-full px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                  >
+                    {updating ? 'Rejecting...' : 'Reject'}
                   </button>
                 </>
               )}
@@ -336,6 +376,13 @@ export default function QuotationDetailPage() {
                 </div>
               )}
 
+              {quotation.rejectionReason && (
+                <div>
+                  <p className="text-xs text-red-500 uppercase font-semibold tracking-wide mb-1">Rejection Reason</p>
+                  <p className="text-sm font-medium text-red-700 bg-red-50 p-2 rounded-lg border border-red-100">{quotation.rejectionReason}</p>
+                </div>
+              )}
+
               {quotation.expiryDate && (
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Expiry Date</p>
@@ -361,6 +408,33 @@ export default function QuotationDetailPage() {
           <div className="space-y-2"></div>
         </div>
       </div>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-red-600 mb-1">Reject Quotation</h2>
+            <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (required)…"
+              autoFocus
+              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
+                disabled={updating}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={submitReject} disabled={updating || !rejectReason.trim()}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                {updating ? 'Rejecting…' : 'Reject Quotation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

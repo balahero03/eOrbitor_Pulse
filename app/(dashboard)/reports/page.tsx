@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
+import { UserIcon, UsersIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 interface RecentReport {
   id: string;
@@ -23,10 +24,10 @@ interface UserOption {
 type ReportType = 'personal' | 'team' | 'pipeline';
 type QuickFilter = { label: string; days?: number; ytd?: boolean };
 
-const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: string }[] = [
-  { value: 'personal', label: 'Personal Performance', description: 'Your sales metrics, win rate & revenue', icon: '👤' },
-  { value: 'team', label: 'Team Performance', description: 'Leaderboard & aggregated team metrics', icon: '👥' },
-  { value: 'pipeline', label: 'Pipeline Health', description: 'Deal stages, values & forecast', icon: '📊' },
+const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: any }[] = [
+  { value: 'personal', label: 'Personal Performance', description: 'Your sales metrics, win rate & revenue', icon: UserIcon },
+  { value: 'team', label: 'Team Performance', description: 'Leaderboard & aggregated team metrics', icon: UsersIcon },
+  { value: 'pipeline', label: 'Pipeline Health', description: 'Deal stages, values & forecast', icon: ChartBarIcon },
 ];
 
 const QUICK_FILTERS: QuickFilter[] = [
@@ -191,7 +192,9 @@ export default function ReportsPage() {
                           : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
-                      <p className="text-lg mb-1">{rt.icon}</p>
+                      <rt.icon className={`h-6 w-6 mb-2 ${
+                        reportType === rt.value ? 'text-blue-500' : 'text-gray-400'
+                      }`} />
                       <p className="text-sm font-semibold text-gray-800">{rt.label}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{rt.description}</p>
                     </button>

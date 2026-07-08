@@ -230,6 +230,7 @@ model Quotation {
   discountAmount   Decimal
   totalAmount      Decimal
   notes            String?
+  rejectionReason  String?
   pdfUrl           String?
   sentAt           DateTime?
   approvedById     String?

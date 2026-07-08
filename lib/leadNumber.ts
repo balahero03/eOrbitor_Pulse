@@ -2,20 +2,20 @@ import { prisma } from '@/lib/prisma';
 
 // Human-friendly lead identifier: LD-<year>-<4-digit sequence>, e.g. LD-2026-0001.
 // The sequence continues across the whole table (not reset per year) so that a
-// lead's quotation numbers (LD-2026-0001-A, -B, …) stay stable and unambiguous.
+// lead's quotation numbers (QT-2026-0001-A, -B, …) stay stable and unambiguous.
 export async function generateLeadNumber(): Promise<string> {
   const year = new Date().getFullYear();
 
   // Find the highest existing sequence number across all leads (any year).
   const last = await prisma.lead.findFirst({
-    where: { leadNumber: { not: null } },
-    orderBy: { leadNumber: 'desc' },
-    select: { leadNumber: true },
+    where: { quoteNo: { not: null } },
+    orderBy: { quoteNo: 'desc' },
+    select: { quoteNo: true },
   });
 
   let next = 1;
-  if (last?.leadNumber) {
-    const match = last.leadNumber.match(/LD-\d+-(\d+)/);
+  if (last?.quoteNo) {
+    const match = last.quoteNo.match(/LD-\d+-(\d+)/) || last.quoteNo.match(/QT-\d+-(\d+)/) || last.quoteNo.match(/EO-LD-\d+-(\d+)/) || last.quoteNo.match(/EO-QT-\d+-(\d+)/) || last.quoteNo.match(/MOCK-(\d+)/);
     if (match) next = parseInt(match[1], 10) + 1;
   }
 
@@ -25,6 +25,16 @@ export async function generateLeadNumber(): Promise<string> {
 // Next quotation number for a lead: appends A, B, C, … to the lead number.
 // existingCount = how many quotations the lead already has.
 export function leadQuoteNumber(leadNumber: string, existingCount: number): string {
+  // replace prefix EO-LD, EO-QT, LD or MOCK with QT
+  let base = leadNumber
+    .replace('EO-LD', 'QT')
+    .replace('EO-QT', 'QT')
+    .replace('LD', 'QT')
+    .replace('MOCK', 'QT');
+  
+  // ensure no duplicate 'QT-QT' occurs
+  base = base.replace('QT-QT', 'QT');
+
   // 0 → A, 1 → B, … 25 → Z, 26 → AA, 27 → AB, …
   let n = existingCount;
   let suffix = '';
@@ -32,5 +42,5 @@ export function leadQuoteNumber(leadNumber: string, existingCount: number): stri
     suffix = String.fromCharCode(65 + (n % 26)) + suffix;
     n = Math.floor(n / 26) - 1;
   } while (n >= 0);
-  return `${leadNumber}-${suffix}`;
+  return `${base}-${suffix}`;
 }

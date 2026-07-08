@@ -4,11 +4,30 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
+import {
+  HomeIcon,
+  FunnelIcon,
+  ArchiveBoxIcon,
+  BuildingOfficeIcon,
+  PhoneIcon,
+  ShoppingBagIcon,
+  CheckCircleIcon,
+  PencilSquareIcon,
+  CalendarDaysIcon,
+  ChartBarIcon,
+  InboxStackIcon,
+  ShieldCheckIcon,
+  MegaphoneIcon,
+  UsersIcon,
+  BellIcon,
+  ArrowLeftOnRectangleIcon,
+  Bars3Icon
+} from '@heroicons/react/24/outline';
 
 interface MenuItem {
   label: string;
   href: string;
-  icon: string;
+  icon: any;
   roles?: string[];
 }
 
@@ -31,55 +50,55 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'Main',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: '📊' },
+      { label: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     ],
   },
   {
     group: 'Sales',
     roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'],
     items: [
-      { label: 'Leads', href: '/leads', icon: '🎯' },
-      { label: 'Closed Leads', href: '/closed-leads', icon: '📁' },
-      { label: 'Customers', href: '/customers', icon: '🏢' },
-      { label: 'Follow-ups', href: '/followups', icon: '🔔' },
-      { label: 'Orders', href: '/orders', icon: '📦' },
+      { label: 'Leads', href: '/leads', icon: FunnelIcon },
+      { label: 'Closed Leads', href: '/closed-leads', icon: ArchiveBoxIcon },
+      { label: 'Customers', href: '/customers', icon: BuildingOfficeIcon },
+      { label: 'Follow-ups', href: '/followups', icon: PhoneIcon },
+      { label: 'Orders', href: '/orders', icon: ShoppingBagIcon },
     ],
   },
   {
     group: 'Tasks & Activity',
     items: [
-      { label: 'Tasks', href: '/tasks', icon: '✓', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
-      { label: 'My Activity', href: '/daily-activity', icon: '📝' },
-      { label: 'Attendance', href: '/attendance', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+      { label: 'Tasks', href: '/tasks', icon: CheckCircleIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+      { label: 'My Activity', href: '/daily-activity', icon: PencilSquareIcon },
+      { label: 'Attendance', href: '/attendance', icon: CalendarDaysIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
     ],
   },
   {
     group: 'Analytics',
     roles: ['SUPER_ADMIN', 'ADMIN'],
     items: [
-      { label: 'Reports', href: '/reports', icon: '📈', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { label: 'Reports', href: '/reports', icon: ChartBarIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
   {
     group: 'Catalog',
     roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'],
     items: [
-      { label: 'Products', href: '/products', icon: '🗂️' },
+      { label: 'Products', href: '/products', icon: InboxStackIcon },
     ],
   },
   {
     group: 'Management',
     roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'],
     items: [
-      { label: 'Approvals', href: '/approvals', icon: '✅', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
-      { label: 'Announcements', href: '/announcements', icon: '📢', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { label: 'Approvals', href: '/approvals', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+      { label: 'Announcements', href: '/announcements', icon: MegaphoneIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
   {
     group: 'Admin',
     roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'],
     items: [
-      { label: 'Users', href: '/users', icon: '👤', roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
+      { label: 'Users', href: '/users', icon: UsersIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
     ],
   },
 ];
@@ -256,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
-                    <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
+                    <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     {showLabels && <span className="truncate">{item.label}</span>}
                   </Link>
                 );
@@ -286,9 +305,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ) : null}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
         >
-          <span>⏻</span>
+          <ArrowLeftOnRectangleIcon className="w-5 h-5 flex-shrink-0" />
           {showLabels && <span>Logout</span>}
         </button>
       </div>
@@ -321,10 +340,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
           <button
             onClick={handleToggle}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
             aria-label="Toggle sidebar"
           >
-            ☰
+            <Bars3Icon className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-3 min-w-0">
             {/* Notification bell */}
@@ -334,9 +353,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className="relative p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
                 aria-label="Notifications"
               >
-                🔔
+                <BellIcon className="w-6 h-6" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}

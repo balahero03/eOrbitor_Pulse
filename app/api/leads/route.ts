@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { generateLeadNumber } from '@/lib/leadNumber';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -116,6 +117,11 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Opportunity name and company are required' }, { status: 400 });
   }
 
+  let finalQuoteNo = quoteNo;
+  if (!finalQuoteNo) {
+    finalQuoteNo = await generateLeadNumber();
+  }
+
   const lead = await prisma.lead.create({
     data: {
       name,
@@ -127,8 +133,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       status: status || 'SUSPECT',
       leadScore: 0,
       assignedToId: assignedToId || user.id,
+      quoteNo: finalQuoteNo,
       ...(broughtById && { broughtById }),
-      ...(quoteNo && { quoteNo }),
       ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
       ...(rfqDate && { rfqDate: new Date(rfqDate) }),
       ...(followUpDate && { followUpDate: new Date(followUpDate) }),

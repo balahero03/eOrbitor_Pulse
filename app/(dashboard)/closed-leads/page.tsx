@@ -3,19 +3,20 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { InboxIcon } from '@heroicons/react/24/outline';
 
 const TABS = [
-  { key: '',        label: 'All Closed',   icon: '📊' },
-  { key: 'WON',     label: 'Won → Orders', icon: '🏆' },
-  { key: 'LOST',    label: 'Lost',         icon: '❌' },
-  { key: 'DROPPED', label: 'Dropped',      icon: '🚫' },
+  { key: '',        label: 'All Closed' },
+  { key: 'WON',     label: 'Won → Orders' },
+  { key: 'LOST',    label: 'Lost' },
+  { key: 'DROPPED', label: 'Dropped' },
 ];
 
-const STATUS_META: Record<string, { label: string; icon: string; style: string }> = {
-  ORDER:   { label: 'Won → Order', icon: '🏆', style: 'bg-green-100 text-green-800 border-green-200' },
-  WON:     { label: 'Won → Order', icon: '🏆', style: 'bg-green-100 text-green-800 border-green-200' },
-  LOST:    { label: 'Lost',        icon: '❌', style: 'bg-red-100 text-red-700 border-red-200' },
-  DROPPED: { label: 'Dropped',     icon: '🚫', style: 'bg-gray-100 text-gray-600 border-gray-200' },
+const STATUS_META: Record<string, { label: string; style: string }> = {
+  ORDER:   { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
+  WON:     { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
+  LOST:    { label: 'Lost',        style: 'bg-red-100 text-red-700 border-red-200' },
+  DROPPED: { label: 'Dropped',     style: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 const fmt = (v: number) =>
@@ -126,7 +127,7 @@ export default function ClosedLeadsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              {t.icon} {t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -178,7 +179,7 @@ export default function ClosedLeadsPage() {
           </div>
         ) : leads.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-4xl mb-3">📭</p>
+            <InboxIcon className="w-10 h-10 text-gray-400 mx-auto mb-3" aria-hidden="true" />
             <p className="text-gray-500 font-medium">No closed leads found</p>
             <p className="text-sm text-gray-400 mt-1">Closed leads appear here after a deal is closed from the CLOSURE stage</p>
           </div>
@@ -199,14 +200,14 @@ export default function ClosedLeadsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {leads.map(lead => {
-                    const meta = STATUS_META[lead.status] ?? { label: lead.status, icon: '', style: 'bg-gray-100 text-gray-600 border-gray-200' };
+                    const meta = STATUS_META[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                     return (
                       <tr key={lead.id} onClick={() => router.push(`/leads/${lead.id}`)} className="hover:bg-blue-50 transition-colors cursor-pointer">
                         <td className="px-5 py-3.5 font-medium text-gray-900">{lead.name}</td>
                         <td className="px-4 py-3.5 text-gray-600">{lead.company}</td>
                         <td className="px-4 py-3.5">
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium ${meta.style}`}>
-                            {meta.icon} {meta.label}
+                          <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full border font-medium ${meta.style}`}>
+                            {meta.label}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right font-semibold text-gray-800">

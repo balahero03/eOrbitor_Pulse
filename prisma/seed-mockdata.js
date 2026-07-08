@@ -434,8 +434,8 @@ async function seedDeals(users, customerMap) {
   console.log('\n--- Seeding Deals ---');
   const execs = [users.hema, users.jeevitha];
   const customers = Object.values(customerMap);
-  const stages = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE', 'ONGOING'];
-  const winProbs = { SUSPECT: 10, PROSPECT: 25, PROPOSAL: 40, NEGOTIATION: 60, CLOSURE: 80, ONGOING: 95 };
+  const stages = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE', 'ONGOING'];
+  const winProbs = { SUSPECT: 10, PROSPECT: 25, APPROACH: 40, NEGOTIATION: 60, CLOSURE: 80, ONGOING: 95 };
   const dealTemplates = [
     'Network Infrastructure Upgrade', 'Firewall & Security Overhaul', 'Server Consolidation Project',
     'Surveillance System Deployment', 'UPS and Power Backup', 'Wi-Fi Expansion Project',
@@ -500,7 +500,7 @@ async function seedLeads(users, customerMap) {
     const hasQuote = !['NEW', 'CONTACTED', 'QUALIFIED'].includes(status);
 
     for (let i = 0; i < count; i++) {
-      const qNo = `MOCK-${String(qCounter).padStart(4, '0')}`;
+      const qNo = `LD-2026-${String(qCounter).padStart(4, '0')}`;
       qCounter++;
 
       const existing = await prisma.lead.findFirst({ where: { quoteNo: qNo } });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { leadQuoteNumber } from '@/lib/leadNumber';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -81,37 +82,41 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // Resolve the customer. Quotes can be raised from the PROSPECT stage before a
   // lead is won — in that case no customer exists yet, so auto-create one from
   // the lead (mirrors the win flow, which reuses linkedCustomer to avoid dupes).
+  let resolvedLead = null;
+  if (leadId) {
+    resolvedLead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { id: true, company: true, address: true, linkedCustomerId: true, quoteNo: true },
+    });
+    if (!resolvedLead) {
+      return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
+    }
+  }
+
   let resolvedCustomerId: string | undefined = customerId;
   if (!resolvedCustomerId) {
-    if (!leadId) {
+    if (!leadId || !resolvedLead) {
       return NextResponse.json(
         { message: 'customerId or leadId is required' },
         { status: 400 }
       );
     }
-    const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
-      select: { id: true, company: true, address: true, linkedCustomerId: true },
-    });
-    if (!lead) {
-      return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
-    }
 
-    if (lead.linkedCustomerId) {
-      resolvedCustomerId = lead.linkedCustomerId;
+    if (resolvedLead.linkedCustomerId) {
+      resolvedCustomerId = resolvedLead.linkedCustomerId;
     } else {
       const newCustomer = await prisma.customer.create({
         data: {
-          companyName: lead.company,
+          companyName: resolvedLead.company,
           gstNumber: `PENDING-${Date.now()}`,
           website: '',
           industry: '',
-          billingAddress: lead.address ? { street: lead.address } : undefined,
+          billingAddress: resolvedLead.address ? { street: resolvedLead.address } : undefined,
         },
       });
       resolvedCustomerId = newCustomer.id;
       await prisma.lead.update({
-        where: { id: lead.id },
+        where: { id: resolvedLead.id },
         data: { linkedCustomerId: newCustomer.id },
       });
     }
@@ -135,49 +140,69 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const discount = Number(discountInput || 0);
   const totalAmount = subtotal + taxAmount - discount;
 
-  // Get the last quotation number to ensure sequential generation
-  const lastQuotation = await prisma.quotation.findFirst({
-    orderBy: { createdAt: 'desc' },
-    select: { quotationNumber: true },
-  });
+  // Number generation is read-then-write (count/last-row lookup, then insert),
+  // so two near-simultaneous creates can compute the same number. Retry a few
+  // times on a unique-constraint collision, re-deriving the number from fresh
+  // DB state each attempt, rather than failing the whole request.
+  const nextQuotationNumber = async (bump: number): Promise<string> => {
+    if (leadId && resolvedLead?.quoteNo) {
+      const existingCount = await prisma.quotation.count({ where: { leadId } });
+      return leadQuoteNumber(resolvedLead.quoteNo, existingCount + bump);
+    }
 
-  // Extract the number and increment
-  let nextNumber = 1;
-  if (lastQuotation?.quotationNumber) {
-    const match = lastQuotation.quotationNumber.match(/QT-\d+-(\d+)/);
-    if (match) {
-      nextNumber = parseInt(match[1]) + 1;
+    const lastQuotation = await prisma.quotation.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { quotationNumber: true },
+    });
+
+    let nextNumber = 1;
+    if (lastQuotation?.quotationNumber) {
+      const match = lastQuotation.quotationNumber.match(/EO-QT-\d+-(\d+)/) || lastQuotation.quotationNumber.match(/QT-\d+-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+    return `QT-${new Date().getFullYear()}-${String(nextNumber + bump).padStart(4, '0')}-A`;
+  };
+
+  const MAX_ATTEMPTS = 5;
+  let quotation;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const quotationNumber = await nextQuotationNumber(attempt);
+    try {
+      quotation = await prisma.quotation.create({
+        data: {
+          quotationNumber,
+          customerId: resolvedCustomerId!,
+          ...(leadId && { leadId }),
+          status: 'DRAFT',
+          items,
+          subtotal: subtotal.toString(),
+          taxAmount: taxAmount.toString(),
+          discountAmount: discount.toString(),
+          totalAmount: totalAmount.toString(),
+          issueDate: new Date(),
+          ...(priceValidity && { priceValidity }),
+          ...(taxDetails && { taxDetails }),
+          ...(warranty && { warranty }),
+          ...(amcPeriod && { amcPeriod }),
+          ...(deliveryEstimate && { deliveryEstimate }),
+          ...(paymentTerms && { paymentTerms }),
+          ...(notes && { notes }),
+          createdById: user.id,
+        },
+        include: {
+          customer: { select: { companyName: true } },
+          createdBy: { select: { firstName: true, lastName: true } },
+        },
+      });
+      break;
+    } catch (err: any) {
+      const isNumberCollision = err?.code === 'P2002' && err?.meta?.target?.includes?.('quotationNumber');
+      if (isNumberCollision && attempt < MAX_ATTEMPTS - 1) continue;
+      throw err;
     }
   }
-
-  const quotationNumber = `QT-${new Date().getFullYear()}-${String(nextNumber).padStart(5, '0')}`;
-
-  const quotation = await prisma.quotation.create({
-    data: {
-      quotationNumber,
-      customerId: resolvedCustomerId!,
-      ...(leadId && { leadId }),
-      status: 'DRAFT',
-      items,
-      subtotal: subtotal.toString(),
-      taxAmount: taxAmount.toString(),
-      discountAmount: discount.toString(),
-      totalAmount: totalAmount.toString(),
-      issueDate: new Date(),
-      ...(priceValidity && { priceValidity }),
-      ...(taxDetails && { taxDetails }),
-      ...(warranty && { warranty }),
-      ...(amcPeriod && { amcPeriod }),
-      ...(deliveryEstimate && { deliveryEstimate }),
-      ...(paymentTerms && { paymentTerms }),
-      ...(notes && { notes }),
-      createdById: user.id,
-    },
-    include: {
-      customer: { select: { companyName: true } },
-      createdBy: { select: { firstName: true, lastName: true } },
-    },
-  });
 
   return NextResponse.json(quotation, { status: 201 });
 });

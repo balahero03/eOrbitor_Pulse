@@ -134,6 +134,7 @@ interface QuotationRecord {
   deliveryEstimate?: string;
   paymentTerms?: string;
   notes?: string;
+  rejectionReason?: string;
   items: any[];
   customer: { id: string; companyName: string };
   createdBy: { firstName: string; lastName: string };
@@ -163,6 +164,9 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
 
   // Action states
   const [actionId, setActionId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
   const fetchQuotations = async () => {
     try {
@@ -241,17 +245,46 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
 
   const handleAction = async (qId: string, action: 'send' | 'approve' | 'delete') => {
     if (action === 'delete' && !confirm('Delete this quotation?')) return;
+
     setActionId(qId);
     try {
       const token = localStorage.getItem('token');
       if (action === 'delete') {
         await fetch(`/api/quotations/${qId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       } else {
-        await fetch(`/api/quotations/${qId}/${action}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+        await fetch(`/api/quotations/${qId}/${action}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+        });
       }
       fetchQuotations();
     } catch { alert('Action failed.'); }
     finally { setActionId(null); }
+  };
+
+  // Rejection needs a typed reason, so it gets its own in-page modal rather
+  // than window.prompt() — native browser dialogs are unreliable inside some
+  // embedded/dev preview environments (they can flash and auto-dismiss).
+  const openRejectModal = (qId: string) => { setRejectTarget(qId); setRejectReason(''); };
+
+  const submitReject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) return;
+    setRejecting(true);
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/quotations/${rejectTarget}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rejectionReason: rejectReason.trim() }),
+      });
+      setRejectTarget(null);
+      setRejectReason('');
+      fetchQuotations();
+    } catch { alert('Action failed.'); }
+    finally { setRejecting(false); }
   };
 
   const statusColor: Record<string, string> = {
@@ -562,6 +595,13 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                     </div>
                   )}
 
+                  {q.rejectionReason && (
+                    <div className="pt-2 border-t">
+                      <p className="text-[10px] text-red-500 uppercase font-semibold mb-0.5">Rejection Reason</p>
+                      <p className="text-xs text-red-700 font-medium bg-red-50 p-2 rounded-lg border border-red-100">{q.rejectionReason}</p>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   {canEdit && (
                     <div className="flex gap-2 pt-2 border-t flex-wrap">
@@ -573,11 +613,18 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                         </button>
                       )}
                       {q.status === 'SENT' && (
-                        <button onClick={() => handleAction(q.id, 'approve')}
-                          disabled={actionId === q.id}
-                          className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                          {actionId === q.id ? '…' : 'Accept'}
-                        </button>
+                        <>
+                          <button onClick={() => handleAction(q.id, 'approve')}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                            {actionId === q.id ? '…' : 'Accept'}
+                          </button>
+                          <button onClick={() => openRejectModal(q.id)}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                            Reject
+                          </button>
+                        </>
                       )}
                       <button onClick={() => handleAction(q.id, 'delete')}
                         disabled={actionId === q.id}
@@ -595,6 +642,33 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {rejectTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-orange-600 mb-1">Reject Quotation</h2>
+            <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (required)…"
+              autoFocus
+              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-200"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+                disabled={rejecting}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={submitReject} disabled={rejecting || !rejectReason.trim()}
+                className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
+                {rejecting ? 'Rejecting…' : 'Reject Quotation'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1767,7 +1841,6 @@ export default function LeadDetailPage() {
         body: JSON.stringify({
           status: 'NEGOTIATION',
           closureDetails: merged,
-          ...(quoteNumber && { quoteNo: quoteNumber }),
           quoteValue: data.quoteValue,
         }),
       });
@@ -1855,7 +1928,6 @@ export default function LeadDetailPage() {
         body: JSON.stringify({
           closureDetails: merged,
           quoteValue: data.quoteValue,
-          ...(quoteNumber && { quoteNo: quoteNumber }),
         }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
