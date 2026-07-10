@@ -22,23 +22,21 @@ interface User {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'SUPER_ADMIN',   label: 'Super Admin', desc: 'Unrestricted access — system owner' },
-  { value: 'ADMIN',         label: 'Admin',       desc: 'Full access to everything' },
-  { value: 'SALES_MANAGER', label: 'Manager',     desc: 'Sees team leads & team activity' },
-  { value: 'SALES_EXEC',    label: 'Salesperson', desc: 'Sees own leads only' },
-  { value: 'SUPPORT',       label: 'Support',     desc: 'Support staff' },
+  { value: 'SUPER_ADMIN',   label: 'Super Admin',  desc: 'Unrestricted access — system owner' },
+  { value: 'ADMIN',         label: 'Admin',        desc: 'Full access to everything' },
+  { value: 'BACKEND_TEAM',  label: 'Backend Team', desc: 'Sees team leads & team activity' },
+  { value: 'ON_FIELD_TEAM', label: 'On Field Team',desc: 'Sees own leads only' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
   SUPER_ADMIN:   'bg-purple-100 text-purple-700 border-purple-200',
   ADMIN:         'bg-red-100 text-red-700 border-red-200',
-  SALES_MANAGER: 'bg-blue-100 text-blue-700 border-blue-200',
-  SALES_EXEC:    'bg-green-100 text-green-700 border-green-200',
-  SUPPORT:       'bg-yellow-100 text-yellow-700 border-yellow-200',
+  BACKEND_TEAM:  'bg-blue-100 text-blue-700 border-blue-200',
+  ON_FIELD_TEAM: 'bg-green-100 text-green-700 border-green-200',
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', SALES_MANAGER: 'Manager', SALES_EXEC: 'Salesperson', SUPPORT: 'Support',
+  SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', BACKEND_TEAM: 'Backend Team', ON_FIELD_TEAM: 'On Field Team',
 };
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
@@ -72,7 +70,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '',
     password: 'eOrbitor@2024',
-    role: 'SALES_EXEC', department: 'Sales', managerId: '',
+    role: 'ON_FIELD_TEAM', department: 'Sales', managerId: '',
     phone: '', employeeId: '', jobTitle: '', assignedTerritory: '',
   });
 
@@ -93,7 +91,7 @@ export default function UsersPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (!['SUPER_ADMIN','ADMIN'].includes(u.role) && u.role !== 'SUPPORT') { router.push('/dashboard'); return; }
+        if (!['SUPER_ADMIN','ADMIN'].includes(u.role)) { router.push('/dashboard'); return; }
         setCurrentUser(u);
         fetchUsers();
       })
@@ -112,7 +110,7 @@ export default function UsersPage() {
       const data = await activeRes.json();
       const all: User[] = data.users || [];
       setUsers(all);
-      setManagers(all.filter(u => u.role === 'SALES_MANAGER' || u.role === 'ADMIN'));
+      setManagers(all.filter(u => u.role === 'BACKEND_TEAM' || u.role === 'ADMIN'));
       if (exRes.ok) {
         const exData = await exRes.json();
         setExEmployees(exData.users || []);
@@ -124,7 +122,7 @@ export default function UsersPage() {
 
   const openAdd = () => {
     setSelectedUser(null);
-    setForm({ firstName: '', lastName: '', email: '', password: 'eOrbitor@2024', role: 'SALES_EXEC', department: 'Sales', managerId: '', phone: '', employeeId: '', jobTitle: '', assignedTerritory: '' });
+    setForm({ firstName: '', lastName: '', email: '', password: 'eOrbitor@2024', role: 'ON_FIELD_TEAM', department: 'Sales', managerId: '', phone: '', employeeId: '', jobTitle: '', assignedTerritory: '' });
     setError('');
     setModal('add');
   };
@@ -370,11 +368,10 @@ export default function UsersPage() {
   };
 
   const groups = [
-    { label: 'Super Admins', icon: '👑', role: 'SUPER_ADMIN' },
-    { label: 'Admins',       icon: '🔑', role: 'ADMIN' },
-    { label: 'Managers',     icon: '👔', role: 'SALES_MANAGER' },
-    { label: 'Salespersons', icon: '🧑‍💼', role: 'SALES_EXEC' },
-    { label: 'Support',      icon: '🆘', role: 'SUPPORT' },
+    { label: 'Super Admins',  icon: '👑', role: 'SUPER_ADMIN' },
+    { label: 'Admins',        icon: '🔑', role: 'ADMIN' },
+    { label: 'Backend Team',  icon: '👔', role: 'BACKEND_TEAM' },
+    { label: 'On Field Team', icon: '🧑‍💼', role: 'ON_FIELD_TEAM' },
   ];
 
   const totalActive = users.filter(u => u.isActive).length;
@@ -382,9 +379,9 @@ export default function UsersPage() {
   // Build manager → exec map for team view
   const teamMap = managers.map(mgr => ({
     manager: mgr,
-    execs: users.filter(u => u.role === 'SALES_EXEC' && u.manager?.id === mgr.id),
+    execs: users.filter(u => u.role === 'ON_FIELD_TEAM' && u.manager?.id === mgr.id),
   }));
-  const unassignedExecs = users.filter(u => u.role === 'SALES_EXEC' && !u.manager);
+  const unassignedExecs = users.filter(u => u.role === 'ON_FIELD_TEAM' && !u.manager);
 
   const canEdit = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
@@ -429,16 +426,16 @@ export default function UsersPage() {
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Role</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Department</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Reports To</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                        <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Name</th>
+                        <th className="w-[22%] px-4 py-3 text-left font-semibold text-gray-600">Email</th>
+                        <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Role</th>
+                        <th className="w-[10%] px-4 py-3 text-left font-semibold text-gray-600">Department</th>
+                        <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Reports To</th>
+                        <th className="w-[8%] px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                        <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -449,29 +446,28 @@ export default function UsersPage() {
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
                                 u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
                                 u.role === 'ADMIN' ? 'bg-red-500' :
-                                u.role === 'SALES_MANAGER' ? 'bg-blue-500' :
-                                u.role === 'SUPPORT' ? 'bg-yellow-500' : 'bg-green-500'
+                                u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
                               }`}>
                                 {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
                               </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
                                 {u.id === currentUser?.id && <p className="text-xs text-blue-500">You</p>}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                          <td className="px-4 py-3 text-gray-600 truncate" title={u.email}>{u.email}</td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
                               {ROLE_LABELS[u.role] || u.role}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
                             {u.manager ? (
-                              <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
-                                {u.manager.firstName} {u.manager.lastName}
+                              <span className="flex items-center gap-1 min-w-0" title={`${u.manager.firstName} ${u.manager.lastName}`}>
+                                <span className="w-2 h-2 rounded-full bg-blue-400 inline-block flex-shrink-0" />
+                                <span className="truncate">{u.manager.firstName} {u.manager.lastName}</span>
                               </span>
                             ) : (
                               <span className="text-gray-300">—</span>
@@ -492,7 +488,7 @@ export default function UsersPage() {
                                   Edit
                                 </button>
                               )}
-                              {canEdit && u.role === 'SALES_EXEC' && (
+                              {canEdit && u.role === 'ON_FIELD_TEAM' && (
                                 <button
                                   onClick={() => openAssignManager(u)}
                                   className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
@@ -573,7 +569,7 @@ export default function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-500">{u.email}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
                             {ROLE_LABELS[u.role] || u.role}
                           </span>
                         </td>
@@ -962,7 +958,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              {form.role === 'SALES_EXEC' && (
+              {form.role === 'ON_FIELD_TEAM' && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Reports To (Manager)</label>
                   <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
@@ -1061,7 +1057,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              {form.role === 'SALES_EXEC' && (
+              {form.role === 'ON_FIELD_TEAM' && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Reports To (Manager)</label>
                   <select

@@ -13,7 +13,7 @@ model User {
   passwordHash       String
   firstName          String
   lastName           String
-  role               UserRole          @default(SALES_EXEC)
+  role               UserRole          @default(ON_FIELD_TEAM)
   department         String?
   assignedTerritory  String?
   phone              String?
@@ -465,11 +465,9 @@ model Announcement {
 
 enum UserRole {
   ADMIN
-  SALES_MANAGER
-  SALES_EXEC
-  SUPPORT
-  VIEWER
   SUPER_ADMIN
+  BACKEND_TEAM
+  ON_FIELD_TEAM
 }
 
 enum LeadSource {

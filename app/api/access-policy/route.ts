@@ -5,7 +5,7 @@ import { ValidationError } from '@/lib/errors';
 import { currentNightDate } from '@/lib/accessControl';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
-const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC', 'SUPPORT', 'VIEWER'];
+const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM', 'ON_FIELD_TEAM'];
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 async function getOrCreatePolicy() {

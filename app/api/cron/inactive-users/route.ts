@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
 
   const cutoff = new Date(Date.now() - INACTIVE_HOURS * 60 * 60 * 1000);
 
-  // Find active sales users (SALES_EXEC, SALES_MANAGER) who haven't logged in for 48h
+  // Find active users (ON_FIELD_TEAM, BACKEND_TEAM) who haven't logged in for 48h
   const inactiveUsers = await prisma.user.findMany({
     where: {
       isActive: true,
-      role: { in: ['SALES_EXEC', 'SALES_MANAGER'] },
+      role: { in: ['ON_FIELD_TEAM', 'BACKEND_TEAM'] },
       OR: [
         { timeLogs: { none: { loginTime: { gte: cutoff } } } },
       ],

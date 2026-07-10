@@ -20,7 +20,7 @@ interface ApprovalRequest {
 }
 
 export default function ApprovalsPage() {
-  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
+  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM']);
   const router = useRouter();
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);

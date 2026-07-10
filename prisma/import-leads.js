@@ -92,7 +92,7 @@ async function main() {
           passwordHash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
           firstName: name,
           lastName: 'Manager',
-          role: 'SALES_EXEC',
+          role: 'ON_FIELD_TEAM',
         }
       });
       console.log(`Created user: ${name}`);

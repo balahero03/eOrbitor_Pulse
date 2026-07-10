@@ -15,10 +15,8 @@ export type PaginatedResponse<T> = {
 export type UserRole =
   | 'SUPER_ADMIN'
   | 'ADMIN'
-  | 'SALES_MANAGER'
-  | 'SALES_EXEC'
-  | 'SUPPORT'
-  | 'VIEWER';
+  | 'BACKEND_TEAM'
+  | 'ON_FIELD_TEAM';
 
 export type UserListItem = {
   id: string;
@@ -178,7 +176,7 @@ export type AdminDashboardData = {
 };
 
 export type ManagerDashboardData = {
-  role: 'SALES_MANAGER';
+  role: 'BACKEND_TEAM';
   kpis: {
     teamLeads: number;
     teamActiveDeals: number;
@@ -198,7 +196,7 @@ export type ManagerDashboardData = {
 };
 
 export type SalesExecDashboardData = {
-  role: 'SALES_EXEC';
+  role: 'ON_FIELD_TEAM';
   kpis: {
     myLeads: number;
     myActiveDeals: number;

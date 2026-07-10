@@ -19,8 +19,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   if (userId !== user.id) {
-    if (user.role === 'SALES_EXEC') throw new ForbiddenError();
-    if (user.role === 'SALES_MANAGER') {
+    if (user.role === 'ON_FIELD_TEAM') throw new ForbiddenError();
+    if (user.role === 'BACKEND_TEAM') {
       const subs = await prisma.user.findMany({ where: { managerId: user.id }, select: { id: true } });
       if (![user.id, ...subs.map(u => u.id)].includes(userId)) throw new ForbiddenError();
     }

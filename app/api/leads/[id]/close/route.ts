@@ -47,7 +47,7 @@ export async function POST(
     }
 
     const canClose =
-      ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role) ||
+      ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role) ||
       lead.assignedToId === user.id;
     if (!canClose) throw new ForbiddenError();
 

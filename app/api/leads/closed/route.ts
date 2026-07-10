@@ -24,9 +24,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   };
 
   // Role scoping
-  if (user.role === 'SALES_EXEC') {
+  if (user.role === 'ON_FIELD_TEAM') {
     where.assignedToId = user.id;
-  } else if (user.role === 'SALES_MANAGER') {
+  } else if (user.role === 'BACKEND_TEAM') {
     const team = await prisma.user.findMany({
       where: { managerId: user.id },
       select: { id: true },
@@ -72,7 +72,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       where: {
         deletedAt: null,
         status: { in: ['WON', 'LOST', 'DROPPED', 'ORDER'] },
-        ...(user.role === 'SALES_EXEC' ? { assignedToId: user.id } : {}),
+        ...(where.assignedToId ? { assignedToId: where.assignedToId } : {}),
       },
       _count: { id: true },
       _sum: { quoteValue: true },

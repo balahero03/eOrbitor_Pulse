@@ -9,7 +9,7 @@ import { checkAccessGate, isExemptPath } from '@/lib/accessControl';
 // every /api/* request regardless of which auth pattern the route uses, and
 // is purely additive — it only ever adds a 403 on top of what the route
 // would otherwise do, never grants access.
-export const config = { matcher: ['/api/:path*'], runtime: 'nodejs' };
+export const config = { matcher: ['/api/:path*'] };
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

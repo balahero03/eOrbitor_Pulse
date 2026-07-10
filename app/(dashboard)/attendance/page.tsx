@@ -211,10 +211,8 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
 }
 
 const RESTRICTABLE_ROLES = [
-  { value: 'SALES_MANAGER', label: 'Sales Manager' },
-  { value: 'SALES_EXEC', label: 'Sales Executive' },
-  { value: 'SUPPORT', label: 'Support' },
-  { value: 'VIEWER', label: 'Viewer' },
+  { value: 'BACKEND_TEAM', label: 'Backend Team' },
+  { value: 'ON_FIELD_TEAM', label: 'On Field Team' },
 ];
 
 interface AccessPolicy {
@@ -530,7 +528,7 @@ function AccessPolicySection() {
 }
 
 export default function AttendancePage() {
-  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']);
+  useRequireRole(['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM']);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -545,7 +543,7 @@ export default function AttendancePage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(u.role)) { router.push('/dashboard'); return; }
+        if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(u.role)) { router.push('/dashboard'); return; }
         setCurrentUser(u);
         loadUsers(token!);
       })

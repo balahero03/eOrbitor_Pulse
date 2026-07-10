@@ -1686,11 +1686,11 @@ export default function LeadDetailPage() {
   };
 
   const canEdit = !!(currentUser && (
-    ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) ||
+    ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role) ||
     lead?.assignedTo?.id === currentUser.id
   ));
   // Only managers/admins can open the Edit Details panel
-  const canEditDetails = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role));
+  const canEditDetails = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
 
   // SPANCO stage order for reversal checks
   const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
@@ -2031,10 +2031,10 @@ export default function LeadDetailPage() {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('token');
-      const canEditCoreFields = currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role);
+      const canEditCoreFields = currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role);
       const payload = {
         ...editData,
-        // Strip core identity fields for SALES_EXEC — server enforces this too
+        // Strip core identity fields for ON_FIELD_TEAM — server enforces this too
         ...(canEditCoreFields ? {} : { name: undefined, company: undefined, email: undefined, phone: undefined }),
       };
       const res = await fetch(`/api/leads/${id}`, {
@@ -2323,8 +2323,8 @@ export default function LeadDetailPage() {
               <div className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm">
                 <h2 className="text-base font-semibold mb-4">Edit Details</h2>
                 <div className="space-y-4">
-                  {/* Name & Company — restricted to ADMIN / SUPER_ADMIN / SALES_MANAGER only */}
-                  {currentUser && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(currentUser.role) && (
+                  {/* Name & Company — restricted to ADMIN / SUPER_ADMIN / BACKEND_TEAM only */}
+                  {currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role) && (
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div>

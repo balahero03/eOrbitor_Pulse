@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(decoded.role)) {
+    if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

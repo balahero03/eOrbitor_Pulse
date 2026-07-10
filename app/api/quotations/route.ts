@@ -16,9 +16,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   // If fetching by leadId, skip role scoping — the lead page already enforces access
   if (!leadId) {
-    if (user.role === 'SALES_EXEC') {
+    if (user.role === 'ON_FIELD_TEAM') {
       where.createdById = user.id;
-    } else if (user.role === 'SALES_MANAGER') {
+    } else if (user.role === 'BACKEND_TEAM') {
       const teamMembers = await prisma.user.findMany({
         where: { managerId: user.id },
         select: { id: true },

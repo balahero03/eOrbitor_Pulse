@@ -55,7 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     group: 'Sales',
-    roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM', 'ON_FIELD_TEAM'],
     items: [
       { label: 'Leads', href: '/leads', icon: FunnelIcon },
       { label: 'Closed Leads', href: '/closed-leads', icon: ArchiveBoxIcon },
@@ -67,9 +67,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'Tasks & Activity',
     items: [
-      { label: 'Tasks', href: '/tasks', icon: CheckCircleIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'] },
+      { label: 'Tasks', href: '/tasks', icon: CheckCircleIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM', 'ON_FIELD_TEAM'] },
       { label: 'My Activity', href: '/daily-activity', icon: PencilSquareIcon },
-      { label: 'Attendance', href: '/attendance', icon: CalendarDaysIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+      { label: 'Attendance', href: '/attendance', icon: CalendarDaysIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'] },
     ],
   },
   {
@@ -81,35 +81,33 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     group: 'Catalog',
-    roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXEC'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM', 'ON_FIELD_TEAM'],
     items: [
       { label: 'Products', href: '/products', icon: InboxStackIcon },
     ],
   },
   {
     group: 'Management',
-    roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'],
     items: [
-      { label: 'Approvals', href: '/approvals', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+      { label: 'Approvals', href: '/approvals', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'] },
       { label: 'Announcements', href: '/announcements', icon: MegaphoneIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
   {
     group: 'Admin',
-    roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
     items: [
-      { label: 'Users', href: '/users', icon: UsersIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'] },
+      { label: 'Users', href: '/users', icon: UsersIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
 ];
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  SUPER_ADMIN:   { label: 'Super Admin', color: 'bg-purple-100 text-purple-700' },
-  ADMIN:         { label: 'Admin',       color: 'bg-red-100 text-red-700' },
-  SALES_MANAGER: { label: 'Manager',     color: 'bg-blue-100 text-blue-700' },
-  SALES_EXEC:    { label: 'Sales',       color: 'bg-green-100 text-green-700' },
-  SUPPORT:       { label: 'Support',     color: 'bg-yellow-100 text-yellow-700' },
-  VIEWER:        { label: 'Viewer',      color: 'bg-gray-100 text-gray-600' },
+  SUPER_ADMIN:   { label: 'Super Admin',  color: 'bg-purple-100 text-purple-700' },
+  ADMIN:         { label: 'Admin',        color: 'bg-red-100 text-red-700' },
+  BACKEND_TEAM:  { label: 'Backend Team', color: 'bg-blue-100 text-blue-700' },
+  ON_FIELD_TEAM: { label: 'On Field Team',color: 'bg-green-100 text-green-700' },
 };
 
 function isItemVisible(item: MenuItem, role: string): boolean {
@@ -428,7 +426,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
               </div>
             </div>
-            <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${roleInfo.color}`}>
+            <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${roleInfo.color}`}>
               {roleInfo.label}
             </span>
           </div>

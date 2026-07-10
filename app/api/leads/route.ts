@@ -28,9 +28,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const andConditions: any[] = [];
 
   // Role-based data scoping
-  if (user.role === 'SALES_EXEC') {
+  if (user.role === 'ON_FIELD_TEAM') {
     where.assignedToId = user.id;
-  } else if (user.role === 'SALES_MANAGER') {
+  } else if (user.role === 'BACKEND_TEAM') {
     const teamMembers = await prisma.user.findMany({
       where: { managerId: user.id },
       select: { id: true },
@@ -43,7 +43,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (status && !CLOSED_STATUSES.includes(status)) where.status = status;
   if (source) where.source = source;
   // Only allow assignedToId filter override for managers/admins
-  if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+  if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
     where.assignedToId = assignedToId;
   }
 

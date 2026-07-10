@@ -47,8 +47,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
   }
 
-  // ── SALES EXEC: personal daily dashboard ────────────────────────────
-  if (role === 'SALES_EXEC') {
+  // ── ON FIELD TEAM: personal daily dashboard ────────────────────────────
+  if (role === 'ON_FIELD_TEAM') {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
@@ -124,7 +124,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
 
     return NextResponse.json({
-      role: 'SALES_EXEC',
+      role: 'ON_FIELD_TEAM',
       today: today.toISOString(),
       stats: {
         myLeadsTotal, openTasks: myOpenTasks, overdueTasks: myOverdueTasks,
@@ -135,8 +135,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
   }
 
-  // ── SALES MANAGER: team-level metrics ───────────────────────────────
-  if (role === 'SALES_MANAGER') {
+  // ── BACKEND TEAM: team-level metrics ───────────────────────────────
+  if (role === 'BACKEND_TEAM') {
     const subs = await prisma.user.findMany({
       where: { managerId: userId },
       select: { id: true, firstName: true, lastName: true },
@@ -219,7 +219,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
 
     return NextResponse.json({
-      role: 'SALES_MANAGER',
+      role: 'BACKEND_TEAM',
       teamName: `${subs.length + 1} member team`,
       stats: { teamLeads, teamDeals, teamWonThisMonth, teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue },
       teamMembers: subs.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })),

@@ -67,10 +67,10 @@ export async function PATCH(
       solutionAreas, oemNames, presalesIds, prospectDetails, closureDetails,
     } = body;
 
-    // SALES_EXEC cannot change core identity fields
-    const isSalesExec = decoded.role === 'SALES_EXEC';
-    if (isSalesExec && (name !== undefined || company !== undefined)) {
-      return NextResponse.json({ message: 'Sales executives cannot edit the lead name or company.' }, { status: 403 });
+    // ON_FIELD_TEAM cannot change core identity fields
+    const isOnField = decoded.role === 'ON_FIELD_TEAM';
+    if (isOnField && (name !== undefined || company !== undefined)) {
+      return NextResponse.json({ message: 'On-field team members cannot edit the lead name or company.' }, { status: 403 });
     }
 
     let resolvedCustomerId = linkedCustomerId;

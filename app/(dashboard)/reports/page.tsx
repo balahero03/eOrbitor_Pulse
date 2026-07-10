@@ -37,7 +37,7 @@ const QUICK_FILTERS: QuickFilter[] = [
   { label: 'Year-to-Date', ytd: true },
 ];
 
-const MANAGER_ROLES = ['SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
+const MANAGER_ROLES = ['BACKEND_TEAM', 'ADMIN', 'SUPER_ADMIN'];
 
 function isoDate(d: Date) {
   return d.toISOString().split('T')[0];

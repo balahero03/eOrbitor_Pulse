@@ -6,7 +6,7 @@ import { ForbiddenError } from '@/lib/errors';
 const SUPER_ADMIN_EMAIL = 'lokeswaran.k@eorbitor.com';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
-  if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+  if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
     throw new ForbiddenError();
   }
 
@@ -47,7 +47,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   };
 
   // Managers only see their team
-  if (user.role === 'SALES_MANAGER') {
+  if (user.role === 'BACKEND_TEAM') {
     const teamMembers = await prisma.user.findMany({
       where: { managerId: user.id },
       select: { id: true },

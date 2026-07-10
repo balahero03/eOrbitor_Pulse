@@ -4,7 +4,7 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
-  if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(user.role)) {
+  if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
     throw new ForbiddenError();
   }
 
@@ -21,7 +21,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (userId) where.userId = userId;
 
   // Managers only see their team's logs
-  if (user.role === 'SALES_MANAGER') {
+  if (user.role === 'BACKEND_TEAM') {
     const teamMembers = await prisma.user.findMany({
       where: { managerId: user.id },
       select: { id: true },

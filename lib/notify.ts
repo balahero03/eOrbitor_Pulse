@@ -42,7 +42,7 @@ export async function notifyAdminsAndManagers(
 ) {
   const targets = await prisma.user.findMany({
     where: {
-      role: { in: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] },
+      role: { in: ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'] },
       isActive: true,
       ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
     },

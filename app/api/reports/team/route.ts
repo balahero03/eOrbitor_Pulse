@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { reportCalculator, type DateRange } from '@/lib/reports/calculator';
 import { prisma } from '@/lib/prisma';
 
-const MANAGER_ROLES = ['SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
+const MANAGER_ROLES = ['BACKEND_TEAM', 'ADMIN', 'SUPER_ADMIN'];
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('authorization');

@@ -54,8 +54,7 @@ export default function DashboardPage() {
 
   const { role } = data;
 
-  if (role === 'SALES_EXEC') return <SalesExecDashboard data={data} />;
-  if (role === 'SALES_MANAGER') return <ManagerDashboard data={data} />;
-  if (role === 'SUPPORT' || role === 'VIEWER') return <SupportDashboard data={data} />;
+  if (role === 'ON_FIELD_TEAM') return <SalesExecDashboard data={data} />;
+  if (role === 'BACKEND_TEAM') return <ManagerDashboard data={data} />;
   return <AdminDashboard data={data} />;
 }
