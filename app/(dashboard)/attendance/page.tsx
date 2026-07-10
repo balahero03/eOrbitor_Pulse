@@ -76,8 +76,29 @@ interface DayRecord {
   user: { id: string; firstName: string; lastName: string; role: string };
 }
 
+// Some seeded/legacy DailyActivity rows store `activities` as a flat array of
+// plain description strings rather than the richer object shape the real
+// Daily Activity form always produces. Normalize both into one display shape
+// so a legacy string entry shows its actual text instead of silently
+// rendering blank (every `a.mode`/`a.custName`/etc. access on a string is
+// undefined, which is why those cards used to show nothing but a pin icon).
+function normalizeActivity(raw: ActivityEntry | string) {
+  if (typeof raw === 'string') {
+    return { icon: '📝', label: 'Activity', time: undefined as string | undefined, customer: undefined as string | undefined, contact: undefined as string | undefined, refs: [] as string[], description: raw };
+  }
+  return {
+    icon: ACTIVITY_MODES[raw.mode]?.icon || '📌',
+    label: ACTIVITY_MODES[raw.mode]?.label || raw.mode || 'Activity',
+    time: (raw.timeIn || raw.timeOut) ? `${fmt12(raw.timeIn)}${raw.timeOut ? ` → ${fmt12(raw.timeOut)}` : ''}` : undefined,
+    customer: raw.custName || undefined,
+    contact: raw.contactPerson || undefined,
+    refs: [raw.quotationRef, raw.orderRef].filter(Boolean) as string[],
+    description: raw.description || undefined,
+  };
+}
+
 function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }) {
-  const entries: ActivityEntry[] = Array.isArray(rec.activities) ? rec.activities : [];
+  const entries: (ActivityEntry | string)[] = Array.isArray(rec.activities) ? rec.activities : [];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -114,56 +135,68 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
         </div>
 
         {/* Activity list */}
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+        <div className="overflow-y-auto flex-1 px-8 py-6">
           {entries.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-10">No activities recorded</p>
-          ) : entries.map((a, i) => (
-            <div key={a.id || i} className="border rounded-xl p-4 space-y-2 bg-gray-50">
-              {/* Mode + time */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{ACTIVITY_MODES[a.mode]?.icon || '📌'}</span>
-                  <span className="font-semibold text-gray-800 text-sm">{ACTIVITY_MODES[a.mode]?.label || a.mode}</span>
-                </div>
-                {(a.timeIn || a.timeOut) && (
-                  <span className="text-xs text-gray-500 bg-white border rounded-full px-3 py-0.5">
-                    {fmt12(a.timeIn)} {a.timeOut ? `→ ${fmt12(a.timeOut)}` : ''}
-                  </span>
-                )}
-              </div>
-
-              {/* Customer / contact */}
-              {(a.custName || a.contactPerson) && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {a.custName && (
-                    <div>
-                      <p className="text-gray-400 font-semibold uppercase mb-0.5">Customer</p>
-                      <p className="text-gray-700">{a.custName}</p>
+          ) : (
+            <div className="relative border-l-2 border-blue-100 ml-4 pl-6 space-y-6 my-2">
+              {entries.map((raw, i) => {
+                const a = normalizeActivity(raw);
+                return (
+                  <div key={typeof raw === 'string' ? i : raw.id || i} className="relative group">
+                    {/* Icon Node centered on the line */}
+                    <div className="absolute -left-[35px] top-0.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center text-xs shadow-sm group-hover:border-blue-600 transition-colors">
+                      {a.icon}
                     </div>
-                  )}
-                  {a.contactPerson && (
-                    <div>
-                      <p className="text-gray-400 font-semibold uppercase mb-0.5">Contact Person</p>
-                      <p className="text-gray-700">{a.contactPerson}</p>
+
+                    {/* Content Block */}
+                    <div className="space-y-1.5">
+                      {/* Title + Time */}
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <h4 className="font-semibold text-gray-800 text-sm">
+                          {a.label}
+                          {a.customer && (
+                            <span className="text-gray-500 font-normal">
+                              {' · '}
+                              <span className="font-medium text-gray-700">{a.customer}</span>
+                            </span>
+                          )}
+                        </h4>
+                        {a.time && (
+                          <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-md border border-gray-200">
+                            ⏰ {a.time}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      {a.description && (
+                        <p className="text-xs text-gray-600 leading-relaxed max-w-xl">
+                          {a.description}
+                        </p>
+                      )}
+
+                      {/* Contact / Refs */}
+                      {(a.contact || a.refs.length > 0) && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {a.contact && (
+                            <span className="text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded px-2 py-0.5 flex items-center gap-1">
+                              👤 {a.contact}
+                            </span>
+                          )}
+                          {a.refs.map((ref, ri) => (
+                            <span key={ri} className="text-[10px] font-medium text-blue-700 bg-blue-50/50 border border-blue-100 rounded px-2 py-0.5">
+                              📄 {ref}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Refs */}
-              {(a.quotationRef || a.orderRef) && (
-                <div className="flex gap-3 text-xs">
-                  {a.quotationRef && <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded px-2 py-0.5">📄 {a.quotationRef}</span>}
-                  {a.orderRef && <span className="bg-green-50 text-green-700 border border-green-100 rounded px-2 py-0.5">📦 {a.orderRef}</span>}
-                </div>
-              )}
-
-              {/* Description */}
-              {a.description && (
-                <p className="text-xs text-gray-600 bg-white border rounded p-2">{a.description}</p>
-              )}
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
 
         {rec.notes && (
@@ -722,7 +755,7 @@ export default function AttendancePage() {
               ) : (
                 <div className="space-y-3">
                   {selectedDayRecords.map(rec => {
-                    const entries: ActivityEntry[] = Array.isArray(rec.activities) ? rec.activities : [];
+                    const entries: (ActivityEntry | string)[] = Array.isArray(rec.activities) ? rec.activities : [];
                     return (
                       <div key={rec.id} className="border rounded-xl p-4 space-y-3">
                         {/* User header */}
@@ -739,10 +772,9 @@ export default function AttendancePage() {
                           {entries.length > 0 && (
                             <button
                               onClick={() => setActivityModal(rec)}
-                              className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1"
+                              className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-semibold hover:bg-blue-100 border border-blue-200 transition-colors flex items-center gap-1"
                             >
-                              📋 View Activities
-                              <span className="bg-blue-500 text-white text-[10px] rounded-full px-1.5 py-0.5">{entries.length}</span>
+                              📋 {entries.length} Activities
                             </button>
                           )}
                         </div>
@@ -769,14 +801,33 @@ export default function AttendancePage() {
                           </div>
                         </div>
 
-                        {/* Activity summary pills */}
+                        {/* Activity summary — condensed to 2 rows for readability, each with its logged time; the rest lives behind "View Activities" */}
                         {entries.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {entries.map((a, i) => (
-                              <span key={i} className="text-[11px] bg-white border rounded-full px-2 py-0.5 text-gray-600">
-                                {ACTIVITY_MODES[a.mode]?.icon || '📌'} {a.custName || ACTIVITY_MODES[a.mode]?.label || a.mode}
-                              </span>
-                            ))}
+                          <div className="space-y-1">
+                            {entries.slice(0, 2).map((raw, i) => {
+                              const a = normalizeActivity(raw);
+                              const snippet = a.description && a.description.length > 36 ? `${a.description.slice(0, 36)}…` : a.description;
+                              const displayText = typeof raw === 'string'
+                                ? snippet
+                                : `${a.label}${a.customer ? ` · ${a.customer}` : ''}${a.description ? `: ${a.description}` : ''}`;
+                              return (
+                                <div key={i} className="flex items-center justify-between gap-2 text-xs bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5 hover:bg-gray-100/70 transition-colors">
+                                  <span className="flex items-center gap-1.5 text-gray-700 truncate min-w-0">
+                                    <span className="flex-shrink-0">{a.icon}</span>
+                                    <span className="truncate">{displayText || 'Activity'}</span>
+                                  </span>
+                                  {a.time && <span className="text-gray-400 flex-shrink-0 text-[11px] font-medium">{a.time}</span>}
+                                </div>
+                              );
+                            })}
+                            {entries.length > 2 && (
+                              <button
+                                onClick={() => setActivityModal(rec)}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium pl-1 pt-0.5 hover:underline flex items-center gap-0.5"
+                              >
+                                +{entries.length - 2} more — View all
+                              </button>
+                            )}
                           </div>
                         )}
                         {entries.length === 0 && (

@@ -682,27 +682,34 @@ async function seedDailyActivities(users) {
   const execs = [users.hema, users.jeevitha];
   const workingDays = getWorkingDays(35);
 
+  // Clear existing DailyActivity records for Hema and Jeevitha to allow re-seeding
+  await prisma.dailyActivity.deleteMany({
+    where: {
+      userId: { in: execs.map(e => e.id) }
+    }
+  });
+
   const activityTemplates = [
-    'Called 5 prospects from the pipeline and updated status in CRM',
-    'Submitted quotation to {company} for network infrastructure requirements',
-    'Meeting with {company} client at their office — needs assessment completed',
-    'Updated CRM records for 10 leads with latest follow-up outcomes',
-    'Followed up on 8 pending proposals via email and WhatsApp',
-    'Site visit to {company} facility for on-site requirement assessment',
-    'Prepared monthly sales report and pipeline forecast for manager review',
-    'Coordinated with pre-sales team for RFQ response to {company}',
-    'WhatsApp follow-up with 8 warm leads — 3 responded positively',
-    'Attended Cisco product training session — Catalyst 9000 series',
-    'Resolved delivery coordination issue for {company} order',
-    'Submitted weekly activity summary to Elizabeth',
-    'Cold calling campaign — contacted 12 new prospects from LinkedIn list',
-    'Attended team pipeline review meeting — discussed stalled deals',
-    'Sent product brochures and datasheets to 6 interested prospects',
-    'Followed up with {company} regarding delayed PO — escalated to manager',
-    'Prepared competitor analysis for Fortinet vs Palo Alto for {company} RFQ',
-    'Attended webinar on HPE storage solutions — 2 hours',
-    'Reviewed and responded to 15 email inquiries from prospects',
-    'Negotiation call with {company} — agreed on revised pricing',
+    { mode: 'CALL',        desc: 'Called 5 prospects from the pipeline and updated status in CRM' },
+    { mode: 'PROPOSAL',    desc: 'Submitted quotation to {company} for network infrastructure requirements', hasCompany: true },
+    { mode: 'MEETING',     desc: 'Meeting with {company} client at their office — needs assessment completed', hasCompany: true },
+    { mode: 'WORK',        desc: 'Updated CRM records for 10 leads with latest follow-up outcomes' },
+    { mode: 'FOLLOW_UP',   desc: 'Followed up on 8 pending proposals via email and WhatsApp' },
+    { mode: 'SITE_VISIT',  desc: 'Site visit to {company} facility for on-site requirement assessment', hasCompany: true },
+    { mode: 'WORK',        desc: 'Prepared monthly sales report and pipeline forecast for manager review' },
+    { mode: 'WORK',        desc: 'Coordinated with pre-sales team for RFQ response to {company}', hasCompany: true },
+    { mode: 'FOLLOW_UP',   desc: 'WhatsApp follow-up with 8 warm leads — 3 responded positively' },
+    { mode: 'TRAINING',    desc: 'Attended Cisco product training session — Catalyst 9000 series' },
+    { mode: 'OTHER',       desc: 'Resolved delivery coordination issue for {company} order', hasCompany: true },
+    { mode: 'WORK',        desc: 'Submitted weekly activity summary to Elizabeth' },
+    { mode: 'CALL',        desc: 'Cold calling campaign — contacted 12 new prospects from LinkedIn list' },
+    { mode: 'MEETING',     desc: 'Attended team pipeline review meeting — discussed stalled deals' },
+    { mode: 'EMAIL',       desc: 'Sent product brochures and datasheets to 6 interested prospects' },
+    { mode: 'FOLLOW_UP',   desc: 'Followed up with {company} regarding delayed PO — escalated to manager', hasCompany: true },
+    { mode: 'WORK',        desc: 'Prepared competitor analysis for Fortinet vs Palo Alto for {company} RFQ', hasCompany: true },
+    { mode: 'TRAINING',    desc: 'Attended webinar on HPE storage solutions — 2 hours' },
+    { mode: 'EMAIL',       desc: 'Reviewed and responded to 15 email inquiries from prospects' },
+    { mode: 'NEGOTIATION', desc: 'Negotiation call with {company} — agreed on revised pricing', hasCompany: true },
   ];
 
   const companies = ['Novac Technology', 'Ashok Leyland', 'IIT Madras', 'Equitas Bank', 'L&T Technology', 'Arvos Group', 'Pearl Global', 'Tagros Chemicals'];
@@ -710,16 +717,7 @@ async function seedDailyActivities(users) {
 
   for (const exec of execs) {
     for (const dateStr of workingDays) {
-      const existing = await prisma.dailyActivity.findUnique({
-        where: { userId_date: { userId: exec.id, date: dateStr } }
-      });
-      if (existing) continue;
-
       const actCount = rInt(3, 7);
-      const activities = Array.from({ length: actCount }, (_, idx) => {
-        const tmpl = activityTemplates[(total + idx) % activityTemplates.length];
-        return tmpl.replace('{company}', companies[(total + idx) % companies.length]);
-      });
 
       const loginH = rInt(8, 9);
       const loginM = rInt(45, 59);
@@ -728,6 +726,41 @@ async function seedDailyActivities(users) {
       const loginTime = new Date(`${dateStr}T${String(loginH).padStart(2,'0')}:${String(loginM).padStart(2,'0')}:00.000Z`);
       const logoutTime = new Date(`${dateStr}T${String(logoutH).padStart(2,'0')}:${String(logoutM).padStart(2,'0')}:00.000Z`);
       const totalHours = parseFloat(((logoutTime - loginTime) / (1000 * 60 * 60)).toFixed(2));
+
+      // Calculate sequential times for each activity slot
+      const startMin = loginH * 60 + loginM;
+      const endMin = logoutH * 60 + logoutM;
+      const totalAvailable = endMin - startMin;
+      const slotSize = Math.floor(totalAvailable / actCount);
+
+      const activities = Array.from({ length: actCount }, (_, idx) => {
+        const tmplObj = activityTemplates[(total + idx) % activityTemplates.length];
+        const company = companies[(total + idx) % companies.length];
+        const description = tmplObj.desc.replace('{company}', company);
+        
+        // Activity starts slotSize * idx + random offset
+        const actStartMin = startMin + slotSize * idx + rInt(5, Math.floor(slotSize * 0.25) || 5);
+        const actDuration = rInt(Math.max(15, Math.floor(slotSize * 0.4)), Math.max(20, Math.floor(slotSize * 0.8)));
+        const actEndMin = Math.min(endMin, actStartMin + actDuration);
+        
+        const toHHMM = (totalMins) => {
+          const h = Math.floor(totalMins / 60);
+          const m = totalMins % 60;
+          return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        };
+
+        return {
+          id: Math.random().toString(36).slice(2, 11),
+          mode: tmplObj.mode,
+          custName: tmplObj.hasCompany ? company : '',
+          contactPerson: tmplObj.hasCompany ? pick(['Suresh Kumar', 'Anjali Devi', 'Vijay Nair', '']) : '',
+          timeIn: toHHMM(actStartMin),
+          timeOut: toHHMM(actEndMin),
+          quotationRef: tmplObj.mode === 'PROPOSAL' ? `QT-2026-${rInt(100, 999)}` : '',
+          orderRef: tmplObj.mode === 'OTHER' && Math.random() > 0.5 ? `ORD-2026-${rInt(100, 999)}` : '',
+          description: description
+        };
+      });
 
       await prisma.dailyActivity.create({
         data: {
