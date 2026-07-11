@@ -41,6 +41,10 @@ export default function FollowUpsPage() {
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  // Global counts for the tab badges — fetched independently of the active
+  // filter so "Today" and "Overdue" always show the true totals (previously
+  // they were derived from the filtered list and changed per tab).
+  const [tabCounts, setTabCounts] = useState({ today: 0, overdue: 0 });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -102,10 +106,23 @@ export default function FollowUpsPage() {
 
   useEffect(() => { fetchFollowUps(); }, [fetchFollowUps]);
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      const [todayRes, overdueRes] = await Promise.all([
+        fetch(`/api/followups?fromDate=${todayStr()}&toDate=${todayStr()}&limit=1`, { headers }).then(r => r.ok ? r.json() : { pagination: { total: 0 } }),
+        fetch(`/api/followups?status=overdue&limit=1`, { headers }).then(r => r.ok ? r.json() : { pagination: { total: 0 } }),
+      ]);
+      setTabCounts({ today: todayRes.pagination.total, overdue: overdueRes.pagination.total });
+    } catch { /* non-critical */ }
+  }, []);
+
+  useEffect(() => { fetchCounts(); }, [fetchCounts]);
+
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this follow-up?')) return;
     const res = await fetch(`/api/followups/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-    if (res.ok) setFollowUps(prev => prev.filter(f => f.id !== id));
+    if (res.ok) { setFollowUps(prev => prev.filter(f => f.id !== id)); fetchCounts(); }
   };
 
   // Calendar helpers
@@ -140,10 +157,6 @@ export default function FollowUpsPage() {
   };
 
   const hasFilters = search || type || status || fromDate || toDate;
-  const counts = {
-    today: followUps.filter(f => isToday(f.scheduledDate)).length,
-    overdue: followUps.filter(f => isOverdue(f.scheduledDate, !!f.actualDate)).length,
-  };
 
   return (
     <div className="p-6 space-y-5">
@@ -176,14 +189,14 @@ export default function FollowUpsPage() {
                 : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
               }`}>
             {q.label}
-            {q.key === 'today' && counts.today > 0 && (
+            {q.key === 'today' && tabCounts.today > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${quickFilter === 'today' ? 'bg-white text-blue-700' : 'bg-blue-100 text-blue-700'}`}>
-                {counts.today}
+                {tabCounts.today}
               </span>
             )}
-            {q.key === 'overdue' && counts.overdue > 0 && (
+            {q.key === 'overdue' && tabCounts.overdue > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${quickFilter === 'overdue' ? 'bg-white text-red-600' : 'bg-red-100 text-red-700'}`}>
-                {counts.overdue}
+                {tabCounts.overdue}
               </span>
             )}
           </button>
@@ -281,7 +294,7 @@ export default function FollowUpsPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-28">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-40">Scheduled</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-52">Scheduled</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Notes</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-20">By</th>
@@ -306,19 +319,14 @@ export default function FollowUpsPage() {
                           {f.lead && <p className="text-xs text-gray-400 mt-0.5">{f.lead.name}</p>}
                         </td>
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <p className="font-medium text-gray-900">{fmtDate(f.scheduledDate)}</p>
-                              <p className="text-xs text-gray-400">{fmtTime(f.scheduledDate)}</p>
-                            </div>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <p className="font-medium text-gray-900 whitespace-nowrap">{fmtDate(f.scheduledDate)}</p>
+                            <p className="text-xs text-gray-400 whitespace-nowrap">{fmtTime(f.scheduledDate)}</p>
                             {today && !done && (
                               <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold whitespace-nowrap">Today</span>
                             )}
                             {tomorrow && !done && (
                               <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold whitespace-nowrap">Tomorrow</span>
-                            )}
-                            {overdue && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold whitespace-nowrap">Overdue</span>
                             )}
                           </div>
                         </td>

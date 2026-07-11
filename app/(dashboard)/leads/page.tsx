@@ -556,7 +556,7 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
+                        <span className={`inline-block whitespace-nowrap text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
                           {lead.status.replace('_', ' ')}
                         </span>
                       </td>

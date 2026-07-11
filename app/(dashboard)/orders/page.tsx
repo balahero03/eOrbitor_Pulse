@@ -90,23 +90,26 @@ export default function OrdersPage() {
     }
   };
 
+  // Order lifecycle — a calm cool-toned progression, green reserved for the
+  // final Completed state. Muted (-50/-200) so the table doesn't read as loud.
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING':   return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'CONFIRMED': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'FULFILLED': return 'bg-green-100 text-green-800 border-green-300';
-      case 'INVOICED':  return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'PENDING':   return 'bg-gray-100 text-gray-600 border-gray-200';
+      case 'CONFIRMED': return 'bg-sky-50 text-sky-700 border-sky-200';
+      case 'FULFILLED': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      case 'INVOICED':  return 'bg-violet-50 text-violet-700 border-violet-200';
+      case 'COMPLETED': return 'bg-green-50 text-green-700 border-green-200';
+      default:          return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
+  // Payment — money traffic-light: unpaid (red) → partial (amber) → paid (green).
   const getPaymentBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING':   return 'bg-red-100 text-red-800 border-red-300';
-      case 'PARTIAL':   return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-300';
-      default:          return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'PENDING':   return 'bg-red-50 text-red-700 border-red-200';
+      case 'PARTIAL':   return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'COMPLETED': return 'bg-green-50 text-green-700 border-green-200';
+      default:          return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
