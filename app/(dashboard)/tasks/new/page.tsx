@@ -85,6 +85,9 @@ export default function NewTaskPage() {
       if (!formData.title || !formData.assignedToId) {
         throw new Error('Title and assignee are required');
       }
+      if (formData.dueDate && formData.dueDate < new Date().toLocaleDateString('en-CA')) {
+        throw new Error('Due date cannot be in the past');
+      }
 
       const token = localStorage.getItem('token');
       const res = await fetch('/api/tasks', {
@@ -198,6 +201,7 @@ export default function NewTaskPage() {
                 name="dueDate"
                 value={formData.dueDate}
                 onChange={handleChange}
+                min={new Date().toLocaleDateString('en-CA')}
                 className="w-full"
               />
             </div>

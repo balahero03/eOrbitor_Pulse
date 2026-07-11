@@ -93,7 +93,7 @@ export default function TasksPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Tasks</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-500 text-sm mt-1">{total} total tasks</p>
         </div>
         <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Task</Link>

@@ -120,9 +120,9 @@ function isGroupVisible(group: NavGroup, role: string): boolean {
   return group.items.some((item) => isItemVisible(item, role));
 }
 
-function fmt12(hm: string) {
+function fmt24(hm: string) {
   const [h, m] = hm.split(':').map(Number);
-  return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 interface AccessRequest {
@@ -181,7 +181,7 @@ function AccessRestrictedScreen({
         <div>
           <h1 className="text-lg font-bold text-gray-900">Access Restricted</h1>
           <p className="text-sm text-gray-500 mt-1">
-            CRM access is restricted between {fmt12(blocked.windowStart)} and {fmt12(blocked.windowEnd)}.
+            CRM access is restricted between {fmt24(blocked.windowStart)} and {fmt24(blocked.windowEnd)}.
             Contact your admin, or request access below.
           </p>
         </div>
@@ -363,17 +363,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="p-3 border-b border-gray-200 flex items-center justify-center min-h-[56px]">
+      <div className={`border-b border-gray-200 flex items-center min-h-[64px] ${showLabels ? 'px-4 py-3 gap-2' : 'px-2 py-3 justify-center'}`}>
         {showLabels ? (
-          <div className="flex items-center gap-2">
-            <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
-            <div className="flex flex-col">
-              <span className="font-bold text-sm leading-tight">eOrbitor</span>
-              <span className="text-xs text-blue-600 font-semibold leading-tight">Pulse</span>
-            </div>
-          </div>
+          <>
+            {/* Wide wordmark rendered at its true 4.47:1 aspect so it reads crisp and fills the brand row */}
+            <Image src="/eOrbitor_logo.jpg" alt="eOrbitor" width={143} height={32} className="h-8 w-auto" priority />
+            <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-1.5 py-0.5 rounded">Pulse</span>
+          </>
         ) : (
-          <Image src="/eOrbitor_logo.jpg" alt="Logo" width={32} height={32} className="rounded" />
+          <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">eO</div>
         )}
       </div>
 

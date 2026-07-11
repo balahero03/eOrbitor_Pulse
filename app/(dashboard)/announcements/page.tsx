@@ -336,6 +336,7 @@ export default function AnnouncementsPage() {
                     type="date"
                     value={form.expiresAt}
                     onChange={e => setForm({ ...form, expiresAt: e.target.value })}
+                    min={new Date().toLocaleDateString('en-CA')}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
