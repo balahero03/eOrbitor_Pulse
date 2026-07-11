@@ -122,23 +122,16 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     }
   }
 
+  // Quotations are raised tax-exclusive — GST is not charged on the quote
+  // itself (it's applied later at PO/invoice). taxAmount is always 0.
   let subtotal = 0;
-  let taxAmount = 0;
-
   for (const item of items) {
-    const lineSubtotal = item.quantity * item.unitPrice;
-    subtotal += lineSubtotal;
-    // Use per-item taxRate if provided, otherwise lookup product tax
-    if (item.taxRate !== undefined) {
-      taxAmount += lineSubtotal * (Number(item.taxRate) / 100);
-    } else if (item.productId) {
-      const product = await prisma.product.findUnique({ where: { id: item.productId } });
-      if (product) taxAmount += lineSubtotal * (Number(product.tax) / 100);
-    }
+    subtotal += item.quantity * item.unitPrice;
   }
+  const taxAmount = 0;
 
   const discount = Number(discountInput || 0);
-  const totalAmount = subtotal + taxAmount - discount;
+  const totalAmount = subtotal - discount;
 
   // Number generation is read-then-write (count/last-row lookup, then insert),
   // so two near-simultaneous creates can compute the same number. Retry a few

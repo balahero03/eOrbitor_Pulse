@@ -162,6 +162,12 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
   const [submittingQ, setSubmittingQ] = useState(false);
   const [qError, setQError] = useState('');
 
+  // PDF import
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [importMeta, setImportMeta] = useState<{ refNumber?: string; customerName?: string } | null>(null);
+
   // Action states
   const [actionId, setActionId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
@@ -196,20 +202,68 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
   const addProduct = (p: any) => {
     setItems(prev => [...prev, {
       productId: p.id, productName: p.name, description: '',
-      quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: parseFloat(p.tax),
+      quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: 0,
     }]);
     setProductSearch(''); setProductResults([]); setShowProductDrop(false);
   };
 
-  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
   const updateItem = (idx: number, field: keyof LineItem, val: any) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
   const discount = parseFloat(terms.discountAmount || '0') || 0;
-  const grandTotal = subtotal + taxTotal - discount;
+  const grandTotal = subtotal - discount;
+
+  // Upload a company quotation (PDF or Word .docx), extract its contents on the
+  // server, and pre-fill the create form for review. Never saves directly — the
+  // person confirms every figure (and any parser warnings) before hitting save.
+  const handleImportFile = async (file: File) => {
+    setQError('');
+    setImportWarnings([]);
+    setImportMeta(null);
+    setImporting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/quotations/extract', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) { setQError(data.message || 'Could not read that file.'); return; }
+
+      setItems(
+        (data.items || []).map((i: any) => ({
+          productName: i.productName || '',
+          description: i.description || '',
+          quantity: i.quantity || 1,
+          unitPrice: i.unitPrice || 0,
+          taxRate: 0,
+        }))
+      );
+      setTerms(t => ({
+        ...t,
+        priceValidity: data.terms?.priceValidity || '',
+        taxDetails: data.terms?.taxDetails || '',
+        warranty: data.terms?.warranty || '',
+        amcPeriod: data.terms?.amcPeriod || '',
+        deliveryEstimate: data.terms?.deliveryEstimate || '',
+        paymentTerms: data.terms?.paymentTerms || '',
+        notes: data.terms?.notes || '',
+      }));
+      setImportWarnings(data.warnings || []);
+      setImportMeta(data.meta || null);
+      setShowCreateForm(true);
+    } catch {
+      setQError('An error occurred while importing the file.');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleCreateQuotation = async () => {
     setQError('');
@@ -305,6 +359,14 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
               <Link href="/products" className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
                 + Add Product
               </Link>
+              <input ref={importInputRef} type="file"
+                accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
+              <button onClick={() => importInputRef.current?.click()} disabled={importing}
+                className="text-xs px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50">
+                {importing ? 'Reading file…' : '⬆ Import PDF / Word'}
+              </button>
               <button onClick={() => setShowCreateForm(true)}
                 className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
                 + New Quotation
@@ -312,7 +374,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
             </>
           )}
           {showCreateForm && (
-            <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); }}
+            <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); setImportWarnings([]); setImportMeta(null); }}
               className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
           )}
         </div>
@@ -322,6 +384,22 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
       {showCreateForm && (
         <div className="border border-blue-100 rounded-xl p-4 mb-5 space-y-4 bg-blue-50/30">
           {qError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{qError}</p>}
+
+          {importMeta && (importMeta.customerName || importMeta.refNumber) && (
+            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded p-2">
+              ✓ Imported{importMeta.customerName ? ` — ${importMeta.customerName}` : ''}{importMeta.refNumber ? ` (Ref: ${importMeta.refNumber})` : ''}.
+              <span className="text-emerald-700"> Review every figure below before saving.</span>
+            </div>
+          )}
+
+          {importWarnings.length > 0 && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
+              <p className="font-semibold">⚠ Please double-check these before saving:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
 
           {!lead.linkedCustomerId && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
@@ -350,7 +428,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <p className="text-xs font-medium text-gray-900">{p.name}</p>
-                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))}</p>
                               </div>
                               {p.category && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{p.category}</span>}
                             </div>
@@ -358,7 +436,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                         ))}
                         {productSearch.trim() && (
                           <button type="button" onMouseDown={() => {
-                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowProductDrop(false);
                           }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
                             + Add "{productSearch.trim()}" as custom item
@@ -370,7 +448,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                         <p className="text-xs text-gray-400 mb-2">{productSearch.trim() ? `No products found for "${productSearch}"` : 'No products in catalog yet'}</p>
                         {productSearch.trim() && (
                           <button type="button" onMouseDown={() => {
-                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowProductDrop(false);
                           }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             + Add "{productSearch.trim()}" as custom item
@@ -397,14 +475,13 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                       <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Item</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Price ₹</th>
-                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Amount</th>
                       <th className="w-6"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {items.map((item, idx) => {
-                      const lineAmt = item.quantity * item.unitPrice * (1 + item.taxRate / 100);
+                      const lineAmt = item.quantity * item.unitPrice;
                       return (
                         <tr key={idx}>
                           <td className="px-2 py-1.5">
@@ -420,11 +497,6 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                           <td className="px-2 py-1.5">
                             <input type="number" value={item.unitPrice} step="0.01" min="0"
                               onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input type="number" value={item.taxRate} step="0.5" min="0"
-                              onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
@@ -445,7 +517,6 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
               <div className="flex justify-end mt-3">
                 <div className="w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
-                  <div className="flex justify-between text-gray-600"><span>GST / Tax</span><span className="font-medium">{fmt(taxTotal)}</span></div>
                   <div className="flex justify-between items-center text-gray-600">
                     <span>Discount ₹</span>
                     <input type="number" value={terms.discountAmount}
@@ -529,7 +600,6 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                             <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Product</th>
                             <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
                             <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Unit Price</th>
-                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
                             <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Total</th>
                           </tr>
                         </thead>
@@ -539,9 +609,8 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                               <td className="px-2 py-1.5 text-gray-800">{item.productName || item.productId || '—'}</td>
                               <td className="px-2 py-1.5 text-right text-gray-600">{item.quantity}</td>
                               <td className="px-2 py-1.5 text-right text-gray-600">{fmt(item.unitPrice)}</td>
-                              <td className="px-2 py-1.5 text-right text-gray-500">{item.taxRate ?? '—'}%</td>
                               <td className="px-2 py-1.5 text-right font-medium text-gray-800">
-                                {fmt(item.quantity * item.unitPrice * (1 + (item.taxRate || 0) / 100))}
+                                {fmt(item.quantity * item.unitPrice)}
                               </td>
                             </tr>
                           ))}
@@ -554,7 +623,6 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                   <div className="flex justify-end">
                     <div className="w-56 space-y-1 text-xs">
                       <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(parseFloat(q.subtotal))}</span></div>
-                      <div className="flex justify-between text-gray-500"><span>Tax</span><span>{fmt(parseFloat(q.taxAmount))}</span></div>
                       {parseFloat(q.discountAmount) > 0 && (
                         <div className="flex justify-between text-gray-500"><span>Discount</span><span>-{fmt(parseFloat(q.discountAmount))}</span></div>
                       )}
@@ -1315,18 +1383,17 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
   }, [productSearch]);
 
   const addProduct = (p: any) => {
-    setItems(prev => [...prev, { productId: p.id, productName: p.name, description: '', quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: parseFloat(p.tax) }]);
+    setItems(prev => [...prev, { productId: p.id, productName: p.name, description: '', quantity: 1, unitPrice: parseFloat(p.basePrice), taxRate: 0 }]);
     setProductSearch(''); setProductResults([]); setShowDrop(false);
   };
-  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+  const addBlank = () => setItems(prev => [...prev, { productName: '', description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
   const updateItem = (idx: number, field: keyof LineItem, val: any) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
   const discountAmt = parseFloat(meta.discount || '0') || 0;
-  const grandTotal = subtotal + taxTotal - discountAmt;
+  const grandTotal = subtotal - discountAmt;
 
   const canSubmit = meta.paymentTerms && meta.deliveryTimeline && meta.negotiationPoints && terms.priceValidity && terms.deliveryEstimate && items.every(i => i.productName.trim());
 
@@ -1387,7 +1454,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <p className="text-xs font-medium text-gray-900">{p.name}</p>
-                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                                <p className="text-[10px] text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))}</p>
                               </div>
                               {p.category && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{p.category}</span>}
                             </div>
@@ -1395,7 +1462,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                         ))}
                         {productSearch.trim() && (
                           <button type="button" onMouseDown={() => {
-                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowDrop(false);
                           }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
                             + Add "{productSearch.trim()}" as custom item
@@ -1407,7 +1474,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                         <p className="text-xs text-gray-400 mb-2">{productSearch.trim() ? `No products found for "${productSearch}"` : 'No products in catalog yet'}</p>
                         {productSearch.trim() && (
                           <button type="button" onMouseDown={() => {
-                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+                            setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowDrop(false);
                           }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             + Add "{productSearch.trim()}" as custom item
@@ -1434,14 +1501,13 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                       <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Item</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Price ₹</th>
-                      <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-16">GST%</th>
                       <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-24">Amount</th>
                       <th className="w-6"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {items.map((item, idx) => {
-                      const lineAmt = item.quantity * item.unitPrice * (1 + item.taxRate / 100);
+                      const lineAmt = item.quantity * item.unitPrice;
                       return (
                         <tr key={idx}>
                           <td className="px-2 py-1.5">
@@ -1457,11 +1523,6 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                           <td className="px-2 py-1.5">
                             <input type="number" value={item.unitPrice} step="0.01" min="0"
                               onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input type="number" value={item.taxRate} step="0.5" min="0"
-                              onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
@@ -1481,7 +1542,6 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
               <div className="flex justify-end mt-3">
                 <div className="w-60 space-y-1.5 text-xs">
                   <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-                  <div className="flex justify-between text-gray-500"><span>GST / Tax</span><span>{fmt(taxTotal)}</span></div>
                   <div className="flex justify-between text-gray-500 items-center">
                     <span>Discount (₹)</span>
                     <input type="number" value={meta.discount}

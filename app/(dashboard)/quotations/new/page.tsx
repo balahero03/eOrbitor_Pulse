@@ -123,7 +123,7 @@ export default function NewQuotationPage() {
       description: '',
       quantity: 1,
       unitPrice: parseFloat(p.basePrice),
-      taxRate: parseFloat(p.tax),
+      taxRate: 0,
     }]);
     setProductSearch('');
     setProductResults([]);
@@ -136,7 +136,7 @@ export default function NewQuotationPage() {
       description: '',
       quantity: 1,
       unitPrice: 0,
-      taxRate: 18,
+      taxRate: 0,
     }]);
   };
 
@@ -147,9 +147,8 @@ export default function NewQuotationPage() {
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.taxRate / 100), 0);
   const discount = parseFloat(terms.discountAmount || '0') || 0;
-  const grandTotal = subtotal + taxTotal - discount;
+  const grandTotal = subtotal - discount;
 
   const handleSubmit = async () => {
     setError('');
@@ -307,7 +306,7 @@ export default function NewQuotationPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                          <p className="text-xs text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))} · {p.tax}% GST</p>
+                          <p className="text-xs text-gray-400">{p.sku} · {fmt(parseFloat(p.basePrice))}</p>
                           {p.description && <p className="text-xs text-gray-400 truncate">{p.description}</p>}
                           {p.attributes && Object.keys(p.attributes).length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
@@ -351,7 +350,6 @@ export default function NewQuotationPage() {
                   <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th>
                   <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-20">Qty</th>
                   <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Unit Price ₹</th>
-                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-24">GST %</th>
                   <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Amount</th>
                   <th className="w-10"></th>
                 </tr>
@@ -359,7 +357,6 @@ export default function NewQuotationPage() {
               <tbody className="divide-y divide-gray-50">
                 {items.map((item, idx) => {
                   const lineAmt = item.quantity * item.unitPrice;
-                  const lineTax = lineAmt * (item.taxRate / 100);
                   return (
                     <tr key={idx}>
                       <td className="px-3 py-2">
@@ -399,18 +396,8 @@ export default function NewQuotationPage() {
                           className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
                         />
                       </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          value={item.taxRate}
-                          onChange={e => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
-                          step="0.5"
-                          min="0"
-                          className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
-                        />
-                      </td>
                       <td className="px-3 py-2 text-right font-medium text-gray-800">
-                        {fmt(lineAmt + lineTax)}
+                        {fmt(lineAmt)}
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => removeItem(idx)}
@@ -433,10 +420,6 @@ export default function NewQuotationPage() {
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
                 <span className="font-medium">{fmt(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>GST / Tax</span>
-                <span className="font-medium">{fmt(taxTotal)}</span>
               </div>
               <div className="flex justify-between items-center text-gray-600">
                 <span>Discount</span>

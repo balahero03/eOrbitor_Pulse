@@ -55,7 +55,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // If items updated, recalculate totals
     if (items && items.length > 0) {
       let subtotal = 0;
-      let taxAmount = 0;
 
       for (const item of items) {
         const product = await prisma.product.findUnique({
@@ -69,18 +68,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           );
         }
 
-        const lineSubtotal = item.quantity * item.unitPrice;
-        subtotal += lineSubtotal;
-
-        const lineTax = lineSubtotal * (Number(product.tax) / 100);
-        taxAmount += lineTax;
+        subtotal += item.quantity * item.unitPrice;
       }
 
-      const totalAmount = subtotal + taxAmount;
+      // Quotations are tax-exclusive — GST is not charged on the quote total.
+      const totalAmount = subtotal;
 
       updateData.items = items;
       updateData.subtotal = subtotal.toString();
-      updateData.taxAmount = taxAmount.toString();
+      updateData.taxAmount = '0';
       updateData.totalAmount = totalAmount.toString();
       updateData.revision = { increment: 1 };
     }

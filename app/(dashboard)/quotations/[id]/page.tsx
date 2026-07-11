@@ -243,7 +243,6 @@ export default function QuotationDetailPage() {
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Product</th>
                     <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">Qty</th>
                     <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">Unit Price</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">Tax %</th>
                     <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">Total</th>
                   </tr>
                 </thead>
@@ -253,7 +252,6 @@ export default function QuotationDetailPage() {
                       <td className="px-4 py-3 text-gray-900">{item.productId}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{item.quantity}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(item.unitPrice.toString())}</td>
-                      <td className="px-4 py-3 text-right text-gray-500">—</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-900">
                         {formatCurrency((item.quantity * item.unitPrice).toString())}
                       </td>
@@ -270,10 +268,6 @@ export default function QuotationDetailPage() {
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Subtotal:</span>
                 <span className="font-medium text-gray-900">{formatCurrency(quotation.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Tax:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(quotation.taxAmount)}</span>
               </div>
               <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-lg">
                 <span className="text-gray-900">Total:</span>
