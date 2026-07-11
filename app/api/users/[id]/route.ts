@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -52,13 +53,46 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await verifyAuth(req);
+    const auth = await verifyAuth(req);
     const body = await req.json();
 
     const {
       firstName, lastName, role, department, assignedTerritory, isActive, managerId, password,
       phone, employeeId, jobTitle, restore,
     } = body;
+
+    // Only admins may edit accounts.
+    if (!isAdmin(auth.role)) {
+      return NextResponse.json({ error: 'Only admins can edit users' }, { status: 403 });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const isSelf = auth.id === id;
+    // You may only edit a user ranked strictly below you — editing yourself is
+    // allowed for profile fields, but never your own role (guarded below).
+    // This stops an ADMIN from deactivating, resetting, or demoting a
+    // SUPER_ADMIN (or another ADMIN), which would otherwise sidestep the
+    // delete-hierarchy rule.
+    if (!isSelf && !canManageUser(auth.role, targetUser.role)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to edit a user of this role.' },
+        { status: 403 }
+      );
+    }
+    // A role change can never grant a rank at or above the actor's own, and
+    // nobody may change their own role (no self-promotion or self-demotion).
+    if (role !== undefined && role !== targetUser.role) {
+      if (isSelf) {
+        return NextResponse.json({ error: 'You cannot change your own role.' }, { status: 403 });
+      }
+      if (roleRank(role) >= roleRank(auth.role)) {
+        return NextResponse.json({ error: 'You cannot assign a role equal to or above your own.' }, { status: 403 });
+      }
+    }
 
     const updateData: any = {};
 
@@ -121,16 +155,26 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const auth = await verifyAuth(req);
 
-    if (!['SUPER_ADMIN', 'ADMIN'].includes(auth.role)) {
+    if (!isAdmin(auth.role)) {
       return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 });
     }
     if (auth.id === id) {
       return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 });
     }
 
-    const target = await prisma.user.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
+    const target = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true, deletedAt: true } });
     if (!target) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Enforce seniority: you can only delete a user ranked strictly below you.
+    // This makes a SUPER_ADMIN undeletable by an ADMIN (or by another
+    // SUPER_ADMIN), and stops ADMINs from deleting each other.
+    if (!canManageUser(auth.role, target.role)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete a user of this role.' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(req.url);

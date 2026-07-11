@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
+import { canManageUser, roleRank } from '@/lib/roles';
 
 interface User {
   id: string;
@@ -386,6 +387,13 @@ export default function UsersPage() {
 
   const canEdit = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  // Whether the signed-in user outranks (and may therefore manage) the target.
+  // Mirrors the server rule so we don't show actions that would 403.
+  const canManageTarget = (u: User) => !!currentUser && canManageUser(currentUser.role, u.role);
+  const isSelf = (u: User) => u.id === currentUser?.id;
+  // Roles the signed-in user may assign — only those ranked below their own,
+  // so an ADMIN can't grant ADMIN/SUPER_ADMIN. Matches the server guard.
+  const assignableRoles = ROLE_OPTIONS.filter(r => !currentUser || roleRank(r.value) < roleRank(currentUser.role));
   // Active users available as reassignment targets (exclude the ex-employee being processed).
   const reassignTargets = users.filter(u => u.isActive && u.id !== selectedUser?.id);
 
@@ -480,7 +488,7 @@ export default function UsersPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1 flex-wrap">
-                              {canEdit && (
+                              {canEdit && (canManageTarget(u) || isSelf(u)) && (
                                 <button
                                   onClick={() => openEdit(u)}
                                   className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
@@ -488,7 +496,7 @@ export default function UsersPage() {
                                   Edit
                                 </button>
                               )}
-                              {canEdit && u.role === 'ON_FIELD_TEAM' && (
+                              {canEdit && canManageTarget(u) && u.role === 'ON_FIELD_TEAM' && (
                                 <button
                                   onClick={() => openAssignManager(u)}
                                   className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
@@ -496,7 +504,7 @@ export default function UsersPage() {
                                   Assign Manager
                                 </button>
                               )}
-                              {canEdit && (
+                              {canEdit && (canManageTarget(u) || isSelf(u)) && (
                                 <button
                                   onClick={() => openPassword(u)}
                                   className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -504,7 +512,7 @@ export default function UsersPage() {
                                   Password
                                 </button>
                               )}
-                              {canEdit && (
+                              {canEdit && canManageTarget(u) && (
                                 <button
                                   onClick={() => handleToggleActive(u)}
                                   disabled={u.id === currentUser?.id}
@@ -516,7 +524,7 @@ export default function UsersPage() {
                                   {u.isActive ? 'Deactivate' : 'Activate'}
                                 </button>
                               )}
-                              {canEdit && (
+                              {canEdit && canManageTarget(u) && (
                                 <button
                                   onClick={() => handleDelete(u)}
                                   disabled={u.id === currentUser?.id}
@@ -944,7 +952,7 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
                   <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value, managerId: '' })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {assignableRoles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   <p className="text-xs text-gray-400 mt-1">{ROLE_OPTIONS.find(r => r.value === form.role)?.desc}</p>
                 </div>
@@ -1017,7 +1025,7 @@ export default function UsersPage() {
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                     disabled={selectedUser.id === currentUser?.id}
                   >
-                    {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {assignableRoles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   {selectedUser.id === currentUser?.id && <p className="text-xs text-gray-400 mt-1">Cannot change your own role</p>}
                 </div>

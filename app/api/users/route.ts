@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
+import { roleRank } from '@/lib/roles';
 import bcrypt from 'bcryptjs';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
@@ -67,6 +68,15 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   if (!email || !firstName || !role || !password) {
     return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+  }
+
+  // Can't mint an account at or above your own seniority — e.g. an ADMIN may
+  // not create a SUPER_ADMIN (or another ADMIN). Only a SUPER_ADMIN can.
+  if (roleRank(role) >= roleRank(user.role)) {
+    return NextResponse.json(
+      { message: 'You cannot create a user with a role equal to or above your own.' },
+      { status: 403 }
+    );
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
