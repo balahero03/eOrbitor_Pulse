@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
+import TimeField from '@/components/TimeField';
 
 const ACTIVITY_MODES: Record<string, { label: string; icon: string }> = {
   MEETING:     { label: 'Meeting',       icon: '🤝' },
@@ -18,10 +19,10 @@ const ACTIVITY_MODES: Record<string, { label: string; icon: string }> = {
   OTHER:       { label: 'Other',         icon: '📌' },
 };
 
-function fmt12(t: string) {
+function fmt24(t: string) {
   if (!t) return '—';
   const [h, m] = t.split(':').map(Number);
-  return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function toMin(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
@@ -43,13 +44,13 @@ function describeWindow(start: string, end: string): string {
   const remMins = mins % 60;
   const dur = `${hours}h${remMins ? ` ${remMins}m` : ''}`;
   return wraps
-    ? `Restricted from ${fmt12(start)} tonight through ${fmt12(end)} the next day — ${dur} blocked, access allowed only from ${fmt12(end)} to ${fmt12(start)}.`
-    : `Restricted from ${fmt12(start)} to ${fmt12(end)} — ${dur} blocked, access allowed the rest of the day.`;
+    ? `Restricted from ${fmt24(start)} tonight through ${fmt24(end)} the next day — ${dur} blocked, access allowed only from ${fmt24(end)} to ${fmt24(start)}.`
+    : `Restricted from ${fmt24(start)} to ${fmt24(end)} — ${dur} blocked, access allowed the rest of the day.`;
 }
 
 const WINDOW_PRESETS = [
-  { label: '9 PM – 6 AM', start: '21:00', end: '06:00' },
-  { label: '10 PM – 8 AM', start: '22:00', end: '08:00' },
+  { label: '21:00 – 06:00', start: '21:00', end: '06:00' },
+  { label: '22:00 – 08:00', start: '22:00', end: '08:00' },
 ];
 
 interface ActivityEntry {
@@ -89,7 +90,7 @@ function normalizeActivity(raw: ActivityEntry | string) {
   return {
     icon: ACTIVITY_MODES[raw.mode]?.icon || '📌',
     label: ACTIVITY_MODES[raw.mode]?.label || raw.mode || 'Activity',
-    time: (raw.timeIn || raw.timeOut) ? `${fmt12(raw.timeIn)}${raw.timeOut ? ` → ${fmt12(raw.timeOut)}` : ''}` : undefined,
+    time: (raw.timeIn || raw.timeOut) ? `${fmt24(raw.timeIn)}${raw.timeOut ? ` → ${fmt24(raw.timeOut)}` : ''}` : undefined,
     customer: raw.custName || undefined,
     contact: raw.contactPerson || undefined,
     refs: [raw.quotationRef, raw.orderRef].filter(Boolean) as string[],
@@ -119,13 +120,13 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
           <div>
             <p className="text-xs text-gray-400 font-semibold uppercase">First Login</p>
             <p className="font-bold text-green-700">
-              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-400 font-semibold uppercase">Last Logout</p>
             <p className="font-bold text-red-600">
-              {rec.logoutTime ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : <span className="text-orange-500">Active</span>}
+              {rec.logoutTime ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : <span className="text-orange-500">Active</span>}
             </p>
           </div>
           <div>
@@ -416,15 +417,15 @@ function AccessPolicySection() {
               <div className="flex gap-4 items-end flex-wrap">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction starts at</label>
-                  <input type="time" value={policy.windowStart}
-                    onChange={e => updatePolicy({ windowStart: e.target.value })}
-                    className="border rounded-lg px-3 py-1.5 text-sm" />
+                  <TimeField value={policy.windowStart}
+                    onChange={v => updatePolicy({ windowStart: v })}
+                    className="w-36" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction ends at</label>
-                  <input type="time" value={policy.windowEnd}
-                    onChange={e => updatePolicy({ windowEnd: e.target.value })}
-                    className="border rounded-lg px-3 py-1.5 text-sm" />
+                  <TimeField value={policy.windowEnd}
+                    onChange={v => updatePolicy({ windowEnd: v })}
+                    className="w-36" />
                 </div>
               </div>
               {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
@@ -782,14 +783,14 @@ export default function AttendancePage() {
                           <div>
                             <p className="text-gray-400 font-semibold uppercase">Login</p>
                             <p className="font-bold text-green-700 mt-0.5">
-                              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                              {rec.loginTime ? new Date(rec.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-400 font-semibold uppercase">Logout</p>
                             <p className="font-bold text-red-600 mt-0.5">
                               {rec.logoutTime
-                                ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                                ? new Date(rec.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
                                 : <span className="text-orange-500">Active</span>}
                             </p>
                           </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import TimeField from '@/components/TimeField';
 
 interface Deal {
   id: string;
@@ -155,11 +156,9 @@ export default function NewFollowUpPage() {
 
             <div>
               <label className="block text-sm font-medium mb-1">Scheduled Time</label>
-              <input
-                type="time"
-                name="scheduledTime"
+              <TimeField
                 value={formData.scheduledTime}
-                onChange={handleChange}
+                onChange={v => setFormData(prev => ({ ...prev, scheduledTime: v }))}
                 className="w-full"
               />
             </div>

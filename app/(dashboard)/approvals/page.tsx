@@ -192,7 +192,7 @@ export default function ApprovalsPage() {
                   )}
 
                   <p className="text-xs text-gray-400 mt-2">
-                    {new Date(req.createdAt).toLocaleString()}
+                    {new Date(req.createdAt).toLocaleString('en-IN', { hour12: false })}
                   </p>
                 </div>
 

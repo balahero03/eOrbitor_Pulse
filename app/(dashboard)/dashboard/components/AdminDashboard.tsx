@@ -143,7 +143,7 @@ export default function AdminDashboard({ data }: { data: any }) {
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{a.action}</span>
                   <span className="text-sm text-gray-600">{a.entity}</span>
                   <span className="text-xs text-gray-400 ml-auto">
-                    {new Date(a.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(a.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}
                   </span>
                 </div>
               ))}

@@ -513,7 +513,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-gray-800 truncate">{n.title}</p>
                             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                           </div>
                         </div>
                       </button>

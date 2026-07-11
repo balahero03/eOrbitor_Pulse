@@ -52,12 +52,16 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 });
 
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
-  const { activities, notes, date: dateStr, loginTime, logoutTime } = await req.json();
+  const { activities, notes, date: dateStr, loginTime, logoutTime, markExitNow } = await req.json();
 
   if (!dateStr) return NextResponse.json({ error: 'Date is required' }, { status: 400 });
 
   const today = new Date().toISOString().split('T')[0];
   if (dateStr > today) return NextResponse.json({ error: 'Cannot log future dates' }, { status: 400 });
+
+  if (markExitNow && dateStr !== today) {
+    return NextResponse.json({ error: 'Exit time can only be marked for today.' }, { status: 400 });
+  }
 
   const withinWindow = isWithinEditWindow(dateStr);
   const existing = await prisma.dailyActivity.findUnique({
@@ -76,8 +80,13 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     ? new Date(loginTime)
     : null;
 
-  const finalLogoutTime =
-    logoutTime !== undefined
+  // "Mark Exit Now" is deliberately not a client-editable field — an
+  // employee could otherwise just set their device clock back and claim an
+  // earlier exit. The server's own clock is the only source of truth here,
+  // same as how first login time is stamped in the login route.
+  const finalLogoutTime = markExitNow
+    ? new Date()
+    : logoutTime !== undefined
       ? logoutTime
         ? new Date(logoutTime)
         : existing?.logoutTime ?? null
@@ -91,7 +100,14 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   };
 
   if (finalLoginTime && finalLogoutTime) {
-    data.totalHours = (finalLogoutTime.getTime() - finalLoginTime.getTime()) / (1000 * 60 * 60);
+    // The client only ever sends a logout clock-time on the same calendar
+    // date as the record itself. For a shift that crosses midnight that
+    // clock-time is numerically before the login, which would otherwise
+    // persist a negative totalHours — treat it as the next day instead.
+    const logoutForCalc = finalLogoutTime.getTime() < finalLoginTime.getTime()
+      ? new Date(finalLogoutTime.getTime() + 24 * 60 * 60 * 1000)
+      : finalLogoutTime;
+    data.totalHours = (logoutForCalc.getTime() - finalLoginTime.getTime()) / (1000 * 60 * 60);
   } else {
     data.totalHours = null;
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import TimeField from '@/components/TimeField';
 
 interface FollowUp {
   id: string;
@@ -54,7 +55,7 @@ export default function FollowUpDetailPage() {
       setFormData({
         type: data.type,
         actualDate: data.actualDate ? new Date(data.actualDate).toISOString().split('T')[0] : '',
-        actualTime: data.actualDate ? new Date(data.actualDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
+        actualTime: data.actualDate ? new Date(data.actualDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
         durationMinutes: data.durationMinutes?.toString() || '',
         notes: data.notes || '',
         outcome: data.outcome || '',
@@ -187,10 +188,9 @@ export default function FollowUpDetailPage() {
 
                   <div>
                     <label className="block text-sm font-medium mb-1">Actual Time</label>
-                    <input
-                      type="time"
+                    <TimeField
                       value={formData.actualTime}
-                      onChange={(e) => setFormData({ ...formData, actualTime: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, actualTime: v })}
                       className="w-full"
                     />
                   </div>
@@ -257,7 +257,7 @@ export default function FollowUpDetailPage() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Scheduled Date & Time</p>
                   <p className="text-lg font-medium">
-                    {new Date(followUp.scheduledDate).toLocaleDateString()} at {new Date(followUp.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(followUp.scheduledDate).toLocaleDateString()} at {new Date(followUp.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </p>
                 </div>
 
@@ -265,7 +265,7 @@ export default function FollowUpDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Actual Date & Time</p>
                     <p className="text-lg font-medium text-green-600">
-                      {new Date(followUp.actualDate).toLocaleDateString()} at {new Date(followUp.actualDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(followUp.actualDate).toLocaleDateString()} at {new Date(followUp.actualDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </p>
                   </div>
                 )}

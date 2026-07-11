@@ -25,7 +25,7 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const fmtTime = (d: string) =>
-  new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 const isOverdue = (d: string, done: boolean) => !done && new Date(d) < new Date();
 const isToday = (d: string) => new Date(d).toDateString() === new Date().toDateString();

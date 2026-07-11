@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import TimeField from '@/components/TimeField';
 
 const ACTIVITY_MODES = [
   { value: 'MEETING',     label: 'Meeting',      icon: '🤝' },
@@ -37,19 +38,33 @@ const makeEntry = (): ActivityEntry => ({
 const modeIcon  = (m: string) => ACTIVITY_MODES.find(x => x.value === m)?.icon  || '📌';
 const modeLabel = (m: string) => ACTIVITY_MODES.find(x => x.value === m)?.label || m;
 
-function fmt12(t: string) {
+function fmt24(t: string) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
-  return `${((h % 12) || 12)}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// Minutes between two 24-hour "HH:MM" clock times, treating the end time as
+// the *next* day whenever its clock value is earlier than the start's — the
+// normal case for an entry or shift that crosses midnight. This can only
+// account for a single day's wrap; the live "in progress" counter further
+// down uses real elapsed time instead, which has no such ceiling.
+function minutesBetweenClock(startHM: string, endHM: string): number {
+  const [h1, m1] = startHM.split(':').map(Number);
+  const [h2, m2] = endHM.split(':').map(Number);
+  const start = h1 * 60 + m1;
+  const end = h2 * 60 + m2;
+  return end >= start ? end - start : (24 * 60 - start) + end;
+}
+
+function fmtDuration(mins: number): string {
+  return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
 }
 
 function durStr(timeIn: string, timeOut: string) {
   if (!timeIn || !timeOut) return '';
-  const [h1, m1] = timeIn.split(':').map(Number);
-  const [h2, m2] = timeOut.split(':').map(Number);
-  const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-  if (mins <= 0) return '';
-  return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+  const mins = minutesBetweenClock(timeIn, timeOut);
+  return mins > 0 ? fmtDuration(mins) : '';
 }
 
 // ─── Entry Edit Form ──────────────────────────────────────────────────────────
@@ -96,13 +111,13 @@ function EntryForm({ entry, idx, onChange, onRemove }: {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Time In</label>
-            <input type="time" value={entry.timeIn} onChange={e => s('timeIn', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+            <TimeField value={entry.timeIn} onChange={v => s('timeIn', v)}
+              className="w-full" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Time Out</label>
-            <input type="time" value={entry.timeOut} onChange={e => s('timeOut', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+            <TimeField value={entry.timeOut} onChange={v => s('timeOut', v)}
+              className="w-full" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -148,7 +163,7 @@ function EntryCard({ entry, idx }: { entry: ActivityEntry; idx: number }) {
         <div className="text-right flex-shrink-0">
           {(entry.timeIn || entry.timeOut) && (
             <p className="text-xs font-medium text-gray-600">
-              {fmt12(entry.timeIn)}{entry.timeOut ? ` → ${fmt12(entry.timeOut)}` : ''}
+              {fmt24(entry.timeIn)}{entry.timeOut ? ` → ${fmt24(entry.timeOut)}` : ''}
             </p>
           )}
           {dur && <p className="text-xs text-blue-600 font-semibold">{dur}</p>}
@@ -194,6 +209,10 @@ export default function DailyActivityPage() {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingWorkHours, setSavingWorkHours] = useState(false);
+  const [workHoursSaved, setWorkHoursSaved] = useState(false);
+  // Ticks once a minute so the "still working" counter below moves live.
+  const [now, setNow] = useState(() => new Date());
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockReason, setUnlockReason] = useState('');
   const [requestingUnlock, setRequestingUnlock] = useState(false);
@@ -236,13 +255,36 @@ export default function DailyActivityPage() {
         body: JSON.stringify({
           date: selectedDate, activities: entries, notes,
           loginTime:  loginTime  ? `${selectedDate}T${loginTime}:00`  : null,
-          logoutTime: logoutTime ? `${selectedDate}T${logoutTime}:00` : null,
         }),
       });
       if (res.ok) { setEditing(false); fetchActivity(); }
       else { const e = await res.json(); alert(e.error || 'Failed to save'); }
     } catch { alert('An error occurred.'); }
     finally { setSaving(false); }
+  };
+
+  // Exit time is never typed in directly — it's stamped from the server's
+  // own clock the instant this is clicked, so an employee can't fudge it by
+  // changing their device clock. Has no "Save" button of its own: it commits
+  // immediately, and the displayed value comes back from the server's
+  // response rather than anything computed client-side.
+  const markExit = async () => {
+    setSavingWorkHours(true);
+    setWorkHoursSaved(false);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/daily-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ date: selectedDate, activities: entries, notes, markExitNow: true }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to save'); }
+      const json = await res.json();
+      setLogoutTime(json.data.logoutTime ? new Date(json.data.logoutTime).toTimeString().slice(0, 5) : '');
+      setWorkHoursSaved(true);
+      setTimeout(() => setWorkHoursSaved(false), 2500);
+    } catch (err) { alert(err instanceof Error ? err.message : 'An error occurred.'); }
+    finally { setSavingWorkHours(false); }
   };
 
   const handleUnlockRequest = async () => {
@@ -268,18 +310,29 @@ export default function DailyActivityPage() {
 
   const totalMins = entries.reduce((sum, e) => {
     if (!e.timeIn || !e.timeOut) return sum;
-    const [h1, m1] = e.timeIn.split(':').map(Number);
-    const [h2, m2] = e.timeOut.split(':').map(Number);
-    return sum + Math.max(0, (h2 * 60 + m2) - (h1 * 60 + m1));
+    return sum + minutesBetweenClock(e.timeIn, e.timeOut);
   }, 0);
 
-  const workHoursMins = (() => {
-    if (!loginTime || !logoutTime) return null;
-    const [h1, m1] = loginTime.split(':').map(Number);
-    const [h2, m2] = logoutTime.split(':').map(Number);
-    const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (mins <= 0) return null;
-    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  useEffect(() => {
+    if (!loginTime || logoutTime || selectedDate !== today) return;
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, [loginTime, logoutTime, selectedDate, today]);
+
+  const workHours = (() => {
+    if (!loginTime) return null;
+    if (logoutTime) {
+      const mins = minutesBetweenClock(loginTime, logoutTime);
+      return mins > 0 ? { label: 'Total Work', text: fmtDuration(mins), live: false } : null;
+    }
+    if (selectedDate !== today) return null; // past date, never logged out — nothing reliable to show
+    const [lh, lm] = loginTime.split(':').map(Number);
+    const loginAt = new Date(selectedDate + 'T00:00:00');
+    loginAt.setHours(lh, lm, 0, 0);
+    // Real elapsed time, not the clock-wraparound math above — keeps
+    // counting correctly past 24h for a shift that's still open.
+    const mins = Math.max(0, Math.round((now.getTime() - loginAt.getTime()) / 60000));
+    return { label: 'In Progress', text: fmtDuration(mins), live: true };
   })();
 
   return (
@@ -326,33 +379,44 @@ export default function DailyActivityPage() {
         <div className="grid grid-cols-3 gap-4 items-end">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">First Login Time</label>
-            <input type="time" value={loginTime} onChange={e => setLoginTime(e.target.value)}
-              disabled={!isEditable || loginLocked}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+            <div className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+              {loginTime || '—'}
+            </div>
             <p className="text-[11px] text-gray-400 mt-1">
-              {loginLocked ? 'Saved — first login is permanent.' : 'Recorded once and locked.'}
+              {loginLocked ? 'Recorded automatically on first login — permanent.' : 'Not recorded yet.'}
             </p>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exit Time</label>
             <div className="flex gap-2">
-              <input type="time" value={logoutTime} onChange={e => setLogoutTime(e.target.value)}
-                disabled={!isEditable}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+              <div className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                {logoutTime || '—'}
+              </div>
               {isEditable && selectedDate === today && (
-                <button type="button" onClick={() => setLogoutTime(new Date().toTimeString().slice(0, 5))}
-                  className="px-3 py-2 text-xs font-medium border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 whitespace-nowrap">
-                  Mark Exit Now
+                <button type="button" onClick={markExit} disabled={savingWorkHours}
+                  className="px-3 py-2 text-xs font-medium border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap">
+                  {savingWorkHours ? 'Marking…' : 'Mark Exit Now'}
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">Set this when you're actually leaving for the day — the system never guesses it for you.</p>
+            <p className="text-[11px] mt-1">
+              {workHoursSaved ? (
+                <span className="text-green-600 font-medium">✓ Saved</span>
+              ) : (
+                <span className="text-gray-400">Captured from the server's clock the moment you click — can't be typed in.</span>
+              )}
+            </p>
           </div>
           <div>
-            {workHoursMins ? (
-              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-center">
-                <p className="text-xs text-blue-500 font-medium">Total Work</p>
-                <p className="text-xl font-bold text-blue-700">{workHoursMins}</p>
+            {workHours ? (
+              <div className={`rounded-lg px-4 py-2 text-center border ${
+                workHours.live ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+              }`}>
+                <p className={`text-xs font-medium flex items-center justify-center gap-1 ${workHours.live ? 'text-amber-600' : 'text-blue-500'}`}>
+                  {workHours.live && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                  {workHours.label}
+                </p>
+                <p className={`text-xl font-bold ${workHours.live ? 'text-amber-700' : 'text-blue-700'}`}>{workHours.text}</p>
               </div>
             ) : <div className="h-12" />}
           </div>
