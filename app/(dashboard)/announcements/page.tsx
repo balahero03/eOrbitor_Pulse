@@ -159,11 +159,11 @@ export default function AnnouncementsPage() {
   if (loading) return <div className="p-6 text-center">Loading...</div>;
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Announcements</h1>
-          <p className="text-sm text-gray-500 mt-1">{announcements.length} announcements</p>
+          <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{announcements.length} announcements</p>
         </div>
         <button
           onClick={openCreate}

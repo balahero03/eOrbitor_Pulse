@@ -398,11 +398,11 @@ export default function UsersPage() {
   const reassignTargets = users.filter(u => u.isActive && u.id !== selectedUser?.id);
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-sm text-gray-500 mt-1">{users.length} total · {totalActive} active</p>
         </div>
         <div className="flex items-center gap-2">

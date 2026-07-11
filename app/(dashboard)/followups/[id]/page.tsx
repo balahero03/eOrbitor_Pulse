@@ -131,7 +131,7 @@ export default function FollowUpDetailPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2"><FollowUpIcon type={followUp.type} className="w-7 h-7" /> {followUp.type} Follow-up</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FollowUpIcon type={followUp.type} className="w-7 h-7" /> {followUp.type} Follow-up</h1>
         <Link href="/followups" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Follow-ups</Link>
       </div>
 
