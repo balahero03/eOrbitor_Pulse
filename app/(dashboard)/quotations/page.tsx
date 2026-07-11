@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { QuotationIcon } from '@/components/icons';
 
 interface Quotation {
   id: string;
@@ -127,7 +128,7 @@ export default function QuotationsPage() {
           </div>
         ) : quotations.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-4xl mb-3">📄</p>
+            <QuotationIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="text-gray-500 font-medium">No quotations yet</p>
             <p className="text-sm text-gray-400 mt-1">
               <Link href="/quotations/new" className="text-blue-600 hover:underline">Create your first quotation →</Link>

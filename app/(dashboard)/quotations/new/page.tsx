@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { CheckGlyph, WarningIcon } from '@/components/icons';
 
 interface WonLead {
   id: string;
@@ -244,9 +245,9 @@ export default function NewQuotationPage() {
                         <p className="text-xs font-semibold text-green-700">{fmt(Number(lead.quoteValue))}</p>
                       )}
                       {lead.linkedCustomer ? (
-                        <p className="text-xs text-blue-600">✓ {lead.linkedCustomer.companyName}</p>
+                        <p className="text-xs text-blue-600 inline-flex items-center gap-1"><CheckGlyph className="w-3 h-3" /> {lead.linkedCustomer.companyName}</p>
                       ) : (
-                        <p className="text-xs text-amber-500">⚠ No customer linked</p>
+                        <p className="text-xs text-amber-500 inline-flex items-center gap-1"><WarningIcon className="w-3 h-3" /> No customer linked</p>
                       )}
                     </div>
                   </div>
@@ -273,7 +274,7 @@ export default function NewQuotationPage() {
                 <p className="text-sm font-medium text-blue-700">{selectedLead.linkedCustomer.companyName}</p>
               </div>
             ) : (
-              <p className="text-xs text-amber-600 font-medium">⚠ Link a customer to this lead before creating a quotation</p>
+              <p className="text-xs text-amber-600 font-medium inline-flex items-center gap-1"><WarningIcon className="w-3.5 h-3.5" /> Link a customer to this lead before creating a quotation</p>
             )}
           </div>
         )}

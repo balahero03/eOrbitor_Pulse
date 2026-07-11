@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { ClockIcon } from '@heroicons/react/24/outline';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -145,7 +146,7 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
           aria-label="Open time picker"
           className="ml-auto flex-shrink-0 text-gray-400 hover:text-gray-600 disabled:text-gray-300"
         >
-          🕐
+          <ClockIcon className="w-4 h-4" />
         </button>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { WarningIcon } from '@/components/icons';
 
 interface Task {
   id: string;
@@ -214,8 +215,8 @@ export default function TasksPage() {
                   </td>
                   <td className="px-4 py-3">
                     {task.dueDate ? (
-                      <span className={isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-700'}>
-                        {isOverdue(task) ? '⚠ ' : ''}
+                      <span className={`inline-flex items-center gap-1 ${isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
+                        {isOverdue(task) && <WarningIcon className="w-3.5 h-3.5 text-red-500" />}
                         {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     ) : (

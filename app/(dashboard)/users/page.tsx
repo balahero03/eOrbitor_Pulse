@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
 
 interface User {
   id: string;
@@ -22,16 +23,16 @@ interface User {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'SUPER_ADMIN',   label: 'Super Admin',  desc: 'Unrestricted access — system owner' },
-  { value: 'ADMIN',         label: 'Admin',        desc: 'Full access to everything' },
-  { value: 'BACKEND_TEAM',  label: 'Backend Team', desc: 'Sees team leads & team activity' },
-  { value: 'ON_FIELD_TEAM', label: 'On Field Team',desc: 'Sees own leads only' },
+  { value: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Unrestricted access — system owner' },
+  { value: 'ADMIN', label: 'Admin', desc: 'Full access to everything' },
+  { value: 'BACKEND_TEAM', label: 'Backend Team', desc: 'Sees team leads & team activity' },
+  { value: 'ON_FIELD_TEAM', label: 'On Field Team', desc: 'Sees own leads only' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  SUPER_ADMIN:   'bg-purple-100 text-purple-700 border-purple-200',
-  ADMIN:         'bg-red-100 text-red-700 border-red-200',
-  BACKEND_TEAM:  'bg-blue-100 text-blue-700 border-blue-200',
+  SUPER_ADMIN: 'bg-purple-100 text-purple-700 border-purple-200',
+  ADMIN: 'bg-red-100 text-red-700 border-red-200',
+  BACKEND_TEAM: 'bg-blue-100 text-blue-700 border-blue-200',
   ON_FIELD_TEAM: 'bg-green-100 text-green-700 border-green-200',
 };
 
@@ -91,7 +92,7 @@ export default function UsersPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (!['SUPER_ADMIN','ADMIN'].includes(u.role)) { router.push('/dashboard'); return; }
+        if (!['SUPER_ADMIN', 'ADMIN'].includes(u.role)) { router.push('/dashboard'); return; }
         setCurrentUser(u);
         fetchUsers();
       })
@@ -368,10 +369,10 @@ export default function UsersPage() {
   };
 
   const groups = [
-    { label: 'Super Admins',  icon: '👑', role: 'SUPER_ADMIN' },
-    { label: 'Admins',        icon: '🔑', role: 'ADMIN' },
-    { label: 'Backend Team',  icon: '👔', role: 'BACKEND_TEAM' },
-    { label: 'On Field Team', icon: '🧑‍💼', role: 'ON_FIELD_TEAM' },
+    { label: 'Super Admins', Icon: StarIconC, role: 'SUPER_ADMIN' },
+    { label: 'Admins', Icon: KeyIcon2, role: 'ADMIN' },
+    { label: 'Backend Team', Icon: BriefcaseIcon2, role: 'BACKEND_TEAM' },
+    { label: 'On Field Team', Icon: UsersMultiIcon, role: 'ON_FIELD_TEAM' },
   ];
 
   const totalActive = users.filter(u => u.isActive).length;
@@ -415,13 +416,13 @@ export default function UsersPage() {
         <div className="p-10 text-center text-gray-400">Loading...</div>
       ) : (
         <div className="space-y-6">
-          {groups.map(({ label, icon, role }) => {
+          {groups.map(({ label, Icon, role }) => {
             const list = users.filter(u => u.role === role);
             if (list.length === 0) return null;
             return (
               <div key={role}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg">{icon}</span>
+                  <Icon className="w-5 h-5" />
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</h2>
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
@@ -443,11 +444,10 @@ export default function UsersPage() {
                         <tr key={u.id} className={`hover:bg-gray-50 ${!u.isActive ? 'opacity-50' : ''}`}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                                u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
-                                u.role === 'ADMIN' ? 'bg-red-500' :
-                                u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
-                              }`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
+                                  u.role === 'ADMIN' ? 'bg-red-500' :
+                                    u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
+                                }`}>
                                 {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
                               </div>
                               <div className="min-w-0">
@@ -508,11 +508,10 @@ export default function UsersPage() {
                                 <button
                                   onClick={() => handleToggleActive(u)}
                                   disabled={u.id === currentUser?.id}
-                                  className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${
-                                    u.isActive
+                                  className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${u.isActive
                                       ? 'border-red-200 text-red-600 hover:bg-red-50'
                                       : 'border-green-200 text-green-600 hover:bg-green-50'
-                                  }`}
+                                    }`}
                                 >
                                   {u.isActive ? 'Deactivate' : 'Activate'}
                                 </button>
@@ -541,7 +540,7 @@ export default function UsersPage() {
           {exEmployees.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-lg">🚫</span>
+                <BlockedIcon className="w-5 h-5" />
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Ex-Employees</h2>
                 <span className="text-xs text-gray-400">({exEmployees.length})</span>
               </div>
@@ -621,7 +620,7 @@ export default function UsersPage() {
                 <h2 className="text-lg font-bold">Team Structure</h2>
                 <p className="text-sm text-gray-500">Manager → Salesperson relationships</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto p-6 space-y-4">
               {teamMap.map(({ manager: mgr, execs }) => (
@@ -714,7 +713,7 @@ export default function UsersPage() {
                 <h2 className="text-lg font-bold">Ex-Employee Records</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName} · {selectedUser.email}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
 
             <div className="overflow-y-auto p-6 space-y-5">
@@ -823,7 +822,7 @@ export default function UsersPage() {
                 <h2 className="text-lg font-bold">Assign Manager</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleAssignManager} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
@@ -883,7 +882,7 @@ export default function UsersPage() {
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-bold">Add New User</h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleAdd} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
@@ -891,12 +890,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
-                  <input required value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})}
+                  <input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. Hema Priya" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
-                  <input value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})}
+                  <input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. B" />
                 </div>
               </div>
@@ -904,12 +903,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
-                  <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
+                  <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="user@eorbitor.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
-                  <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                  <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="+91 98765 43210" />
                 </div>
               </div>
@@ -917,25 +916,25 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
-                  <input value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})}
+                  <input value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. EMP-1024" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Job Title</label>
-                  <input value={form.jobTitle} onChange={e => setForm({...form, jobTitle: e.target.value})}
+                  <input value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. Senior Sales Executive" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Territory</label>
-                <input value={form.assignedTerritory} onChange={e => setForm({...form, assignedTerritory: e.target.value})}
+                <input value={form.assignedTerritory} onChange={e => setForm({ ...form, assignedTerritory: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. South India" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Initial Password *</label>
-                <input value={form.password} onChange={e => setForm({...form, password: e.target.value})}
+                <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="eOrbitor@2024" />
                 <p className="text-xs text-gray-400 mt-1">User should change this after first login</p>
               </div>
@@ -943,7 +942,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
-                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value, managerId: ''})}
+                  <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value, managerId: '' })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
@@ -951,7 +950,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-                  <select value={form.department} onChange={e => setForm({...form, department: e.target.value})}
+                  <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
@@ -961,7 +960,7 @@ export default function UsersPage() {
               {form.role === 'ON_FIELD_TEAM' && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Reports To (Manager)</label>
-                  <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
+                  <select value={form.managerId} onChange={e => setForm({ ...form, managerId: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     <option value="">— No Manager —</option>
                     {managers.filter(m => m.isActive).map(m => (
@@ -991,7 +990,7 @@ export default function UsersPage() {
                 <h2 className="text-lg font-bold">Edit User</h2>
                 <p className="text-sm text-gray-500">{selectedUser.email}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleEdit} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
@@ -999,12 +998,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
-                  <input required value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})}
+                  <input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
-                  <input value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})}
+                  <input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
               </div>
@@ -1014,7 +1013,7 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
                   <select
                     value={form.role}
-                    onChange={e => setForm({...form, role: e.target.value, managerId: ''})}
+                    onChange={e => setForm({ ...form, role: e.target.value, managerId: '' })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                     disabled={selectedUser.id === currentUser?.id}
                   >
@@ -1024,7 +1023,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-                  <select value={form.department} onChange={e => setForm({...form, department: e.target.value})}
+                  <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
@@ -1034,12 +1033,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
-                  <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                  <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="+91 98765 43210" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
-                  <input value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})}
+                  <input value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. EMP-1024" />
                 </div>
               </div>
@@ -1047,12 +1046,12 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Job Title</label>
-                  <input value={form.jobTitle} onChange={e => setForm({...form, jobTitle: e.target.value})}
+                  <input value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. Senior Sales Executive" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Territory</label>
-                  <input value={form.assignedTerritory} onChange={e => setForm({...form, assignedTerritory: e.target.value})}
+                  <input value={form.assignedTerritory} onChange={e => setForm({ ...form, assignedTerritory: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. South India" />
                 </div>
               </div>
@@ -1062,7 +1061,7 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Reports To (Manager)</label>
                   <select
                     value={form.managerId}
-                    onChange={e => setForm({...form, managerId: e.target.value})}
+                    onChange={e => setForm({ ...form, managerId: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                   >
                     <option value="">— No Manager —</option>
@@ -1104,7 +1103,7 @@ export default function UsersPage() {
                 <h2 className="text-lg font-bold">Change Password</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
@@ -1116,7 +1115,7 @@ export default function UsersPage() {
                     required
                     type={showPw ? 'text' : 'password'}
                     value={pwForm.newPassword}
-                    onChange={e => setPwForm({...pwForm, newPassword: e.target.value})}
+                    onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                     placeholder="Min. 6 characters"
                   />
@@ -1133,10 +1132,9 @@ export default function UsersPage() {
                   required
                   type={showPw ? 'text' : 'password'}
                   value={pwForm.confirmPassword}
-                  onChange={e => setPwForm({...pwForm, confirmPassword: e.target.value})}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                    pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword ? 'border-red-300' : ''
-                  }`}
+                  onChange={e => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 ${pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword ? 'border-red-300' : ''
+                    }`}
                   placeholder="Re-enter password"
                 />
                 {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (

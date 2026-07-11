@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { LockIcon } from '@/components/icons';
 import {
   HomeIcon,
   FunnelIcon,
@@ -176,7 +177,7 @@ function AccessRestrictedScreen({
   return (
     <div className="flex items-center justify-center h-screen bg-gray-50 p-4">
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm max-w-md w-full p-6 text-center space-y-4">
-        <p className="text-4xl">🔒</p>
+        <LockIcon className="w-12 h-12 mx-auto" />
         <div>
           <h1 className="text-lg font-bold text-gray-900">Access Restricted</h1>
           <p className="text-sm text-gray-500 mt-1">

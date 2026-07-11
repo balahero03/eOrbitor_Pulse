@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AttachmentIcon, QuotationIcon, CloseIcon } from '@/components/icons';
 
 interface WonLead {
   id: string;
@@ -361,19 +362,19 @@ export default function NewOrderPage() {
                 >
                   {proofFile ? (
                     <div className="flex items-center justify-center gap-2 text-sm text-green-700">
-                      <span>📎</span>
+                      <AttachmentIcon className="w-4 h-4" />
                       <span className="font-medium">{proofFile.name}</span>
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); setProofFile(null); if (fileRef.current) fileRef.current.value = ''; }}
-                        className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                        className="ml-2 text-red-500 hover:text-red-700"
                       >
-                        ✕
+                        <CloseIcon className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
-                    <div className="text-gray-500">
-                      <p className="text-2xl mb-1">📄</p>
+                    <div className="text-gray-500 flex flex-col items-center">
+                      <QuotationIcon className="w-7 h-7 mb-1" color="text-gray-400" />
                       <p className="text-sm font-medium">Click to upload payment proof</p>
                       <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF — max 5 MB</p>
                     </div>

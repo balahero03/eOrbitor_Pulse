@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
 
 interface FollowUp {
   id: string;
@@ -17,9 +18,6 @@ interface FollowUp {
   createdAt: string;
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  CALL: '📞', EMAIL: '📧', MEETING: '👥', WHATSAPP: '💬', SITE_VISIT: '📍',
-};
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -130,7 +128,7 @@ export default function FollowUpsPage() {
             {fups.slice(0, 2).map(f => (
               <div key={f.id} title={`${f.deal.customer.companyName} — ${fmtTime(f.scheduledDate)}`}
                 className={`text-[10px] px-1 py-0.5 rounded truncate ${isOverdue(f.scheduledDate, !!f.actualDate) ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                {TYPE_ICONS[f.type]} {f.deal.customer.companyName}
+                <span className="inline-flex items-center gap-1"><FollowUpIcon type={f.type} className="w-3 h-3" /> {f.deal.customer.companyName}</span>
               </div>
             ))}
             {fups.length > 2 && <p className="text-[10px] text-gray-400">+{fups.length - 2} more</p>}
@@ -164,21 +162,20 @@ export default function FollowUpsPage() {
       {/* Quick filter chips */}
       <div className="flex flex-wrap gap-2">
         {[
-          { key: '',           label: 'All',        icon: '📋' },
-          { key: 'today',      label: 'Today',      icon: '📅' },
-          { key: 'tomorrow',   label: 'Tomorrow',   icon: '🗓️' },
-          { key: 'this_week',  label: 'This Week',  icon: '📆' },
-          { key: 'overdue',    label: 'Overdue',    icon: '⚠️' },
+          { key: '', label: 'All' },
+          { key: 'today', label: 'Today' },
+          { key: 'tomorrow', label: 'Tomorrow' },
+          { key: 'this_week', label: 'This Week' },
+          { key: 'overdue', label: 'Overdue' },
         ].map(q => (
           <button key={q.key} onClick={() => applyQuick(q.key)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-              quickFilter === q.key
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${quickFilter === q.key
                 ? q.key === 'overdue'
                   ? 'bg-red-600 text-white border-red-600'
                   : 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-            }`}>
-            {q.icon} {q.label}
+              }`}>
+            {q.label}
             {q.key === 'today' && counts.today > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${quickFilter === 'today' ? 'bg-white text-blue-700' : 'bg-blue-100 text-blue-700'}`}>
                 {counts.today}
@@ -210,11 +207,11 @@ export default function FollowUpsPage() {
             <select value={type} onChange={e => { setType(e.target.value); resetPage(); }}
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">All Types</option>
-              <option value="CALL">📞 Call</option>
-              <option value="EMAIL">📧 Email</option>
-              <option value="MEETING">👥 Meeting</option>
-              <option value="WHATSAPP">💬 WhatsApp</option>
-              <option value="SITE_VISIT">📍 Site Visit</option>
+              <option value="CALL">Call</option>
+              <option value="EMAIL">Email</option>
+              <option value="MEETING">Meeting</option>
+              <option value="WHATSAPP">WhatsApp</option>
+              <option value="SITE_VISIT">Site Visit</option>
             </select>
           </div>
 
@@ -253,12 +250,12 @@ export default function FollowUpsPage() {
           {/* View toggle */}
           <div className="ml-auto flex gap-1 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              ☰ List
+              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              <MenuIcon className="w-4 h-4" /> List
             </button>
             <button onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              📅 Calendar
+              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              <CalendarIcon className="w-4 h-4" color="text-current" /> Calendar
             </button>
           </div>
         </div>
@@ -273,7 +270,7 @@ export default function FollowUpsPage() {
             </div>
           ) : followUps.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-3xl mb-2">📭</p>
+              <ClipboardIcon className="w-9 h-9 mx-auto mb-2 text-gray-300" />
               <p className="text-gray-500 font-medium">No follow-ups found</p>
               {hasFilters && <button onClick={clearFilters} className="mt-3 text-blue-600 text-sm hover:underline">Clear filters</button>}
             </div>
@@ -301,7 +298,7 @@ export default function FollowUpsPage() {
                       <tr key={f.id} className={`hover:bg-gray-50 transition-colors ${overdue ? 'bg-red-50/40' : ''}`}>
                         <td className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                            {TYPE_ICONS[f.type]} {f.type.replace('_', ' ')}
+                            <FollowUpIcon type={f.type} className="w-3.5 h-3.5" /> {f.type.replace('_', ' ')}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
@@ -327,7 +324,7 @@ export default function FollowUpsPage() {
                         </td>
                         <td className="px-4 py-3.5">
                           {done ? (
-                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">✓ Done</span>
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium"><CheckGlyph className="w-3.5 h-3.5" /> Done</span>
                           ) : overdue ? (
                             <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">Overdue</span>
                           ) : (

@@ -4,6 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
+import {
+  StageIcon, StatusIcon, QuotationIcon, UploadIcon, SuccessIcon, WarningIcon, LockIcon,
+  CalendarIcon, ClipboardIcon, TrophyIcon2, ErrorIcon, BlockedIcon, IdeaIcon, AttachmentIcon,
+  AnnouncementIcon, CheckGlyph, BackIcon, CloseIcon, TargetIcon, ThumbUpIcon,
+} from '@/components/icons';
 
 interface LeadDetail {
   id: string;
@@ -44,7 +49,6 @@ const SPANCO = [
     key: 'SUSPECT',
     label: 'Suspect',
     abbr: 'S',
-    icon: '🔍',
     headerBg: 'bg-slate-600',
     cardBg: 'bg-slate-50 border-slate-300',
     badge: 'bg-slate-100 text-slate-700',
@@ -54,7 +58,6 @@ const SPANCO = [
     key: 'PROSPECT',
     label: 'Prospect',
     abbr: 'P',
-    icon: '📋',
     headerBg: 'bg-cyan-600',
     cardBg: 'bg-cyan-50 border-cyan-300',
     badge: 'bg-cyan-100 text-cyan-700',
@@ -64,7 +67,6 @@ const SPANCO = [
     key: 'PROPOSAL',
     label: 'Proposal',
     abbr: 'P',
-    icon: '📣',
     headerBg: 'bg-indigo-600',
     cardBg: 'bg-indigo-50 border-indigo-300',
     badge: 'bg-indigo-100 text-indigo-700',
@@ -74,7 +76,6 @@ const SPANCO = [
     key: 'NEGOTIATION',
     label: 'Negotiation',
     abbr: 'N',
-    icon: '🤝',
     headerBg: 'bg-orange-500',
     cardBg: 'bg-orange-50 border-orange-300',
     badge: 'bg-orange-100 text-orange-700',
@@ -84,7 +85,6 @@ const SPANCO = [
     key: 'CLOSURE',
     label: 'Closure',
     abbr: 'C',
-    icon: '🔒',
     headerBg: 'bg-blue-600',
     cardBg: 'bg-blue-50 border-blue-300',
     badge: 'bg-blue-100 text-blue-700',
@@ -93,11 +93,11 @@ const SPANCO = [
 ];
 
 // Statuses that are closed / off the kanban
-const CLOSED_STATUSES: Record<string, { label: string; icon: string; style: string }> = {
-  ORDER:   { label: 'Won → Order', icon: '🏆', style: 'bg-green-100 text-green-800 border-green-300' },
-  LOST:    { label: 'Lost',        icon: '❌', style: 'bg-red-100 text-red-700 border-red-200' },
-  DROPPED: { label: 'Dropped',     icon: '🚫', style: 'bg-gray-100 text-gray-600 border-gray-200' },
-  ON_HOLD: { label: 'On Hold',     icon: '⏸️', style: 'bg-amber-100 text-amber-700 border-amber-200' },
+const CLOSED_STATUSES: Record<string, { label: string; style: string }> = {
+  ORDER: { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-300' },
+  LOST: { label: 'Lost', style: 'bg-red-100 text-red-700 border-red-200' },
+  DROPPED: { label: 'Dropped', style: 'bg-gray-100 text-gray-600 border-gray-200' },
+  ON_HOLD: { label: 'On Hold', style: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
 const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'WHATSAPP', 'SITE_VISIT'];
@@ -352,7 +352,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
   return (
     <div className="bg-white rounded-xl border p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-800">📄 Quotations</h2>
+        <h2 className="text-base font-semibold text-gray-800 flex items-center gap-1.5"><QuotationIcon className="w-5 h-5" /> Quotations</h2>
         <div className="flex items-center gap-2">
           {canEdit && !showCreateForm && (
             <>
@@ -364,8 +364,8 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
               <button onClick={() => importInputRef.current?.click()} disabled={importing}
-                className="text-xs px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50">
-                {importing ? 'Reading file…' : '⬆ Import PDF / Word'}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50">
+                {importing ? 'Reading file…' : <><UploadIcon className="w-4 h-4" /> Import PDF / Word</>}
               </button>
               <button onClick={() => setShowCreateForm(true)}
                 className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
@@ -386,15 +386,16 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
           {qError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{qError}</p>}
 
           {importMeta && (importMeta.customerName || importMeta.refNumber) && (
-            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded p-2">
-              ✓ Imported{importMeta.customerName ? ` — ${importMeta.customerName}` : ''}{importMeta.refNumber ? ` (Ref: ${importMeta.refNumber})` : ''}.
-              <span className="text-emerald-700"> Review every figure below before saving.</span>
+            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded p-2 flex items-start gap-1.5">
+              <SuccessIcon className="w-4 h-4 shrink-0 mt-px" />
+              <span>Imported{importMeta.customerName ? ` — ${importMeta.customerName}` : ''}{importMeta.refNumber ? ` (Ref: ${importMeta.refNumber})` : ''}.
+              <span className="text-emerald-700"> Review every figure below before saving.</span></span>
             </div>
           )}
 
           {importWarnings.length > 0 && (
             <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
-              <p className="font-semibold">⚠ Please double-check these before saving:</p>
+              <p className="font-semibold flex items-center gap-1.5"><WarningIcon className="w-4 h-4" /> Please double-check these before saving:</p>
               <ul className="list-disc list-inside space-y-0.5">
                 {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
               </ul>
@@ -639,22 +640,22 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                     { l: 'Delivery Estimate', v: q.deliveryEstimate },
                     { l: 'Payment Terms', v: q.paymentTerms },
                   ].filter(f => f.v).length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                      {[
-                        { l: 'Price Validity', v: q.priceValidity },
-                        { l: 'Taxes', v: q.taxDetails },
-                        { l: 'Warranty', v: q.warranty },
-                        { l: 'AMC Period', v: q.amcPeriod },
-                        { l: 'Delivery Estimate', v: q.deliveryEstimate },
-                        { l: 'Payment Terms', v: q.paymentTerms },
-                      ].filter(f => f.v).map(f => (
-                        <div key={f.l}>
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">{f.l}</p>
-                          <p className="text-xs text-gray-700">{f.v}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                        {[
+                          { l: 'Price Validity', v: q.priceValidity },
+                          { l: 'Taxes', v: q.taxDetails },
+                          { l: 'Warranty', v: q.warranty },
+                          { l: 'AMC Period', v: q.amcPeriod },
+                          { l: 'Delivery Estimate', v: q.deliveryEstimate },
+                          { l: 'Payment Terms', v: q.paymentTerms },
+                        ].filter(f => f.v).map(f => (
+                          <div key={f.l}>
+                            <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">{f.l}</p>
+                            <p className="text-xs text-gray-700">{f.v}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                   {q.notes && (
                     <div className="pt-2 border-t">
@@ -790,8 +791,8 @@ function SpancoKanban({
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-gray-700 tracking-widest">S · P · A · N · C · O</span>
           {isClosed && (
-            <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${CLOSED_STATUSES[lead.status]?.style}`}>
-              {CLOSED_STATUSES[lead.status]?.icon} {CLOSED_STATUSES[lead.status]?.label}
+            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full border font-medium ${CLOSED_STATUSES[lead.status]?.style}`}>
+              <StatusIcon status={lead.status} className="w-3.5 h-3.5" /> {CLOSED_STATUSES[lead.status]?.label}
             </span>
           )}
         </div>
@@ -834,14 +835,14 @@ function SpancoKanban({
             >
               {/* Column header */}
               <div className={`${isPast ? 'bg-green-600' : stage.headerBg} px-2 py-1.5 flex items-center justify-between transition-colors`}>
-                <span className="text-white text-xs font-semibold truncate">{stage.icon} {stage.label}</span>
-                {isPast && <span className="text-white text-sm font-bold flex-shrink-0">✓ Completed</span>}
+                <span className="inline-flex items-center gap-1 text-white text-xs font-semibold truncate"><StageIcon stage={stage.key} className="w-3.5 h-3.5 shrink-0" /> {stage.label}</span>
+                {isPast && <span className="inline-flex items-center gap-1 text-white text-xs font-bold flex-shrink-0"><CheckGlyph className="w-3.5 h-3.5" /> Completed</span>}
                 {isActive && <span className="text-white font-black text-xs flex-shrink-0">● Active</span>}
               </div>
 
               {/* Column body */}
               <div className={`flex-1 flex flex-col items-center p-2 gap-1 ${isPast ? 'bg-green-50' : ''}`}>
-                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5">{isPast ? '✓ ' : ''}{stage.desc}</p>
+                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5 inline-flex items-center gap-1 justify-center">{isPast && <CheckGlyph className="w-3 h-3 text-green-600" />}{stage.desc}</p>
 
                 {/* Lead card in active column */}
                 {isActive && (
@@ -866,8 +867,8 @@ function SpancoKanban({
                       <p className="text-xs font-bold text-green-700 mt-1">{fmt(lead.quoteValue)}</p>
                     ) : null}
                     {lead.followUpDate && (
-                      <p className={`text-[10px] mt-1 ${new Date(lead.followUpDate) < new Date() ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
-                        📅 {new Date(lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                      <p className={`text-[10px] mt-1 inline-flex items-center gap-1 ${new Date(lead.followUpDate) < new Date() ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                        <CalendarIcon className="w-3 h-3" color="text-current" /> {new Date(lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                       </p>
                     )}
                     {canEdit && <p className="text-[10px] text-gray-300 mt-1.5">⠿ drag</p>}
@@ -892,21 +893,21 @@ function SpancoKanban({
           <span className="text-xs text-gray-400 font-medium">Mark as:</span>
           {lead.status === 'SUSPECT' && (
             <button onClick={() => onShowConvertModal?.()} disabled={changing}
-              className="text-xs px-3 py-1 rounded-full border bg-cyan-50 text-cyan-700 border-cyan-200 hover:opacity-80 disabled:opacity-40 font-semibold">
-              📋 Convert to Prospect
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-cyan-50 text-cyan-700 border-cyan-200 hover:opacity-80 disabled:opacity-40 font-semibold">
+              <ClipboardIcon className="w-3.5 h-3.5" color="text-cyan-600" /> Convert to Prospect
             </button>
           )}
           {lead.status !== 'ON_HOLD' && lead.status !== 'SUSPECT' && (
             <button onClick={() => onStageChange('ON_HOLD')} disabled={changing}
-              className="text-xs px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 hover:opacity-80 disabled:opacity-40">
-              ⏸️ On Hold
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 hover:opacity-80 disabled:opacity-40">
+              <StatusIcon status="ON_HOLD" className="w-3.5 h-3.5" color="text-amber-600" /> On Hold
             </button>
           )}
           {lead.status === 'CLOSURE' && (
             <>
               <button onClick={onClosureClick} disabled={changing}
-                className="text-xs px-3 py-1 rounded-full border bg-green-50 text-green-700 border-green-200 hover:opacity-80 disabled:opacity-40">
-                ✅ Close Deal
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-green-50 text-green-700 border-green-200 hover:opacity-80 disabled:opacity-40">
+                <CheckGlyph className="w-3.5 h-3.5" /> Close Deal
               </button>
             </>
           )}
@@ -915,8 +916,8 @@ function SpancoKanban({
 
       {isClosed && (
         <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2">
-          <span className="text-xs text-amber-700 font-medium">
-            🔒 This lead is closed and cannot be moved. Request admin approval to re-open.
+          <span className="text-xs text-amber-700 font-medium inline-flex items-center gap-1.5">
+            <LockIcon className="w-3.5 h-3.5" /> This lead is closed and cannot be moved. Request admin approval to re-open.
           </span>
           {onRequestReopen && (
             <button onClick={onRequestReopen}
@@ -996,9 +997,9 @@ function ClosureModal({
   ];
 
   const outcomeConfig = {
-    WON:     { label: 'Won',     icon: '🏆', btnColor: 'bg-green-600 hover:bg-green-700', border: 'border-green-400 bg-green-50 text-green-800' },
-    LOST:    { label: 'Lost',    icon: '❌', btnColor: 'bg-red-600 hover:bg-red-700',     border: 'border-red-400 bg-red-50 text-red-800' },
-    DROPPED: { label: 'Dropped', icon: '🚫', btnColor: 'bg-gray-600 hover:bg-gray-700',   border: 'border-gray-400 bg-gray-50 text-gray-700' },
+    WON: { label: 'Won', btnColor: 'bg-green-600 hover:bg-green-700', border: 'border-green-400 bg-green-50 text-green-800' },
+    LOST: { label: 'Lost', btnColor: 'bg-red-600 hover:bg-red-700', border: 'border-red-400 bg-red-50 text-red-800' },
+    DROPPED: { label: 'Dropped', btnColor: 'bg-gray-600 hover:bg-gray-700', border: 'border-gray-400 bg-gray-50 text-gray-700' },
   };
 
   const cfg = outcomeConfig[form.outcome];
@@ -1032,7 +1033,7 @@ function ClosureModal({
                   <button key={o} onClick={() => set('outcome', o)}
                     className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-medium text-sm transition-all
                       ${form.outcome === o ? c.border + ' scale-[1.03] shadow-md' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
-                    <span className="text-xl">{c.icon}</span>
+                    <StatusIcon status={o} className="w-6 h-6" />
                     <span>{c.label}</span>
                   </button>
                 );
@@ -1061,15 +1062,15 @@ function ClosureModal({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                  🎯 Reason of Win <span className="text-red-400">*</span>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
+                  <TargetIcon className="w-4 h-4" /> Reason of Win <span className="text-red-400">*</span>
                 </label>
                 <textarea value={form.reasonOfWin} onChange={e => set('reasonOfWin', e.target.value)}
                   rows={3} placeholder="Why did we win? e.g. Best price, quick delivery, strong relationship…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">✅ What Went Well <span className="text-red-400">*</span></label>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><ThumbUpIcon className="w-4 h-4" /> What Went Well <span className="text-red-400">*</span></label>
                 <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
                   rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
@@ -1077,7 +1078,7 @@ function ClosureModal({
 
               {/* ── CLOSURE STAGE DETAILS ── */}
               <div className="border-t pt-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">🔒 Closure Stage Details</p>
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3"><LockIcon className="w-4 h-4" /> Closure Stage Details</p>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1135,8 +1136,8 @@ function ClosureModal({
                 Lead archived in Closed Leads · Manager &amp; Admin notified by email with attachments
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                  {form.outcome === 'LOST' ? '❌ Reason of Loss' : '🚫 Reason for Drop'} <span className="text-red-400">*</span>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
+                  {form.outcome === 'LOST' ? <><ErrorIcon className="w-4 h-4" /> Reason of Loss</> : <><BlockedIcon className="w-4 h-4" /> Reason for Drop</>} <span className="text-red-400">*</span>
                 </label>
                 <textarea value={form.reason} onChange={e => set('reason', e.target.value)}
                   rows={3} placeholder={
@@ -1155,7 +1156,7 @@ function ClosureModal({
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">💡 What to Improve <span className="text-red-400">*</span></label>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><IdeaIcon className="w-4 h-4" /> What to Improve <span className="text-red-400">*</span></label>
                 <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
                   rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
@@ -1165,9 +1166,9 @@ function ClosureModal({
 
           {/* ── ATTACHMENTS ── */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
-              📎 Attachments
-              <span className="ml-2 text-gray-300 font-normal normal-case">Quote / Proposal / PO — up to 3 files</span>
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase mb-2">
+              <AttachmentIcon className="w-4 h-4" /> Attachments
+              <span className="ml-1 text-gray-300 font-normal normal-case">Quote / Proposal / PO — up to 3 files</span>
             </p>
             <div className="space-y-2">
               {[0, 1, 2].map(idx => (
@@ -1211,9 +1212,9 @@ function ClosureModal({
           <button
             onClick={() => onSubmit(form)}
             disabled={closing || (form.outcome === 'WON' ? (!form.quoteRef.trim() || !form.poNumber.trim() || !form.reasonOfWin.trim() || !form.whatWentWell.trim() || !form.finalDealValue || !form.contractSignedDate) : (!form.reason.trim() || !form.whatToImprove.trim() || (form.outcome === 'LOST' && !form.competitor.trim())))}
-            className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors ${cfg.btnColor}`}
+            className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-1.5 ${cfg.btnColor}`}
           >
-            {closing ? 'Closing…' : `Confirm ${cfg.icon} ${cfg.label}`}
+            {closing ? 'Closing…' : <><span>Confirm</span><StatusIcon status={form.outcome} className="w-4 h-4" /><span>{cfg.label}</span></>}
           </button>
         </div>
       </div>
@@ -1252,7 +1253,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editM
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">📣 Proposal Stage Details</h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><StageIcon stage="PROPOSAL" className="w-5 h-5 text-indigo-600" /> Proposal Stage Details</h2>
             <p className="text-xs text-gray-500 mt-0.5">{lead.name} · {lead.company}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -1422,7 +1423,7 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[94vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">🤝 Negotiation Stage Details</h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><StageIcon stage="NEGOTIATION" className="w-5 h-5 text-orange-600" /> Negotiation Stage Details</h2>
             <p className="text-xs text-gray-500 mt-0.5">{lead.name} · {lead.company}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -1766,7 +1767,7 @@ export default function LeadDetailPage() {
       // Enforce sequential pipeline progression — no skipping stages
       if (newIdx < currentIdx) {
         const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
-                            (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
+          (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
         if (!allowedBack) {
           alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
           return;
@@ -2056,13 +2057,13 @@ export default function LeadDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          outcome:       form.outcome,
-          reason:        form.reason,
-          quoteRef:      form.quoteRef,
-          poNumber:      form.poNumber,
-          reasonOfWin:   form.reasonOfWin,
-          whatWentWell:  form.whatWentWell,
-          competitor:    form.competitor,
+          outcome: form.outcome,
+          reason: form.reason,
+          quoteRef: form.quoteRef,
+          poNumber: form.poNumber,
+          reasonOfWin: form.reasonOfWin,
+          whatWentWell: form.whatWentWell,
+          competitor: form.competitor,
           whatToImprove: form.whatToImprove,
           attachments,
           closureDetails: closureStageDetails
@@ -2272,9 +2273,9 @@ export default function LeadDetailPage() {
             {!isClosed && lead.status === 'CLOSURE' && canEdit && (
               <button
                 onClick={() => setShowClosureModal(true)}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-semibold hover:bg-blue-700 shadow"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-semibold hover:bg-blue-700 shadow"
               >
-                🔒 Close Deal
+                <LockIcon className="w-4 h-4" color="text-white" /> Close Deal
               </button>
             )}
             <button onClick={() => setShowFollowUpModal(true)}
@@ -2311,13 +2312,12 @@ export default function LeadDetailPage() {
 
             {/* Closed banner */}
             {isClosed && (
-              <div className={`rounded-xl border p-4 ${
-                lead.status === 'ORDER' ? 'bg-green-50 border-green-200' :
-                lead.status === 'LOST' ? 'bg-red-50 border-red-200' :
-                'bg-gray-50 border-gray-200'
-              }`}>
-                <p className="text-sm font-semibold text-gray-800">
-                  {CLOSED_STATUSES[lead.status]?.icon} This lead is closed — {CLOSED_STATUSES[lead.status]?.label}
+              <div className={`rounded-xl border p-4 ${lead.status === 'ORDER' ? 'bg-green-50 border-green-200' :
+                  lead.status === 'LOST' ? 'bg-red-50 border-red-200' :
+                    'bg-gray-50 border-gray-200'
+                }`}>
+                <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                  <StatusIcon status={lead.status} className="w-4 h-4" /> This lead is closed — {CLOSED_STATUSES[lead.status]?.label}
                 </p>
                 {lead.closedAt && (
                   <p className="text-xs text-gray-500 mt-0.5">
@@ -2588,7 +2588,7 @@ export default function LeadDetailPage() {
             {lead.closureDetails && ((lead.closureDetails as any).employeeCount > 0 || (lead.closureDetails as any).industry) && (
               <div className="bg-white rounded-xl border p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-cyan-700">📋 Prospect Information</h3>
+                  <h3 className="text-sm font-semibold text-cyan-700 flex items-center gap-1.5"><StageIcon stage="PROSPECT" className="w-4 h-4 text-cyan-600" /> Prospect Information</h3>
                   {canEdit && !isClosed && lead.status === 'PROSPECT' && (
                     <button onClick={() => setShowConvertModal(true)}
                       className="text-xs px-2.5 py-1 border border-cyan-300 text-cyan-700 rounded-lg hover:bg-cyan-50 font-medium">
@@ -2653,7 +2653,7 @@ export default function LeadDetailPage() {
             {lead.closureDetails && (lead.closureDetails as any).proposal && (
               <div className="bg-white rounded-xl border border-indigo-100 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-indigo-700">📣 Proposal Details</h3>
+                  <h3 className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5"><StageIcon stage="PROPOSAL" className="w-4 h-4 text-indigo-600" /> Proposal Details</h3>
                   {canEdit && !isClosed && lead.status === 'PROPOSAL' && (
                     <button onClick={() => setEditProposalModal(true)}
                       className="text-xs px-2.5 py-1 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 font-medium">
@@ -2718,7 +2718,7 @@ export default function LeadDetailPage() {
             {lead.closureDetails && (lead.closureDetails as any).negotiation && (
               <div className="bg-white rounded-xl border border-orange-100 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-orange-700">🤝 Negotiation Details</h3>
+                  <h3 className="text-sm font-semibold text-orange-700 flex items-center gap-1.5"><StageIcon stage="NEGOTIATION" className="w-4 h-4 text-orange-600" /> Negotiation Details</h3>
                   {canEdit && !isClosed && lead.status === 'NEGOTIATION' && (
                     <button onClick={() => setEditNegotiationModal(true)}
                       className="text-xs px-2.5 py-1 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 font-medium">
@@ -2782,7 +2782,7 @@ export default function LeadDetailPage() {
             {/* Closure Stage Details (shown after deal is closed WON) */}
             {lead.closureDetails && (lead.closureDetails as any).closure && (
               <div className="bg-white rounded-xl border border-green-100 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-green-700 mb-3">🔒 Closure Details</h3>
+                <h3 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-1.5"><LockIcon className="w-4 h-4 text-green-600" /> Closure Details</h3>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).closure.finalDealValue && (
                     <div>
@@ -2833,7 +2833,7 @@ export default function LeadDetailPage() {
             {/* Closure attachments (downloadable) */}
             {lead.closureDetails && Array.isArray((lead.closureDetails as any).attachments) && (lead.closureDetails as any).attachments.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">📎 Attachments</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><AttachmentIcon className="w-4 h-4" /> Attachments</h3>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).attachments.map((att: any) => (
                     <button
@@ -2842,7 +2842,7 @@ export default function LeadDetailPage() {
                       className="w-full flex items-center justify-between gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base flex-shrink-0">📄</span>
+                        <QuotationIcon className="w-4 h-4 flex-shrink-0" color="text-gray-400" />
                         <span className="text-sm text-gray-800 truncate">{att.filename}</span>
                       </div>
                       <span className="text-xs text-blue-600 flex-shrink-0">
@@ -3083,7 +3083,7 @@ export default function LeadDetailPage() {
                             }}
                             className="ml-1 hover:text-blue-900 font-bold"
                           >
-                            ✕
+                            <CloseIcon className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
@@ -3108,24 +3108,24 @@ export default function LeadDetailPage() {
                   {/* Team members list */}
                   <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-3">
                     {users.filter(u => `${u.firstName} ${u.lastName}`.toLowerCase().includes(teamSearch.toLowerCase())).map(u => (
-                    <label key={u.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        value={u.id}
-                        checked={editData.presalesIds?.includes(u.id) || false}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          setEditData(prev => ({
-                            ...prev,
-                            presalesIds: checked
-                              ? [...(prev.presalesIds || []), u.id]
-                              : (prev.presalesIds || []).filter(p => p !== u.id),
-                          }));
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm text-gray-700">{u.firstName} {u.lastName}</span>
-                    </label>
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value={u.id}
+                          checked={editData.presalesIds?.includes(u.id) || false}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            setEditData(prev => ({
+                              ...prev,
+                              presalesIds: checked
+                                ? [...(prev.presalesIds || []), u.id]
+                                : (prev.presalesIds || []).filter(p => p !== u.id),
+                            }));
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-700">{u.firstName} {u.lastName}</span>
+                      </label>
                     ))}
                   </div>
                 </div>

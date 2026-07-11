@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
+import { AnnouncementIcon, ClipboardIcon, CloseIcon } from '@/components/icons';
 
 interface Announcement {
   id: string;
@@ -40,7 +41,7 @@ export default function AnnouncementsPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(u => {
-        if (!['SUPER_ADMIN','ADMIN'].includes(u.role)) {
+        if (!['SUPER_ADMIN', 'ADMIN'].includes(u.role)) {
           router.push('/dashboard');
           return;
         }
@@ -181,13 +182,12 @@ export default function AnnouncementsPage() {
           announcements.map(ann => (
             <div
               key={ann.id}
-              className={`card p-6 border-l-4 ${
-                ann.priority === 'URGENT'
+              className={`card p-6 border-l-4 ${ann.priority === 'URGENT'
                   ? 'border-l-red-500 bg-red-50'
                   : ann.priority === 'NORMAL'
-                  ? 'border-l-blue-500 bg-blue-50'
-                  : 'border-l-gray-500 bg-gray-50'
-              }`}
+                    ? 'border-l-blue-500 bg-blue-50'
+                    : 'border-l-gray-500 bg-gray-50'
+                }`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -198,22 +198,22 @@ export default function AnnouncementsPage() {
                 </div>
                 <div className="flex gap-2">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      ann.isPublished
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${ann.isPublished
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-200 text-gray-700'
-                    }`}
+                      }`}
                   >
-                    {ann.isPublished ? '📢 Published' : '📋 Draft'}
+                    {ann.isPublished
+                      ? <span className="inline-flex items-center gap-1"><AnnouncementIcon className="w-3.5 h-3.5" color="text-green-600" /> Published</span>
+                      : <span className="inline-flex items-center gap-1"><ClipboardIcon className="w-3.5 h-3.5" /> Draft</span>}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      ann.priority === 'URGENT'
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${ann.priority === 'URGENT'
                         ? 'bg-red-100 text-red-700'
                         : ann.priority === 'NORMAL'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
                   >
                     {ann.priority}
                   </span>
@@ -238,11 +238,10 @@ export default function AnnouncementsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handlePublish(ann.id, ann.isPublished)}
-                    className={`px-3 py-1 rounded border text-xs ${
-                      ann.isPublished
+                    className={`px-3 py-1 rounded border text-xs ${ann.isPublished
                         ? 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'
                         : 'border-green-200 text-green-600 hover:bg-green-50'
-                    }`}
+                      }`}
                   >
                     {ann.isPublished ? 'Unpublish' : 'Publish'}
                   </button>
@@ -278,9 +277,9 @@ export default function AnnouncementsPage() {
                   setShowModal(false);
                   resetForm();
                 }}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+                className="text-gray-400 hover:text-gray-600"
               >
-                ✕
+                <CloseIcon className="w-5 h-5" />
               </button>
             </div>
 

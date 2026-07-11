@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { EditIcon, SuccessIcon } from '@/components/icons';
 
 interface Lead {
   id: string;
@@ -276,9 +277,9 @@ export default function CustomerDetailPage() {
           {lead.linkedCustomerId && (
             <button
               onClick={openEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
             >
-              ✏️ Edit Customer
+              <EditIcon className="w-4 h-4" /> Edit Customer
             </button>
           )}
           <button
@@ -364,11 +365,10 @@ export default function CustomerDetailPage() {
                   <tr key={q.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 font-medium text-gray-900">{q.quotationNumber}</td>
                     <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        q.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                        q.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                          q.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {q.status}
                       </span>
                     </td>
@@ -415,21 +415,19 @@ export default function CustomerDetailPage() {
                   <tr key={o.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 font-medium text-gray-900">{o.orderNumber}</td>
                     <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        o.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                        o.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
-                        o.status === 'FULFILLED' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${o.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                          o.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
+                            o.status === 'FULFILLED' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                        }`}>
                         {o.status}
                       </span>
                     </td>
                     <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        o.paymentStatus === 'PENDING' ? 'bg-red-100 text-red-700' :
-                        o.paymentStatus === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${o.paymentStatus === 'PENDING' ? 'bg-red-100 text-red-700' :
+                          o.paymentStatus === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {o.paymentStatus}
                       </span>
                     </td>
@@ -581,7 +579,7 @@ export default function CustomerDetailPage() {
             <div className="p-6 space-y-4">
               {deleteSuccess ? (
                 <div className="text-center py-6">
-                  <p className="text-4xl mb-3">✅</p>
+                  <SuccessIcon className="w-12 h-12 mx-auto mb-3" />
                   <p className="text-lg font-bold text-gray-900">Request Submitted</p>
                   <p className="text-sm text-gray-500 mt-2">An admin will review and approve the deletion.</p>
                   <button onClick={() => router.push('/customers')}

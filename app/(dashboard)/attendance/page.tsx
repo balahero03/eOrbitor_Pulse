@@ -4,19 +4,20 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import TimeField from '@/components/TimeField';
+import { ActivityIcon, LockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2 } from '@/components/icons';
 
-const ACTIVITY_MODES: Record<string, { label: string; icon: string }> = {
-  MEETING:     { label: 'Meeting',       icon: '🤝' },
-  CALL:        { label: 'Call',          icon: '📞' },
-  SITE_VISIT:  { label: 'Site Visit',    icon: '🏢' },
-  DEMO:        { label: 'Demo',          icon: '💻' },
-  PROPOSAL:    { label: 'Proposal',      icon: '📄' },
-  NEGOTIATION: { label: 'Negotiation',   icon: '🤜' },
-  FOLLOW_UP:   { label: 'Follow-up',     icon: '🔔' },
-  EMAIL:       { label: 'Email',         icon: '✉️' },
-  WORK:        { label: 'Internal Work', icon: '⚙️' },
-  TRAINING:    { label: 'Training',      icon: '📚' },
-  OTHER:       { label: 'Other',         icon: '📌' },
+const ACTIVITY_MODES: Record<string, { label: string }> = {
+  MEETING: { label: 'Meeting' },
+  CALL: { label: 'Call' },
+  SITE_VISIT: { label: 'Site Visit' },
+  DEMO: { label: 'Demo' },
+  PROPOSAL: { label: 'Proposal' },
+  NEGOTIATION: { label: 'Negotiation' },
+  FOLLOW_UP: { label: 'Follow-up' },
+  EMAIL: { label: 'Email' },
+  WORK: { label: 'Internal Work' },
+  TRAINING: { label: 'Training' },
+  OTHER: { label: 'Other' },
 };
 
 function fmt24(t: string) {
@@ -85,10 +86,10 @@ interface DayRecord {
 // undefined, which is why those cards used to show nothing but a pin icon).
 function normalizeActivity(raw: ActivityEntry | string) {
   if (typeof raw === 'string') {
-    return { icon: '📝', label: 'Activity', time: undefined as string | undefined, customer: undefined as string | undefined, contact: undefined as string | undefined, refs: [] as string[], description: raw };
+    return { mode: 'OTHER', label: 'Activity', time: undefined as string | undefined, customer: undefined as string | undefined, contact: undefined as string | undefined, refs: [] as string[], description: raw };
   }
   return {
-    icon: ACTIVITY_MODES[raw.mode]?.icon || '📌',
+    mode: raw.mode || 'OTHER',
     label: ACTIVITY_MODES[raw.mode]?.label || raw.mode || 'Activity',
     time: (raw.timeIn || raw.timeOut) ? `${fmt24(raw.timeIn)}${raw.timeOut ? ` → ${fmt24(raw.timeOut)}` : ''}` : undefined,
     customer: raw.custName || undefined,
@@ -146,8 +147,8 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
                 return (
                   <div key={typeof raw === 'string' ? i : raw.id || i} className="relative group">
                     {/* Icon Node centered on the line */}
-                    <div className="absolute -left-[35px] top-0.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center text-xs shadow-sm group-hover:border-blue-600 transition-colors">
-                      {a.icon}
+                    <div className="absolute -left-[35px] top-0.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center shadow-sm group-hover:border-blue-600 transition-colors">
+                      <ActivityIcon mode={a.mode} className="w-3.5 h-3.5" />
                     </div>
 
                     {/* Content Block */}
@@ -164,8 +165,8 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
                           )}
                         </h4>
                         {a.time && (
-                          <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-md border border-gray-200">
-                            ⏰ {a.time}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-md border border-gray-200">
+                            <ClockIcon2 className="w-3 h-3" /> {a.time}
                           </span>
                         )}
                       </div>
@@ -182,12 +183,12 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
                         <div className="flex flex-wrap gap-2 pt-1">
                           {a.contact && (
                             <span className="text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded px-2 py-0.5 flex items-center gap-1">
-                              👤 {a.contact}
+                              <UserSingleIcon className="w-3 h-3" /> {a.contact}
                             </span>
                           )}
                           {a.refs.map((ref, ri) => (
-                            <span key={ri} className="text-[10px] font-medium text-blue-700 bg-blue-50/50 border border-blue-100 rounded px-2 py-0.5">
-                              📄 {ref}
+                            <span key={ri} className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 bg-blue-50/50 border border-blue-100 rounded px-2 py-0.5">
+                              <QuotationIcon className="w-3 h-3" /> {ref}
                             </span>
                           ))}
                         </div>
@@ -303,7 +304,7 @@ function AccessPolicySection() {
       if (res.ok) {
         setPolicy(data);
         setSavedPolicy(data);
-        setSaveMessage({ type: 'success', text: '✓ Policy saved' });
+        setSaveMessage({ type: 'success', text: 'Policy saved' });
       } else {
         setSaveMessage({ type: 'error', text: data.message || 'Failed to save policy' });
       }
@@ -342,15 +343,15 @@ function AccessPolicySection() {
   const statusStrip = policy && loaded && (
     !policy.enabled ? (
       <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-xs">
-        ⚪ Policy is off — nobody is restricted right now.
+        <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0" /> Policy is off — nobody is restricted right now.
       </div>
     ) : policy.currentlyRestricting ? (
       <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs font-medium">
-        🔴 As of right now: restricted roles are currently <strong>blocked</strong>.
+        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" /> As of right now: restricted roles are currently <strong>blocked</strong>.
       </div>
     ) : (
       <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs font-medium">
-        🟢 As of right now: restricted roles currently <strong>have access</strong> — we're outside the restricted window.
+        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" /> As of right now: restricted roles currently <strong>have access</strong> — we're outside the restricted window.
       </div>
     )
   );
@@ -365,7 +366,7 @@ function AccessPolicySection() {
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
       >
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm text-gray-800">🔒 Access Policy</span>
+          <span className="font-semibold text-sm text-gray-800 flex items-center gap-1.5"><LockIcon className="w-4 h-4" /> Access Policy</span>
           {loaded && policy?.enabled && (
             <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium">ON</span>
           )}
@@ -429,12 +430,11 @@ function AccessPolicySection() {
                 </div>
               </div>
               {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
-                <p className={`text-xs rounded-lg px-3 py-2 mt-2 border ${
-                  longWindowWarning
+                <p className={`text-xs rounded-lg px-3 py-2 mt-2 border ${longWindowWarning
                     ? 'bg-amber-50 border-amber-200 text-amber-800'
                     : 'bg-blue-50 border-blue-100 text-blue-700'
-                }`}>
-                  {longWindowWarning && <strong>⚠ Double-check the AM/PM on each time — </strong>}
+                  }`}>
+                  {longWindowWarning && <strong className="inline-flex items-center gap-1"><WarningIcon className="w-3.5 h-3.5" /> Double-check the time window — </strong>}
                   {describeWindow(policy.windowStart, policy.windowEnd)}
                 </p>
               )}
@@ -705,15 +705,15 @@ export default function AttendancePage() {
                       text-sm font-semibold transition-all
                       ${isFuture ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-default' :
                         isSelected ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md' :
-                        present ? 'border-green-400 bg-green-50 text-green-800 hover:border-green-500 hover:shadow' :
-                        'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}
+                          present ? 'border-green-400 bg-green-50 text-green-800 hover:border-green-500 hover:shadow' :
+                            'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}
                       ${isToday ? 'ring-2 ring-blue-300 ring-offset-1' : ''}
                     `}
                   >
                     <span>{day}</span>
                     {present && !isFuture && (
-                      <span className="text-xs text-green-600 font-normal">
-                        {selectedUserId === 'all' ? `${dayRecs.length}p` : '✓'}
+                      <span className="text-xs text-green-600 font-normal flex items-center justify-center">
+                        {selectedUserId === 'all' ? `${dayRecs.length}p` : <SuccessIcon className="w-3.5 h-3.5" />}
                       </span>
                     )}
                   </button>
@@ -748,7 +748,7 @@ export default function AttendancePage() {
 
               {selectedDayRecords.length === 0 ? (
                 <div className="text-center py-6">
-                  <p className="text-4xl mb-2">🏖️</p>
+                  <BriefcaseIcon2 className="w-9 h-9 mx-auto mb-2 text-gray-300" />
                   <p className="text-gray-500 text-sm">No login recorded</p>
                 </div>
               ) : (
@@ -773,7 +773,7 @@ export default function AttendancePage() {
                               onClick={() => setActivityModal(rec)}
                               className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-semibold hover:bg-blue-100 border border-blue-200 transition-colors flex items-center gap-1"
                             >
-                              📋 {entries.length} Activities
+                              <ClipboardIcon className="w-3.5 h-3.5" color="text-blue-600" /> {entries.length} Activities
                             </button>
                           )}
                         </div>
@@ -812,7 +812,7 @@ export default function AttendancePage() {
                               return (
                                 <div key={i} className="flex items-center justify-between gap-2 text-xs bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5 hover:bg-gray-100/70 transition-colors">
                                   <span className="flex items-center gap-1.5 text-gray-700 truncate min-w-0">
-                                    <span className="flex-shrink-0">{a.icon}</span>
+                                    <ActivityIcon mode={a.mode} className="w-3.5 h-3.5 flex-shrink-0" />
                                     <span className="truncate">{displayText || 'Activity'}</span>
                                   </span>
                                   {a.time && <span className="text-gray-400 flex-shrink-0 text-[11px] font-medium">{a.time}</span>}
@@ -840,7 +840,7 @@ export default function AttendancePage() {
             </>
           ) : (
             <div className="text-center py-10">
-              <p className="text-4xl mb-3">📅</p>
+              <CalendarIcon className="w-9 h-9 mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 text-sm">Click a date to see details</p>
             </div>
           )}

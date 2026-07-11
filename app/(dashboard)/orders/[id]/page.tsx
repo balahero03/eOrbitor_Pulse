@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon } from '@/components/icons';
 
 interface Order {
   id: string;
@@ -33,16 +34,16 @@ const fmtDate = (d: string | undefined) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const statusColor: Record<string, string> = {
-  PENDING:   'bg-yellow-100 text-yellow-800 border-yellow-300',
+  PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   CONFIRMED: 'bg-blue-100 text-blue-800 border-blue-300',
   FULFILLED: 'bg-green-100 text-green-800 border-green-300',
-  INVOICED:  'bg-purple-100 text-purple-800 border-purple-300',
+  INVOICED: 'bg-purple-100 text-purple-800 border-purple-300',
   COMPLETED: 'bg-emerald-100 text-emerald-800 border-emerald-300',
 };
 
 const paymentColor: Record<string, string> = {
-  PENDING:   'bg-red-100 text-red-800 border-red-300',
-  PARTIAL:   'bg-orange-100 text-orange-800 border-orange-300',
+  PENDING: 'bg-red-100 text-red-800 border-red-300',
+  PARTIAL: 'bg-orange-100 text-orange-800 border-orange-300',
   COMPLETED: 'bg-green-100 text-green-800 border-green-300',
 };
 
@@ -188,9 +189,9 @@ export default function OrderDetailPage() {
         <div className="flex gap-2">
           <button
             onClick={openEdit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
           >
-            ✏️ Edit Order
+            <EditIcon className="w-4 h-4" /> Edit Order
           </button>
           <Link href="/orders" className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
             ← Back to Orders
@@ -298,7 +299,7 @@ export default function OrderDetailPage() {
                         download="payment-proof.pdf"
                         className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1"
                       >
-                        📄 Download PDF proof
+                        <DownloadIcon className="w-4 h-4" /> Download PDF proof
                       </a>
                     ) : (
                       <a href={order.paymentProofUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
@@ -350,8 +351,8 @@ export default function OrderDetailPage() {
                 </button>
               )}
               {order.status === 'FULFILLED' && (
-                <p className="text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg text-center">
-                  ✓ Delivered on {fmtDate(order.deliveryDate)}
+                <p className="text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg text-center inline-flex items-center justify-center gap-1.5 w-full">
+                  <CheckGlyph className="w-4 h-4" /> Delivered on {fmtDate(order.deliveryDate)}
                 </p>
               )}
               <button
@@ -368,18 +369,18 @@ export default function OrderDetailPage() {
             <h3 className="text-sm font-semibold text-gray-600 mb-4">Order Timeline</h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                <CheckGlyph className="w-4 h-4 text-blue-600 mt-0.5" />
                 <div><p className="font-medium text-gray-900">Order Created</p><p className="text-gray-400">{fmtDate(order.createdAt)}</p></div>
               </div>
               {order.status !== 'PENDING' && (
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                  <CheckGlyph className="w-4 h-4 text-blue-600 mt-0.5" />
                   <div><p className="font-medium text-gray-900">Confirmed</p><p className="text-gray-400">—</p></div>
                 </div>
               )}
               {order.status === 'FULFILLED' && (
                 <div className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold mt-0.5">✓</span>
+                  <CheckGlyph className="w-4 h-4 text-green-600 mt-0.5" />
                   <div><p className="font-medium text-gray-900">Fulfilled</p><p className="text-gray-400">{fmtDate(order.deliveryDate)}</p></div>
                 </div>
               )}
@@ -473,14 +474,14 @@ export default function OrderDetailPage() {
                       className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                       {editProof ? (
                         <div className="flex items-center justify-center gap-2 text-sm text-green-700">
-                          <span>📎</span><span className="font-medium">{editProof.name}</span>
+                          <AttachmentIcon className="w-4 h-4" /><span className="font-medium">{editProof.name}</span>
                           <button type="button"
                             onClick={e => { e.stopPropagation(); setEditProof(null); if (fileRef.current) fileRef.current.value = ''; }}
-                            className="ml-2 text-red-500 hover:text-red-700 font-bold">✕</button>
+                            className="ml-2 text-red-500 hover:text-red-700"><CloseIcon className="w-4 h-4" /></button>
                         </div>
                       ) : (
-                        <div className="text-gray-500 text-sm">
-                          <p>📄 Click to upload proof</p>
+                        <div className="text-gray-500 text-sm flex flex-col items-center">
+                          <p className="flex items-center gap-1.5"><QuotationIcon className="w-4 h-4" color="text-gray-400" /> Click to upload proof</p>
                           <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, PDF — max 5 MB</p>
                         </div>
                       )}
@@ -524,7 +525,7 @@ export default function OrderDetailPage() {
             <div className="p-6 space-y-4">
               {deleteSuccess ? (
                 <div className="text-center py-6">
-                  <p className="text-4xl mb-3">✅</p>
+                  <SuccessIcon className="w-12 h-12 mx-auto mb-3" />
                   <p className="text-lg font-bold text-gray-900">Request Submitted</p>
                   <p className="text-sm text-gray-500 mt-2">An admin will review and approve the deletion.</p>
                   <button onClick={() => router.push('/orders')}

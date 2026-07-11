@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import TimeField from '@/components/TimeField';
+import { ActivityIcon, ActivityChip, LockIcon, ClipboardIcon, PendingIcon, ErrorIcon, EditIcon, QuotationIcon, OrderIcon, CheckGlyph } from '@/components/icons';
 
 const ACTIVITY_MODES = [
-  { value: 'MEETING',     label: 'Meeting',      icon: '🤝' },
-  { value: 'CALL',        label: 'Call',         icon: '📞' },
-  { value: 'SITE_VISIT',  label: 'Site Visit',   icon: '🏢' },
-  { value: 'DEMO',        label: 'Demo',         icon: '💻' },
-  { value: 'PROPOSAL',    label: 'Proposal',     icon: '📄' },
-  { value: 'NEGOTIATION', label: 'Negotiation',  icon: '🤜' },
-  { value: 'FOLLOW_UP',   label: 'Follow-up',    icon: '🔔' },
-  { value: 'EMAIL',       label: 'Email',        icon: '✉️' },
-  { value: 'WORK',        label: 'Internal Work',icon: '⚙️' },
-  { value: 'TRAINING',    label: 'Training',     icon: '📚' },
-  { value: 'OTHER',       label: 'Other',        icon: '📌' },
+  { value: 'MEETING', label: 'Meeting' },
+  { value: 'CALL', label: 'Call' },
+  { value: 'SITE_VISIT', label: 'Site Visit' },
+  { value: 'DEMO', label: 'Demo' },
+  { value: 'PROPOSAL', label: 'Proposal' },
+  { value: 'NEGOTIATION', label: 'Negotiation' },
+  { value: 'FOLLOW_UP', label: 'Follow-up' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'WORK', label: 'Internal Work' },
+  { value: 'TRAINING', label: 'Training' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 interface ActivityEntry {
@@ -35,7 +36,6 @@ const makeEntry = (): ActivityEntry => ({
   timeIn: '', timeOut: '', quotationRef: '', orderRef: '', description: '',
 });
 
-const modeIcon  = (m: string) => ACTIVITY_MODES.find(x => x.value === m)?.icon  || '📌';
 const modeLabel = (m: string) => ACTIVITY_MODES.find(x => x.value === m)?.label || m;
 
 function fmt24(t: string) {
@@ -79,7 +79,7 @@ function EntryForm({ entry, idx, onChange, onRemove }: {
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-gray-400">{idx + 1}</span>
-          <span>{modeIcon(entry.mode)}</span>
+          <ActivityIcon mode={entry.mode} className="w-4 h-4" />
           <span className="text-sm font-semibold text-gray-700">{modeLabel(entry.mode)}</span>
           {entry.custName && <span className="text-xs text-gray-400">· {entry.custName}</span>}
           {dur && <span className="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{dur}</span>}
@@ -92,7 +92,7 @@ function EntryForm({ entry, idx, onChange, onRemove }: {
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Mode <span className="text-red-400">*</span></label>
             <select value={entry.mode} onChange={e => s('mode', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-              {ACTIVITY_MODES.map(m => <option key={m.value} value={m.value}>{m.icon} {m.label}</option>)}
+              {ACTIVITY_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
           <div>
@@ -152,7 +152,7 @@ function EntryCard({ entry, idx }: { entry: ActivityEntry; idx: number }) {
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
         <span className="text-xs font-bold text-gray-300 w-4">{idx + 1}</span>
-        <span className="text-xl">{modeIcon(entry.mode)}</span>
+        <ActivityChip mode={entry.mode} className="w-8 h-8" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">
             {modeLabel(entry.mode)}
@@ -174,13 +174,13 @@ function EntryCard({ entry, idx }: { entry: ActivityEntry; idx: number }) {
           {(entry.quotationRef || entry.orderRef) && (
             <div className="flex gap-2 flex-wrap">
               {entry.quotationRef && (
-                <span className="text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded-full">
-                  📄 {entry.quotationRef}
+                <span className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded-full">
+                  <QuotationIcon className="w-3.5 h-3.5" color="text-purple-600" /> {entry.quotationRef}
                 </span>
               )}
               {entry.orderRef && (
-                <span className="text-xs bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-full">
-                  📦 {entry.orderRef}
+                <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-full">
+                  <OrderIcon className="w-3.5 h-3.5" color="text-green-600" /> {entry.orderRef}
                 </span>
               )}
             </div>
@@ -254,7 +254,7 @@ export default function DailyActivityPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           date: selectedDate, activities: entries, notes,
-          loginTime:  loginTime  ? `${selectedDate}T${loginTime}:00`  : null,
+          loginTime: loginTime ? `${selectedDate}T${loginTime}:00` : null,
         }),
       });
       if (res.ok) { setEditing(false); fetchActivity(); }
@@ -350,18 +350,17 @@ export default function DailyActivityPage() {
 
       {/* Lock banner */}
       {!isEditable && (
-        <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${
-          unlockRequest?.status === 'PENDING' ? 'bg-amber-50 border-amber-200' :
-          unlockRequest?.status === 'REJECTED' ? 'bg-red-50 border-red-200' :
-          'bg-gray-50 border-gray-200'
-        }`}>
+        <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${unlockRequest?.status === 'PENDING' ? 'bg-amber-50 border-amber-200' :
+            unlockRequest?.status === 'REJECTED' ? 'bg-red-50 border-red-200' :
+              'bg-gray-50 border-gray-200'
+          }`}>
           <div>
-            <p className="text-sm font-semibold text-gray-800">
-              🔒 This date is locked
-              <span className="ml-2 text-xs font-normal text-gray-500">(free edit window: today &amp; yesterday)</span>
+            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+              <LockIcon className="w-4 h-4" /> This date is locked
+              <span className="ml-1 text-xs font-normal text-gray-500">(free edit window: today &amp; yesterday)</span>
             </p>
-            {unlockRequest?.status === 'PENDING' && <p className="text-xs text-amber-700 mt-0.5">⏳ Unlock request pending admin/support review</p>}
-            {unlockRequest?.status === 'REJECTED' && <p className="text-xs text-red-600 mt-0.5">❌ Previous unlock request was rejected</p>}
+            {unlockRequest?.status === 'PENDING' && <p className="text-xs text-amber-700 mt-0.5 flex items-center gap-1"><PendingIcon className="w-3.5 h-3.5" /> Unlock request pending admin/support review</p>}
+            {unlockRequest?.status === 'REJECTED' && <p className="text-xs text-red-600 mt-0.5 flex items-center gap-1"><ErrorIcon className="w-3.5 h-3.5" /> Previous unlock request was rejected</p>}
             {!unlockRequest && <p className="text-xs text-gray-500 mt-0.5">Request admin/support to unlock this date</p>}
           </div>
           {(!unlockRequest || unlockRequest.status === 'REJECTED') && (
@@ -401,7 +400,7 @@ export default function DailyActivityPage() {
             </div>
             <p className="text-[11px] mt-1">
               {workHoursSaved ? (
-                <span className="text-green-600 font-medium">✓ Saved</span>
+                <span className="text-green-600 font-medium inline-flex items-center gap-1"><CheckGlyph className="w-3.5 h-3.5" /> Saved</span>
               ) : (
                 <span className="text-gray-400">Captured from the server's clock the moment you click — can't be typed in.</span>
               )}
@@ -409,9 +408,8 @@ export default function DailyActivityPage() {
           </div>
           <div>
             {workHours ? (
-              <div className={`rounded-lg px-4 py-2 text-center border ${
-                workHours.live ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
-              }`}>
+              <div className={`rounded-lg px-4 py-2 text-center border ${workHours.live ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+                }`}>
                 <p className={`text-xs font-medium flex items-center justify-center gap-1 ${workHours.live ? 'text-amber-600' : 'text-blue-500'}`}>
                   {workHours.live && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
                   {workHours.label}
@@ -438,8 +436,8 @@ export default function DailyActivityPage() {
           <div className="flex gap-2">
             {isEditable && !editing && (
               <button onClick={() => setEditing(true)}
-                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-                ✏️ Edit
+                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 inline-flex items-center gap-1.5">
+                <EditIcon className="w-4 h-4" /> Edit
               </button>
             )}
             {isEditable && editing && (
@@ -491,7 +489,7 @@ export default function DailyActivityPage() {
           </>
         ) : entries.length === 0 ? (
           <div className="text-center py-14 bg-white rounded-xl border border-gray-100">
-            <p className="text-4xl mb-3">📋</p>
+            <ClipboardIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="text-gray-500 font-medium">No activities logged</p>
             <p className="text-sm text-gray-400 mt-1">
               {isEditable ? 'Click Edit to start logging your day' : 'No records for this date'}

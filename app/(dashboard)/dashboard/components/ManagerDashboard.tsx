@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AnnouncementIcon, CalendarIcon, ShieldIcon, PlusGlyph } from '@/components/icons';
 
 const fmt = (v: number | string) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v) || 0);
@@ -35,21 +36,21 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PRIORITY_STYLE: Record<string, string> = {
-  HIGH:   'border-red-400 bg-red-50',
+  HIGH: 'border-red-400 bg-red-50',
   NORMAL: 'border-blue-200 bg-blue-50',
-  LOW:    'border-gray-200 bg-gray-50',
+  LOW: 'border-gray-200 bg-gray-50',
 };
 const PRIORITY_BADGE: Record<string, string> = {
-  HIGH:   'bg-red-100 text-red-700',
+  HIGH: 'bg-red-100 text-red-700',
   NORMAL: 'bg-blue-100 text-blue-700',
-  LOW:    'bg-gray-100 text-gray-500',
+  LOW: 'bg-gray-100 text-gray-500',
 };
 
 function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
   if (!announcements?.length) return null;
   return (
     <div className="bg-white rounded-xl border p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-800 mb-4">📢 Announcements</h2>
+      <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2"><AnnouncementIcon className="w-5 h-5" /> Announcements</h2>
       <div className="space-y-3">
         {announcements.map((a: any) => (
           <div key={a.id} className={`rounded-lg border-l-4 px-4 py-3 ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.NORMAL}`}>
@@ -116,11 +117,10 @@ export default function ManagerDashboard({ data }: { data: any }) {
                 .sort((a: any, b: any) => b.wonThisMonth - a.wonThisMonth)
                 .map((m: any, i: number) => (
                   <div key={m.userId} className="flex items-center gap-3">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      i === 1 ? 'bg-gray-100 text-gray-600' :
-                      i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-500'
-                    }`}>{i + 1}</span>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        i === 1 ? 'bg-gray-100 text-gray-600' :
+                          i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-500'
+                      }`}>{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
                       <p className="text-xs text-gray-500">{m.activeLeads} active leads · {fmt(m.pipelineValue)} pipeline</p>
@@ -204,13 +204,13 @@ export default function ManagerDashboard({ data }: { data: any }) {
         <h2 className="text-base font-semibold text-gray-800 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
-            { href: '/leads/new', label: 'New Lead', icon: '➕' },
-            { href: '/approvals', label: 'Approvals', icon: '✅' },
-            { href: '/attendance', label: 'Attendance', icon: '📅' },
+            { href: '/leads/new', label: 'New Lead', Icon: PlusGlyph },
+            { href: '/approvals', label: 'Approvals', Icon: ShieldIcon },
+            { href: '/attendance', label: 'Attendance', Icon: CalendarIcon },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-2 px-4 py-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <span>{item.icon}</span>
+              <item.Icon className="w-5 h-5" />
               <span>{item.label}</span>
             </Link>
           ))}

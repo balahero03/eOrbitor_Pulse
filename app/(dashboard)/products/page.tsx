@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
+import { ProductIcon } from '@/components/icons';
 
 interface Product {
   id: string;
@@ -140,11 +141,10 @@ function ProductModal({
                   {[0, 5, 12, 18, 28].map(rate => (
                     <button key={rate} type="button"
                       onClick={() => set('tax', String(rate))}
-                      className={`flex-1 py-2 text-xs rounded-lg border font-medium transition-colors ${
-                        String(form.tax) === String(rate)
+                      className={`flex-1 py-2 text-xs rounded-lg border font-medium transition-colors ${String(form.tax) === String(rate)
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'border-gray-200 text-gray-600 hover:border-blue-300'
-                      }`}>
+                        }`}>
                       {rate}%
                     </button>
                   ))}
@@ -262,7 +262,7 @@ export default function ProductsPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(u => setUserRole(u.role)).catch(() => {});
+      .then(r => r.json()).then(u => setUserRole(u.role)).catch(() => { });
     fetchCategories();
   }, []);
 
@@ -432,7 +432,7 @@ export default function ProductsPage() {
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-4xl mb-3">🗂️</p>
+            <ProductIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="text-gray-500 font-medium">No products found</p>
             {canManage && (
               <button onClick={openAdd} className="mt-3 text-sm text-blue-600 hover:underline">
@@ -513,13 +513,12 @@ export default function ProductsPage() {
                         <td className="px-4 py-3.5 text-right font-bold text-gray-900">{fmt(withTax)}</td>
                         <td className="px-4 py-3.5 text-center">
                           {p.inventory ? (
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                              stock === 0
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${stock === 0
                                 ? 'bg-red-100 text-red-600 border-red-200'
                                 : lowStock
                                   ? 'bg-amber-100 text-amber-700 border-amber-200'
                                   : 'bg-green-100 text-green-700 border-green-200'
-                            }`}>
+                              }`}>
                               {stock === 0 ? 'Out' : `${stock}`}
                             </span>
                           ) : <span className="text-gray-300 text-xs">—</span>}
