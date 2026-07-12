@@ -20,10 +20,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const quoteValueMax = searchParams.get('quoteValueMax');
 
   // Active leads only — closed leads live in /api/leads/closed
-  const CLOSED_STATUSES = ['WON', 'LOST', 'DROPPED', 'ORDER'];
+  const CLOSED_STATUSES = ['WON', 'LOST', 'ORDER'];
   const where: any = {
     deletedAt: null,
-    status: { notIn: CLOSED_STATUSES },
   };
   const andConditions: any[] = [];
 
@@ -40,7 +39,11 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
   // ADMIN/SUPER_ADMIN see all — no extra filter
 
-  if (status && !CLOSED_STATUSES.includes(status)) where.status = status;
+  if (status) {
+    where.status = status;
+  } else {
+    where.status = { notIn: CLOSED_STATUSES };
+  }
   if (source) where.source = source;
   // Only allow assignedToId filter override for managers/admins
   if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {

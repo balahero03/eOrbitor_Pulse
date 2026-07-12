@@ -35,6 +35,7 @@ const ALL_STATUSES = [
   { value: 'NEGOTIATION', label: 'Negotiation' },
   { value: 'CLOSURE',     label: 'Closure' },
   { value: 'ON_HOLD',     label: 'On Hold' },
+  { value: 'DROPPED',     label: 'Dropped' },
 ];
 
 const ALL_SOURCES = [
