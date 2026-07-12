@@ -19,8 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const auth = verifyAuth(req);
 
-    if (auth.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Only the Super Admin can view ex-employee records' }, { status: 403 });
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(auth.role)) {
+      return NextResponse.json({ error: 'Only admins can view user records' }, { status: 403 });
     }
 
     const [

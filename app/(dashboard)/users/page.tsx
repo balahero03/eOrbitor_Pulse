@@ -43,7 +43,32 @@ const ROLE_LABELS: Record<string, string> = {
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
 
-type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view' | 'ex-records';
+type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view' | 'ex-records' | 'role-switch';
+
+// Role-switch modal state
+interface RoleSwitchState {
+  user: User;
+  newRole: string;
+  // Ownership preview
+  leadsAssigned: number;
+  broughtLeads: number;
+  deals: number;
+  tasks: number;
+  subordinates: Array<{ id: string; firstName: string; lastName: string }>;
+  // Admin decisions
+  leadsAction: 'keep' | 'transfer';
+  leadsTargetUserId: string;
+  broughtLeadsAction: 'keep' | 'transfer';
+  broughtLeadsTargetUserId: string;
+  dealsAction: 'keep' | 'transfer';
+  dealsTargetUserId: string;
+  tasksAction: 'keep' | 'transfer';
+  tasksTargetUserId: string;
+  // subordinateId -> newManagerId
+  subordinateManagerMap: Record<string, string>;
+  step: 'preview' | 'confirm';
+  loading: boolean;
+}
 
 interface RecordRow { key: string; label: string; count: number; }
 interface RecordBreakdown {
@@ -239,6 +264,9 @@ export default function UsersPage() {
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [reassignTargetId, setReassignTargetId] = useState<string>('');
 
+  // Role-switch modal state
+  const [roleSwitchState, setRoleSwitchState] = useState<RoleSwitchState | null>(null);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
@@ -314,7 +342,7 @@ export default function UsersPage() {
     setModal('assign-manager');
   };
 
-  const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId(''); };
+  const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId(''); setRoleSwitchState(null); };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -386,30 +414,104 @@ export default function UsersPage() {
     }
   };
 
-  const handleQuickSwitchRole = async (u: User) => {
+  const openRoleSwitchModal = async (u: User) => {
     const isBackend = u.role === 'BACKEND_TEAM';
     const newRole = isBackend ? 'ON_FIELD_TEAM' : 'BACKEND_TEAM';
-    const oldRoleLabel = ROLE_LABELS[u.role] || u.role;
-    const newRoleLabel = ROLE_LABELS[newRole] || newRole;
+    const token = localStorage.getItem('token');
 
-    let warningMsg = `Are you sure you want to switch ${u.firstName} ${u.lastName}'s role from ${oldRoleLabel} to ${newRoleLabel}?`;
-    if (isBackend) {
-      warningMsg += `\n\nWARNING: Since they are being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
+    // Start with loading state
+    const initialState: RoleSwitchState = {
+      user: u,
+      newRole,
+      leadsAssigned: 0, broughtLeads: 0, deals: 0, tasks: 0, subordinates: [],
+      leadsAction: 'keep', leadsTargetUserId: '',
+      broughtLeadsAction: 'keep', broughtLeadsTargetUserId: '',
+      dealsAction: 'keep', dealsTargetUserId: '',
+      tasksAction: 'keep', tasksTargetUserId: '',
+      subordinateManagerMap: {},
+      step: 'preview',
+      loading: true,
+    };
+    setRoleSwitchState(initialState);
+    setModal('role-switch');
+
+    try {
+      // Fetch ownership summary and subordinates in parallel
+      const [recordsRes, subRes] = await Promise.all([
+        fetch(`/api/users/${u.id}/records`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/users?managerId=${u.id}&limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      let leadsAssigned = 0, broughtLeads = 0, deals = 0, tasks = 0;
+      if (recordsRes.ok) {
+        const rd = await recordsRes.json();
+        const biz: Array<{ key: string; count: number }> = rd.business || [];
+        leadsAssigned = biz.find(r => r.key === 'leadsAssigned')?.count ?? 0;
+        broughtLeads = biz.find(r => r.key === 'leadsBrought')?.count ?? 0;
+        deals = biz.find(r => r.key === 'deals')?.count ?? 0;
+        const tasksCreated = biz.find(r => r.key === 'tasksCreated')?.count ?? 0;
+        const tasksAssigned = biz.find(r => r.key === 'tasksAssigned')?.count ?? 0;
+        tasks = tasksCreated + tasksAssigned;
+      }
+
+      let subordinatesList: Array<{ id: string; firstName: string; lastName: string }> = [];
+      if (subRes.ok) {
+        const sd = await subRes.json();
+        subordinatesList = (sd.users || []).filter((su: User) => su.role === 'ON_FIELD_TEAM' && su.manager?.id === u.id);
+      } else {
+        // Fallback: filter from already-loaded users
+        subordinatesList = users.filter(su => su.manager?.id === u.id && su.role === 'ON_FIELD_TEAM');
+      }
+
+      setRoleSwitchState(prev => prev ? ({
+        ...prev,
+        leadsAssigned, broughtLeads, deals, tasks,
+        subordinates: subordinatesList,
+        subordinateManagerMap: Object.fromEntries(subordinatesList.map(s => [s.id, ''])),
+        loading: false,
+      }) : prev);
+    } catch {
+      setRoleSwitchState(prev => prev ? { ...prev, loading: false } : prev);
     }
+  };
 
-    if (!confirm(warningMsg)) return;
+  const handleRoleSwitchSubmit = async () => {
+    if (!roleSwitchState) return;
+    const { user: u, newRole, leadsAction, leadsTargetUserId, broughtLeadsAction, broughtLeadsTargetUserId,
+      dealsAction, dealsTargetUserId, tasksAction, tasksTargetUserId, subordinateManagerMap, subordinates } = roleSwitchState;
+
+    // Validate subordinates when demoting
+    const isDemotion = newRole === 'ON_FIELD_TEAM';
+    if (isDemotion && subordinates.length > 0) {
+      const unassigned = subordinates.filter(s => !subordinateManagerMap[s.id]);
+      if (unassigned.length > 0) {
+        alert(`Please assign a new manager for: ${unassigned.map(s => s.firstName).join(', ')}`);
+        return;
+      }
+    }
 
     setSaving(true);
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/users/${u.id}`, {
-        method: 'PATCH',
+      const subordinateReassignments = isDemotion
+        ? subordinates.map(s => ({ subordinateId: s.id, newManagerId: subordinateManagerMap[s.id] || null }))
+        : [];
+
+      const res = await fetch(`/api/users/${u.id}/role-switch`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({
+          newRole,
+          leadsAction, leadsTargetUserId: leadsAction === 'transfer' ? leadsTargetUserId : undefined,
+          broughtLeadsAction, broughtLeadsTargetUserId: broughtLeadsAction === 'transfer' ? broughtLeadsTargetUserId : undefined,
+          dealsAction, dealsTargetUserId: dealsAction === 'transfer' ? dealsTargetUserId : undefined,
+          tasksAction, tasksTargetUserId: tasksAction === 'transfer' ? tasksTargetUserId : undefined,
+          subordinateReassignments,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to switch role');
-      alert(`Successfully switched ${u.firstName}'s role to ${newRoleLabel}.`);
+      closeModal();
       fetchUsers();
     } catch (err: any) {
       alert(err.message);
@@ -696,7 +798,7 @@ export default function UsersPage() {
                                 onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
                                 onEdit={() => openEdit(u)}
                                 onAssignManager={() => openAssignManager(u)}
-                                  onSwitchRole={() => handleQuickSwitchRole(u)}
+                                  onSwitchRole={() => openRoleSwitchModal(u)}
                                   onPassword={() => openPassword(u)}
                                   onToggleActive={() => handleToggleActive(u)}
                                   onDelete={() => handleDelete(u)}
@@ -879,6 +981,238 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
+      {/* ── ROLE SWITCH MODAL ── */}
+      {modal === 'role-switch' && roleSwitchState && (() => {
+        const rs = roleSwitchState;
+        const isDemotion = rs.newRole === 'ON_FIELD_TEAM';
+        const newRoleLabel = ROLE_LABELS[rs.newRole] || rs.newRole;
+        const oldRoleLabel = ROLE_LABELS[rs.user.role] || rs.user.role;
+        // Potential managers for subordinate reassignment (Backend / Admin, not the switching user)
+        const potentialManagers = users.filter(u => u.isActive && u.id !== rs.user.id && (u.role === 'BACKEND_TEAM' || u.role === 'ADMIN'));
+        // Transfer targets for leads/deals/tasks
+        const transferTargets = users.filter(u => u.isActive && u.id !== rs.user.id);
+
+        const updateRS = (patch: Partial<RoleSwitchState>) =>
+          setRoleSwitchState(prev => prev ? { ...prev, ...patch } : prev);
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Switch Role</h2>
+                  <p className="text-sm text-gray-500">
+                    {rs.user.firstName} {rs.user.lastName}: {oldRoleLabel} → {newRoleLabel}
+                  </p>
+                </div>
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                {rs.loading ? (
+                  <div className="py-10 text-center text-gray-400 text-sm">Loading ownership summary…</div>
+                ) : rs.step === 'preview' ? (
+                  <>
+                    {/* Impact banner */}
+                    <div className={`rounded-xl p-4 border ${isDemotion ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                      <p className={`text-xs font-semibold mb-2 ${isDemotion ? 'text-amber-800' : 'text-blue-800'}`}>
+                        {isDemotion ? '⚠ Demotion — review assignments below' : '↑ Promotion to Backend Team'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {[
+                          { label: 'Leads (assigned)', count: rs.leadsAssigned },
+                          { label: 'Leads (brought)', count: rs.broughtLeads },
+                          { label: 'Deals', count: rs.deals },
+                          { label: 'Tasks', count: rs.tasks },
+                          { label: 'Subordinates', count: rs.subordinates.length },
+                        ].map(item => (
+                          <div key={item.label} className="flex justify-between bg-white rounded-lg px-3 py-2 border">
+                            <span className="text-gray-600">{item.label}</span>
+                            <span className="font-semibold text-gray-900">{item.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Leads (assigned) */}
+                    {rs.leadsAssigned > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-700">Leads assigned to them ({rs.leadsAssigned})</label>
+                        <div className="flex gap-2">
+                          <button onClick={() => updateRS({ leadsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.leadsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
+                          <button onClick={() => updateRS({ leadsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.leadsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
+                        </div>
+                        {rs.leadsAction === 'transfer' && (
+                          <select value={rs.leadsTargetUserId} onChange={e => updateRS({ leadsTargetUserId: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            <option value="">Select recipient…</option>
+                            {transferTargets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Leads (brought) */}
+                    {rs.broughtLeads > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-700">Leads brought by them ({rs.broughtLeads})</label>
+                        <div className="flex gap-2">
+                          <button onClick={() => updateRS({ broughtLeadsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.broughtLeadsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
+                          <button onClick={() => updateRS({ broughtLeadsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.broughtLeadsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
+                        </div>
+                        {rs.broughtLeadsAction === 'transfer' && (
+                          <select value={rs.broughtLeadsTargetUserId} onChange={e => updateRS({ broughtLeadsTargetUserId: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            <option value="">Select recipient…</option>
+                            {transferTargets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Deals */}
+                    {rs.deals > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-700">Deals assigned ({rs.deals})</label>
+                        <div className="flex gap-2">
+                          <button onClick={() => updateRS({ dealsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.dealsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
+                          <button onClick={() => updateRS({ dealsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.dealsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
+                        </div>
+                        {rs.dealsAction === 'transfer' && (
+                          <select value={rs.dealsTargetUserId} onChange={e => updateRS({ dealsTargetUserId: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            <option value="">Select recipient…</option>
+                            {transferTargets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tasks */}
+                    {rs.tasks > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-700">Tasks assigned ({rs.tasks})</label>
+                        <div className="flex gap-2">
+                          <button onClick={() => updateRS({ tasksAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.tasksAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
+                          <button onClick={() => updateRS({ tasksAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.tasksAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
+                        </div>
+                        {rs.tasksAction === 'transfer' && (
+                          <select value={rs.tasksTargetUserId} onChange={e => updateRS({ tasksTargetUserId: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            <option value="">Select recipient…</option>
+                            {transferTargets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Subordinates (demotion only — required) */}
+                    {isDemotion && rs.subordinates.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-semibold text-gray-700">Team members reporting to them</label>
+                          <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">Required</span>
+                        </div>
+                        <p className="text-xs text-gray-400">On Field Team members cannot be managers. Assign each a new manager.</p>
+
+                        {/* Assign all shortcut */}
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border">
+                          <span className="text-xs text-gray-600 whitespace-nowrap">Assign all to →</span>
+                          <select
+                            className="flex-1 border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            onChange={e => {
+                              if (!e.target.value) return;
+                              const newMap = { ...rs.subordinateManagerMap };
+                              rs.subordinates.forEach(s => { newMap[s.id] = e.target.value; });
+                              updateRS({ subordinateManagerMap: newMap });
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="">— Pick one for all —</option>
+                            {potentialManagers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} · {ROLE_LABELS[m.role]}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          {rs.subordinates.map(sub => (
+                            <div key={sub.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-white">
+                              <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {sub.firstName.charAt(0)}{sub.lastName?.charAt(0) || ''}
+                              </div>
+                              <span className="flex-1 text-sm font-medium text-gray-800">{sub.firstName} {sub.lastName}</span>
+                              <select
+                                value={rs.subordinateManagerMap[sub.id] || ''}
+                                onChange={e => updateRS({ subordinateManagerMap: { ...rs.subordinateManagerMap, [sub.id]: e.target.value } })}
+                                className={`border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 ${ !rs.subordinateManagerMap[sub.id] ? 'border-red-300 bg-red-50' : 'border-gray-300' }`}
+                              >
+                                <option value="">New manager…</option>
+                                {potentialManagers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {rs.leadsAssigned === 0 && rs.broughtLeads === 0 && rs.deals === 0 && rs.tasks === 0 && rs.subordinates.length === 0 && (
+                      <div className="py-6 text-center text-sm text-gray-400">
+                        This user owns no leads, deals, tasks, or subordinates.<br />
+                        <span className="font-medium text-gray-600">The role switch will happen immediately.</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Confirm step */
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-700">Ready to switch <span className="text-blue-600">{rs.user.firstName} {rs.user.lastName}</span> to {newRoleLabel}.</p>
+                    <div className="rounded-xl border divide-y divide-gray-100 text-sm">
+                      {rs.leadsAssigned > 0 && <div className="flex justify-between px-4 py-2.5"><span className="text-gray-600">Leads (assigned, {rs.leadsAssigned})</span><span className="font-medium text-gray-800">{rs.leadsAction === 'keep' ? 'Kept with them' : `→ ${transferTargets.find(t => t.id === rs.leadsTargetUserId)?.firstName || '?'}`}</span></div>}
+                      {rs.broughtLeads > 0 && <div className="flex justify-between px-4 py-2.5"><span className="text-gray-600">Leads (brought, {rs.broughtLeads})</span><span className="font-medium text-gray-800">{rs.broughtLeadsAction === 'keep' ? 'Kept with them' : `→ ${transferTargets.find(t => t.id === rs.broughtLeadsTargetUserId)?.firstName || '?'}`}</span></div>}
+                      {rs.deals > 0 && <div className="flex justify-between px-4 py-2.5"><span className="text-gray-600">Deals ({rs.deals})</span><span className="font-medium text-gray-800">{rs.dealsAction === 'keep' ? 'Kept with them' : `→ ${transferTargets.find(t => t.id === rs.dealsTargetUserId)?.firstName || '?'}`}</span></div>}
+                      {rs.tasks > 0 && <div className="flex justify-between px-4 py-2.5"><span className="text-gray-600">Tasks ({rs.tasks})</span><span className="font-medium text-gray-800">{rs.tasksAction === 'keep' ? 'Kept with them' : `→ ${transferTargets.find(t => t.id === rs.tasksTargetUserId)?.firstName || '?'}`}</span></div>}
+                      {isDemotion && rs.subordinates.length > 0 && rs.subordinates.map(sub => (
+                        <div key={sub.id} className="flex justify-between px-4 py-2.5">
+                          <span className="text-gray-600">{sub.firstName}'s manager</span>
+                          <span className="font-medium text-gray-800">→ {potentialManagers.find(m => m.id === rs.subordinateManagerMap[sub.id])?.firstName || '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
+                <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
+                  Cancel
+                </button>
+                <div className="flex gap-2">
+                  {rs.step === 'confirm' && (
+                    <button onClick={() => updateRS({ step: 'preview' })} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
+                      ← Back
+                    </button>
+                  )}
+                  {rs.step === 'preview' ? (
+                    <button
+                      onClick={() => updateRS({ step: 'confirm' })}
+                      disabled={rs.loading}
+                      className="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Review & Confirm →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRoleSwitchSubmit}
+                      disabled={saving}
+                      className="px-5 py-2 text-sm rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Switching…' : `Confirm & Switch to ${newRoleLabel}`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── EX-EMPLOYEE RECORDS / ARCHIVE MODAL ── */}
       {modal === 'ex-records' && selectedUser && (
