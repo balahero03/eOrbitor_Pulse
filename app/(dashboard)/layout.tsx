@@ -45,6 +45,8 @@ interface AppNotification {
   message: string;
   isRead: boolean;
   createdAt: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -249,6 +251,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
+  // Smart notification click: mark read + navigate to the correct section
+  const handleNotifClick = async (n: AppNotification) => {
+    // Always mark as read first
+    if (!n.isRead) await markRead(n.id);
+    setNotifOpen(false);
+
+    const type = n.type;
+    const entityType = n.relatedEntityType;
+    const entityId = n.relatedEntityId;
+
+    let destination = '';
+    let destLabel = '';
+
+    if (type === 'APPROVAL_REQUESTED') {
+      destination = '/approvals';
+      destLabel = 'Approvals';
+    } else if (type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
+      if (entityType === 'LEAD' && entityId) {
+        destination = `/leads/${entityId}`;
+        destLabel = 'Lead details';
+      } else if (entityType === 'ORDER' && entityId) {
+        destination = `/orders/${entityId}`;
+        destLabel = 'Order details';
+      } else if (entityType === 'CUSTOMER' && entityId) {
+        destination = `/customers/${entityId}`;
+        destLabel = 'Customer details';
+      } else {
+        destination = '/approvals';
+        destLabel = 'Approvals';
+      }
+    } else if (type === 'TASK_ASSIGNED' || type === 'TASK_DUE') {
+      destination = '/tasks';
+      destLabel = 'Tasks';
+    } else if (type === 'USER_INACTIVE') {
+      destination = entityId ? `/users/${entityId}` : '/users';
+      destLabel = 'User profile';
+    } else if (type === 'LEAD_ASSIGNED') {
+      destination = entityId ? `/leads/${entityId}` : '/leads';
+      destLabel = 'Lead details';
+    } else if (type === 'FOLLOW_UP_REMINDER') {
+      destination = '/followups';
+      destLabel = 'Follow-ups';
+    } else if (type === 'QUOTATION_APPROVED') {
+      destination = entityId ? `/leads/${entityId}` : '/leads';
+      destLabel = 'Lead / Quotation';
+    } else if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED') {
+      destination = entityId ? `/orders/${entityId}` : '/orders';
+      destLabel = 'Order details';
+    } else if (type === 'DEAL_UPDATED') {
+      destination = entityId ? `/leads/${entityId}` : '/leads';
+      destLabel = 'Lead / Deal';
+    } else {
+      destination = '/approvals';
+      destLabel = 'Approvals';
+    }
+
+    // Navigate first, then show the highlight banner on the new page
+    router.push(destination);
+    // Slight delay so the new page has started mounting before banner shows
+    setTimeout(() => showBanner(n.title, n.message, destLabel), 120);
+  };
+
   const markAllRead = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -335,6 +399,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       setDesktopCollapsed((c) => !c);
     }
+  };
+
+  // ── notification highlight toast state ──────────────────────────────────
+  const [notifBanner, setNotifBanner] = useState<{
+    active: boolean;
+    exiting: boolean;
+    title: string;
+    message: string;
+    destination: string;
+  }>({ active: false, exiting: false, title: '', message: '', destination: '' });
+
+  const showBanner = (title: string, message: string, destination: string) => {
+    setNotifBanner({ active: true, exiting: false, title, message, destination });
+    // Begin exit animation 300ms before clearing
+    setTimeout(() => setNotifBanner(b => ({ ...b, exiting: true })), 2700);
+    setTimeout(() => setNotifBanner({ active: false, exiting: false, title: '', message: '', destination: '' }), 3000);
   };
 
   // Keep the loading screen up until the access-hours check has actually
@@ -504,16 +584,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     ) : notifications.map(n => (
                       <button
                         key={n.id}
-                        onClick={() => markRead(n.id)}
-                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-blue-50' : ''}`}
+                        onClick={() => handleNotifClick(n)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
+                          !n.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''
+                        }`}
                       >
                         <div className="flex items-start gap-2">
-                          <span className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: n.isRead ? '#d1d5db' : '#3b82f6', marginTop: 6 }} />
-                          <div className="min-w-0">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: n.isRead ? '#d1d5db' : '#3b82f6' }} />
+                          <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold text-gray-800 truncate">{n.title}</p>
                             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
                             <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                           </div>
+                          <svg className="w-3 h-3 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
                         </div>
                       </button>
                     ))}
@@ -532,7 +617,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className={`flex-1 overflow-auto relative ${notifBanner.active ? 'notif-main-glow' : ''}`}>
+
+          {/* ── Notification highlight banner ───────────────────────── */}
+          {notifBanner.active && (
+            <div
+              className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 pointer-events-none ${
+                notifBanner.exiting ? 'notif-toast-exit' : 'notif-toast-enter'
+              }`}
+            >
+              <div className="pointer-events-auto bg-white border border-blue-100 rounded-2xl shadow-xl overflow-hidden">
+                {/* Progress drain bar */}
+                <div className="h-0.5 bg-blue-50">
+                  <div className="h-full bg-blue-500 notif-drain" />
+                </div>
+                <div className="flex items-start gap-3 px-4 py-3">
+                  {/* Bell icon */}
+                  <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-blue-700 mb-0.5">Opened from notification</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">{notifBanner.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{notifBanner.message}</p>
+                  </div>
+                  {/* Destination chip */}
+                  <div className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-1">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                    {notifBanner.destination}
+                  </div>
+                  {/* Dismiss */}
+                  <button
+                    onClick={() => setNotifBanner(b => ({ ...b, exiting: true }))}
+                    className="flex-shrink-0 ml-1 text-gray-300 hover:text-gray-500 transition-colors rounded-full p-0.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {children}
         </main>
       </div>
