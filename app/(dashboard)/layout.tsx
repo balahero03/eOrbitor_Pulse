@@ -371,7 +371,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-1.5 py-0.5 rounded">Pulse</span>
           </>
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">eO</div>
+          <Image src="/icon.png" alt="eOrbitor" width={32} height={32} className="w-8 h-8 rounded-lg object-contain" priority />
         )}
       </div>
 
