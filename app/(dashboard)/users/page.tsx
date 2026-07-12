@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
 import { canManageUser, roleRank } from '@/lib/roles';
@@ -54,6 +54,156 @@ interface RecordBreakdown {
   canHardDelete: boolean;
 }
 
+function UserActionMenu({
+  user,
+  currentUser,
+  canEdit,
+  canManageTarget,
+  isSelf,
+  isOpen,
+  onOpenToggle,
+  onEdit,
+  onAssignManager,
+  onSwitchRole,
+  onPassword,
+  onToggleActive,
+  onDelete,
+}: {
+  user: User;
+  currentUser: any;
+  canEdit: boolean;
+  canManageTarget: (u: User) => boolean;
+  isSelf: (u: User) => boolean;
+  isOpen: boolean;
+  onOpenToggle: (open: boolean) => void;
+  onEdit: () => void;
+  onAssignManager: () => void;
+  onSwitchRole: () => void;
+  onPassword: () => void;
+  onToggleActive: () => void;
+  onDelete: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenToggle(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const hasEdit = canEdit && (canManageTarget(user) || isSelf(user));
+  const hasAssignMgr = canEdit && canManageTarget(user) && user.role === 'ON_FIELD_TEAM';
+  const hasSwitchRole = canEdit && canManageTarget(user) && (user.role === 'BACKEND_TEAM' || user.role === 'ON_FIELD_TEAM');
+  const hasPassword = canEdit && (canManageTarget(user) || isSelf(user));
+  const hasToggleActive = canEdit && canManageTarget(user);
+  const hasDelete = canEdit && canManageTarget(user);
+
+  if (!hasEdit && !hasAssignMgr && !hasSwitchRole && !hasPassword && !hasToggleActive && !hasDelete) {
+    return <span className="text-gray-300">—</span>;
+  }
+
+  return (
+    <div className="relative inline-block text-left" ref={ref}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenToggle(!isOpen);
+        }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm focus:outline-none"
+        title="Manage User"
+      >
+        <span>Manage</span>
+        <svg className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 text-left">
+          {hasEdit && (
+            <button
+              onClick={() => { onEdit(); onOpenToggle(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Edit Details
+            </button>
+          )}
+          
+          {hasAssignMgr && (
+            <button
+              onClick={() => { onAssignManager(); onOpenToggle(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Assign Manager
+            </button>
+          )}
+
+          {hasSwitchRole && (
+            <button
+              onClick={() => { onSwitchRole(); onOpenToggle(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Switch Role
+            </button>
+          )}
+
+          {hasPassword && (
+            <button
+              onClick={() => { onPassword(); onOpenToggle(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <KeyIcon2 className="w-3.5 h-3.5 text-gray-400" />
+              Change Password
+            </button>
+          )}
+
+          {(hasToggleActive || hasDelete) && <div className="border-t border-gray-100 my-1" />}
+
+          {hasToggleActive && (
+            <button
+              onClick={() => { onToggleActive(); onOpenToggle(false); }}
+              className={`w-full text-left px-4 py-2 text-xs flex items-center gap-2 ${
+                user.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              {user.isActive ? 'Deactivate User' : 'Activate User'}
+            </button>
+          )}
+
+          {hasDelete && (
+            <button
+              onClick={() => { onDelete(); onOpenToggle(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
+            >
+              <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete User
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
@@ -61,6 +211,7 @@ export default function UsersPage() {
   const [managers, setManagers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeMenuUserId, setActiveMenuUserId] = useState<string | null>(null);
 
   // Modal state
   const [modal, setModal] = useState<ModalMode | null>(null);
@@ -197,11 +348,11 @@ export default function UsersPage() {
       const oldRoleLabel = ROLE_LABELS[selectedUser.role] || selectedUser.role;
       const newRoleLabel = ROLE_LABELS[form.role] || form.role;
       let warningMsg = `Are you sure you want to change ${selectedUser.firstName}'s role from ${oldRoleLabel} to ${newRoleLabel}?`;
-      
+
       if (selectedUser.role === 'BACKEND_TEAM' && form.role === 'ON_FIELD_TEAM') {
         warningMsg += `\n\nWARNING: Since they are being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
       }
-      
+
       if (!confirm(warningMsg)) return;
     }
 
@@ -480,7 +631,7 @@ export default function UsersPage() {
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</h2>
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
                   <table className="w-full table-fixed text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
@@ -494,103 +645,66 @@ export default function UsersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {list.map(u => (
-                        <tr key={u.id} className={`hover:bg-gray-50 ${!u.isActive ? 'opacity-50' : ''}`}>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
+                       {list.map(u => {
+                        const isMenuOpen = activeMenuUserId === u.id;
+                        return (
+                          <tr key={u.id} className={`transition-all duration-150 ${!u.isActive ? 'opacity-50' : ''} ${isMenuOpen ? 'bg-blue-50/50 hover:bg-blue-50 border-l-2 border-blue-500 shadow-sm' : 'hover:bg-gray-50'}`}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
                                   u.role === 'ADMIN' ? 'bg-red-500' :
                                     u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
-                                }`}>
-                                {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
+                                  }`}>
+                                  {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
+                                  {u.id === currentUser?.id && <p className="text-xs text-blue-500">You</p>}
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
-                                {u.id === currentUser?.id && <p className="text-xs text-blue-500">You</p>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 truncate" title={u.email}>{u.email}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
-                              {ROLE_LABELS[u.role] || u.role}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">
-                            {u.manager ? (
-                              <span className="flex items-center gap-1 min-w-0" title={`${u.manager.firstName} ${u.manager.lastName}`}>
-                                <span className="w-2 h-2 rounded-full bg-blue-400 inline-block flex-shrink-0" />
-                                <span className="truncate">{u.manager.firstName} {u.manager.lastName}</span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 truncate" title={u.email}>{u.email}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                                {ROLE_LABELS[u.role] || u.role}
                               </span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {u.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {canEdit && (canManageTarget(u) || isSelf(u)) && (
-                                <button
-                                  onClick={() => openEdit(u)}
-                                  className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
-                                >
-                                  Edit
-                                </button>
+                            </td>
+                            <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
+                            <td className="px-4 py-3 text-gray-500 text-xs">
+                              {u.manager ? (
+                                <span className="flex items-center gap-1 min-w-0" title={`${u.manager.firstName} ${u.manager.lastName}`}>
+                                  <span className="w-2 h-2 rounded-full bg-blue-400 inline-block flex-shrink-0" />
+                                  <span className="truncate">{u.manager.firstName} {u.manager.lastName}</span>
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">—</span>
                               )}
-                              {canEdit && canManageTarget(u) && u.role === 'ON_FIELD_TEAM' && (
-                                <button
-                                  onClick={() => openAssignManager(u)}
-                                  className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                                >
-                                  Assign Manager
-                                </button>
-                              )}
-                              {canEdit && canManageTarget(u) && (u.role === 'BACKEND_TEAM' || u.role === 'ON_FIELD_TEAM') && (
-                                <button
-                                  onClick={() => handleQuickSwitchRole(u)}
-                                  className="px-2 py-1 text-xs rounded border border-amber-200 text-amber-600 hover:bg-amber-50"
-                                >
-                                  Switch Role
-                                </button>
-                              )}
-                              {canEdit && (canManageTarget(u) || isSelf(u)) && (
-                                <button
-                                  onClick={() => openPassword(u)}
-                                  className="px-2 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                >
-                                  Password
-                                </button>
-                              )}
-                              {canEdit && canManageTarget(u) && (
-                                <button
-                                  onClick={() => handleToggleActive(u)}
-                                  disabled={u.id === currentUser?.id}
-                                  className={`px-2 py-1 text-xs rounded border disabled:opacity-30 ${u.isActive
-                                      ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                      : 'border-green-200 text-green-600 hover:bg-green-50'
-                                    }`}
-                                >
-                                  {u.isActive ? 'Deactivate' : 'Activate'}
-                                </button>
-                              )}
-                              {canEdit && canManageTarget(u) && (
-                                <button
-                                  onClick={() => handleDelete(u)}
-                                  disabled={u.id === currentUser?.id}
-                                  className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-30"
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {u.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <UserActionMenu
+                                user={u}
+                                currentUser={currentUser}
+                                canEdit={canEdit}
+                                canManageTarget={canManageTarget}
+                                isSelf={isSelf}
+                                isOpen={isMenuOpen}
+                                onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
+                                onEdit={() => openEdit(u)}
+                                onAssignManager={() => openAssignManager(u)}
+                                  onSwitchRole={() => handleQuickSwitchRole(u)}
+                                  onPassword={() => openPassword(u)}
+                                  onToggleActive={() => handleToggleActive(u)}
+                                  onDelete={() => handleDelete(u)}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
