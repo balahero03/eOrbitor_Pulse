@@ -56,6 +56,19 @@ export default function CustomerDetailPage() {
   const [requesting, setRequesting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
 
+  // Current user for role-based gating
+  const [currentUserRole, setCurrentUserRole] = useState('');
+  const isAdminUser = ['SUPER_ADMIN', 'ADMIN'].includes(currentUserRole);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => { if (u?.role) setCurrentUserRole(u.role); })
+      .catch(() => {});
+  }, []);
+
   // Edit state
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,8 +157,6 @@ export default function CustomerDetailPage() {
   };
 
   const handleDeleteRequest = async () => {
-    if (!deleteReason.trim()) { alert('Please enter a reason'); return; }
-    // The Customer record's id (set as linkedCustomerId in fetchCustomerData).
     const customerId = lead?.linkedCustomerId;
     if (!customerId) {
       alert('This customer is not linked to a customer record yet and cannot be deleted.');
@@ -154,13 +165,26 @@ export default function CustomerDetailPage() {
     setRequesting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/approval-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ entityId: customerId, type: 'CUSTOMER_DELETE', reason: deleteReason }),
-      });
-      if (res.ok) { setDeleteSuccess(true); }
-      else { const e = await res.json(); alert(e.message || 'Failed to submit request'); }
+
+      if (isAdminUser) {
+        // Admins soft-delete customers directly.
+        const res = await fetch(`/api/customers/${customerId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) { setDeleteSuccess(true); }
+        else { const e = await res.json(); alert(e.message || 'Failed to delete customer'); }
+      } else {
+        // Non-admins submit an approval request.
+        if (!deleteReason.trim()) { alert('Please enter a reason'); setRequesting(false); return; }
+        const res = await fetch('/api/approval-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ entityId: customerId, type: 'CUSTOMER_DELETE', reason: deleteReason }),
+        });
+        if (res.ok) { setDeleteSuccess(true); }
+        else { const e = await res.json(); alert(e.message || 'Failed to submit request'); }
+      }
     } catch { alert('An error occurred'); }
     finally { setRequesting(false); }
   };
@@ -567,12 +591,14 @@ export default function CustomerDetailPage() {
         </div>
       )}
 
-      {/* ── Delete Approval Modal ──────────────────────────────────── */}
+      {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Request Customer Deletion</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                {isAdminUser ? 'Delete Customer' : 'Request Customer Deletion'}
+              </h2>
               <button onClick={() => { setShowDeleteModal(false); setDeleteReason(''); setDeleteSuccess(false); }}
                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
             </div>
@@ -580,21 +606,47 @@ export default function CustomerDetailPage() {
               {deleteSuccess ? (
                 <div className="text-center py-6">
                   <SuccessIcon className="w-12 h-12 mx-auto mb-3" />
-                  <p className="text-lg font-bold text-gray-900">Request Submitted</p>
-                  <p className="text-sm text-gray-500 mt-2">An admin will review and approve the deletion.</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {isAdminUser ? 'Customer Deleted' : 'Request Submitted'}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {isAdminUser
+                      ? 'The customer record has been deleted.'
+                      : 'An admin will review and approve the deletion.'}
+                  </p>
                   <button onClick={() => router.push('/customers')}
                     className="mt-5 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                     Back to Customers
                   </button>
                 </div>
+              ) : isAdminUser ? (
+                <>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <strong>Warning:</strong> You are about to permanently delete this customer. This cannot be undone.
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg text-sm">
+                    <p className="font-medium text-gray-700">Customer: {lead?.company}</p>
+                    <p className="text-gray-500">Contact: {lead?.name}{lead?.gstNumber ? ` · ${lead.gstNumber}` : ''}</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={handleDeleteRequest} disabled={requesting}
+                      className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                      {requesting ? 'Deleting...' : 'Delete Customer'}
+                    </button>
+                    <button onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                      Cancel
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                     <strong>Note:</strong> Deleting a customer requires admin approval. Your request will be sent to the approvals queue.
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg text-sm">
-                    <p className="font-medium text-gray-700">Customer: {lead.company}</p>
-                    <p className="text-gray-500">Contact: {lead.name}{lead.gstNumber ? ` · ${lead.gstNumber}` : ''}</p>
+                    <p className="font-medium text-gray-700">Customer: {lead?.company}</p>
+                    <p className="text-gray-500">Contact: {lead?.name}{lead?.gstNumber ? ` · ${lead.gstNumber}` : ''}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Reason for deletion *</label>

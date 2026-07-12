@@ -753,6 +753,7 @@ function SpancoKanban({
   onClosureClick,
   onRequestReopen,
   onShowConvertModal,
+  isAdmin,
 }: {
   lead: LeadDetail;
   canEdit: boolean;
@@ -761,6 +762,7 @@ function SpancoKanban({
   onClosureClick: () => void;
   onRequestReopen?: () => void;
   onShowConvertModal?: () => void;
+  isAdmin?: boolean;
 }) {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -917,12 +919,15 @@ function SpancoKanban({
       {isClosed && (
         <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2">
           <span className="text-xs text-amber-700 font-medium inline-flex items-center gap-1.5">
-            <LockIcon className="w-3.5 h-3.5" /> This lead is closed and cannot be moved. Request admin approval to re-open.
+            <LockIcon className="w-3.5 h-3.5" />
+            {isAdmin
+              ? 'This lead is closed. As admin you can re-open it directly.'
+              : 'This lead is closed and cannot be moved. Request admin approval to re-open.'}
           </span>
           {onRequestReopen && (
             <button onClick={onRequestReopen}
               className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 flex-shrink-0">
-              Request Re-open
+              {isAdmin ? 'Re-open Lead' : 'Request Re-open'}
             </button>
           )}
         </div>
@@ -2113,27 +2118,46 @@ export default function LeadDetailPage() {
   };
 
   const handleReopenRequest = async () => {
-    if (!reopenReason.trim()) { alert('Please provide a reason for re-opening.'); return; }
     setRequestingReopen(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/approval-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          type: 'LEAD_REOPEN',
-          entityId: id,
-          reason: reopenReason,
-        }),
-      });
-      if (res.ok) {
-        alert('Re-open request submitted. An admin will review and approve.');
-        setShowReopenModal(false);
-        setReopenReason('');
-        router.push('/leads');
+
+      if (isAdminUser) {
+        // Admins reopen leads directly — no approval needed.
+        const res = await fetch(`/api/leads/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ status: 'SUSPECT', deletedAt: null }),
+        });
+        if (res.ok) {
+          alert('Lead re-opened successfully.');
+          setShowReopenModal(false);
+          fetchLead();
+        } else {
+          const e = await res.json();
+          alert(e.message || 'Failed to re-open lead');
+        }
       } else {
-        const e = await res.json();
-        alert(e.message || 'Failed to submit request');
+        // Non-admins must request approval.
+        if (!reopenReason.trim()) { alert('Please provide a reason for re-opening.'); setRequestingReopen(false); return; }
+        const res = await fetch('/api/approval-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            type: 'LEAD_REOPEN',
+            entityId: id,
+            reason: reopenReason,
+          }),
+        });
+        if (res.ok) {
+          alert('Re-open request submitted. An admin will review and approve.');
+          setShowReopenModal(false);
+          setReopenReason('');
+          router.push('/leads');
+        } else {
+          const e = await res.json();
+          alert(e.message || 'Failed to submit request');
+        }
       }
     } catch {
       alert('An error occurred.');
@@ -2183,8 +2207,11 @@ export default function LeadDetailPage() {
     finally { setConverting(false); }
   };
 
+  const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
+
   const handleDeleteRequest = async () => {
-    if (!deleteReason.trim()) {
+    // Admins don't need a reason — they delete directly.
+    if (!isAdminUser && !deleteReason.trim()) {
       alert('Please provide a reason for deletion.');
       return;
     }
@@ -2194,15 +2221,19 @@ export default function LeadDetailPage() {
       const res = await fetch(`/api/leads/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reason: deleteReason }),
+        body: JSON.stringify({ reason: deleteReason || 'Admin deletion' }),
       });
       if (res.ok) {
-        const data = await res.json();
-        alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}\n\nAn admin will review your request.`);
+        if (isAdminUser) {
+          alert('Lead deleted successfully.');
+        } else {
+          const data = await res.json();
+          alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}\n\nAn admin will review your request.`);
+        }
         router.push('/leads');
       } else {
         const e = await res.json();
-        alert(e.message || 'Failed to submit deletion request');
+        alert(e.message || 'Failed to delete lead');
       }
     } catch (err: any) {
       alert(`An error occurred: ${err.message || 'Unknown error'}`);
@@ -2298,8 +2329,18 @@ export default function LeadDetailPage() {
           onStageChange={handleStageChange}
           changing={stageChanging}
           onClosureClick={() => setShowClosureModal(true)}
-          onRequestReopen={() => setShowReopenModal(true)}
+          onRequestReopen={() => {
+            if (isAdminUser) {
+              // Admins get a quick confirm instead of a modal
+              if (confirm('Re-open this lead? It will return to the Suspect stage.')) {
+                handleReopenRequest();
+              }
+            } else {
+              setShowReopenModal(true);
+            }
+          }}
           onShowConvertModal={() => setShowConvertModal(true)}
+          isAdmin={isAdminUser}
         />
       </div>
 
@@ -2865,10 +2906,19 @@ export default function LeadDetailPage() {
             {/* Actions */}
             <div className="space-y-2">
 
-              {canEdit && !isClosed && (
-                <button onClick={() => setShowDeleteModal(true)}
+            {canEdit && !isClosed && (
+                <button onClick={() => {
+                  if (isAdminUser) {
+                    // Admins delete immediately — no approval modal needed
+                    if (confirm('Are you sure you want to permanently delete this lead? This action cannot be undone.')) {
+                      setShowDeleteModal(true);
+                    }
+                  } else {
+                    setShowDeleteModal(true);
+                  }
+                }}
                   className="w-full py-2 px-4 text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50">
-                  Request Deletion
+                  {isAdminUser ? 'Delete Lead' : 'Request Deletion'}
                 </button>
               )}
             </div>
@@ -3310,7 +3360,7 @@ export default function LeadDetailPage() {
         </div>
       )}
 
-      {showReopenModal && (
+      {showReopenModal && !isAdminUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Re-open</h2>
@@ -3341,15 +3391,25 @@ export default function LeadDetailPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-            <h2 className="text-lg font-bold mb-3 text-red-600">Request Lead Deletion</h2>
-            <p className="text-sm text-gray-600 mb-3">Provide a reason for deletion. An admin will review and approve this request.</p>
-            <textarea
-              value={deleteReason}
-              onChange={e => setDeleteReason(e.target.value)}
-              placeholder="Reason for deletion (required)…"
-              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 resize-none"
-            />
-            <div className="flex gap-3">
+            <h2 className="text-lg font-bold mb-3 text-red-600">
+              {isAdminUser ? 'Delete Lead' : 'Request Lead Deletion'}
+            </h2>
+            {isAdminUser ? (
+              <p className="text-sm text-gray-600 mb-3">
+                You are about to permanently delete this lead. This action cannot be undone.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">Provide a reason for deletion. An admin will review and approve this request.</p>
+                <textarea
+                  value={deleteReason}
+                  onChange={e => setDeleteReason(e.target.value)}
+                  placeholder="Reason for deletion (required)…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 resize-none"
+                />
+              </>
+            )}
+            <div className="flex gap-3 mt-2">
               <button
                 onClick={() => { setShowDeleteModal(false); setDeleteReason(''); }}
                 className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50"
@@ -3358,10 +3418,10 @@ export default function LeadDetailPage() {
               </button>
               <button
                 onClick={handleDeleteRequest}
-                disabled={deleting || !deleteReason.trim()}
+                disabled={deleting || (!isAdminUser && !deleteReason.trim())}
                 className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50 hover:bg-red-700"
               >
-                {deleting ? 'Submitting…' : 'Submit for Approval'}
+                {deleting ? (isAdminUser ? 'Deleting…' : 'Submitting…') : (isAdminUser ? 'Delete' : 'Submit for Approval')}
               </button>
             </div>
           </div>

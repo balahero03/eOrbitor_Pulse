@@ -114,3 +114,24 @@ export function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json(updated);
   })(req);
 }
+
+export function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return withAuth(async (_req: NextRequest, user: AuthUser) => {
+    const { id } = await ctx.params;
+
+    // Only admins can delete customers directly.
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+      return NextResponse.json({ error: 'Only admins can delete customers directly' }, { status: 403 });
+    }
+
+    const existing = await prisma.customer.findFirst({ where: { id, deletedAt: null } });
+    if (!existing) throw new NotFoundError('Customer');
+
+    await prisma.customer.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    return NextResponse.json({ message: 'Customer deleted successfully' });
+  })(req);
+}

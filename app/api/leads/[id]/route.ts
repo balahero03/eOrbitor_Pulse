@@ -155,6 +155,8 @@ export async function PATCH(
   }
 }
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -171,6 +173,19 @@ export async function DELETE(
     const body = await req.json().catch(() => ({}));
     const { reason } = body;
 
+    // Admins (SUPER_ADMIN / ADMIN) can delete leads immediately — no approval needed.
+    if (ADMIN_ROLES.includes(decoded.role)) {
+      const lead = await prisma.lead.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      return NextResponse.json({
+        message: 'Lead deleted successfully',
+        lead: { id: lead.id, name: lead.name },
+      }, { status: 200 });
+    }
+
+    // Non-admins must go through the approval workflow.
     const approvalRequest = await prisma.approvalRequest.create({
       data: {
         type: 'LEAD_DELETE',

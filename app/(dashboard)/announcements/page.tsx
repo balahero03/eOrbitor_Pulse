@@ -182,33 +182,33 @@ export default function AnnouncementsPage() {
           announcements.map(ann => (
             <div
               key={ann.id}
-              className={`card p-6 border-l-4 ${ann.priority === 'URGENT'
+              className={`card p-5 border-l-4 ${ann.priority === 'URGENT'
                   ? 'border-l-red-500 bg-red-50'
                   : ann.priority === 'NORMAL'
                     ? 'border-l-blue-500 bg-blue-50'
                     : 'border-l-gray-500 bg-gray-50'
                 }`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">{ann.title}</h2>
-                  <p className="text-sm text-gray-600 mt-1">
+              <div className="flex items-start justify-between mb-2 gap-3">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-semibold text-gray-900">{ann.title}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
                     By {ann.createdBy.firstName} {ann.createdBy.lastName}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${ann.isPublished
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${ann.isPublished
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-200 text-gray-700'
                       }`}
                   >
                     {ann.isPublished
-                      ? <span className="inline-flex items-center gap-1"><AnnouncementIcon className="w-3.5 h-3.5" color="text-green-600" /> Published</span>
-                      : <span className="inline-flex items-center gap-1"><ClipboardIcon className="w-3.5 h-3.5" /> Draft</span>}
+                      ? <span className="inline-flex items-center gap-1"><AnnouncementIcon className="w-3 h-3" color="text-green-600" /> Published</span>
+                      : <span className="inline-flex items-center gap-1"><ClipboardIcon className="w-3 h-3" /> Draft</span>}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${ann.priority === 'URGENT'
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${ann.priority === 'URGENT'
                         ? 'bg-red-100 text-red-700'
                         : ann.priority === 'NORMAL'
                           ? 'bg-blue-100 text-blue-700'
@@ -220,7 +220,7 @@ export default function AnnouncementsPage() {
                 </div>
               </div>
 
-              <p className="text-gray-700 mb-4">{ann.content}</p>
+              <p className="text-sm text-gray-600 mb-4 leading-relaxed">{ann.content}</p>
 
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <div>

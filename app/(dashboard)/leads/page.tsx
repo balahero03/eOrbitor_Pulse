@@ -66,12 +66,18 @@ function getStatusColor(status: string) {
 function ActionMenu({
   lead,
   onDelete,
+  userRole,
 }: {
   lead: Lead;
   onDelete: () => void;
+  userRole: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // ON_FIELD_TEAM cannot initiate any deletion — hide menu entirely
+  const canRequestDelete = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(userRole);
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -82,6 +88,8 @@ function ActionMenu({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  if (!canRequestDelete) return null;
 
   return (
     <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
@@ -103,7 +111,7 @@ function ActionMenu({
             onClick={() => { onDelete(); setOpen(false); }}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
           >
-            Delete
+            {isAdmin ? 'Delete' : 'Request Deletion'}
           </button>
         </div>
       )}
@@ -133,12 +141,22 @@ export default function LeadsPage() {
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<User[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [applied, setApplied] = useState({ ...EMPTY_FILTERS });
 
-
   const activeFilterCount = Object.values(applied).filter(Boolean).length;
+
+  // Fetch the logged-in user's profile so we can gate role-sensitive actions
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => { if (u) setCurrentUser(u); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -185,25 +203,34 @@ export default function LeadsPage() {
 
   const setF = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value }));
 
+  const isAdmin = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Submit this lead for deletion approval?')) return;
+    const confirmMsg = isAdmin
+      ? 'Are you sure you want to permanently delete this lead? This cannot be undone.'
+      : 'Submit this lead for deletion approval?';
+    if (!confirm(confirmMsg)) return;
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/leads/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reason: 'User requested deletion' }),
+        body: JSON.stringify({ reason: 'Deleted by admin' }),
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}`);
+        if (isAdmin) {
+          alert('Lead deleted successfully.');
+        } else {
+          alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}`);
+        }
         fetchLeads();
       } else {
         const err = await res.json().catch(() => ({}));
         alert(`Failed: ${err.message || 'Unknown error'}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message || 'Failed to submit deletion request'}`);
+      alert(`Error: ${err.message || 'Failed'}`);
     }
   };
 
@@ -595,6 +622,7 @@ export default function LeadsPage() {
                         <ActionMenu
                           lead={lead}
                           onDelete={() => handleDelete(lead.id)}
+                          userRole={currentUser?.role || ''}
                         />
                       </td>
                     </tr>
