@@ -37,11 +37,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const user = verifyToken(token);
+  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const existing = await prisma.followUp.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ message: 'Follow-up not found' }, { status: 404 });
+  }
+
+  const isCreator = existing.createdById === user.id;
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+  if (!isCreator && !isAdmin) {
+    return NextResponse.json({ message: 'Only the creator or an admin can edit this follow-up' }, { status: 403 });
+  }
+
   const body = await req.json();
   const { type, scheduledDate, actualDate, durationMinutes, notes, outcome, nextAction } = body;
 
@@ -68,11 +79,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const user = verifyToken(token);
+  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const existing = await prisma.followUp.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ message: 'Follow-up not found' }, { status: 404 });
+  }
+
+  const isCreator = existing.createdById === user.id;
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+  if (!isCreator && !isAdmin) {
+    return NextResponse.json({ message: 'Only the creator or an admin can delete this follow-up' }, { status: 403 });
+  }
+
   await prisma.followUp.delete({ where: { id } });
 
   return NextResponse.json({ message: 'Follow-up deleted' });

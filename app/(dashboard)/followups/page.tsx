@@ -37,6 +37,7 @@ const tomorrowStr = () => { const d = new Date(); d.setDate(d.getDate() + 1); re
 const weekEndStr = () => { const d = new Date(); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; };
 
 export default function FollowUpsPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -119,6 +120,14 @@ export default function FollowUpsPage() {
 
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
+  useEffect(() => {
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => setCurrentUser(u));
+  }, []);
+
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this follow-up?')) return;
     const res = await fetch(`/api/followups/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
@@ -143,10 +152,10 @@ export default function FollowUpsPage() {
           <p className={`text-xs font-bold mb-1 ${today ? 'text-blue-700' : 'text-gray-600'}`}>{d}</p>
           <div className="space-y-0.5">
             {fups.slice(0, 2).map(f => (
-              <div key={f.id} title={`${f.deal.customer.companyName} — ${fmtTime(f.scheduledDate)}`}
-                className={`text-[10px] px-1 py-0.5 rounded truncate ${isOverdue(f.scheduledDate, !!f.actualDate) ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                <span className="inline-flex items-center gap-1"><FollowUpIcon type={f.type} className="w-3 h-3" /> {f.deal.customer.companyName}</span>
-              </div>
+              <Link key={f.id} href={`/followups/${f.id}`} title={`${f.deal.customer.companyName} — ${fmtTime(f.scheduledDate)}`}
+                className={`block text-[10px] px-1 py-0.5 rounded truncate hover:opacity-85 transition-opacity ${isOverdue(f.scheduledDate, !!f.actualDate) ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                <span className="inline-flex items-center gap-1"><FollowUpIcon type={f.type} className="w-3.5 h-3.5" /> {f.deal.customer.companyName}</span>
+              </Link>
             ))}
             {fups.length > 2 && <p className="text-[10px] text-gray-400">+{fups.length - 2} more</p>}
           </div>
@@ -315,8 +324,10 @@ export default function FollowUpsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <p className="font-semibold text-gray-900">{f.deal.customer.companyName}</p>
-                          {f.lead && <p className="text-xs text-gray-400 mt-0.5">{f.lead.name}</p>}
+                          <Link href={`/followups/${f.id}`} className="block group hover:text-blue-600">
+                            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{f.deal.customer.companyName}</p>
+                            {f.lead && <p className="text-xs text-gray-400 mt-0.5">{f.lead.name}</p>}
+                          </Link>
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
@@ -346,9 +357,14 @@ export default function FollowUpsPage() {
                           {f.createdBy.firstName}
                         </td>
                         <td className="px-4 py-3.5">
-                          <div className="flex gap-2">
-                            <Link href={`/followups/${f.id}`} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit</Link>
-                            <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 text-xs font-medium">Del</button>
+                          <div className="flex items-center gap-3">
+                            <Link href={`/followups/${f.id}`} className="text-blue-600 hover:text-blue-800 text-xs font-semibold whitespace-nowrap">View Details</Link>
+                            {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || f.createdBy.id === currentUser.id) && (
+                              <>
+                                <span className="text-gray-300 text-xs">|</span>
+                                <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 text-xs font-semibold whitespace-nowrap">Delete</button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

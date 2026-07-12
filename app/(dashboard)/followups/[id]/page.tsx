@@ -24,6 +24,7 @@ interface FollowUp {
 export default function FollowUpDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -37,6 +38,14 @@ export default function FollowUpDetailPage() {
     outcome: '',
     nextAction: '',
   });
+
+  useEffect(() => {
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => setCurrentUser(u));
+  }, []);
 
   useEffect(() => {
     fetchFollowUp();
@@ -139,7 +148,7 @@ export default function FollowUpDetailPage() {
         {/* Main Content */}
         <div className="col-span-2 space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            {!editing && (
+            {!editing && currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
               <button
                 onClick={() => setEditing(true)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
@@ -319,14 +328,16 @@ export default function FollowUpDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <button
-              onClick={handleDelete}
-              className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
-            >
-              Delete Follow-up
-            </button>
-          </div>
+          {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+              <button
+                onClick={handleDelete}
+                className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
+              >
+                Delete Follow-up
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

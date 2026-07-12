@@ -767,7 +767,12 @@ function SpancoKanban({
   const [dragOver, setDragOver] = useState<string | null>(null);
 
   const isClosed = lead.status in CLOSED_STATUSES;
-  const activeIdx = SPANCO.findIndex(s => s.key === lead.status);
+  const activeStageKey = (isClosed && lead.closureDetails?.lastActiveStage)
+    ? lead.closureDetails.lastActiveStage
+    : (isClosed && (lead.status === 'ORDER' || lead.status === 'LOST'))
+      ? 'CLOSURE'
+      : lead.status;
+  const activeIdx = SPANCO.findIndex(s => s.key === activeStageKey);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -799,17 +804,17 @@ function SpancoKanban({
           )}
         </div>
         <span className="text-xs text-gray-400">
-          {changing ? 'Moving…' : canEdit ? 'Click stage or drag card' : ''}
+          {changing ? 'Moving…' : (canEdit && !isClosed) ? 'Click stage or drag card' : ''}
         </span>
       </div>
 
       {/* 6 Kanban columns */}
       <div className="flex divide-x divide-gray-100 overflow-x-auto" style={{ minHeight: 200 }}>
         {SPANCO.map((stage, idx) => {
-          const isActive = stage.key === lead.status;
-          const isPast = !isClosed && activeIdx > idx;
+          const isActive = stage.key === activeStageKey;
+          const isPast = activeIdx > idx;
           const isNextStage = idx === activeIdx + 1;
-          const isAllowedReversal = (lead.status === 'CLOSURE' && stage.key === 'NEGOTIATION') || (lead.status === 'NEGOTIATION' && stage.key === 'CLOSURE');
+          const isAllowedReversal = (activeStageKey === 'CLOSURE' && stage.key === 'NEGOTIATION') || (activeStageKey === 'NEGOTIATION' && stage.key === 'CLOSURE');
           const isClickable = !isClosed && canEdit && !isActive && !changing && (isNextStage || isAllowedReversal);
           const isDropTarget = !isClosed && canEdit && dragOver === stage.key && stage.key !== lead.status && (isNextStage || isAllowedReversal);
 
@@ -849,12 +854,12 @@ function SpancoKanban({
                 {/* Lead card in active column */}
                 {isActive && (
                   <div
-                    draggable={canEdit}
+                    draggable={canEdit && !isClosed}
                     onDragStart={handleDragStart}
                     className={`
                       w-full rounded-lg border-2 p-2.5 shadow-md mt-1 select-none
                       ${stage.cardBg}
-                      ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''}
+                      ${(canEdit && !isClosed) ? 'cursor-grab active:cursor-grabbing' : ''}
                       ${changing ? 'opacity-50 animate-pulse' : ''}
                     `}
                   >
@@ -873,7 +878,7 @@ function SpancoKanban({
                         <CalendarIcon className="w-3 h-3" color="text-current" /> {new Date(lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                       </p>
                     )}
-                    {canEdit && <p className="text-[10px] text-gray-300 mt-1.5">⠿ drag</p>}
+                    {canEdit && !isClosed && <p className="text-[10px] text-gray-300 mt-1.5">⠿ drag</p>}
                   </div>
                 )}
 
@@ -905,6 +910,12 @@ function SpancoKanban({
               <StatusIcon status="ON_HOLD" className="w-3.5 h-3.5" color="text-amber-600" /> On Hold
             </button>
           )}
+          {isAdmin && lead.status !== 'DROPPED' && (
+            <button onClick={() => onStageChange('DROPPED')} disabled={changing}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 hover:opacity-80 disabled:opacity-40 font-semibold">
+              <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-red-600" /> Dropped
+            </button>
+          )}
           {lead.status === 'CLOSURE' && (
             <>
               <button onClick={onClosureClick} disabled={changing}
@@ -924,12 +935,20 @@ function SpancoKanban({
               ? 'This lead is closed. As admin you can re-open it directly.'
               : 'This lead is closed and cannot be moved. Request admin approval to re-open.'}
           </span>
-          {onRequestReopen && (
-            <button onClick={onRequestReopen}
-              className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 flex-shrink-0">
-              {isAdmin ? 'Re-open Lead' : 'Request Re-open'}
-            </button>
-          )}
+          <div className="flex gap-2">
+            {onRequestReopen && (
+              <button onClick={onRequestReopen}
+                className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 flex-shrink-0">
+                {isAdmin ? 'Re-open Lead' : 'Request Re-open'}
+              </button>
+            )}
+            {isAdmin && lead.status === 'ON_HOLD' && (
+              <button onClick={() => onStageChange('DROPPED')} disabled={changing}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-40 flex-shrink-0">
+                <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-white" /> Drop Lead
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1764,8 +1783,8 @@ export default function LeadDetailPage() {
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
 
-    // ON_HOLD can be set from any pipeline stage — skip sequential validation
-    if (newStatus !== 'ON_HOLD') {
+    // ON_HOLD and DROPPED can be set from any pipeline stage — skip sequential validation
+    if (newStatus !== 'ON_HOLD' && newStatus !== 'DROPPED') {
       const currentIdx = STAGE_ORDER.indexOf(lead.status);
       const newIdx = STAGE_ORDER.indexOf(newStatus);
 
@@ -1806,10 +1825,20 @@ export default function LeadDetailPage() {
     setStageChanging(true);
     try {
       const token = localStorage.getItem('token');
+      let updatePayload: any = { status: newStatus, ...extra };
+      const isClosedStatus = ['ON_HOLD', 'DROPPED', 'LOST', 'ORDER'].includes(newStatus);
+      const isCurrentActive = lead && ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'].includes(lead.status);
+      if (lead && isClosedStatus && isCurrentActive) {
+        updatePayload.closureDetails = {
+          ...((lead.closureDetails as any) || {}),
+          lastActiveStage: lead.status,
+        };
+      }
+
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: newStatus, ...extra }),
+        body: JSON.stringify(updatePayload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
