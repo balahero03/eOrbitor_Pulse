@@ -98,7 +98,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (firstName) updateData.firstName = firstName;
     if (lastName) updateData.lastName = lastName;
-    if (role) updateData.role = role;
+    if (role) {
+      updateData.role = role;
+      if (role === 'ON_FIELD_TEAM' && targetUser.role !== 'ON_FIELD_TEAM') {
+        // Clear managerId for subordinates as On Field Team members cannot manage others.
+        await prisma.user.updateMany({
+          where: { managerId: id },
+          data: { managerId: null },
+        });
+      }
+    }
     if (department !== undefined) updateData.department = department;
     if (assignedTerritory !== undefined) updateData.assignedTerritory = assignedTerritory || null;
     if (isActive !== undefined) updateData.isActive = isActive;

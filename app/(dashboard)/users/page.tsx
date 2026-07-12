@@ -191,6 +191,20 @@ export default function UsersPage() {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
+
+    // Check if the role is being changed and ask for confirmation
+    if (form.role !== selectedUser.role) {
+      const oldRoleLabel = ROLE_LABELS[selectedUser.role] || selectedUser.role;
+      const newRoleLabel = ROLE_LABELS[form.role] || form.role;
+      let warningMsg = `Are you sure you want to change ${selectedUser.firstName}'s role from ${oldRoleLabel} to ${newRoleLabel}?`;
+      
+      if (selectedUser.role === 'BACKEND_TEAM' && form.role === 'ON_FIELD_TEAM') {
+        warningMsg += `\n\nWARNING: Since they are being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
+      }
+      
+      if (!confirm(warningMsg)) return;
+    }
+
     setSaving(true); setError('');
     const token = localStorage.getItem('token');
     try {
@@ -216,6 +230,38 @@ export default function UsersPage() {
       fetchUsers();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleQuickSwitchRole = async (u: User) => {
+    const isBackend = u.role === 'BACKEND_TEAM';
+    const newRole = isBackend ? 'ON_FIELD_TEAM' : 'BACKEND_TEAM';
+    const oldRoleLabel = ROLE_LABELS[u.role] || u.role;
+    const newRoleLabel = ROLE_LABELS[newRole] || newRole;
+
+    let warningMsg = `Are you sure you want to switch ${u.firstName} ${u.lastName}'s role from ${oldRoleLabel} to ${newRoleLabel}?`;
+    if (isBackend) {
+      warningMsg += `\n\nWARNING: Since they are being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
+    }
+
+    if (!confirm(warningMsg)) return;
+
+    setSaving(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/users/${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to switch role');
+      alert(`Successfully switched ${u.firstName}'s role to ${newRoleLabel}.`);
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -502,6 +548,14 @@ export default function UsersPage() {
                                   className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                                 >
                                   Assign Manager
+                                </button>
+                              )}
+                              {canEdit && canManageTarget(u) && (u.role === 'BACKEND_TEAM' || u.role === 'ON_FIELD_TEAM') && (
+                                <button
+                                  onClick={() => handleQuickSwitchRole(u)}
+                                  className="px-2 py-1 text-xs rounded border border-amber-200 text-amber-600 hover:bg-amber-50"
+                                >
+                                  Switch Role
                                 </button>
                               )}
                               {canEdit && (canManageTarget(u) || isSelf(u)) && (
