@@ -27,7 +27,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     include: {
       customer: true,
       deal: true,
-      createdBy: { select: { firstName: true, lastName: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
       orders: { where: { quotationId: id } },
     },
   });
@@ -89,6 +89,12 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const quotation = await prisma.quotation.update({
     where: { id },
     data: updateData,
+    include: {
+      customer: true,
+      deal: true,
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+      orders: { where: { quotationId: id } },
+    },
   });
 
   return NextResponse.json(quotation);

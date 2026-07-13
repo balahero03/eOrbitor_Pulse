@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface Quotation {
   id: string;
@@ -19,7 +20,7 @@ interface Quotation {
   expiryDate?: string;
   sentAt?: string;
   approvedAt?: string;
-  createdBy: { firstName: string; lastName: string };
+  createdBy: { id: string; firstName: string; lastName: string };
   createdAt: string;
   orders: any[];
   // Extended fields
@@ -35,6 +36,8 @@ interface Quotation {
 export default function QuotationDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const { user: currentUser } = useCurrentUser();
+  const isAdminUser = !!currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -180,6 +183,22 @@ export default function QuotationDetailPage() {
     <div className="p-6 text-center text-gray-500">Quotation not found</div>
   );
 
+  // Mirrors the server-side rules on /api/quotations/[id]/{approve,send,reject}:
+  // a manager/admin approves, but never their own quote; send/reject/edit are
+  // open to the creator or a manager/admin; delete is creator-or-admin, and
+  // only while still a draft.
+  const isCreator = !!currentUser && currentUser.id === quotation.createdBy?.id;
+  const isManagerOrAdmin = !!currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role);
+  const canApprove = isManagerOrAdmin && !isCreator;
+  const canSendOrReject = isCreator || isManagerOrAdmin;
+  const canDelete = (isCreator || isAdminUser) && quotation.status === 'DRAFT';
+
+  const originBadge = !currentUser
+    ? null
+    : isCreator
+    ? { label: 'Your Quote', className: 'bg-indigo-100 text-indigo-700' }
+    : { label: 'Team Quote', className: 'bg-slate-100 text-slate-600' };
+
   // Collect any non-empty extended fields for display
   const extendedFields = [
     { label: 'Price Validity',     value: quotation.priceValidity },
@@ -195,7 +214,14 @@ export default function QuotationDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
+            {originBadge && (
+              <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${originBadge.className}`}>
+                {originBadge.label}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">{quotation.customer?.companyName ?? '—'}</p>
         </div>
         <Link
@@ -303,54 +329,67 @@ export default function QuotationDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Actions */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Actions</h3>
-            <div className="space-y-2">
-              {quotation.status === 'DRAFT' && (
-                <>
-                  <button
-                    onClick={handleSend}
-                    disabled={updating}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? 'Sending...' : 'Send Quotation'}
-                  </button>
-                  <Link
-                    href={`/quotations/${id}/edit`}
-                    className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Edit
-                  </Link>
-                </>
-              )}
+          {(canSendOrReject || canApprove || canDelete) && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Actions</h3>
+              <div className="space-y-2">
+                {quotation.status === 'DRAFT' && canSendOrReject && (
+                  <>
+                    <button
+                      onClick={handleSend}
+                      disabled={updating}
+                      className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                    >
+                      {updating ? 'Sending...' : 'Send Quotation'}
+                    </button>
+                    <Link
+                      href={`/quotations/${id}/edit`}
+                      className="block w-full text-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Edit
+                    </Link>
+                  </>
+                )}
 
-              {quotation.status === 'SENT' && (
-                <>
-                  <button
-                    onClick={handleApprove}
-                    disabled={updating}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? 'Approving...' : 'Accept Quotation'}
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    disabled={updating}
-                    className="w-full px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? 'Rejecting...' : 'Reject'}
-                  </button>
-                </>
-              )}
+                {quotation.status === 'SENT' && (
+                  <>
+                    {canApprove && (
+                      <button
+                        onClick={handleApprove}
+                        disabled={updating}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        {updating ? 'Approving...' : 'Accept Quotation'}
+                      </button>
+                    )}
+                    {isCreator && !canApprove && (
+                      <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        You can't approve your own quotation — a manager or admin needs to accept it.
+                      </p>
+                    )}
+                    {canSendOrReject && (
+                      <button
+                        onClick={handleReject}
+                        disabled={updating}
+                        className="w-full px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        {updating ? 'Rejecting...' : 'Reject'}
+                      </button>
+                    )}
+                  </>
+                )}
 
-              <button
-                onClick={handleDelete}
-                className="w-full px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-              >
-                Delete
-              </button>
+                {canDelete && (
+                  <button
+                    onClick={handleDelete}
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Details */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">

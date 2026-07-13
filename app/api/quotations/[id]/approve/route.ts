@@ -41,7 +41,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     },
     include: {
       customer: { select: { companyName: true } },
-      createdBy: { select: { firstName: true, lastName: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
 
