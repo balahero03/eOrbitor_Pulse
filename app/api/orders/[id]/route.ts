@@ -66,7 +66,14 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     if (!isAdmin) throw new ForbiddenError('Use the Confirm / Fulfill actions to change order status.');
     updateData.status = status;
   }
-  if (paymentStatus) updateData.paymentStatus = paymentStatus;
+  // paymentStatus must reflect actual money collected (amountPaid vs. total)
+  // — it's derived automatically below whenever amountPaid changes. Letting
+  // it be set directly meant anyone in scope could mark an order COMPLETED
+  // without ever recording a payment. Only admins retain a manual override.
+  if (paymentStatus) {
+    if (!isAdmin) throw new ForbiddenError('Payment status is set automatically from the amount paid.');
+    updateData.paymentStatus = paymentStatus;
+  }
   if (amountPaid !== undefined) {
     const paid = parseFloat(amountPaid);
     const total = totalAmount !== undefined ? parseFloat(totalAmount) : parseFloat(existing.totalAmount.toString());
