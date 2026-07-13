@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface Task {
   id: string;
@@ -22,6 +23,8 @@ interface Task {
 export default function TaskDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const { user: currentUser } = useCurrentUser();
+  const isAdminUser = !!currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -181,7 +184,7 @@ export default function TaskDetailPage() {
               </span>
             </div>
 
-            {!editing && (
+            {!editing && isAdminUser && (
               <button
                 onClick={() => setEditing(true)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
@@ -349,26 +352,28 @@ export default function TaskDetailPage() {
           )}
 
           {/* Actions */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-3">Actions</h3>
-            <div className="space-y-2">
-              {task.status !== 'COMPLETED' && (
-                <button
-                  onClick={handleCompleteTask}
-                  className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Mark Complete
-                </button>
-              )}
+          {isAdminUser && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+              <h3 className="text-lg font-semibold mb-3">Actions</h3>
+              <div className="space-y-2">
+                {task.status !== 'COMPLETED' && (
+                  <button
+                    onClick={handleCompleteTask}
+                    className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Mark Complete
+                  </button>
+                )}
 
-              <button
-                onClick={handleDeleteTask}
-                className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
-              >
-                Delete Task
-              </button>
+                <button
+                  onClick={handleDeleteTask}
+                  className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
+                >
+                  Delete Task
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Meta */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">

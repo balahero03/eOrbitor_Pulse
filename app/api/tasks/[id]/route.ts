@@ -3,16 +3,17 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError } from '@/lib/errors';
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
   return [managerId, ...team.map((u) => u.id)];
 }
 
-// A task is in scope if the caller is the assignee, the creator, their
-// manager (via team membership), or an admin — mirrors the /api/tasks list
-// route's role scoping (which only scopes by assignedToId).
+// Viewing stays scoped like the /api/tasks list route (assignee, creator,
+// their manager, or an admin) — an assignee can still see their own task.
 async function inScope(user: AuthUser, assignedToId: string, createdById: string): Promise<boolean> {
-  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (ADMIN_ROLES.includes(user.role)) return true;
   if (user.id === assignedToId || user.id === createdById) return true;
   if (user.role === 'BACKEND_TEAM') {
     const teamIds = await getTeamIds(user.id);
@@ -42,9 +43,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
 
+  if (!ADMIN_ROLES.includes(user.role)) throw new ForbiddenError('Only an admin can edit a task.');
+
   const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true, createdById: true } });
   if (!existing) throw new NotFoundError('Task');
-  if (!(await inScope(user, existing.assignedToId, existing.createdById))) throw new ForbiddenError();
 
   const body = await req.json();
   const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags, completedAt } = body;
@@ -74,9 +76,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 export const DELETE = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
 
+  if (!ADMIN_ROLES.includes(user.role)) throw new ForbiddenError('Only an admin can delete a task.');
+
   const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true, createdById: true } });
   if (!existing) throw new NotFoundError('Task');
-  if (!(await inScope(user, existing.assignedToId, existing.createdById))) throw new ForbiddenError();
 
   await prisma.task.delete({ where: { id } });
 
