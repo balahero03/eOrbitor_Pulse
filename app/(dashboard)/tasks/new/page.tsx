@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface Deal {
   id: string;
@@ -15,10 +16,19 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
+  managerId?: string | null;
 }
 
 export default function NewTaskPage() {
   const router = useRouter();
+  const { user: currentUser } = useCurrentUser();
+  // Read the mode flag directly from the URL rather than via useSearchParams,
+  // which would force this page out of static rendering — this page is
+  // entirely client-rendered already, so a plain read on mount is simpler.
+  const [isAssignMode, setIsAssignMode] = useState(false);
+  useEffect(() => {
+    setIsAssignMode(new URLSearchParams(window.location.search).get('assign') === '1');
+  }, []);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,8 +92,12 @@ export default function NewTaskPage() {
     setLoading(true);
 
     try {
-      if (!formData.title || !formData.assignedToId) {
-        throw new Error('Title and assignee are required');
+      // New Task always goes to yourself; Assign Task uses whoever was
+      // picked in the (self-excluded) dropdown.
+      const assignedToId = isAssignMode ? formData.assignedToId : currentUser?.id;
+
+      if (!formData.title || !assignedToId) {
+        throw new Error(isAssignMode ? 'Title and an assignee are required' : 'Title is required');
       }
       if (formData.dueDate && formData.dueDate < new Date().toLocaleDateString('en-CA')) {
         throw new Error('Due date cannot be in the past');
@@ -102,7 +116,7 @@ export default function NewTaskPage() {
           status: formData.status,
           priority: formData.priority,
           dueDate: formData.dueDate || null,
-          assignedToId: formData.assignedToId,
+          assignedToId,
           relatedDealId: formData.relatedDealId || null,
           tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
         }),
@@ -122,14 +136,28 @@ export default function NewTaskPage() {
     }
   };
 
+  // Mirrors the server-side assignment rule: admins assign to anyone; a
+  // manager to themselves or their direct reports; everyone else to themselves.
+  const assignableUsers = !currentUser
+    ? []
+    : ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role)
+    ? users
+    : currentUser.role === 'BACKEND_TEAM'
+    ? users.filter(u => u.id === currentUser.id || u.managerId === currentUser.id)
+    : users.filter(u => u.id === currentUser.id);
+
+  // Assign mode is specifically for handing work to someone else — exclude
+  // yourself so the picker can't be used to just recreate "New Task".
+  const otherAssignableUsers = assignableUsers.filter(u => u.id !== currentUser?.id);
+
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Create New Task</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{isAssignMode ? 'Assign Task' : 'Create New Task'}</h1>
         <Link href="/tasks" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Tasks</Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
@@ -208,20 +236,30 @@ export default function NewTaskPage() {
 
             <div>
               <label className="block text-sm font-medium mb-1">Assign To *</label>
-              <select
-                name="assignedToId"
-                value={formData.assignedToId}
-                onChange={handleChange}
-                required
-                className="w-full"
-              >
-                <option value="">Select a user</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.firstName} {u.lastName}
-                  </option>
-                ))}
-              </select>
+              {!isAssignMode ? (
+                <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                  You{currentUser ? ` (${currentUser.firstName} ${currentUser.lastName})` : ''}
+                </div>
+              ) : otherAssignableUsers.length === 0 ? (
+                <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                  You have no one to assign to yet.
+                </div>
+              ) : (
+                <select
+                  name="assignedToId"
+                  value={formData.assignedToId}
+                  onChange={handleChange}
+                  required
+                  className="w-full"
+                >
+                  <option value="">Select a user</option>
+                  {otherAssignableUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
@@ -257,10 +295,10 @@ export default function NewTaskPage() {
           <div className="flex gap-4 pt-4 border-t border-gray-200">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isAssignMode && otherAssignableUsers.length === 0)}
               className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Task'}
+              {loading ? (isAssignMode ? 'Assigning...' : 'Creating...') : (isAssignMode ? 'Assign Task' : 'Create Task')}
             </button>
             <Link href="/tasks" className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center">
               Cancel

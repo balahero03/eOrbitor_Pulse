@@ -8,10 +8,12 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/complete')[0].split('/').pop()!;
 
-  if (!ADMIN_ROLES.includes(user.role)) throw new ForbiddenError('Only an admin can complete a task.');
-
-  const existing = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+  const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true } });
   if (!existing) throw new NotFoundError('Task');
+
+  const isAdmin = ADMIN_ROLES.includes(user.role);
+  const isAssignee = user.id === existing.assignedToId;
+  if (!isAdmin && !isAssignee) throw new ForbiddenError('Only the assignee can complete this task.');
 
   const task = await prisma.task.update({
     where: { id },
@@ -21,6 +23,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     },
     include: {
       assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
       relatedDeal: { select: { id: true, dealName: true } },
     },
   });

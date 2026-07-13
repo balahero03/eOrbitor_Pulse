@@ -117,6 +117,37 @@ export default function TaskDetailPage() {
     }
   };
 
+  // A pure status change — separate from the full Edit form, so the assignee
+  // can move their own task along without needing admin-level edit rights.
+  const handleStatusChange = async (newStatus: string) => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to update status');
+      }
+
+      const updated = await res.json();
+      setTask(updated);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelTask = async () => {
+    if (!confirm('Cancel this task?')) return;
+    await handleStatusChange('CANCELLED');
+  };
+
   const handleDeleteTask = async () => {
     if (!confirm('Delete this task?')) return;
 
@@ -163,10 +194,32 @@ export default function TaskDetailPage() {
   if (loading) return <div className="p-6 text-center">Loading...</div>;
   if (!task) return <div className="p-6 text-center">Task not found</div>;
 
+  const isAssignee = !!currentUser && currentUser.id === task.assignedTo?.id;
+  const isCreator = !!currentUser && currentUser.id === task.createdBy?.id;
+  const canUpdateStatus = isAssignee || isAdminUser;
+  const canCancel = (isCreator || isAdminUser) && task.status !== 'CANCELLED' && task.status !== 'COMPLETED';
+
+  const originBadge = !currentUser
+    ? null
+    : isCreator && isAssignee
+    ? { label: 'Personal', className: 'bg-slate-100 text-slate-600' }
+    : isCreator
+    ? { label: 'You assigned', className: 'bg-indigo-100 text-indigo-700' }
+    : isAssignee
+    ? { label: 'Assigned to you', className: 'bg-emerald-100 text-emerald-700' }
+    : null;
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+          {originBadge && (
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${originBadge.className}`}>
+              {originBadge.label}
+            </span>
+          )}
+        </div>
         <Link href="/tasks" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Tasks</Link>
       </div>
 
@@ -352,25 +405,58 @@ export default function TaskDetailPage() {
           )}
 
           {/* Actions */}
-          {isAdminUser && (
+          {(canUpdateStatus || canCancel || isAdminUser) && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold mb-3">Actions</h3>
               <div className="space-y-2">
-                {task.status !== 'COMPLETED' && (
+                {canUpdateStatus && task.status === 'TODO' && (
+                  <button
+                    onClick={() => handleStatusChange('IN_PROGRESS')}
+                    disabled={saving}
+                    className="w-full py-2.5 border border-blue-300 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-50 disabled:opacity-50"
+                  >
+                    Start Task (In Progress)
+                  </button>
+                )}
+
+                {canUpdateStatus && task.status === 'IN_PROGRESS' && (
+                  <button
+                    onClick={() => handleStatusChange('TODO')}
+                    disabled={saving}
+                    className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Move back to To Do
+                  </button>
+                )}
+
+                {canUpdateStatus && task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && (
                   <button
                     onClick={handleCompleteTask}
-                    className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    disabled={saving}
+                    className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
                   >
                     Mark Complete
                   </button>
                 )}
 
-                <button
-                  onClick={handleDeleteTask}
-                  className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
-                >
-                  Delete Task
-                </button>
+                {canCancel && (
+                  <button
+                    onClick={handleCancelTask}
+                    disabled={saving}
+                    className="w-full py-2.5 border border-red-300 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Cancel Task
+                  </button>
+                )}
+
+                {isAdminUser && (
+                  <button
+                    onClick={handleDeleteTask}
+                    className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
+                  >
+                    Delete Task
+                  </button>
+                )}
               </div>
             </div>
           )}

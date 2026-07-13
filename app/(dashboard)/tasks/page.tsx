@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { WarningIcon } from '@/components/icons';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface Task {
   id: string;
@@ -12,6 +13,7 @@ interface Task {
   priority: string;
   dueDate?: string;
   assignedTo: { id: string; firstName: string; lastName: string; email: string };
+  createdBy: { id: string; firstName: string; lastName: string };
   relatedDeal?: { id: string; dealName: string };
   createdAt: string;
   completedAt?: string;
@@ -32,7 +34,28 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-600',
 };
 
+// Where a task sits relative to the viewer — helps tell apart a personal
+// to-do, work you handed off, and work someone handed to you.
+function originBadge(task: Task, currentUserId: string): { label: string; className: string } | null {
+  const createdByMe = task.createdBy?.id === currentUserId;
+  const assignedToMe = task.assignedTo?.id === currentUserId;
+  if (createdByMe && assignedToMe) return { label: 'Personal', className: 'bg-slate-100 text-slate-600' };
+  if (createdByMe) return { label: 'You assigned', className: 'bg-indigo-100 text-indigo-700' };
+  if (assignedToMe) return { label: 'Assigned to you', className: 'bg-emerald-100 text-emerald-700' };
+  return null;
+}
+
 export default function TasksPage() {
+  const { user: currentUser } = useCurrentUser();
+  // Assigning to someone else (not just yourself) is only meaningful for
+  // roles that actually have another person to assign to — see canAssign()
+  // in /api/tasks: admins and Backend Team managers, not individual reps.
+  const canAssignOthers = !!currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role);
+  // "My Tasks" is only a distinct view for roles whose default list already
+  // includes other people's tasks — an On-Field rep's list is their own tasks
+  // either way, so the toggle would just be a no-op for them.
+  const showMyTasksTab = canAssignOthers;
+  const [myTasksOnly, setMyTasksOnly] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -54,6 +77,7 @@ export default function TasksPage() {
       if (applied.status) params.set('status', applied.status);
       if (applied.priority) params.set('priority', applied.priority);
       if (applied.search) params.set('search', applied.search);
+      if (myTasksOnly && currentUser) params.set('assignedToId', currentUser.id);
 
       const res = await fetch(`/api/tasks?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -67,7 +91,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, applied]);
+  }, [page, applied, myTasksOnly, currentUser]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -96,8 +120,39 @@ export default function TasksPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-500 text-sm mt-1">{total} total tasks</p>
         </div>
-        <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Task</Link>
+        <div className="flex gap-2">
+          {canAssignOthers && (
+            <Link
+              href="/tasks/new?assign=1"
+              className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
+            >
+              Assign Task
+            </Link>
+          )}
+          <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Task</Link>
+        </div>
       </div>
+
+      {showMyTasksTab && (
+        <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => { setMyTasksOnly(false); setPage(1); }}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              !myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All Tasks
+          </button>
+          <button
+            onClick={() => { setMyTasksOnly(true); setPage(1); }}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            My Tasks
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
@@ -183,12 +238,21 @@ export default function TasksPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {tasks.map(task => (
+              {tasks.map(task => {
+                const badge = currentUser ? originBadge(task, currentUser.id) : null;
+                return (
                 <tr key={task.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
-                    <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
-                      {task.title}
-                    </Link>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
+                        {task.title}
+                      </Link>
+                      {badge && (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                    </div>
                     {task.description && (
                       <p className="text-gray-400 text-xs mt-0.5 truncate max-w-xs">{task.description}</p>
                     )}
@@ -227,7 +291,8 @@ export default function TasksPage() {
                     {task.relatedDeal ? task.relatedDeal.dealName : <span className="text-gray-400">—</span>}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

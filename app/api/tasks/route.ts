@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createNotification } from '@/lib/notify';
+import { ForbiddenError } from '@/lib/errors';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+
+// Who may hand a task to whom: admins to anyone; a manager to themselves or
+// their own direct reports; an individual contributor to themselves only.
+async function canAssign(user: AuthUser, assignedToId: string): Promise<boolean> {
+  if (ADMIN_ROLES.includes(user.role)) return true;
+  if (assignedToId === user.id) return true;
+  if (user.role === 'BACKEND_TEAM') {
+    const target = await prisma.user.findUnique({ where: { id: assignedToId }, select: { managerId: true } });
+    return target?.managerId === user.id;
+  }
+  return false;
+}
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -44,6 +59,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       where,
       include: {
         assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
         relatedDeal: { select: { id: true, dealName: true } },
       },
       orderBy: { dueDate: 'asc' },
@@ -64,6 +80,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   if (!title || !assignedToId) {
     return NextResponse.json({ message: 'Title and assignedToId are required' }, { status: 400 });
+  }
+
+  if (!(await canAssign(user, assignedToId))) {
+    throw new ForbiddenError('You can only assign tasks to yourself or your direct reports.');
   }
 
   const task = await prisma.task.create({
