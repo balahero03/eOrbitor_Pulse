@@ -235,9 +235,8 @@ interface AccessRequestRow {
   user: { firstName: string; lastName: string; email: string; role: string };
 }
 
-// Admin-only, collapsed-by-default section — keeps this off most admins'/
-// managers' screens by default (this page is also visible to SALES_MANAGER,
-// who should never see this panel at all).
+// Admin-only, collapsed-by-default section. This page is also visible to
+// BACKEND_TEAM (the manager-equivalent role), who should never see this panel.
 function AccessPolicySection() {
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);

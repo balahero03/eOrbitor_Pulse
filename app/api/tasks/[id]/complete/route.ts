@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { NotFoundError, ForbiddenError } from '@/lib/errors';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    return null;
-  }
+async function getTeamIds(managerId: string): Promise<string[]> {
+  const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
+  return [managerId, ...team.map((u) => u.id)];
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+async function inScope(user: AuthUser, assignedToId: string, createdById: string): Promise<boolean> {
+  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (user.id === assignedToId || user.id === createdById) return true;
+  if (user.role === 'BACKEND_TEAM') {
+    const teamIds = await getTeamIds(user.id);
+    return teamIds.includes(assignedToId) || teamIds.includes(createdById);
   }
+  return false;
+}
 
-  const { id } = await params;
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/complete')[0].split('/').pop()!;
+
+  const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true, createdById: true } });
+  if (!existing) throw new NotFoundError('Task');
+  if (!(await inScope(user, existing.assignedToId, existing.createdById))) throw new ForbiddenError();
+
   const task = await prisma.task.update({
     where: { id },
     data: {
@@ -32,4 +38,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json(task);
-}
+});

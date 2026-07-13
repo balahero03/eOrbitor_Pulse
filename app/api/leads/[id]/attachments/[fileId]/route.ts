@@ -3,20 +3,39 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { readStoredFile } from '@/lib/storage';
 
+async function getTeamIds(managerId: string): Promise<string[]> {
+  const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
+  return [managerId, ...team.map((u) => u.id)];
+}
+
+async function inScope(user: AuthUser, assignedToId: string | null): Promise<boolean> {
+  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (user.role === 'ON_FIELD_TEAM') return assignedToId === user.id;
+  if (user.role === 'BACKEND_TEAM') {
+    if (!assignedToId) return false;
+    const teamIds = await getTeamIds(user.id);
+    return teamIds.includes(assignedToId);
+  }
+  return false;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; fileId: string }> }
 ) {
   const { id, fileId } = await params;
 
-  return withAuth(async (_req: NextRequest, _user: AuthUser) => {
+  return withAuth(async (_req: NextRequest, user: AuthUser) => {
     const lead = await prisma.lead.findUnique({
       where: { id },
-      select: { deletedAt: true, closureDetails: true },
+      select: { deletedAt: true, closureDetails: true, assignedToId: true },
     });
 
     if (!lead || lead.deletedAt) {
       return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
+    }
+    if (!(await inScope(user, lead.assignedToId))) {
+      return NextResponse.json({ message: 'Access denied' }, { status: 403 });
     }
 
     const attachments = (lead.closureDetails as any)?.attachments;

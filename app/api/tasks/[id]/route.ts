@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { NotFoundError, ForbiddenError } from '@/lib/errors';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    return null;
-  }
+async function getTeamIds(managerId: string): Promise<string[]> {
+  const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
+  return [managerId, ...team.map((u) => u.id)];
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+// A task is in scope if the caller is the assignee, the creator, their
+// manager (via team membership), or an admin — mirrors the /api/tasks list
+// route's role scoping (which only scopes by assignedToId).
+async function inScope(user: AuthUser, assignedToId: string, createdById: string): Promise<boolean> {
+  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (user.id === assignedToId || user.id === createdById) return true;
+  if (user.role === 'BACKEND_TEAM') {
+    const teamIds = await getTeamIds(user.id);
+    return teamIds.includes(assignedToId) || teamIds.includes(createdById);
   }
+  return false;
+}
 
-  const { id } = await params;
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
+
   const task = await prisma.task.findUnique({
     where: { id },
     include: {
@@ -28,20 +33,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     },
   });
 
-  if (!task) {
-    return NextResponse.json({ message: 'Task not found' }, { status: 404 });
-  }
+  if (!task) throw new NotFoundError('Task');
+  if (!(await inScope(user, task.assignedToId, task.createdById))) throw new ForbiddenError();
 
   return NextResponse.json(task);
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
 
-  const { id } = await params;
+  const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true, createdById: true } });
+  if (!existing) throw new NotFoundError('Task');
+  if (!(await inScope(user, existing.assignedToId, existing.createdById))) throw new ForbiddenError();
+
   const body = await req.json();
   const { title, description, status, priority, dueDate, assignedToId, relatedDealId, tags, completedAt } = body;
 
@@ -65,16 +69,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   return NextResponse.json(task);
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+export const DELETE = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
 
-  const { id } = await params;
+  const existing = await prisma.task.findUnique({ where: { id }, select: { assignedToId: true, createdById: true } });
+  if (!existing) throw new NotFoundError('Task');
+  if (!(await inScope(user, existing.assignedToId, existing.createdById))) throw new ForbiddenError();
+
   await prisma.task.delete({ where: { id } });
 
   return NextResponse.json({ message: 'Task deleted' });
-}
+});

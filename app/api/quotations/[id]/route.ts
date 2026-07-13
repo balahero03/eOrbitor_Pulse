@@ -1,115 +1,117 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 
-
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
-
-    const quotation = await prisma.quotation.findUnique({
-      where: { id: id },
-      include: {
-        customer: true,
-        deal: true,
-        createdBy: { select: { firstName: true, lastName: true } },
-        orders: { where: { quotationId: id } },
-      },
-    });
-
-    if (!quotation) {
-      return NextResponse.json({ message: 'Quotation not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(quotation);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
-  }
+async function getTeamIds(managerId: string): Promise<string[]> {
+  const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
+  return [managerId, ...team.map((u) => u.id)];
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+// Mirrors the /api/quotations list route's scoping (by createdById).
+async function inScope(user: AuthUser, createdById: string): Promise<boolean> {
+  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (user.id === createdById) return true;
+  if (user.role === 'BACKEND_TEAM') {
+    const teamIds = await getTeamIds(user.id);
+    return teamIds.includes(createdById);
+  }
+  return false;
+}
 
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
 
-    const body = await req.json();
-    const { status, notes, items } = body;
+  const quotation = await prisma.quotation.findUnique({
+    where: { id },
+    include: {
+      customer: true,
+      deal: true,
+      createdBy: { select: { firstName: true, lastName: true } },
+      orders: { where: { quotationId: id } },
+    },
+  });
 
-    let updateData: any = {};
+  if (!quotation) throw new NotFoundError('Quotation');
+  if (!(await inScope(user, quotation.createdById))) throw new ForbiddenError();
 
-    if (status) updateData.status = status;
-    if (notes !== undefined) updateData.notes = notes;
+  return NextResponse.json(quotation);
+});
 
-    // If items updated, recalculate totals
-    if (items && items.length > 0) {
-      let subtotal = 0;
+export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
 
-      for (const item of items) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-        });
+  const existing = await prisma.quotation.findUnique({ where: { id }, select: { createdById: true } });
+  if (!existing) throw new NotFoundError('Quotation');
+  if (!(await inScope(user, existing.createdById))) throw new ForbiddenError();
 
-        if (!product) {
-          return NextResponse.json(
-            { message: `Product ${item.productId} not found` },
-            { status: 404 }
-          );
-        }
+  const body = await req.json();
+  const { status, notes, items } = body;
 
-        subtotal += item.quantity * item.unitPrice;
+  // Accepting a quote is a financial approval step with its own endpoint
+  // (which also enforces separation of duties) — this generic PATCH must not
+  // be usable to set that status directly.
+  if (status === 'ACCEPTED') {
+    throw new ForbiddenError('Use the Approve action to accept a quotation.');
+  }
+
+  let updateData: any = {};
+
+  if (status) updateData.status = status;
+  if (notes !== undefined) updateData.notes = notes;
+
+  // If items updated, recalculate totals
+  if (items && items.length > 0) {
+    let subtotal = 0;
+
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+      });
+
+      if (!product) {
+        throw new ValidationError(`Product ${item.productId} not found`);
       }
 
-      // Quotations are tax-exclusive — GST is not charged on the quote total.
-      const totalAmount = subtotal;
-
-      updateData.items = items;
-      updateData.subtotal = subtotal.toString();
-      updateData.taxAmount = '0';
-      updateData.totalAmount = totalAmount.toString();
-      updateData.revision = { increment: 1 };
+      subtotal += item.quantity * item.unitPrice;
     }
 
-    const quotation = await prisma.quotation.update({
-      where: { id: id },
-      data: updateData,
-    });
+    // Quotations are tax-exclusive — GST is not charged on the quote total.
+    const totalAmount = subtotal;
 
-    return NextResponse.json(quotation);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    updateData.items = items;
+    updateData.subtotal = subtotal.toString();
+    updateData.taxAmount = '0';
+    updateData.totalAmount = totalAmount.toString();
+    updateData.revision = { increment: 1 };
   }
-}
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  const quotation = await prisma.quotation.update({
+    where: { id },
+    data: updateData,
+  });
 
-    jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev-secret');
+  return NextResponse.json(quotation);
+});
 
-    await prisma.quotation.delete({
-      where: { id: id },
-    });
+export const DELETE = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/').pop()!;
 
-    return NextResponse.json({ message: 'Quotation deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  const existing = await prisma.quotation.findUnique({ where: { id }, select: { createdById: true, status: true } });
+  if (!existing) throw new NotFoundError('Quotation');
+
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+  const isCreator = existing.createdById === user.id;
+  if (!isAdmin && !isCreator) throw new ForbiddenError();
+
+  // Once a quote has been sent/accepted/rejected it's part of the deal's
+  // record — deleting it would erase that history. Drafts can still be
+  // discarded freely.
+  if (existing.status !== 'DRAFT' && !isAdmin) {
+    throw new ForbiddenError('Only a draft quotation can be deleted — reject it instead.');
   }
-}
+
+  await prisma.quotation.delete({ where: { id } });
+
+  return NextResponse.json({ message: 'Quotation deleted successfully' });
+});
