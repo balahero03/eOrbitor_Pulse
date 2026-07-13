@@ -47,6 +47,13 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const body = await req.json();
   const { dealName, stage, dealValue, winProbability, expectedCloseDate, nextAction, lostReason } = body;
 
+  // Stage changes otherwise go through /move, which enforces SPANCO order
+  // (no skipping straight to CLOSURE). Setting it here bypassed that check
+  // entirely — only admins retain a direct override.
+  if (stage && !['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Use the stage-move action to change a deal\'s stage.');
+  }
+
   const deal = await prisma.deal.update({
     where: { id },
     data: {
