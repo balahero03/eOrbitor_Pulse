@@ -137,11 +137,13 @@ interface QuotationRecord {
   rejectionReason?: string;
   items: any[];
   customer: { id: string; companyName: string };
-  createdBy: { firstName: string; lastName: string };
+  createdBy: { id: string; firstName: string; lastName: string };
   createdAt: string;
 }
 
-function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: LeadDetail; canEdit: boolean }) {
+function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any }) {
+  const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
+  const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
   const [loadingQ, setLoadingQ] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -575,7 +577,15 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
         <p className="text-sm text-gray-400 text-center py-4">No quotations yet</p>
       ) : (
         <div className="space-y-3">
-          {quotations.map(q => (
+          {quotations.map(q => {
+            const isCreator = !!(currentUser && q.createdBy.id === currentUser.id);
+            // Mirrors the server-side rules: approving is a spending-authority
+            // decision the creator can never make for their own quote; deleting
+            // a non-draft quote would erase settled deal history.
+            const canApprove = isManagerOrAdmin && !isCreator;
+            const canSendOrReject = isCreator || isManagerOrAdmin;
+            const canDeleteQ = (isCreator || isAdminUser) && q.status === 'DRAFT';
+            return (
             <div key={q.id} className="border rounded-xl overflow-hidden">
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
@@ -672,9 +682,9 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                   )}
 
                   {/* Actions */}
-                  {canEdit && (
-                    <div className="flex gap-2 pt-2 border-t flex-wrap">
-                      {q.status === 'DRAFT' && (
+                  {(canSendOrReject || canApprove || canDeleteQ) && (
+                    <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
+                      {q.status === 'DRAFT' && canSendOrReject && (
                         <button onClick={() => handleAction(q.id, 'send')}
                           disabled={actionId === q.id}
                           className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
@@ -683,23 +693,34 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                       )}
                       {q.status === 'SENT' && (
                         <>
-                          <button onClick={() => handleAction(q.id, 'approve')}
-                            disabled={actionId === q.id}
-                            className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                            {actionId === q.id ? '…' : 'Accept'}
-                          </button>
-                          <button onClick={() => openRejectModal(q.id)}
-                            disabled={actionId === q.id}
-                            className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
-                            Reject
-                          </button>
+                          {canApprove && (
+                            <button onClick={() => handleAction(q.id, 'approve')}
+                              disabled={actionId === q.id}
+                              className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                              {actionId === q.id ? '…' : 'Accept'}
+                            </button>
+                          )}
+                          {canSendOrReject && (
+                            <button onClick={() => openRejectModal(q.id)}
+                              disabled={actionId === q.id}
+                              className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                              Reject
+                            </button>
+                          )}
+                          {isCreator && !canApprove && (
+                            <span className="text-[10px] text-gray-400 italic">
+                              Awaiting a manager/admin to accept — you can't approve your own quote
+                            </span>
+                          )}
                         </>
                       )}
-                      <button onClick={() => handleAction(q.id, 'delete')}
-                        disabled={actionId === q.id}
-                        className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
-                        {actionId === q.id ? '…' : 'Delete'}
-                      </button>
+                      {canDeleteQ && (
+                        <button onClick={() => handleAction(q.id, 'delete')}
+                          disabled={actionId === q.id}
+                          className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                          {actionId === q.id ? '…' : 'Delete'}
+                        </button>
+                      )}
                       <span className="ml-auto text-[10px] text-gray-400 self-center">
                         By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
                         {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
@@ -710,7 +731,7 @@ function QuotationsSection({ leadId, lead, canEdit }: { leadId: string; lead: Le
                 </div>
               )}
             </div>
-          ))}
+          );})}
         </div>
       )}
 
@@ -2528,7 +2549,7 @@ export default function LeadDetailPage() {
             )}
 
             {/* Quotations */}
-            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} />
+            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} />
 
             {/* Follow-ups */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">

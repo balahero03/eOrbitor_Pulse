@@ -51,7 +51,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         issueDate: true, expiryDate: true, sentAt: true, approvedAt: true,
         priceValidity: true, taxDetails: true, warranty: true, amcPeriod: true,
         deliveryEstimate: true, paymentTerms: true, notes: true, items: true,
-        createdBy: { select: { firstName: true, lastName: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
