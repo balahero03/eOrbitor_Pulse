@@ -137,7 +137,7 @@ interface QuotationRecord {
   rejectionReason?: string;
   items: any[];
   customer: { id: string; companyName: string };
-  createdBy: { id: string; firstName: string; lastName: string };
+  createdBy: { id: string; firstName: string; lastName: string; role: string };
   createdAt: string;
 }
 
@@ -147,6 +147,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
   const [loadingQ, setLoadingQ] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Product search
@@ -292,8 +293,63 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
         }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
-      setShowCreateForm(false);
-      setItems([]); setTerms({ priceValidity: '', taxDetails: '', warranty: '', amcPeriod: '', deliveryEstimate: '', paymentTerms: '', notes: '', discountAmount: '' });
+      closeForm();
+      fetchQuotations();
+    } catch (err: any) { setQError(err.message || 'An error occurred'); }
+    finally { setSubmittingQ(false); }
+  };
+
+  const closeForm = () => {
+    setShowCreateForm(false);
+    setEditingId(null);
+    setQError('');
+    setItems([]);
+    setTerms({ priceValidity: '', taxDetails: '', warranty: '', amcPeriod: '', deliveryEstimate: '', paymentTerms: '', notes: '', discountAmount: '' });
+    setImportWarnings([]);
+    setImportMeta(null);
+  };
+
+  // Only a still-draft quote's items/terms can be revised — once sent, the
+  // pricing on record is what the customer saw (mirrors the backend rule).
+  const startEdit = (q: QuotationRecord) => {
+    setEditingId(q.id);
+    setQError('');
+    setItems((q.items || []).map((i: any) => ({
+      productId: i.productId, productName: i.productName || '', description: i.description || '',
+      quantity: i.quantity || 1, unitPrice: i.unitPrice || 0, taxRate: i.taxRate || 0,
+    })));
+    setTerms({
+      priceValidity: q.priceValidity || '', taxDetails: q.taxDetails || '', warranty: q.warranty || '',
+      amcPeriod: q.amcPeriod || '', deliveryEstimate: q.deliveryEstimate || '', paymentTerms: q.paymentTerms || '',
+      notes: q.notes || '', discountAmount: q.discountAmount || '',
+    });
+    setExpandedId(null);
+    setShowCreateForm(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    setQError('');
+    if (items.length === 0) { setQError('Add at least one line item.'); return; }
+    if (items.some(i => !i.productName.trim())) { setQError('All items must have a name.'); return; }
+    setSubmittingQ(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quotations/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          items: items.map(i => ({
+            productId: i.productId, productName: i.productName,
+            description: i.description, quantity: i.quantity,
+            unitPrice: i.unitPrice, taxRate: i.taxRate,
+          })),
+          ...terms,
+          discountAmount: discount,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+      closeForm();
       fetchQuotations();
     } catch (err: any) { setQError(err.message || 'An error occurred'); }
     finally { setSubmittingQ(false); }
@@ -376,8 +432,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             </>
           )}
           {showCreateForm && (
-            <button onClick={() => { setShowCreateForm(false); setQError(''); setItems([]); setImportWarnings([]); setImportMeta(null); }}
-              className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+            <button onClick={closeForm} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
           )}
         </div>
       </div>
@@ -385,6 +440,9 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
       {/* Create Form */}
       {showCreateForm && (
         <div className="border border-blue-100 rounded-xl p-4 mb-5 space-y-4 bg-blue-50/30">
+          <p className="text-xs font-semibold text-gray-600 uppercase">
+            {editingId ? 'Edit Draft Quotation' : 'New Quotation'}
+          </p>
           {qError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{qError}</p>}
 
           {importMeta && (importMeta.customerName || importMeta.refNumber) && (
@@ -404,7 +462,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             </div>
           )}
 
-          {!lead.linkedCustomerId && (
+          {!editingId && !lead.linkedCustomerId && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
               ℹ A customer record will be auto-created from this lead’s company when you save the first quotation.
             </p>
@@ -563,9 +621,11 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             </div>
           </div>
 
-          <button onClick={handleCreateQuotation} disabled={submittingQ}
+          <button onClick={editingId ? handleSaveEdit : handleCreateQuotation} disabled={submittingQ}
             className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-            {submittingQ ? 'Creating…' : 'Create Quotation'}
+            {editingId
+              ? (submittingQ ? 'Saving…' : 'Save Changes')
+              : (submittingQ ? 'Creating…' : 'Create Quotation')}
           </button>
         </div>
       )}
@@ -585,14 +645,18 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             const canApprove = isManagerOrAdmin && !isCreator;
             const canSendOrReject = isCreator || isManagerOrAdmin;
             const canDeleteQ = (isCreator || isAdminUser) && q.status === 'DRAFT';
+            // A non-admin's "Send" is really a request for a manager/admin's
+            // sign-off, not a real dispatch to the customer — label the SENT
+            // status accordingly rather than implying it already went out.
+            const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
             return (
             <div key={q.id} className="border rounded-xl overflow-hidden">
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
                 <span className="font-mono text-xs font-bold text-gray-700">{q.quotationNumber}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusColor[q.status] || statusColor.DRAFT}`}>
-                  {q.status}
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : (statusColor[q.status] || statusColor.DRAFT)}`}>
+                  {isPendingApproval ? 'Pending Approval' : q.status}
                 </span>
                 <span className="ml-auto text-sm font-bold text-green-700">{fmt(parseFloat(q.totalAmount))}</span>
                 <span className="text-xs text-gray-400">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
@@ -685,11 +749,18 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                   {(canSendOrReject || canApprove || canDeleteQ) && (
                     <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
                       {q.status === 'DRAFT' && canSendOrReject && (
-                        <button onClick={() => handleAction(q.id, 'send')}
-                          disabled={actionId === q.id}
-                          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                          {actionId === q.id ? '…' : 'Send'}
-                        </button>
+                        <>
+                          <button onClick={() => startEdit(q)}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                            Edit
+                          </button>
+                          <button onClick={() => handleAction(q.id, 'send')}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                            {actionId === q.id ? '…' : (isAdminUser ? 'Send' : 'Request Approval')}
+                          </button>
+                        </>
                       )}
                       {q.status === 'SENT' && (
                         <>

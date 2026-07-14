@@ -15,7 +15,7 @@ interface Quotation {
   totalAmount: string;
   issueDate: string;
   expiryDate?: string;
-  createdBy: { firstName: string; lastName: string };
+  createdBy: { firstName: string; lastName: string; role: string };
   createdAt: string;
 }
 
@@ -151,7 +151,12 @@ export default function QuotationsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {quotations.map(q => {
-                    const meta = STATUS_META[q.status] ?? { label: q.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
+                    // A non-admin's SENT quote is really awaiting a manager/admin's
+                    // sign-off, not actually dispatched to the customer yet.
+                    const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
+                    const meta = isPendingApproval
+                      ? { label: 'Pending Approval', style: 'bg-amber-100 text-amber-700 border-amber-200' }
+                      : STATUS_META[q.status] ?? { label: q.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                     return (
                       <tr key={q.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3.5 font-mono text-sm font-semibold text-gray-800">{q.quotationNumber}</td>

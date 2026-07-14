@@ -20,7 +20,7 @@ interface Quotation {
   expiryDate?: string;
   sentAt?: string;
   approvedAt?: string;
-  createdBy: { id: string; firstName: string; lastName: string };
+  createdBy: { id: string; firstName: string; lastName: string; role: string };
   createdAt: string;
   orders: any[];
   // Extended fields
@@ -192,6 +192,9 @@ export default function QuotationDetailPage() {
   const canApprove = isManagerOrAdmin && !isCreator;
   const canSendOrReject = isCreator || isManagerOrAdmin;
   const canDelete = (isCreator || isAdminUser) && quotation.status === 'DRAFT';
+  // A non-admin's SENT quote is really awaiting a manager/admin's sign-off,
+  // not actually dispatched to the customer yet — badge it accordingly.
+  const isPendingApproval = quotation.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(quotation.createdBy.role);
 
   const originBadge = !currentUser
     ? null
@@ -252,8 +255,8 @@ export default function QuotationDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Status</p>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusBadgeColor(quotation.status)}`}>
-                  {quotation.status}
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : getStatusBadgeColor(quotation.status)}`}>
+                  {isPendingApproval ? 'Pending Approval' : quotation.status}
                 </span>
               </div>
             </div>
@@ -340,7 +343,7 @@ export default function QuotationDetailPage() {
                       disabled={updating}
                       className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
                     >
-                      {updating ? 'Sending...' : 'Send Quotation'}
+                      {updating ? 'Sending...' : (isAdminUser ? 'Send Quotation' : 'Request Approval')}
                     </button>
                     <Link
                       href={`/quotations/${id}/edit`}

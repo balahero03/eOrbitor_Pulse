@@ -27,7 +27,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     include: {
       customer: true,
       deal: true,
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, role: true } },
       orders: { where: { quotationId: id } },
     },
   });
@@ -41,12 +41,18 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
 
-  const existing = await prisma.quotation.findUnique({ where: { id }, select: { createdById: true } });
+  const existing = await prisma.quotation.findUnique({
+    where: { id },
+    select: { createdById: true, status: true, discountAmount: true },
+  });
   if (!existing) throw new NotFoundError('Quotation');
   if (!(await inScope(user, existing.createdById))) throw new ForbiddenError();
 
   const body = await req.json();
-  const { status, notes, items } = body;
+  const {
+    status, notes, items, discountAmount,
+    priceValidity, taxDetails, warranty, amcPeriod, deliveryEstimate, paymentTerms,
+  } = body;
 
   // Accepting a quote is a financial approval step with its own endpoint
   // (which also enforces separation of duties) — this generic PATCH must not
@@ -55,33 +61,52 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     throw new ForbiddenError('Use the Approve action to accept a quotation.');
   }
 
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+  // Once a quote has been sent, its pricing is what the customer saw — only an
+  // admin can still correct it after the fact. Drafts stay freely editable.
+  if ((items || discountAmount !== undefined) && existing.status !== 'DRAFT' && !isAdmin) {
+    throw new ForbiddenError('Only a draft quotation can have its items or pricing edited.');
+  }
+
   let updateData: any = {};
 
   if (status) updateData.status = status;
   if (notes !== undefined) updateData.notes = notes;
+  if (priceValidity !== undefined) updateData.priceValidity = priceValidity;
+  if (taxDetails !== undefined) updateData.taxDetails = taxDetails;
+  if (warranty !== undefined) updateData.warranty = warranty;
+  if (amcPeriod !== undefined) updateData.amcPeriod = amcPeriod;
+  if (deliveryEstimate !== undefined) updateData.deliveryEstimate = deliveryEstimate;
+  if (paymentTerms !== undefined) updateData.paymentTerms = paymentTerms;
 
   // If items updated, recalculate totals
   if (items && items.length > 0) {
     let subtotal = 0;
 
     for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-      });
+      // Custom/blank line items have no catalog productId — only validate
+      // items that actually claim to reference a product.
+      if (item.productId) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+        });
 
-      if (!product) {
-        throw new ValidationError(`Product ${item.productId} not found`);
+        if (!product) {
+          throw new ValidationError(`Product ${item.productId} not found`);
+        }
       }
 
       subtotal += item.quantity * item.unitPrice;
     }
 
     // Quotations are tax-exclusive — GST is not charged on the quote total.
-    const totalAmount = subtotal;
+    const discount = discountAmount !== undefined ? Number(discountAmount) : Number(existing.discountAmount);
+    const totalAmount = subtotal - discount;
 
     updateData.items = items;
     updateData.subtotal = subtotal.toString();
     updateData.taxAmount = '0';
+    updateData.discountAmount = discount.toString();
     updateData.totalAmount = totalAmount.toString();
     updateData.revision = { increment: 1 };
   }
@@ -92,7 +117,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     include: {
       customer: true,
       deal: true,
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, role: true } },
       orders: { where: { quotationId: id } },
     },
   });
