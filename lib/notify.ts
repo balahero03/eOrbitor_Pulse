@@ -5,7 +5,8 @@ type NotifType =
   | 'APPROVAL_APPROVED'
   | 'APPROVAL_REJECTED'
   | 'TASK_ASSIGNED'
-  | 'USER_INACTIVE';
+  | 'USER_INACTIVE'
+  | 'QUOTATION_APPROVED';
 
 export async function createNotification(
   userId: string,

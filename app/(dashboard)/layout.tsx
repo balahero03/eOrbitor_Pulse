@@ -251,6 +251,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
+  // Quotations are managed inline on their lead's page, not as a standalone
+  // flow — so a quotation notification should land there, scrolled to and
+  // highlighting the specific quote, rather than the bare /quotations/{id}
+  // page. Falls back to that bare page for the rare customer-only quote
+  // that isn't tied to a lead.
+  const resolveQuotationDestination = async (quotationId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quotations/${quotationId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const q = await res.json();
+        if (q.leadId) {
+          return { destination: `/leads/${q.leadId}?quotation=${quotationId}`, destLabel: 'Quotation details' };
+        }
+      }
+    } catch { /* fall through to the standalone page */ }
+    return { destination: `/quotations/${quotationId}`, destLabel: 'Quotation details' };
+  };
+
   // Smart notification click: mark read + navigate to the correct section
   const handleNotifClick = async (n: AppNotification) => {
     // Always mark as read first
@@ -265,8 +284,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     let destLabel = '';
 
     if (type === 'APPROVAL_REQUESTED') {
-      destination = '/approvals';
-      destLabel = 'Approvals';
+      if (entityType === 'QUOTATION' && entityId) {
+        ({ destination, destLabel } = await resolveQuotationDestination(entityId));
+      } else {
+        destination = '/approvals';
+        destLabel = 'Approvals';
+      }
     } else if (type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
       if (entityType === 'LEAD' && entityId) {
         destination = `/leads/${entityId}`;
@@ -294,8 +317,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       destination = '/followups';
       destLabel = 'Follow-ups';
     } else if (type === 'QUOTATION_APPROVED') {
-      destination = entityId ? `/leads/${entityId}` : '/leads';
-      destLabel = 'Lead / Quotation';
+      if (entityId) {
+        ({ destination, destLabel } = await resolveQuotationDestination(entityId));
+      } else {
+        destination = '/quotations';
+        destLabel = 'Quotations';
+      }
     } else if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED') {
       destination = entityId ? `/orders/${entityId}` : '/orders';
       destLabel = 'Order details';

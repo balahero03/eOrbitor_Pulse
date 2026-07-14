@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError } from '@/lib/errors';
+import { notifyAdminsAndManagers } from '@/lib/notify';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -37,6 +38,21 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       createdBy: { select: { id: true, firstName: true, lastName: true, role: true } },
     },
   });
+
+  // A non-admin creator's "send" is really a request for a manager/admin's
+  // sign-off (self-approval is blocked) — let them know there's something
+  // to review. An admin sending their own quote is already final, no ping needed.
+  const isCreatorAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(updated.createdBy.role);
+  if (!isCreatorAdmin) {
+    await notifyAdminsAndManagers(
+      'APPROVAL_REQUESTED',
+      'Quotation awaiting approval',
+      `${updated.createdBy.firstName} ${updated.createdBy.lastName} requested approval for quotation ${updated.quotationNumber} (${updated.customer.companyName}).`,
+      'QUOTATION',
+      id,
+      user.id,
+    );
+  }
 
   return NextResponse.json(updated);
 });

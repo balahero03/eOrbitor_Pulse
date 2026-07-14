@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { createNotification } from '@/lib/notify';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -44,6 +45,15 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       createdBy: { select: { id: true, firstName: true, lastName: true, role: true } },
     },
   });
+
+  await createNotification(
+    updated.createdById,
+    'QUOTATION_APPROVED',
+    'Quotation accepted',
+    `Your quotation ${updated.quotationNumber} for ${updated.customer.companyName} has been accepted.`,
+    'QUOTATION',
+    id,
+  );
 
   return NextResponse.json(updated);
 });

@@ -141,7 +141,7 @@ interface QuotationRecord {
   createdAt: string;
 }
 
-function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any }) {
+function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any; highlightId?: string | null }) {
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
@@ -149,6 +149,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const highlightedOnceRef = useRef(false);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -189,6 +191,22 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   };
 
   useEffect(() => { fetchQuotations(); }, [leadId]);
+
+  // Deep-linked from a quotation notification — expand, scroll to, and
+  // briefly flash that specific quote once it shows up in the list. Guarded
+  // by a ref so a later refetch (e.g. after Send/Accept) doesn't re-trigger it.
+  useEffect(() => {
+    if (highlightedOnceRef.current || !highlightId) return;
+    if (!quotations.some(q => q.id === highlightId)) return;
+    highlightedOnceRef.current = true;
+    setExpandedId(highlightId);
+    setFlashId(highlightId);
+    requestAnimationFrame(() => {
+      document.getElementById(`quotation-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    const t = setTimeout(() => setFlashId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightId, quotations]);
 
   const fetchQProducts = async (q: string) => {
     const token = localStorage.getItem('token');
@@ -650,7 +668,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             // status accordingly rather than implying it already went out.
             const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
             return (
-            <div key={q.id} className="border rounded-xl overflow-hidden">
+            <div key={q.id} id={`quotation-${q.id}`}
+              className={`border rounded-xl overflow-hidden transition-all duration-[1500ms] ease-out ${flashId === q.id ? 'ring-2 ring-blue-400 border-blue-300 shadow-md' : 'ring-0 ring-transparent'}`}>
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
@@ -1761,6 +1780,13 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  // Deep-linked from a quotation notification (?quotation=<id>) — read via
+  // window.location rather than useSearchParams to avoid the Suspense
+  // boundary that hook requires on a statically-analyzable page.
+  const [highlightQuotationId, setHighlightQuotationId] = useState<string | null>(null);
+  useEffect(() => {
+    setHighlightQuotationId(new URLSearchParams(window.location.search).get('quotation'));
+  }, []);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -2620,7 +2646,7 @@ export default function LeadDetailPage() {
             )}
 
             {/* Quotations */}
-            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} />
+            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} highlightId={highlightQuotationId} />
 
             {/* Follow-ups */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">
