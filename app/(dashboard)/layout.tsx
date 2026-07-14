@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { LockIcon } from '@/components/icons';
+import { requestHighlight } from '@/lib/notificationHighlight';
 import {
   HomeIcon,
   FunnelIcon,
@@ -254,14 +255,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Quotations are managed inline on their lead's page, not as a standalone
   // flow — so a quotation notification should land there, scrolled to and
   // highlighting the specific quote, rather than the bare /quotations/{id}
-  // page. Falls back to that bare page for the rare customer-only quote
-  // that isn't tied to a lead. highlightQuotationId comes back non-null only
-  // when we resolved a lead to land on — the caller uses it to fire the
-  // in-page highlight (see the custom 'eorbitor:highlight-quotation' event
-  // below). Deliberately NOT a ?quotation= query param: a router.push to the
-  // same /leads/[id] route with only the query string changed doesn't
-  // reliably re-trigger anything listening for it, so a click while already
-  // sitting on the target lead's page silently did nothing.
+  // page. Falls back to that bare page for the rare customer-only quote that
+  // isn't tied to a lead (no in-page highlight target there).
   const resolveQuotationDestination = async (quotationId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -269,90 +264,123 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (res.ok) {
         const q = await res.json();
         if (q.leadId) {
-          return { destination: `/leads/${q.leadId}`, destLabel: 'Quotation details', highlightQuotationId: quotationId as string | null };
+          return { destination: `/leads/${q.leadId}`, destLabel: 'Quotation details', highlight: { scope: 'quotation', id: quotationId } };
         }
       }
     } catch { /* fall through to the standalone page */ }
-    return { destination: `/quotations/${quotationId}`, destLabel: 'Quotation details', highlightQuotationId: null as string | null };
+    return { destination: `/quotations/${quotationId}`, destLabel: 'Quotation details', highlight: null as { scope: string; id: string } | null };
   };
 
-  // Smart notification click: mark read + navigate to the correct section
+  // Navigate to a lead/order detail page — but only after confirming the
+  // entity still exists. An approved deletion (or a later cleanup) leaves the
+  // notification pointing at something gone; without this check the click
+  // lands on a raw "Lead not found" / "Order not found" page. When it's gone
+  // we fall back to the entity's list, with no in-page target. Customers have
+  // no standalone detail API to verify against, so they always go to the list.
+  const resolveEntityDestination = async (
+    entityType: string,
+    entityId: string,
+  ): Promise<{ destination: string; highlight: { scope: string; id: string } | null }> => {
+    if (entityType === 'CUSTOMER') {
+      return { destination: '/customers', highlight: null };
+    }
+    const cfg =
+      entityType === 'ORDER'
+        ? { api: 'orders', scope: 'order', list: '/orders' }
+        : { api: 'leads', scope: 'lead', list: '/leads' };
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/${cfg.api}/${entityId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        return { destination: `/${cfg.api}/${entityId}`, highlight: { scope: cfg.scope, id: entityId } };
+      }
+    } catch { /* fall through to the list */ }
+    return { destination: cfg.list, highlight: null };
+  };
+
+  // Map a notification to where it lands and, when it points at one specific
+  // item, which item to scroll to and ring on arrival. `highlight` is null
+  // when there's no single target to point at (a bare list, a gone entity).
+  const resolveNotification = async (
+    n: AppNotification,
+  ): Promise<{ destination: string; highlight: { scope: string; id: string } | null }> => {
+    const type = n.type;
+    const entityType = n.relatedEntityType;
+    const entityId = n.relatedEntityId;
+
+    if (type === 'APPROVAL_REQUESTED') {
+      if (entityType === 'QUOTATION' && entityId) {
+        const { destination, highlight } = await resolveQuotationDestination(entityId);
+        return { destination, highlight };
+      }
+      // Lead/Order/Customer delete/reopen requests are reviewed on the
+      // approvals list — ring the matching request card (keyed by its
+      // underlying entity id, which is what the notification carries).
+      if (entityId && ['LEAD', 'ORDER', 'CUSTOMER'].includes(entityType || '')) {
+        return { destination: '/approvals', highlight: { scope: 'approval', id: entityId } };
+      }
+      // After-hours access requests live elsewhere — just land on approvals.
+      return { destination: '/approvals', highlight: null };
+    }
+
+    if (type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
+      // The outcome is about the requester's entity — go there if it still
+      // exists (a reopen, or a rejected delete), else its list (an approved
+      // delete). No-entity outcomes (after-hours) have no page → dashboard.
+      if (entityId && ['LEAD', 'ORDER', 'CUSTOMER'].includes(entityType || '')) {
+        return resolveEntityDestination(entityType as string, entityId);
+      }
+      return { destination: '/dashboard', highlight: null };
+    }
+
+    if (type === 'TASK_ASSIGNED' || type === 'TASK_DUE') {
+      return { destination: '/tasks', highlight: entityId ? { scope: 'task', id: entityId } : null };
+    }
+
+    if (type === 'USER_INACTIVE') {
+      // No user detail page exists — land on the users list and ring the row.
+      return { destination: '/users', highlight: entityId ? { scope: 'user', id: entityId } : null };
+    }
+
+    if (type === 'LEAD_ASSIGNED' || type === 'DEAL_UPDATED') {
+      return entityId ? resolveEntityDestination('LEAD', entityId) : { destination: '/leads', highlight: null };
+    }
+
+    if (type === 'FOLLOW_UP_REMINDER') {
+      return { destination: '/followups', highlight: null };
+    }
+
+    if (type === 'QUOTATION_APPROVED') {
+      if (entityId) {
+        const { destination, highlight } = await resolveQuotationDestination(entityId);
+        return { destination, highlight };
+      }
+      return { destination: '/quotations', highlight: null };
+    }
+
+    if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED') {
+      return entityId ? resolveEntityDestination('ORDER', entityId) : { destination: '/orders', highlight: null };
+    }
+
+    return { destination: '/dashboard', highlight: null };
+  };
+
+  // Smart notification click: mark read + navigate + point at the item.
   const handleNotifClick = async (n: AppNotification) => {
     // Always mark as read first
     if (!n.isRead) await markRead(n.id);
     setNotifOpen(false);
 
-    const type = n.type;
-    const entityType = n.relatedEntityType;
-    const entityId = n.relatedEntityId;
-
-    let destination = '';
-    let destLabel = '';
-    let highlightQuotationId: string | null = null;
-
-    if (type === 'APPROVAL_REQUESTED') {
-      if (entityType === 'QUOTATION' && entityId) {
-        ({ destination, destLabel, highlightQuotationId } = await resolveQuotationDestination(entityId));
-      } else {
-        destination = '/approvals';
-        destLabel = 'Approvals';
-      }
-    } else if (type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
-      if (entityType === 'LEAD' && entityId) {
-        destination = `/leads/${entityId}`;
-        destLabel = 'Lead details';
-      } else if (entityType === 'ORDER' && entityId) {
-        destination = `/orders/${entityId}`;
-        destLabel = 'Order details';
-      } else if (entityType === 'CUSTOMER' && entityId) {
-        destination = `/customers/${entityId}`;
-        destLabel = 'Customer details';
-      } else {
-        destination = '/approvals';
-        destLabel = 'Approvals';
-      }
-    } else if (type === 'TASK_ASSIGNED' || type === 'TASK_DUE') {
-      destination = '/tasks';
-      destLabel = 'Tasks';
-    } else if (type === 'USER_INACTIVE') {
-      destination = entityId ? `/users/${entityId}` : '/users';
-      destLabel = 'User profile';
-    } else if (type === 'LEAD_ASSIGNED') {
-      destination = entityId ? `/leads/${entityId}` : '/leads';
-      destLabel = 'Lead details';
-    } else if (type === 'FOLLOW_UP_REMINDER') {
-      destination = '/followups';
-      destLabel = 'Follow-ups';
-    } else if (type === 'QUOTATION_APPROVED') {
-      if (entityId) {
-        ({ destination, destLabel, highlightQuotationId } = await resolveQuotationDestination(entityId));
-      } else {
-        destination = '/quotations';
-        destLabel = 'Quotations';
-      }
-    } else if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED') {
-      destination = entityId ? `/orders/${entityId}` : '/orders';
-      destLabel = 'Order details';
-    } else if (type === 'DEAL_UPDATED') {
-      destination = entityId ? `/leads/${entityId}` : '/leads';
-      destLabel = 'Lead / Deal';
-    } else {
-      destination = '/approvals';
-      destLabel = 'Approvals';
-    }
+    const { destination, highlight } = await resolveNotification(n);
 
     router.push(destination);
-    if (highlightQuotationId) {
-      // Fire a DOM event rather than a URL query param — works identically
-      // whether the target page is already mounted (fires immediately) or
-      // still loading from this navigation (the delay gives it time to mount
-      // and fetch before it starts listening).
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('eorbitor:highlight-quotation', { detail: highlightQuotationId }));
-      }, 400);
-    } else {
-      // Slight delay so the new page has started mounting before banner shows
-      setTimeout(() => showBanner(n.title, n.message, destLabel), 120);
+    // requestHighlight records the target (picked up by the destination page
+    // as it mounts) and also dispatches an event (caught immediately if that
+    // page is already on screen). The in-page ring is the only confirmation —
+    // no top banner. When there's no single item to point at, the navigation
+    // itself is the feedback.
+    if (highlight) {
+      requestHighlight(highlight.scope, highlight.id);
     }
   };
 
@@ -444,21 +472,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  // ── notification highlight toast state ──────────────────────────────────
-  const [notifBanner, setNotifBanner] = useState<{
-    active: boolean;
-    exiting: boolean;
-    title: string;
-    message: string;
-    destination: string;
-  }>({ active: false, exiting: false, title: '', message: '', destination: '' });
-
-  const showBanner = (title: string, message: string, destination: string) => {
-    setNotifBanner({ active: true, exiting: false, title, message, destination });
-    // Begin exit animation 300ms before clearing
-    setTimeout(() => setNotifBanner(b => ({ ...b, exiting: true })), 2700);
-    setTimeout(() => setNotifBanner({ active: false, exiting: false, title: '', message: '', destination: '' }), 3000);
-  };
 
   // Keep the loading screen up until the access-hours check has actually
   // come back — otherwise the real dashboard renders for one frame between
@@ -660,54 +673,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className={`flex-1 overflow-auto relative ${notifBanner.active ? 'notif-main-glow' : ''}`}>
-
-          {/* ── Notification highlight banner ───────────────────────── */}
-          {notifBanner.active && (
-            <div
-              className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 pointer-events-none ${
-                notifBanner.exiting ? 'notif-toast-exit' : 'notif-toast-enter'
-              }`}
-            >
-              <div className="pointer-events-auto bg-white border border-blue-100 rounded-2xl shadow-xl overflow-hidden">
-                {/* Progress drain bar */}
-                <div className="h-0.5 bg-blue-50">
-                  <div className="h-full bg-blue-500 notif-drain" />
-                </div>
-                <div className="flex items-start gap-3 px-4 py-3">
-                  {/* Bell icon */}
-                  <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-blue-700 mb-0.5">Opened from notification</p>
-                    <p className="text-sm font-bold text-gray-900 truncate">{notifBanner.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{notifBanner.message}</p>
-                  </div>
-                  {/* Destination chip */}
-                  <div className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-1">
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                    {notifBanner.destination}
-                  </div>
-                  {/* Dismiss */}
-                  <button
-                    onClick={() => setNotifBanner(b => ({ ...b, exiting: true }))}
-                    className="flex-shrink-0 ml-1 text-gray-300 hover:text-gray-500 transition-colors rounded-full p-0.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
+        <main className="flex-1 overflow-auto relative">
           {children}
         </main>
       </div>

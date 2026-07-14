@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { EditIcon, SuccessIcon } from '@/components/icons';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRingClass } from '@/lib/notificationHighlight';
 
 interface Lead {
   id: string;
@@ -45,6 +47,8 @@ const fmtDate = (d: string | undefined) =>
 export default function CustomerDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  // Deep-linked from a customer notification — rings the main info card.
+  const customerFlashId = useNotificationHighlight('customer');
   const [lead, setLead] = useState<Lead | null>(null);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -317,7 +321,7 @@ export default function CustomerDetailPage() {
 
       {/* Customer Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div id={`customer-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 ${highlightRingClass(customerFlashId === id)}`}>
           <h2 className="text-lg font-bold mb-4 text-gray-900">Customer Information</h2>
           <div className="space-y-4">
             <div>

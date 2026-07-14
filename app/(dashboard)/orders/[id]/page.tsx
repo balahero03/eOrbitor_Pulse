@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon } from '@/components/icons';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRingClass } from '@/lib/notificationHighlight';
 
 interface Order {
   id: string;
@@ -50,6 +52,8 @@ const paymentColor: Record<string, string> = {
 export default function OrderDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  // Deep-linked from an order notification — rings the order's main card.
+  const orderFlashId = useNotificationHighlight('order');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -233,7 +237,7 @@ export default function OrderDetailPage() {
         <div className="col-span-2 space-y-4">
 
           {/* Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div id={`order-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 ${highlightRingClass(orderFlashId === id)}`}>
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>

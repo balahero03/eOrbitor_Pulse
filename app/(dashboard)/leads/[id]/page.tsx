@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRingClass } from '@/lib/notificationHighlight';
 import {
   StageIcon, StatusIcon, QuotationIcon, UploadIcon, SuccessIcon, WarningIcon, LockIcon,
   CalendarIcon, ClipboardIcon, TrophyIcon2, ErrorIcon, BlockedIcon, IdeaIcon, AttachmentIcon,
@@ -141,7 +143,7 @@ interface QuotationRecord {
   createdAt: string;
 }
 
-function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId, highlightNonce }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any; highlightId?: string | null; highlightNonce?: number | null }) {
+function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any }) {
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
@@ -149,12 +151,10 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId, hi
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [flashId, setFlashId] = useState<string | null>(null);
-  // Tracks which highlightNonce has already been processed — nonce, not id,
-  // because re-clicking the *same* notification carries the same id but a
-  // new nonce and should still re-trigger the flash, while a quotations
-  // refetch for an already-processed nonce (e.g. after Accept) must not.
-  const processedNonceRef = useRef<number | null>(null);
+  // Deep-linked from a quotation notification — the shared hook scrolls to
+  // and rings quotation-<id>; we also expand that card so its detail shows.
+  const flashId = useNotificationHighlight('quotation');
+  useEffect(() => { if (flashId) setExpandedId(flashId); }, [flashId]);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -195,32 +195,6 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId, hi
   };
 
   useEffect(() => { fetchQuotations(); }, [leadId]);
-
-  // Deep-linked from a quotation notification — expand, scroll to, and
-  // briefly flash that specific quote once it shows up in the list. Guarded
-  // by processedNonceRef so a later refetch (e.g. after Send/Accept) doesn't
-  // re-trigger it for the same click, while any new dispatch — a different
-  // quote, or the same one clicked again — still flashes fresh. The fade
-  // timer lives in its own ref rather than an effect cleanup, so a refetch
-  // mid-flash can't cancel it — that previously left the ring stuck forever
-  // the moment any action (e.g. Accept) refreshed the list.
-  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!highlightId || highlightNonce == null || processedNonceRef.current === highlightNonce) return;
-    if (!quotations.some(q => q.id === highlightId)) return;
-    processedNonceRef.current = highlightNonce;
-    setExpandedId(highlightId);
-    setFlashId(highlightId);
-    requestAnimationFrame(() => {
-      document.getElementById(`quotation-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-    flashTimeoutRef.current = setTimeout(() => setFlashId(null), 3000);
-  }, [highlightId, highlightNonce, quotations]);
-
-  useEffect(() => {
-    return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
-  }, []);
 
   const fetchQProducts = async (q: string) => {
     const token = localStorage.getItem('token');
@@ -683,7 +657,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId, hi
             const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
             return (
             <div key={q.id} id={`quotation-${q.id}`}
-              className={`border rounded-xl overflow-hidden transition-all duration-[1500ms] ease-out ${flashId === q.id ? 'ring-2 ring-blue-400 border-blue-300 shadow-md' : 'ring-0 ring-transparent'}`}>
+              className={`border rounded-xl overflow-hidden ${highlightRingClass(flashId === q.id)}`}>
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
@@ -1794,27 +1768,10 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  // Deep-linked from a quotation notification — the notification click
-  // handler (app/(dashboard)/layout.tsx) dispatches this event rather than
-  // using a ?quotation= URL param, since a router.push to this same route
-  // with only the query string changed doesn't reliably notify anything
-  // listening for it when the user is already sitting on this exact page.
-  // highlightNonce increments on every dispatch, even for the same
-  // quotation id — otherwise re-clicking the same notification a second
-  // time is a no-op, since React bails out of a setState call whose value
-  // is identical to the current state.
-  const [highlightQuotationId, setHighlightQuotationId] = useState<string | null>(null);
-  const [highlightNonce, setHighlightNonce] = useState<number | null>(null);
-  const highlightNonceRef = useRef(0);
-  useEffect(() => {
-    const handler = (e: Event) => {
-      highlightNonceRef.current += 1;
-      setHighlightQuotationId((e as CustomEvent<string>).detail);
-      setHighlightNonce(highlightNonceRef.current);
-    };
-    window.addEventListener('eorbitor:highlight-quotation', handler);
-    return () => window.removeEventListener('eorbitor:highlight-quotation', handler);
-  }, []);
+  // Deep-linked from a lead notification (assignment / approval outcome) —
+  // rings the lead's main info card (id `lead-<id>`). Quotation notifications
+  // are handled separately inside QuotationsSection ('quotation' scope).
+  const leadFlashId = useNotificationHighlight('lead');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -2546,7 +2503,7 @@ export default function LeadDetailPage() {
             )}
 
             {/* Lead Info */}
-            <div className="bg-white rounded-xl border p-5 shadow-sm">
+            <div id={`lead-${lead.id}`} className={`bg-white rounded-xl border p-5 shadow-sm ${highlightRingClass(leadFlashId === lead.id)}`}>
               <h2 className="text-base font-semibold text-gray-800 mb-4">Lead Information</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2673,7 +2630,7 @@ export default function LeadDetailPage() {
             )}
 
             {/* Quotations */}
-            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} highlightId={highlightQuotationId} highlightNonce={highlightNonce} />
+            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} />
 
             {/* Follow-ups */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">

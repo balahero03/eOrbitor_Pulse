@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRingClass } from '@/lib/notificationHighlight';
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon } from '@/components/icons';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -42,6 +44,9 @@ function fmtDateTime(s: string) {
 
 export default function ApprovalsPage() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM']);
+  // Deep-linked from an approval-request notification — rings the matching
+  // request card, keyed by the underlying entity id the notification carries.
+  const flashApprovalId = useNotificationHighlight('approval');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [loading, setLoading] = useState(true);
@@ -154,7 +159,7 @@ export default function ApprovalsPage() {
           {requests.map((req) => {
             const border = req.status === 'PENDING' ? 'border-l-amber-500' : req.status === 'APPROVED' ? 'border-l-green-500' : 'border-l-red-500';
             return (
-              <div key={req.id} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${border} shadow-sm p-4`}>
+              <div key={req.id} id={`approval-${req.entityId}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${border} shadow-sm p-4 ${highlightRingClass(flashApprovalId === req.entityId)}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     {/* Title row */}

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
 import { canManageUser, roleRank } from '@/lib/roles';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRowClass } from '@/lib/notificationHighlight';
 
 interface User {
   id: string;
@@ -230,6 +232,8 @@ function UserActionMenu({
 }
 
 export default function UsersPage() {
+  // Deep-linked from a user-inactive notification — rings the matching row.
+  const flashUserId = useNotificationHighlight('user');
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [exEmployees, setExEmployees] = useState<User[]>([]);
@@ -750,7 +754,7 @@ export default function UsersPage() {
                        {list.map(u => {
                         const isMenuOpen = activeMenuUserId === u.id;
                         return (
-                          <tr key={u.id} className={`transition-all duration-150 ${!u.isActive ? 'opacity-50' : ''} ${isMenuOpen ? 'bg-blue-50/50 hover:bg-blue-50 border-l-2 border-blue-500 shadow-sm' : 'hover:bg-gray-50'}`}>
+                          <tr key={u.id} id={`user-${u.id}`} className={`transition-all duration-150 ${!u.isActive ? 'opacity-50' : ''} ${isMenuOpen ? 'bg-blue-50/50 hover:bg-blue-50 border-l-2 border-blue-500 shadow-sm' : 'hover:bg-gray-50'} ${highlightRowClass(flashUserId === u.id)}`}>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
@@ -835,7 +839,7 @@ export default function UsersPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {exEmployees.map(u => (
-                      <tr key={u.id} className="hover:bg-gray-50">
+                      <tr key={u.id} id={`user-${u.id}`} className={`hover:bg-gray-50 ${highlightRowClass(flashUserId === u.id)}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold">

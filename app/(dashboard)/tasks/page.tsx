@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { WarningIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRowClass } from '@/lib/notificationHighlight';
 
 interface Task {
   id: string;
@@ -47,6 +49,8 @@ function originBadge(task: Task, currentUserId: string): { label: string; classN
 
 export default function TasksPage() {
   const { user: currentUser } = useCurrentUser();
+  // Deep-linked from a task-assigned notification — rings the matching row.
+  const flashTaskId = useNotificationHighlight('task');
   // Assigning to someone else (not just yourself) is only meaningful for
   // roles that actually have another person to assign to — see canAssign()
   // in /api/tasks: admins and Backend Team managers, not individual reps.
@@ -241,7 +245,7 @@ export default function TasksPage() {
               {tasks.map(task => {
                 const badge = currentUser ? originBadge(task, currentUser.id) : null;
                 return (
-                <tr key={task.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={task.id} id={`task-${task.id}`} className={`hover:bg-gray-50 ${highlightRowClass(flashTaskId === task.id)}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
