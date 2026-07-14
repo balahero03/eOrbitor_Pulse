@@ -234,6 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [accessChecked, setAccessChecked] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -242,6 +243,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetch('/api/notifications?limit=20', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.notifications) setNotifications(data.notifications); })
+      .catch(() => {});
+  };
+
+  // Total pending approvals for the sidebar badge: record requests for every
+  // reviewer, plus after-hours access requests only for admins (managers can't
+  // act on those, and the access list is admin-scoped anyway).
+  const fetchPendingApprovals = (token: string, includeAccess: boolean) => {
+    Promise.all([
+      fetch('/api/approval-requests?status=PENDING&limit=1', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null),
+      includeAccess
+        ? fetch('/api/access-requests?status=PENDING', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null)
+        : Promise.resolve(null),
+    ])
+      .then(([rec, acc]) => setPendingApprovals((rec?.pagination?.total ?? 0) + (acc?.requests?.length ?? 0)))
       .catch(() => {});
   };
 
@@ -319,7 +334,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (entityId && ['LEAD', 'ORDER', 'CUSTOMER'].includes(entityType || '')) {
         return { destination: '/approvals', highlight: { scope: 'approval', id: entityId } };
       }
-      // After-hours access requests live elsewhere — just land on approvals.
+      // After-hours access requests are reviewed under the Access category of
+      // the same approvals hub — ring the matching request (keyed by its id).
+      if (entityType === 'AFTER_HOURS_ACCESS' && entityId) {
+        return { destination: '/approvals', highlight: { scope: 'access', id: entityId } };
+      }
       return { destination: '/approvals', highlight: null };
     }
 
@@ -401,8 +420,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user) return;
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetchNotifications(token);
-    const interval = setInterval(() => fetchNotifications(token), 30_000);
+    const isReviewer = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role);
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+    const poll = () => {
+      fetchNotifications(token);
+      if (isReviewer) fetchPendingApprovals(token, isAdmin);
+    };
+    poll();
+    const interval = setInterval(poll, 30_000);
     return () => clearInterval(interval);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -532,14 +557,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     key={item.href}
                     href={item.href}
                     title={!showLabels ? item.label : undefined}
-                    className={`flex items-center gap-3 mx-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`relative flex items-center gap-3 mx-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
                       active
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                    {showLabels && <span className="truncate">{item.label}</span>}
+                    {showLabels && <span className="truncate flex-1">{item.label}</span>}
+                    {item.href === '/approvals' && pendingApprovals > 0 && (
+                      <span className={`flex-shrink-0 text-[10px] font-bold rounded-full min-w-[18px] text-center px-1.5 py-0.5 ${showLabels ? 'bg-amber-500 text-white' : 'bg-amber-500 text-white absolute top-1 right-1'}`}>
+                        {pendingApprovals}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

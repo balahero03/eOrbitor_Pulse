@@ -226,15 +226,6 @@ interface AccessPolicy {
   currentlyRestricting?: boolean;
 }
 
-interface AccessRequestRow {
-  id: string;
-  date: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-  user: { firstName: string; lastName: string; email: string; role: string };
-}
-
 // Admin-only, collapsed-by-default section. This page is also visible to
 // BACKEND_TEAM (the manager-equivalent role), who should never see this panel.
 function AccessPolicySection() {
@@ -242,28 +233,22 @@ function AccessPolicySection() {
   const [loaded, setLoaded] = useState(false);
   const [policy, setPolicy] = useState<AccessPolicy | null>(null);
   const [savedPolicy, setSavedPolicy] = useState<AccessPolicy | null>(null);
-  const [requests, setRequests] = useState<AccessRequestRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [actingId, setActingId] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<AccessRequestRow | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
 
   const dirty = policy && savedPolicy && JSON.stringify(policy) !== JSON.stringify(savedPolicy);
 
+  // Reviewing after-hours access requests now lives in the Approvals hub —
+  // this section only configures the policy.
   const load = async () => {
     const token = localStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
-    const [pRes, rRes] = await Promise.all([
-      fetch('/api/access-policy', { headers }),
-      fetch('/api/access-requests?status=PENDING', { headers }),
-    ]);
+    const pRes = await fetch('/api/access-policy', { headers });
     if (pRes.ok) {
       const p = await pRes.json();
       setPolicy(p);
       setSavedPolicy(p);
     }
-    if (rRes.ok) setRequests((await rRes.json()).requests || []);
     setLoaded(true);
   };
 
@@ -320,25 +305,6 @@ function AccessPolicySection() {
     return () => clearTimeout(t);
   }, [saveMessage]);
 
-  const reviewRequest = async (id: string, action: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
-    setActingId(id);
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`/api/access-requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, rejectionReason }),
-      });
-      setRequests(prev => prev.filter(r => r.id !== id));
-      setRejectTarget(null);
-      setRejectReason('');
-    } catch {
-      setSaveMessage({ type: 'error', text: 'That action failed — please try again' });
-    } finally {
-      setActingId(null);
-    }
-  };
-
   const statusStrip = policy && loaded && (
     !policy.enabled ? (
       <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-xs">
@@ -368,11 +334,6 @@ function AccessPolicySection() {
           <span className="font-semibold text-sm text-gray-800 flex items-center gap-1.5"><LockIcon className="w-4 h-4" /> Access Policy</span>
           {loaded && policy?.enabled && (
             <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium">ON</span>
-          )}
-          {requests.length > 0 && (
-            <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium">
-              {requests.length} pending
-            </span>
           )}
         </div>
         <span className="text-gray-400 text-sm">{expanded ? '▲' : '▼'}</span>
@@ -461,65 +422,11 @@ function AccessPolicySection() {
             </div>
           </div>
 
-          {/* Pending requests */}
+          {/* Reviewing requests moved to the Approvals hub. */}
           <div className="border-t pt-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Pending access requests</p>
-            {requests.length === 0 ? (
-              <p className="text-sm text-gray-400">No pending requests.</p>
-            ) : (
-              <div className="space-y-2">
-                {requests.map(r => (
-                  <div key={r.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">
-                        {r.user.firstName} {r.user.lastName} <span className="text-gray-400 font-normal">({r.user.role})</span>
-                      </p>
-                      <p className="text-xs text-gray-500">{r.date} · {r.reason}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => reviewRequest(r.id, 'APPROVE')} disabled={actingId === r.id}
-                        className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
-                        Approve
-                      </button>
-                      <button onClick={() => { setRejectTarget(r); setRejectReason(''); }} disabled={actingId === r.id}
-                        className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50">
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {rejectTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h2 className="text-lg font-bold text-red-600 mb-1">Reject Access Request</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {rejectTarget.user.firstName} {rejectTarget.user.lastName} · {rejectTarget.date}
-            </p>
-            <textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              placeholder="Reason for rejection (optional)…"
-              autoFocus
-              className="w-full border rounded-lg px-3 py-2 text-sm h-24 mb-4 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
-            <div className="flex gap-3">
-              <button onClick={() => { setRejectTarget(null); setRejectReason(''); }}
-                disabled={actingId === rejectTarget.id}
-                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-                Cancel
-              </button>
-              <button onClick={() => reviewRequest(rejectTarget.id, 'REJECT', rejectReason.trim() || undefined)}
-                disabled={actingId === rejectTarget.id}
-                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
-                {actingId === rejectTarget.id ? 'Rejecting…' : 'Reject Request'}
-              </button>
-            </div>
+            <a href="/approvals" className="inline-flex items-center gap-1.5 text-sm text-blue-600 font-medium hover:underline">
+              <LockIcon className="w-4 h-4" /> Review after-hours access requests in Approvals →
+            </a>
           </div>
         </div>
       )}
