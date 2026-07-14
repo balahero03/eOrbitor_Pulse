@@ -1,27 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth } from '@/lib/middleware/auth';
 
 
 // POST /api/leads/[id]/followups
 // Adds a follow-up to a lead. Auto-creates a stub customer+deal if the lead
 // hasn't been converted yet, so the user never has to do it manually first.
-export async function POST(
+export const POST = withAuth(async (
   req: NextRequest,
+  user,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   try {
     const { id: leadId } = await params;
-
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(
-      authHeader.split(' ')[1],
-      process.env.JWT_SECRET || 'dev-secret'
-    ) as { id: string };
 
     const body = await req.json();
     const { type, scheduledDate, notes, outcome } = body;
@@ -83,7 +74,7 @@ export async function POST(
           stage: 'SUSPECT',
           customerId,
           leadId,
-          assignedToId: decoded.id,
+          assignedToId: user.id,
         },
       });
       dealId = deal.id;
@@ -98,7 +89,7 @@ export async function POST(
         scheduledDate: new Date(scheduledDate),
         notes: notes || null,
         outcome: outcome || null,
-        createdById: decoded.id,
+        createdById: user.id,
       },
       select: {
         id: true,
@@ -114,4 +105,4 @@ export async function POST(
     console.error('Lead followup POST error:', error?.message, error?.code);
     return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
   }
-}
+});

@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-  return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-}
+import { withAuth } from '@/lib/middleware/auth';
 
 // POST /api/users/[id]/reassign  { targetUserId }
 // Moves all business records owned by the ex-employee (id) to a current
 // employee (targetUserId), in a single transaction. After this, the ex-employee
 // owns no required-FK records and can be permanently removed.
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withAuth(async (req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const auth = verifyAuth(req);
 
     if (auth.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Only the Super Admin can reassign ex-employee records' }, { status: 403 });
@@ -71,4 +62,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (err) {
     return NextResponse.json({ error: 'Failed to reassign records' }, { status: 500 });
   }
-}
+});

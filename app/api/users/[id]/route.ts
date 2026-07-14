@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { withAuth } from '@/lib/middleware/auth';
 import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-async function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    throw new Error('Invalid token');
-  }
-}
-
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    await verifyAuth(req);
 
     const user = await prisma.user.findUnique({
       where: { id: id },
@@ -48,12 +34,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (err) {
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const auth = await verifyAuth(req);
     const body = await req.json();
 
     const {
@@ -157,12 +142,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   } catch (err) {
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const auth = await verifyAuth(req);
 
     if (!isAdmin(auth.role)) {
       return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 });
@@ -244,4 +228,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   } catch (err) {
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
-}
+});

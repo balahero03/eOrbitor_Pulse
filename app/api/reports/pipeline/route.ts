@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { reportCalculator, type DateRange } from '@/lib/reports/calculator';
 import { prisma } from '@/lib/prisma';
 
-function getToken(req: NextRequest): string | null {
-  const auth = req.headers.get('authorization');
-  return auth?.startsWith('Bearer ') ? auth.slice(7) : null;
-}
-
-export async function GET(req: NextRequest) {
-  const token = getToken(req);
-  if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-
-  let decoded: any;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET ?? 'dev-secret');
-  } catch {
-    return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-  }
-
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(decoded.role)) {
+export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
@@ -50,9 +35,9 @@ export async function GET(req: NextRequest) {
       startDate,
       endDate,
       data: reportData as any,
-      createdById: decoded.id,
+      createdById: user.id,
     },
   });
 
   return NextResponse.json({ ...reportData, id: saved.id });
-}
+});

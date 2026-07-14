@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth } from '@/lib/middleware/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const followUp = await prisma.followUp.findUnique({
     where: { id },
@@ -33,14 +18,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json(followUp);
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const user = verifyToken(token);
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-
+export const PATCH = withAuth(async (req: NextRequest, user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const existing = await prisma.followUp.findUnique({ where: { id } });
   if (!existing) {
@@ -75,14 +55,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   return NextResponse.json(followUp);
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const user = verifyToken(token);
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-
+export const DELETE = withAuth(async (_req: NextRequest, user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const existing = await prisma.followUp.findUnique({ where: { id } });
   if (!existing) {
@@ -98,4 +73,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   await prisma.followUp.delete({ where: { id } });
 
   return NextResponse.json({ message: 'Follow-up deleted' });
-}
+});

@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-  return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-}
+import { withAuth } from '@/lib/middleware/auth';
 
 // GET /api/users/[id]/records
 // Super-Admin-only breakdown of everything an ex-employee owns. "Business"
 // records have required FKs and block hard-deletion until reassigned; "personal"
 // records cascade automatically when the user row is deleted.
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withAuth(async (_req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const auth = verifyAuth(req);
 
     if (!['SUPER_ADMIN', 'ADMIN'].includes(auth.role)) {
       return NextResponse.json({ error: 'Only admins can view user records' }, { status: 403 });
@@ -73,4 +64,4 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (err) {
     return NextResponse.json({ error: 'Failed to load records' }, { status: 500 });
   }
-}
+});

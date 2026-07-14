@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { withAuth } from '@/lib/middleware/auth';
 import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
-  return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-}
 
 /**
  * POST /api/users/[id]/role-switch
@@ -17,13 +9,13 @@ function verifyAuth(req: NextRequest) {
  * Atomically switches a user's role and handles redistribution of their leads,
  * deals, tasks, and subordinates — all in a single Prisma transaction.
  */
-export async function POST(
+export const POST = withAuth(async (
   req: NextRequest,
+  auth,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   try {
     const { id } = await params;
-    const auth = verifyAuth(req);
 
     if (!isAdmin(auth.role)) {
       return NextResponse.json({ error: 'Only admins can switch user roles' }, { status: 403 });
@@ -197,4 +189,4 @@ export async function POST(
     console.error('[role-switch]', err);
     return NextResponse.json({ error: err.message || 'Failed to switch role' }, { status: 500 });
   }
-}
+});
