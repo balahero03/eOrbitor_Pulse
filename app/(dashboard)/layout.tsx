@@ -334,10 +334,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       destLabel = 'Approvals';
     }
 
-    // Navigate first, then show the highlight banner on the new page
+    // Navigate first, then show the highlight banner on the new page — except
+    // for quotation notifications, which already get an in-context ring
+    // highlight on the specific quotation card, making the generic top
+    // banner redundant duplicate messaging.
     router.push(destination);
-    // Slight delay so the new page has started mounting before banner shows
-    setTimeout(() => showBanner(n.title, n.message, destLabel), 120);
+    if (!destination.includes('?quotation=')) {
+      // Slight delay so the new page has started mounting before banner shows
+      setTimeout(() => showBanner(n.title, n.message, destLabel), 120);
+    }
   };
 
   const markAllRead = async () => {

@@ -194,7 +194,11 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: 
 
   // Deep-linked from a quotation notification — expand, scroll to, and
   // briefly flash that specific quote once it shows up in the list. Guarded
-  // by a ref so a later refetch (e.g. after Send/Accept) doesn't re-trigger it.
+  // by a ref so a later refetch (e.g. after Send/Accept) doesn't re-trigger
+  // it. The fade timer lives in its own ref rather than an effect cleanup,
+  // so a refetch mid-flash can't cancel it — that previously left the ring
+  // stuck forever the moment any action (e.g. Accept) refreshed the list.
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (highlightedOnceRef.current || !highlightId) return;
     if (!quotations.some(q => q.id === highlightId)) return;
@@ -204,9 +208,12 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: 
     requestAnimationFrame(() => {
       document.getElementById(`quotation-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-    const t = setTimeout(() => setFlashId(null), 3000);
-    return () => clearTimeout(t);
+    flashTimeoutRef.current = setTimeout(() => setFlashId(null), 3000);
   }, [highlightId, quotations]);
+
+  useEffect(() => {
+    return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
+  }, []);
 
   const fetchQProducts = async (q: string) => {
     const token = localStorage.getItem('token');
