@@ -141,7 +141,7 @@ interface QuotationRecord {
   createdAt: string;
 }
 
-function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any; highlightId?: string | null }) {
+function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId, highlightNonce }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any; highlightId?: string | null; highlightNonce?: number | null }) {
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
@@ -150,7 +150,11 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const highlightedOnceRef = useRef(false);
+  // Tracks which highlightNonce has already been processed — nonce, not id,
+  // because re-clicking the *same* notification carries the same id but a
+  // new nonce and should still re-trigger the flash, while a quotations
+  // refetch for an already-processed nonce (e.g. after Accept) must not.
+  const processedNonceRef = useRef<number | null>(null);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -194,22 +198,25 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser, highlightId }: 
 
   // Deep-linked from a quotation notification — expand, scroll to, and
   // briefly flash that specific quote once it shows up in the list. Guarded
-  // by a ref so a later refetch (e.g. after Send/Accept) doesn't re-trigger
-  // it. The fade timer lives in its own ref rather than an effect cleanup,
-  // so a refetch mid-flash can't cancel it — that previously left the ring
-  // stuck forever the moment any action (e.g. Accept) refreshed the list.
+  // by processedNonceRef so a later refetch (e.g. after Send/Accept) doesn't
+  // re-trigger it for the same click, while any new dispatch — a different
+  // quote, or the same one clicked again — still flashes fresh. The fade
+  // timer lives in its own ref rather than an effect cleanup, so a refetch
+  // mid-flash can't cancel it — that previously left the ring stuck forever
+  // the moment any action (e.g. Accept) refreshed the list.
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (highlightedOnceRef.current || !highlightId) return;
+    if (!highlightId || highlightNonce == null || processedNonceRef.current === highlightNonce) return;
     if (!quotations.some(q => q.id === highlightId)) return;
-    highlightedOnceRef.current = true;
+    processedNonceRef.current = highlightNonce;
     setExpandedId(highlightId);
     setFlashId(highlightId);
     requestAnimationFrame(() => {
       document.getElementById(`quotation-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     flashTimeoutRef.current = setTimeout(() => setFlashId(null), 3000);
-  }, [highlightId, quotations]);
+  }, [highlightId, highlightNonce, quotations]);
 
   useEffect(() => {
     return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
@@ -1787,12 +1794,26 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  // Deep-linked from a quotation notification (?quotation=<id>) — read via
-  // window.location rather than useSearchParams to avoid the Suspense
-  // boundary that hook requires on a statically-analyzable page.
+  // Deep-linked from a quotation notification — the notification click
+  // handler (app/(dashboard)/layout.tsx) dispatches this event rather than
+  // using a ?quotation= URL param, since a router.push to this same route
+  // with only the query string changed doesn't reliably notify anything
+  // listening for it when the user is already sitting on this exact page.
+  // highlightNonce increments on every dispatch, even for the same
+  // quotation id — otherwise re-clicking the same notification a second
+  // time is a no-op, since React bails out of a setState call whose value
+  // is identical to the current state.
   const [highlightQuotationId, setHighlightQuotationId] = useState<string | null>(null);
+  const [highlightNonce, setHighlightNonce] = useState<number | null>(null);
+  const highlightNonceRef = useRef(0);
   useEffect(() => {
-    setHighlightQuotationId(new URLSearchParams(window.location.search).get('quotation'));
+    const handler = (e: Event) => {
+      highlightNonceRef.current += 1;
+      setHighlightQuotationId((e as CustomEvent<string>).detail);
+      setHighlightNonce(highlightNonceRef.current);
+    };
+    window.addEventListener('eorbitor:highlight-quotation', handler);
+    return () => window.removeEventListener('eorbitor:highlight-quotation', handler);
   }, []);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2434,7 +2455,6 @@ export default function LeadDetailPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-
       {/* ── TOP HALF: kanban board (scrolls with the page) ──────────────── */}
       <div className="bg-gray-50 border-b border-gray-200 px-6 pt-5 pb-5 shadow-sm">
 
@@ -2653,7 +2673,7 @@ export default function LeadDetailPage() {
             )}
 
             {/* Quotations */}
-            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} highlightId={highlightQuotationId} />
+            <QuotationsSection leadId={lead.id} lead={lead} canEdit={canEdit} currentUser={currentUser} highlightId={highlightQuotationId} highlightNonce={highlightNonce} />
 
             {/* Follow-ups */}
             <div className="bg-white rounded-xl border p-5 shadow-sm">

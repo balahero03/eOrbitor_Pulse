@@ -255,7 +255,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // flow — so a quotation notification should land there, scrolled to and
   // highlighting the specific quote, rather than the bare /quotations/{id}
   // page. Falls back to that bare page for the rare customer-only quote
-  // that isn't tied to a lead.
+  // that isn't tied to a lead. highlightQuotationId comes back non-null only
+  // when we resolved a lead to land on — the caller uses it to fire the
+  // in-page highlight (see the custom 'eorbitor:highlight-quotation' event
+  // below). Deliberately NOT a ?quotation= query param: a router.push to the
+  // same /leads/[id] route with only the query string changed doesn't
+  // reliably re-trigger anything listening for it, so a click while already
+  // sitting on the target lead's page silently did nothing.
   const resolveQuotationDestination = async (quotationId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -263,11 +269,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (res.ok) {
         const q = await res.json();
         if (q.leadId) {
-          return { destination: `/leads/${q.leadId}?quotation=${quotationId}`, destLabel: 'Quotation details' };
+          return { destination: `/leads/${q.leadId}`, destLabel: 'Quotation details', highlightQuotationId: quotationId as string | null };
         }
       }
     } catch { /* fall through to the standalone page */ }
-    return { destination: `/quotations/${quotationId}`, destLabel: 'Quotation details' };
+    return { destination: `/quotations/${quotationId}`, destLabel: 'Quotation details', highlightQuotationId: null as string | null };
   };
 
   // Smart notification click: mark read + navigate to the correct section
@@ -282,10 +288,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     let destination = '';
     let destLabel = '';
+    let highlightQuotationId: string | null = null;
 
     if (type === 'APPROVAL_REQUESTED') {
       if (entityType === 'QUOTATION' && entityId) {
-        ({ destination, destLabel } = await resolveQuotationDestination(entityId));
+        ({ destination, destLabel, highlightQuotationId } = await resolveQuotationDestination(entityId));
       } else {
         destination = '/approvals';
         destLabel = 'Approvals';
@@ -318,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       destLabel = 'Follow-ups';
     } else if (type === 'QUOTATION_APPROVED') {
       if (entityId) {
-        ({ destination, destLabel } = await resolveQuotationDestination(entityId));
+        ({ destination, destLabel, highlightQuotationId } = await resolveQuotationDestination(entityId));
       } else {
         destination = '/quotations';
         destLabel = 'Quotations';
@@ -334,12 +341,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       destLabel = 'Approvals';
     }
 
-    // Navigate first, then show the highlight banner on the new page — except
-    // for quotation notifications, which already get an in-context ring
-    // highlight on the specific quotation card, making the generic top
-    // banner redundant duplicate messaging.
     router.push(destination);
-    if (!destination.includes('?quotation=')) {
+    if (highlightQuotationId) {
+      // Fire a DOM event rather than a URL query param — works identically
+      // whether the target page is already mounted (fires immediately) or
+      // still loading from this navigation (the delay gives it time to mount
+      // and fetch before it starts listening).
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('eorbitor:highlight-quotation', { detail: highlightQuotationId }));
+      }, 400);
+    } else {
       // Slight delay so the new page has started mounting before banner shows
       setTimeout(() => showBanner(n.title, n.message, destLabel), 120);
     }
