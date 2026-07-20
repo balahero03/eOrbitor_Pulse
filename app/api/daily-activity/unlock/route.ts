@@ -25,9 +25,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   return NextResponse.json({ message: 'Unlock request submitted', request: req2 }, { status: 201 });
 });
 
-// GET /api/daily-activity/unlock — admin/support gets all pending requests
+// GET /api/daily-activity/unlock — admin/backend team gets all pending requests
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
-  if (!['SUPER_ADMIN', 'ADMIN', 'SUPPORT'].includes(user.role)) throw new ForbiddenError();
+  if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) throw new ForbiddenError();
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') || 'PENDING';
@@ -44,9 +44,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   return NextResponse.json({ requests });
 });
 
-// PATCH /api/daily-activity/unlock — admin/support approves or rejects
+// PATCH /api/daily-activity/unlock — admin/backend team approves or rejects
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
-  if (!['SUPER_ADMIN', 'ADMIN', 'SUPPORT'].includes(user.role)) throw new ForbiddenError();
+  if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) throw new ForbiddenError();
 
   const { requestId, action } = await req.json(); // action: 'APPROVE' | 'REJECT'
   if (!requestId || !['APPROVE', 'REJECT'].includes(action)) {

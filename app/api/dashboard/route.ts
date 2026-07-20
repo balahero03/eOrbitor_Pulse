@@ -5,48 +5,6 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { id: userId, role } = user;
 
-  // ── SUPPORT / VIEWER: tasks + announcements only ────────────────────
-  if (role === 'SUPPORT' || role === 'VIEWER') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const [myOpenTasks, myOverdueTasks, tasksToday, upcomingTasks, announcements] = await Promise.all([
-      prisma.task.count({ where: { assignedToId: userId, status: { not: 'COMPLETED' } } }),
-      prisma.task.count({ where: { assignedToId: userId, status: { not: 'COMPLETED' }, dueDate: { lt: today } } }),
-      prisma.task.findMany({
-        where: { assignedToId: userId, status: { not: 'COMPLETED' }, dueDate: { gte: today, lte: todayEnd } },
-        select: { id: true, title: true, priority: true, dueDate: true, status: true, description: true },
-        orderBy: { dueDate: 'asc' },
-      }),
-      prisma.task.findMany({
-        where: {
-          assignedToId: userId,
-          status: { not: 'COMPLETED' },
-          OR: [{ dueDate: { gt: todayEnd } }, { dueDate: null }],
-        },
-        select: { id: true, title: true, priority: true, dueDate: true, status: true, description: true },
-        orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }],
-        take: 10,
-      }),
-      prisma.announcement.findMany({
-        where: { isPublished: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-        orderBy: [{ priority: 'desc' }, { publishedAt: 'desc' }],
-        select: { id: true, title: true, content: true, priority: true, publishedAt: true },
-      }),
-    ]);
-
-    return NextResponse.json({
-      role,
-      today: today.toISOString(),
-      stats: { openTasks: myOpenTasks, overdueTasks: myOverdueTasks },
-      tasksToday,
-      upcomingTasks,
-      announcements,
-    });
-  }
-
   // ── ON FIELD TEAM: personal daily dashboard ────────────────────────────
   if (role === 'ON_FIELD_TEAM') {
     const today = new Date();

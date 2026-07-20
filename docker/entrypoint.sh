@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# One-off data fix for the UserRole enum rename (SALES_MANAGER/SALES_EXEC/
+# SUPPORT/VIEWER -> BACKEND_TEAM/ON_FIELD_TEAM). `db push` cannot ALTER the
+# enum type while rows still reference dropped variants, so remap them first.
+# Safe to run every boot: the UPDATEs are no-ops once no rows match.
+echo "[entrypoint] Remapping legacy UserRole values (if any)..."
+node scripts/fix-user-role-enum.js || echo "[entrypoint] Role remap skipped (fresh DB or already clean)."
+
 echo "[entrypoint] Syncing database schema..."
 # This project ships an incomplete migration history (the base CREATE TABLEs
 # were never captured as migrations), so we sync the schema directly from
