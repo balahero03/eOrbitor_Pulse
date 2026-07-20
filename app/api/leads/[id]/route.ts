@@ -84,9 +84,17 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // ON_HOLD and DROPPED can be set from any pipeline stage — skip sequential validation
   if (status && status !== 'ON_HOLD' && status !== 'DROPPED') {
     const current = existingLead.status;
-    const stageOrder = ['SUSPECT', 'PROSPECT', 'APPROACH', 'NEGOTIATION', 'CLOSURE'];
-    const currentIdx = stageOrder.indexOf(current || '');
-    const newIdx = stageOrder.indexOf(status);
+    const getStageIndex = (s: string) => {
+      if (s === 'SUSPECT') return 0;
+      if (s === 'PROSPECT') return 1;
+      if (s === 'PROPOSAL' || s === 'APPROACH') return 2;
+      if (s === 'NEGOTIATION') return 3;
+      if (s === 'CLOSURE' || s === 'WON' || s === 'LOST') return 4;
+      return -1;
+    };
+
+    const currentIdx = getStageIndex(current || '');
+    const newIdx = getStageIndex(status);
 
     // Only allow moving to the next stage or allowed reversals (CLOSURE ↔ NEGOTIATION)
     const allowedReversals = [
@@ -95,11 +103,12 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     ];
 
     const isAllowedReversal = allowedReversals.some(r => r.from === current && r.to === status);
-    const isNextStage = newIdx === currentIdx + 1;
+    const isNextStage = newIdx === currentIdx + 1 || (currentIdx === newIdx && (status === 'PROPOSAL' || status === 'APPROACH'));
 
     if (!isAllowedReversal && !isNextStage) {
-      const nextStage = currentIdx >= 0 && currentIdx < stageOrder.length - 1
-        ? stageOrder[currentIdx + 1]
+      const stageNames = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
+      const nextStage = currentIdx >= 0 && currentIdx < stageNames.length - 1
+        ? stageNames[currentIdx + 1]
         : 'end of pipeline';
       throw new ValidationError(`Cannot skip stages. From ${current}, you must move to ${nextStage}. No stage skipping allowed.`);
     }
