@@ -41,8 +41,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const newIdx = STAGES.indexOf(newStage);
   const isNextStage = newIdx === currentIdx + 1;
   const isAllowedReversal = existing.stage === 'CLOSURE' && newStage === 'NEGOTIATION';
+  const isSkipNegotiation = ((existing.stage as string) === 'PROPOSAL' || existing.stage === 'APPROACH') && (newStage === 'CLOSURE' || newStage === 'ONGOING');
 
-  if (!isNextStage && !isAllowedReversal) {
+  if (!isNextStage && !isAllowedReversal && !isSkipNegotiation) {
     const nextStage = currentIdx >= 0 && currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : 'end of pipeline';
     throw new ValidationError(`Cannot skip stages. From ${existing.stage}, you must move to ${nextStage}. No stage skipping allowed.`);
   }

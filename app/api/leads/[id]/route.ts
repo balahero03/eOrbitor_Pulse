@@ -104,8 +104,9 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 
     const isAllowedReversal = allowedReversals.some(r => r.from === current && r.to === status);
     const isNextStage = newIdx === currentIdx + 1 || (currentIdx === newIdx && (status === 'PROPOSAL' || status === 'APPROACH'));
+    const isSkipNegotiation = (current === 'PROPOSAL' || current === 'APPROACH') && (status === 'CLOSURE' || status === 'WON' || status === 'LOST');
 
-    if (!isAllowedReversal && !isNextStage) {
+    if (!isAllowedReversal && !isNextStage && !isSkipNegotiation) {
       const stageNames = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
       const nextStage = currentIdx >= 0 && currentIdx < stageNames.length - 1
         ? stageNames[currentIdx + 1]

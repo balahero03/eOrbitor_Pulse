@@ -1486,9 +1486,11 @@ interface NegotiationFormData {
   qNotes: string;
 }
 
-function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, editMode }: {
+function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initialData, editMode }: {
   lead: LeadDetail; onClose: () => void;
-  onSubmit: (data: NegotiationFormData) => void; submitting: boolean;
+  onSubmit: (data: NegotiationFormData) => void;
+  onSkip?: () => void;
+  submitting: boolean;
   initialData?: Partial<NegotiationFormData>; editMode?: boolean;
 }) {
   const [meta, setMeta] = useState({
@@ -1783,13 +1785,33 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex gap-3 flex-shrink-0">
+        <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
           <button onClick={onClose} disabled={submitting}
-            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
-          <button onClick={handleSubmit} disabled={submitting || !canSubmit}
-            className="flex-1 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
-            {submitting ? 'Saving…' : editMode ? 'Save Changes' : 'Move to Negotiation →'}
-          </button>
+            className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+          <div className="flex items-center gap-2">
+            {!editMode && onSkip && (
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={submitting}
+                className="px-4 py-2.5 border border-amber-300 text-amber-800 bg-amber-50 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors"
+                title="Skip negotiation phase and advance straight to Closure"
+              >
+                Skip Negotiation ➔
+              </button>
+            )}
+            <button onClick={() => onSubmit({
+              quoteValue: fmt(grandTotal), discount: meta.discount, paymentTerms: meta.paymentTerms,
+              deliveryTimeline: meta.deliveryTimeline, negotiationPoints: meta.negotiationPoints,
+              objections: meta.objections, decisionTimeline: meta.decisionTimeline,
+              competingVendors: meta.competingVendors, items, priceValidity: terms.priceValidity,
+              taxDetails: terms.taxDetails, warranty: terms.warranty, amcPeriod: terms.amcPeriod,
+              deliveryEstimate: terms.deliveryEstimate, qNotes: terms.qNotes,
+            })} disabled={submitting || !canSubmit}
+              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 transition-colors shadow-xs">
+              {submitting ? 'Saving…' : editMode ? 'Save Changes' : 'Move to Negotiation →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1926,6 +1948,8 @@ export default function LeadDetailPage() {
       const newIdx = STAGE_ORDER.indexOf(newStatus);
 
       // Enforce sequential pipeline progression — no skipping stages
+      // Exception: allow skipping Negotiation (moving from PROPOSAL / APPROACH to CLOSURE)
+      const isSkipNegotiation = (lead.status === 'PROPOSAL' || lead.status === 'APPROACH') && newStatus === 'CLOSURE';
       if (newIdx < currentIdx) {
         const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
           (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
@@ -1933,7 +1957,7 @@ export default function LeadDetailPage() {
           alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
           return;
         }
-      } else if (newIdx > currentIdx && newIdx !== currentIdx + 1) {
+      } else if (newIdx > currentIdx && newIdx !== currentIdx + 1 && !isSkipNegotiation) {
         const nextStage = STAGE_ORDER[currentIdx + 1];
         alert(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
         return;
@@ -2080,6 +2104,36 @@ export default function LeadDetailPage() {
       setShowNegotiationModal(false);
       fetchLead();
     } catch { alert('An error occurred.'); }
+    finally { setStageSubmitting(false); }
+  };
+
+  const handleSkipNegotiation = async () => {
+    if (!confirm('Skip Negotiation stage and move directly to Closure stage?')) return;
+    setStageSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const existing = (lead?.closureDetails as any) || {};
+      const merged = {
+        ...existing,
+        negotiation: {
+          skipped: true,
+          skippedAt: new Date().toISOString(),
+          notes: 'Negotiation stage skipped per company workflow.',
+        },
+      };
+
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          status: 'CLOSURE',
+          closureDetails: merged,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      setShowNegotiationModal(false);
+      fetchLead();
+    } catch { alert('An error occurred while skipping negotiation.'); }
     finally { setStageSubmitting(false); }
   };
 
@@ -3127,6 +3181,7 @@ export default function LeadDetailPage() {
           lead={lead}
           onClose={() => setShowNegotiationModal(false)}
           onSubmit={handleNegotiationSubmit}
+          onSkip={handleSkipNegotiation}
           submitting={stageSubmitting}
         />
       )}
