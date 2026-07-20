@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { leadQuoteNumber } from '@/lib/leadNumber';
+import { ForbiddenError } from '@/lib/errors';
+
+const MANAGER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'];
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -86,10 +89,23 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (leadId) {
     resolvedLead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { id: true, company: true, address: true, linkedCustomerId: true, quoteNo: true },
+      select: { id: true, company: true, address: true, linkedCustomerId: true, quoteNo: true, assignedToId: true },
     });
     if (!resolvedLead) {
       return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
+    }
+  }
+
+  // Quotation-creation permission: by default only an admin/manager or the
+  // lead's assigned owner may quote it. An admin can disable this globally
+  // via QuotationPolicy so any user can quote any lead — a temporary,
+  // reversible override rather than a role change.
+  if (!MANAGER_ROLES.includes(user.role)) {
+    const policy = await prisma.quotationPolicy.findUnique({ where: { id: 'singleton' } });
+    if (!policy?.restrictionsDisabled) {
+      if (!resolvedLead || resolvedLead.assignedToId !== user.id) {
+        throw new ForbiddenError('You can only create quotations for leads assigned to you.');
+      }
     }
   }
 

@@ -147,6 +147,38 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
+
+  // Admin can globally disable quotation-creation restrictions — when active,
+  // anyone can create a quotation for any lead, not just canEdit owners.
+  const [quotaRestrictionsDisabled, setQuotaRestrictionsDisabled] = useState(false);
+  const [quotaPolicyLoaded, setQuotaPolicyLoaded] = useState(false);
+  const [togglingQuotaPolicy, setTogglingQuotaPolicy] = useState(false);
+
+  const fetchQuotaPolicy = async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/quotation-policy', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) { const d = await res.json(); setQuotaRestrictionsDisabled(!!d.restrictionsDisabled); }
+    setQuotaPolicyLoaded(true);
+  };
+  useEffect(() => { fetchQuotaPolicy(); }, []);
+
+  const toggleQuotaPolicy = async () => {
+    setTogglingQuotaPolicy(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/quotation-policy', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ restrictionsDisabled: !quotaRestrictionsDisabled }),
+      });
+      if (res.ok) { const d = await res.json(); setQuotaRestrictionsDisabled(!!d.restrictionsDisabled); }
+      else alert('Failed to update the setting. Please try again.');
+    } catch { alert('Failed to update the setting. Please try again.'); }
+    finally { setTogglingQuotaPolicy(false); }
+  };
+
+  const canCreateQuotation = canEdit || quotaRestrictionsDisabled;
+
   const [loadingQ, setLoadingQ] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -418,7 +450,24 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-800 flex items-center gap-1.5"><QuotationIcon className="w-5 h-5" /> Quotations</h2>
         <div className="flex items-center gap-2">
-          {canEdit && !showCreateForm && (
+          {isAdminUser && quotaPolicyLoaded && !showCreateForm && (
+            <button
+              onClick={toggleQuotaPolicy}
+              disabled={togglingQuotaPolicy}
+              title={quotaRestrictionsDisabled
+                ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
+                : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50 ${
+                quotaRestrictionsDisabled
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${quotaRestrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
+              {togglingQuotaPolicy ? 'Updating…' : quotaRestrictionsDisabled ? 'Creation Restrictions: OFF' : 'Creation Restrictions: ON'}
+            </button>
+          )}
+          {canCreateQuotation && !showCreateForm && (
             <>
               <Link href="/products" className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
                 + Add Product

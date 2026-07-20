@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { QuotationIcon } from '@/components/icons';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface Quotation {
   id: string;
@@ -34,12 +35,55 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function QuotationsPage() {
+  const { user: currentUser } = useCurrentUser();
+  const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
+
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+
+  // Admin-only master switch: when disabled, quotation-creation restrictions
+  // (assigned-owner/manager only) are lifted for every user, on every lead.
+  const [restrictionsDisabled, setRestrictionsDisabled] = useState(false);
+  const [policyLoaded, setPolicyLoaded] = useState(false);
+  const [togglingPolicy, setTogglingPolicy] = useState(false);
+
+  const fetchPolicy = async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/quotation-policy', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const d = await res.json();
+      setRestrictionsDisabled(!!d.restrictionsDisabled);
+    }
+    setPolicyLoaded(true);
+  };
+
+  useEffect(() => { if (isAdminUser) fetchPolicy(); }, [isAdminUser]);
+
+  const togglePolicy = async () => {
+    setTogglingPolicy(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/quotation-policy', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ restrictionsDisabled: !restrictionsDisabled }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setRestrictionsDisabled(!!d.restrictionsDisabled);
+      } else {
+        alert('Failed to update the setting. Please try again.');
+      }
+    } catch {
+      alert('Failed to update the setting. Please try again.');
+    } finally {
+      setTogglingPolicy(false);
+    }
+  };
 
   useEffect(() => { fetchQuotations(); }, [page, status]);
 
@@ -81,10 +125,33 @@ export default function QuotationsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
           <p className="text-sm text-gray-500">All customer quotations</p>
         </div>
-        <Link href="/quotations/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm">
-          + New Quotation
-        </Link>
+        <div className="flex items-center gap-3">
+          {isAdminUser && policyLoaded && (
+            <button
+              onClick={togglePolicy}
+              disabled={togglingPolicy}
+              title={restrictionsDisabled
+                ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
+                : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
+                restrictionsDisabled
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${restrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
+              {togglingPolicy
+                ? 'Updating…'
+                : restrictionsDisabled
+                  ? 'Creation Restrictions: OFF (everyone can create)'
+                  : 'Creation Restrictions: ON'}
+            </button>
+          )}
+          <Link href="/quotations/new"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm">
+            + New Quotation
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

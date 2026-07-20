@@ -610,6 +610,19 @@ model AccessPolicy {
   createdAt       DateTime   @default(now())
 }
 
+// Master switch for quotation-creation permissions. By default only an
+// admin/manager or a lead's assigned owner may create a quotation for it;
+// an admin can flip restrictionsDisabled to let every user create a
+// quotation for any lead — a temporary, fully-reversible override rather
+// than a role change.
+model QuotationPolicy {
+  id                   String   @id @default("singleton")
+  restrictionsDisabled Boolean  @default(false)
+  updatedBy            String?
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
+}
+
 model AfterHoursAccessRequest {
   id              String         @id @default(cuid())
   userId          String
