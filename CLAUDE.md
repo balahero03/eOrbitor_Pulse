@@ -62,6 +62,8 @@ Default seeded admin login: **`admin@company.local` / `password`**
 `docker-compose.yml` defines two services: `db` (postgres:16, volume `pgdata`,
 healthcheck) and `app` (built from `Dockerfile`, `depends_on` db healthy,
 `env_file: .env.local`, exposes port). Container entry: `docker/entrypoint.sh`.
+For the production host, actual deploy commands, and the standing risk of
+`db push`-only schema sync against live data, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ---
 
@@ -86,11 +88,13 @@ eOrbitor_Pulse/
 │   └── migrations/
 ├── scripts/
 │   ├── db-backup.sh, db-restore.sh     # pg_dump / restore helpers
+│   ├── pre-push-fixes.js               # pre-`db push` data/schema patches — see DEPLOYMENT.md §5
 │   └── reassign-leads.js, reseed-leads.js
 ├── docker/entrypoint.sh
 ├── docker-compose.yml, Dockerfile, .dockerignore
 ├── .env.local(.example)                # ~120 config keys (see §9)
 ├── README.md, PROJECT_SPEC.md          # partly outdated (see §1)
+├── DEPLOYMENT.md                       # production host, deploy steps, incident log
 └── CLAUDE.md                           # this file
 ```
 
