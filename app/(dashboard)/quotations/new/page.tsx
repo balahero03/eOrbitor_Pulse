@@ -381,8 +381,13 @@ export default function NewQuotationPage() {
                       <td className="px-3 py-2">
                         <input
                           type="number"
-                          value={item.quantity}
-                          onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                          value={item.quantity === 0 ? '' : item.quantity}
+                          placeholder="1"
+                          onFocus={e => e.target.select()}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                            updateItem(idx, 'quantity', Math.max(1, parseInt(cleaned) || 1));
+                          }}
                           min="1"
                           className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
                         />
@@ -390,8 +395,13 @@ export default function NewQuotationPage() {
                       <td className="px-3 py-2">
                         <input
                           type="number"
-                          value={item.unitPrice}
-                          onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          value={item.unitPrice === 0 ? '' : item.unitPrice}
+                          placeholder="0"
+                          onFocus={e => e.target.select()}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                            updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                          }}
                           step="0.01"
                           min="0"
                           className="w-full text-right border-0 border-b border-gray-200 px-0 py-1 text-sm focus:outline-none focus:border-blue-400 bg-transparent"
@@ -427,7 +437,11 @@ export default function NewQuotationPage() {
                 <input
                   type="number"
                   value={terms.discountAmount}
-                  onChange={e => setTerms(t => ({ ...t, discountAmount: e.target.value }))}
+                  onFocus={e => e.target.select()}
+                  onChange={e => {
+                    const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                    setTerms(t => ({ ...t, discountAmount: cleaned }));
+                  }}
                   placeholder="0"
                   min="0"
                   className="w-28 text-right border rounded px-2 py-1 text-sm"

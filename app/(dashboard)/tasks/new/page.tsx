@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import RichTextEditor from '@/components/RichTextEditor';
 
 interface Deal {
   id: string;
@@ -22,13 +23,12 @@ interface User {
 export default function NewTaskPage() {
   const router = useRouter();
   const { user: currentUser } = useCurrentUser();
-  // Read the mode flag directly from the URL rather than via useSearchParams,
-  // which would force this page out of static rendering — this page is
-  // entirely client-rendered already, so a plain read on mount is simpler.
   const [isAssignMode, setIsAssignMode] = useState(false);
+
   useEffect(() => {
     setIsAssignMode(new URLSearchParams(window.location.search).get('assign') === '1');
   }, []);
+
   const [deals, setDeals] = useState<Deal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,9 +55,7 @@ export default function NewTaskPage() {
       const res = await fetch('/api/deals?limit=1000', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!res.ok) throw new Error('Failed to fetch deals');
-
       const data = await res.json();
       setDeals(data.deals);
     } catch (err) {
@@ -71,9 +69,7 @@ export default function NewTaskPage() {
       const res = await fetch('/api/users?active=true', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!res.ok) throw new Error('Failed to fetch users');
-
       const data = await res.json();
       setUsers(data.users || []);
     } catch (err) {
@@ -92,8 +88,6 @@ export default function NewTaskPage() {
     setLoading(true);
 
     try {
-      // New Task always goes to yourself; Assign Task uses whoever was
-      // picked in the (self-excluded) dropdown.
       const assignedToId = isAssignMode ? formData.assignedToId : currentUser?.id;
 
       if (!formData.title || !assignedToId) {
@@ -136,8 +130,6 @@ export default function NewTaskPage() {
     }
   };
 
-  // Mirrors the server-side assignment rule: admins assign to anyone; a
-  // manager to themselves or their direct reports; everyone else to themselves.
   const assignableUsers = !currentUser
     ? []
     : ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role)
@@ -146,163 +138,205 @@ export default function NewTaskPage() {
     ? users.filter(u => u.id === currentUser.id || u.managerId === currentUser.id)
     : users.filter(u => u.id === currentUser.id);
 
-  // Assign mode is specifically for handing work to someone else — exclude
-  // yourself so the picker can't be used to just recreate "New Task".
   const otherAssignableUsers = assignableUsers.filter(u => u.id !== currentUser?.id);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{isAssignMode ? 'Assign Task' : 'Create New Task'}</h1>
-        <Link href="/tasks" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Back to Tasks</Link>
+    <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-gray-200">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {isAssignMode ? 'Assign New Task' : 'Create New Task'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isAssignMode
+              ? 'Delegate work to team members with complete descriptions and checklists.'
+              : 'Add a new task to your workspace with rich text details.'}
+          </p>
+        </div>
+        <Link
+          href="/tasks"
+          className="self-start sm:self-center inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Tasks
+        </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+      {/* Main Form Card */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-6 sm:p-8">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Task Title Input */}
           <div>
-            <label className="block text-sm font-medium mb-1">Task Title *</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+              Task Title <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="Follow up with customer"
+              placeholder="e.g. Follow up with client regarding proposal approval"
               required
-              className="w-full"
+              className="w-full text-base font-medium px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:font-normal"
             />
           </div>
 
+          {/* Description Section (Enlarged Canvas) */}
           <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea
-              name="description"
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-semibold text-gray-800">
+                Description & Checklists
+              </label>
+              <span className="text-xs text-gray-400 font-normal">Rich Text Supported</span>
+            </div>
+            <RichTextEditor
               value={formData.description}
-              onChange={handleChange}
-              placeholder="Task details..."
-              className="w-full h-24"
+              onChange={(content) => setFormData(prev => ({ ...prev, description: content }))}
+              placeholder="Provide context, action items, task checklists, or code snippets..."
+              minHeight="280px"
+              className="shadow-xs"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full"
-              >
-                <option value="TODO">To Do</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
+          {/* Configuration Grid */}
+          <div className="pt-4 border-t border-gray-100 space-y-4">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Task Details & Metadata</h3>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Priority</label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-                className="w-full"
-              >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="URGENT">Urgent</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Due Date</label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleChange}
-                min={new Date().toLocaleDateString('en-CA')}
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Assign To *</label>
-              {!isAssignMode ? (
-                <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  You{currentUser ? ` (${currentUser.firstName} ${currentUser.lastName})` : ''}
-                </div>
-              ) : otherAssignableUsers.length === 0 ? (
-                <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
-                  You have no one to assign to yet.
-                </div>
-              ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
-                  name="assignedToId"
-                  value={formData.assignedToId}
+                  name="status"
+                  value={formData.status}
                   onChange={handleChange}
-                  required
-                  className="w-full"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select a user</option>
-                  {otherAssignableUsers.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.firstName} {u.lastName}
+                  <option value="TODO">To Do</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="URGENT">Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <input
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleChange}
+                  min={new Date().toLocaleDateString('en-CA')}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Assign To <span className="text-red-500">*</span>
+                </label>
+                {!isAssignMode ? (
+                  <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
+                    You{currentUser ? ` (${currentUser.firstName} ${currentUser.lastName})` : ''}
+                  </div>
+                ) : otherAssignableUsers.length === 0 ? (
+                  <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                    You have no one to assign to yet.
+                  </div>
+                ) : (
+                  <select
+                    name="assignedToId"
+                    value={formData.assignedToId}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a user</option>
+                    {otherAssignableUsers.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Related Deal</label>
+                <select
+                  name="relatedDealId"
+                  value={formData.relatedDealId}
+                  onChange={handleChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No related deal</option>
+                  {deals.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.dealName} - {d.customer.companyName}
                     </option>
                   ))}
                 </select>
-              )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <input
+                  type="text"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  placeholder="urgent, follow-up, important"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Related Deal</label>
-            <select
-              name="relatedDealId"
-              value={formData.relatedDealId}
-              onChange={handleChange}
-              className="w-full"
+          {/* Form Action Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+            <Link
+              href="/tasks"
+              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <option value="">No related deal</option>
-              {deals.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.dealName} - {d.customer.companyName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Tags (comma separated)</label>
-            <input
-              type="text"
-              name="tags"
-              value={formData.tags}
-              onChange={handleChange}
-              placeholder="urgent, follow-up, important"
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex gap-4 pt-4 border-t border-gray-200">
+              Cancel
+            </Link>
             <button
               type="submit"
               disabled={loading || (isAssignMode && otherAssignableUsers.length === 0)}
-              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-xs"
             >
               {loading ? (isAssignMode ? 'Assigning...' : 'Creating...') : (isAssignMode ? 'Assign Task' : 'Create Task')}
             </button>
-            <Link href="/tasks" className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center">
-              Cancel
-            </Link>
           </div>
         </form>
       </div>

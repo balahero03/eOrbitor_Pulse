@@ -557,13 +557,25 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                               placeholder="Item name" className="w-full border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" value={item.quantity} min="1"
-                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                            <input type="number"
+                              value={item.quantity === 0 ? '' : item.quantity}
+                              placeholder="1" min="1"
+                              onFocus={e => e.target.select()}
+                              onChange={e => {
+                                const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                                updateItem(idx, 'quantity', Math.max(1, parseInt(cleaned) || 1));
+                              }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" value={item.unitPrice} step="0.01" min="0"
-                              onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            <input type="number"
+                              value={item.unitPrice === 0 ? '' : item.unitPrice}
+                              placeholder="0" step="0.01" min="0"
+                              onFocus={e => e.target.select()}
+                              onChange={e => {
+                                const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                                updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                              }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
@@ -586,8 +598,13 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                   <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
                   <div className="flex justify-between items-center text-gray-600">
                     <span>Discount ₹</span>
-                    <input type="number" value={terms.discountAmount}
-                      onChange={e => setTerms(t => ({ ...t, discountAmount: e.target.value }))}
+                    <input type="number"
+                      value={terms.discountAmount}
+                      onFocus={e => e.target.select()}
+                      onChange={e => {
+                        const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTerms(t => ({ ...t, discountAmount: cleaned }));
+                      }}
                       placeholder="0" min="0" className="w-20 text-right border rounded px-2 py-0.5 text-xs" />
                   </div>
                   <div className="flex justify-between border-t pt-1.5 text-sm font-bold text-gray-900">
@@ -1640,13 +1657,25 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                               placeholder="Item name" className="w-full border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" value={item.quantity} min="1"
-                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                            <input type="number"
+                              value={item.quantity === 0 ? '' : item.quantity}
+                              placeholder="1" min="1"
+                              onFocus={e => e.target.select()}
+                              onChange={e => {
+                                const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                                updateItem(idx, 'quantity', Math.max(1, parseInt(cleaned) || 1));
+                              }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" value={item.unitPrice} step="0.01" min="0"
-                              onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            <input type="number"
+                              value={item.unitPrice === 0 ? '' : item.unitPrice}
+                              placeholder="0" step="0.01" min="0"
+                              onFocus={e => e.target.select()}
+                              onChange={e => {
+                                const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                                updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                              }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
                           </td>
                           <td className="px-2 py-1.5 text-right font-medium text-gray-800">{fmt(lineAmt)}</td>
@@ -1668,8 +1697,13 @@ function NegotiationModal({ lead, onClose, onSubmit, submitting, initialData, ed
                   <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
                   <div className="flex justify-between text-gray-500 items-center">
                     <span>Discount (₹)</span>
-                    <input type="number" value={meta.discount}
-                      onChange={e => setM('discount', e.target.value)}
+                    <input type="number"
+                      value={meta.discount}
+                      onFocus={e => e.target.select()}
+                      onChange={e => {
+                        const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
+                        setM('discount', cleaned);
+                      }}
                       placeholder="0" min="0" className="w-20 text-right border rounded px-2 py-0.5 text-xs" />
                   </div>
                   <div className="flex justify-between border-t pt-1.5 text-sm font-bold text-gray-900">

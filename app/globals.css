@@ -142,3 +142,123 @@ textarea {
   animation: notif-glow 2.8s ease-in-out;
 }
 
+/* ── Tiptap Editor & Formatted Content Styles ──────────────────────────────── */
+.ProseMirror {
+  min-height: 120px;
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #9CA3AF;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1, .tiptap-rendered-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.ProseMirror h2, .tiptap-rendered-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+  color: #1F2937;
+}
+
+.ProseMirror h3, .tiptap-rendered-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: #374151;
+}
+
+.ProseMirror ul, .tiptap-rendered-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror ol, .tiptap-rendered-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror ul[data-type="taskList"], .tiptap-rendered-content ul[data-type="taskList"] {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li, .tiptap-rendered-content ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li label, .tiptap-rendered-content ul[data-type="taskList"] li label {
+  user-select: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  margin-top: 0.15rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li input[type="checkbox"], .tiptap-rendered-content ul[data-type="taskList"] li input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #2563EB;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.ProseMirror blockquote, .tiptap-rendered-content blockquote {
+  border-left: 3px solid #3B82F6;
+  padding-left: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: #4B5563;
+  font-style: italic;
+  background-color: #F8FAFC;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.ProseMirror pre, .tiptap-rendered-content pre {
+  background-color: #1E293B;
+  color: #F8FAFC;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror hr, .tiptap-rendered-content hr {
+  border: none;
+  border-top: 1px solid #E5E7EB;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror a, .tiptap-rendered-content a {
+  color: #2563EB;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+
