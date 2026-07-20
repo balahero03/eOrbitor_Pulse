@@ -62,7 +62,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         relatedDeal: { select: { id: true, dealName: true } },
       },
-      orderBy: { dueDate: 'asc' },
+      orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),

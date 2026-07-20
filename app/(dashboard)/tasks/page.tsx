@@ -47,6 +47,11 @@ function originBadge(task: Task, currentUserId: string): { label: string; classN
   return null;
 }
 
+function stripHtml(html?: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export default function TasksPage() {
   const { user: currentUser } = useCurrentUser();
   // Deep-linked from a task-assigned notification — rings the matching row.
@@ -258,7 +263,7 @@ export default function TasksPage() {
                       )}
                     </div>
                     {task.description && (
-                      <p className="text-gray-400 text-xs mt-0.5 truncate max-w-xs">{task.description}</p>
+                      <p className="text-gray-400 text-xs mt-0.5 truncate max-w-xs">{stripHtml(task.description)}</p>
                     )}
                     {task.tags.length > 0 && (
                       <div className="flex gap-1 mt-1 flex-wrap">
