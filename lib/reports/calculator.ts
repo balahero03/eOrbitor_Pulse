@@ -260,10 +260,13 @@ export class ReportCalculator {
     let unproductiveDays = 0;
     const dailyBreakdown: {
       date: string;
+      loginTime: string | null;
+      logoutTime: string | null;
       loggedHours: number;
       activityHours: number;
       unproductiveHours: number;
       activityCount: number;
+      entries: any[];
     }[] = [];
 
     for (const rec of records) {
@@ -291,10 +294,15 @@ export class ReportCalculator {
 
       dailyBreakdown.push({
         date: rec.date,
+        loginTime: rec.loginTime ? rec.loginTime.toISOString() : null,
+        logoutTime: rec.logoutTime ? rec.logoutTime.toISOString() : null,
         loggedHours: Math.round(loggedHours * 100) / 100,
         activityHours,
         unproductiveHours,
         activityCount: entries.length,
+        // The full per-day timeline (each activity entry), so the report can
+        // show/export the day's work the same way the attendance modal does.
+        entries,
       });
     }
 

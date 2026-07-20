@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { ReportIcon } from '@/components/icons';
+import { generatePersonalReportExcel } from '@/lib/excel-export';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -28,7 +29,7 @@ interface PersonalReport {
     dailyActivity?: {
       totalLoggedHours: number; totalActivityHours: number; totalUnproductiveHours: number;
       unproductiveDays: number; daysPresent: number;
-      dailyBreakdown: { date: string; loggedHours: number; activityHours: number; unproductiveHours: number; activityCount: number }[];
+      dailyBreakdown: { date: string; loginTime?: string | null; logoutTime?: string | null; loggedHours: number; activityHours: number; unproductiveHours: number; activityCount: number; entries?: any[] }[];
     };
     comparison?: {
       previousPeriod: { startDate: string; endDate: string };
@@ -79,6 +80,31 @@ const STAGE_COLORS: Record<string, string> = {
   SUSPECT: '#6b7280', PROSPECT: '#3b82f6', APPROACH: '#8b5cf6',
   NEGOTIATION: '#f59e0b', CLOSURE: '#10b981', ONGOING: '#06b6d4',
 };
+
+// Same activity-mode labels the attendance timeline uses, so the report reads
+// identically to the per-day modal.
+const ACTIVITY_MODE_LABELS: Record<string, string> = {
+  MEETING: 'Meeting', CALL: 'Call', SITE_VISIT: 'Site Visit', DEMO: 'Demo',
+  PROPOSAL: 'Proposal', NEGOTIATION: 'Negotiation', FOLLOW_UP: 'Follow-up',
+  EMAIL: 'Email', WORK: 'Internal Work', TRAINING: 'Training', OTHER: 'Other',
+};
+
+// A daily-activity entry can be the rich object shape or a legacy plain string.
+function normalizeEntry(raw: any) {
+  if (typeof raw === 'string') {
+    return { label: 'Activity', time: '', customer: '', contact: '', description: raw };
+  }
+  const t = (raw.timeIn || raw.timeOut)
+    ? `${raw.timeIn || '—'}${raw.timeOut ? ` → ${raw.timeOut}` : ''}`
+    : '';
+  return {
+    label: ACTIVITY_MODE_LABELS[raw.mode] || raw.mode || 'Activity',
+    time: t,
+    customer: raw.custName || '',
+    contact: raw.contactPerson || '',
+    description: raw.description || '',
+  };
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -133,6 +159,115 @@ function DeltaBadge({ pct }: { pct: number }) {
 }
 
 // ─── Personal Report Sections ────────────────────────────────────────────────
+
+// Attendance + a day-by-day activity timeline. Each day expands to show the
+// same entries as the attendance modal, for the whole selected report range.
+function DailyActivitySection({ da }: { da: NonNullable<PersonalReport['metrics']['dailyActivity']> }) {
+  const [openDates, setOpenDates] = useState<Set<string>>(new Set());
+  const toggle = (date: string) =>
+    setOpenDates((prev) => {
+      const next = new Set(prev);
+      next.has(date) ? next.delete(date) : next.add(date);
+      return next;
+    });
+
+  const prodPct = da.totalLoggedHours > 0 ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100) : 0;
+  const hm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—');
+
+  return (
+    <div className="mt-5">
+      <SectionCard title="Attendance & Daily Activity">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-blue-700">{da.daysPresent}</p>
+            <p className="text-xs text-blue-600 mt-1">Days Present</p>
+          </div>
+          <div className="bg-green-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-green-700">{da.totalLoggedHours}h</p>
+            <p className="text-xs text-green-600 mt-1">Total Logged Hours</p>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-purple-700">{da.totalActivityHours}h</p>
+            <p className="text-xs text-purple-600 mt-1">Activity-Covered Hours</p>
+          </div>
+          <div className={`rounded-lg p-3 text-center ${da.totalUnproductiveHours > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+            <p className={`text-2xl font-bold ${da.totalUnproductiveHours > 0 ? 'text-red-600' : 'text-gray-600'}`}>{da.totalUnproductiveHours}h</p>
+            <p className={`text-xs mt-1 ${da.totalUnproductiveHours > 0 ? 'text-red-500' : 'text-gray-500'}`}>Unproductive Hours</p>
+          </div>
+        </div>
+
+        {/* Productivity bar */}
+        <div className="mb-5">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Productivity Rate</span>
+            <span className={`font-bold ${prodPct >= 70 ? 'text-green-600' : prodPct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>{prodPct}%</span>
+          </div>
+          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${prodPct >= 70 ? 'bg-green-500' : prodPct >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${prodPct}%` }} />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">{da.unproductiveDays} day(s) with &gt;30 min unaccounted time · click a day to see its activities</p>
+        </div>
+
+        {/* Day-by-day timeline */}
+        {da.dailyBreakdown.length > 0 && (
+          <div className="space-y-2">
+            {da.dailyBreakdown.map((d) => {
+              const open = openDates.has(d.date);
+              const entries = d.entries || [];
+              return (
+                <div key={d.date} className={`border rounded-lg overflow-hidden ${d.unproductiveHours > 0.5 ? 'border-red-100' : 'border-gray-100'}`}>
+                  <button
+                    onClick={() => toggle(d.date)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 ${d.unproductiveHours > 0.5 ? 'bg-red-50/40' : 'bg-white'}`}
+                  >
+                    <span className="text-gray-400 text-xs w-4">{open ? '▾' : '▸'}</span>
+                    <span className="text-sm font-medium text-gray-800 w-40">
+                      {new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </span>
+                    <span className="text-xs text-gray-500">{hm(d.loginTime)} → {hm(d.logoutTime)}</span>
+                    <span className="ml-auto flex items-center gap-3 text-xs">
+                      <span className="text-gray-600">{d.loggedHours}h logged</span>
+                      <span className="text-green-700">{d.activityHours}h covered</span>
+                      {d.unproductiveHours > 0.5 && <span className="text-red-600 font-semibold">{d.unproductiveHours}h gap</span>}
+                      <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{d.activityCount} {d.activityCount === 1 ? 'entry' : 'entries'}</span>
+                    </span>
+                  </button>
+
+                  {open && (
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
+                      {entries.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No activities logged for this day.</p>
+                      ) : (
+                        <ol className="space-y-2">
+                          {entries.map((raw, i) => {
+                            const e = normalizeEntry(raw);
+                            return (
+                              <li key={i} className="flex items-start gap-3 text-sm">
+                                <span className="text-[11px] font-mono text-gray-400 w-28 flex-shrink-0 pt-0.5">{e.time || '—'}</span>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-800">
+                                    {e.label}
+                                    {e.customer && <span className="text-gray-400 font-normal"> · {e.customer}</span>}
+                                    {e.contact && <span className="text-gray-400 font-normal"> · {e.contact}</span>}
+                                  </p>
+                                  {e.description && <p className="text-xs text-gray-500 mt-0.5">{e.description}</p>}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
 
 function PersonalView({ report }: { report: PersonalReport }) {
   const { metrics, topDeals } = report;
@@ -314,93 +449,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
       </SectionCard>
 
       {/* Daily Activity & Unproductive Hours */}
-      {metrics.dailyActivity && (() => {
-        const da = metrics.dailyActivity;
-        const prodPct = da.totalLoggedHours > 0
-          ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100)
-          : 0;
-        return (
-          <div className="mt-5">
-            <SectionCard title="Attendance & Productivity">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-700">{da.daysPresent}</p>
-                  <p className="text-xs text-blue-600 mt-1">Days Present</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-700">{da.totalLoggedHours}h</p>
-                  <p className="text-xs text-green-600 mt-1">Total Logged Hours</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-purple-700">{da.totalActivityHours}h</p>
-                  <p className="text-xs text-purple-600 mt-1">Activity-Covered Hours</p>
-                </div>
-                <div className={`rounded-lg p-3 text-center ${da.totalUnproductiveHours > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-                  <p className={`text-2xl font-bold ${da.totalUnproductiveHours > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                    {da.totalUnproductiveHours}h
-                  </p>
-                  <p className={`text-xs mt-1 ${da.totalUnproductiveHours > 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                    Unproductive Hours
-                  </p>
-                </div>
-              </div>
-
-              {/* Productivity bar */}
-              <div className="mb-5">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Productivity Rate</span>
-                  <span className={`font-bold ${prodPct >= 70 ? 'text-green-600' : prodPct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {prodPct}%
-                  </span>
-                </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${prodPct >= 70 ? 'bg-green-500' : prodPct >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`}
-                    style={{ width: `${prodPct}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">{da.unproductiveDays} day(s) with &gt;30 min unaccounted time</p>
-              </div>
-
-              {/* Daily breakdown table */}
-              {da.dailyBreakdown.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Date</th>
-                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Logged</th>
-                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Activity Covered</th>
-                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Unproductive</th>
-                        <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Entries</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {da.dailyBreakdown.map((d: any) => (
-                        <tr key={d.date} className={`border-b border-gray-50 hover:bg-gray-50 ${d.unproductiveHours > 0.5 ? 'bg-red-50/40' : ''}`}>
-                          <td className="py-2.5 px-3 text-gray-700">
-                            {new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-gray-600">{d.loggedHours}h</td>
-                          <td className="py-2.5 px-3 text-right text-green-700">{d.activityHours}h</td>
-                          <td className="py-2.5 px-3 text-right">
-                            {d.unproductiveHours > 0.5 ? (
-                              <span className="text-red-600 font-semibold">{d.unproductiveHours}h</span>
-                            ) : (
-                              <span className="text-gray-400">{d.unproductiveHours}h</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-gray-500">{d.activityCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </SectionCard>
-          </div>
-        );
-      })()}
+      {metrics.dailyActivity && <DailyActivitySection da={metrics.dailyActivity} />}
 
       {/* Conversion by source + Sales cycle */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
@@ -838,72 +887,26 @@ function downloadCSV(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-function exportPersonalCSV(report: PersonalReport) {
-  const { metrics, topDeals, period, user } = report;
-  const rows: string[][] = [
-    ['Personal Performance Report'],
-    ['User', user.name, 'Role', user.role],
-    ['Period', `${period.startDate} to ${period.endDate}`, 'Days', String(period.days)],
-    [],
-    ['--- KEY METRICS ---'],
-    ['Total Leads', String(metrics.leads.total)],
-    ['Converted Leads', String(metrics.leads.converted)],
-    ['Win Rate (%)', String(metrics.conversion.winRate)],
-    ['Conversion Rate (%)', String(metrics.conversion.conversionRate)],
-    ['Total Revenue (INR)', String(metrics.revenue.total)],
-    ['Pipeline Value (INR)', String(metrics.revenue.pipeline)],
-    ['Avg Deal Value (INR)', String(metrics.revenue.average)],
-    ['Activities Logged', String(metrics.activities.total)],
-    ['Follow-ups Completed', String(metrics.activities.followupsCompleted)],
-    ['Tasks Completed', String(metrics.activities.tasksCompleted)],
-    ['Avg Days to Close', String(metrics.salesCycle.avgDuration)],
-    ['Performance Score', String(metrics.performance.score)],
-    [],
-    ['--- REVENUE BY MONTH ---'],
-    ['Month', 'Revenue (INR)'],
-    ...metrics.revenue.byMonth.map(r => [r.month, String(r.revenue)]),
-    [],
-    ['--- TOP DEALS ---'],
-    ['Deal Name', 'Value (INR)', 'Closed Date', 'Status'],
-    ...topDeals.map(d => [d.dealName, String(d.value), d.closedDate, d.status]),
-    [],
-    ['--- CONVERSION BY SOURCE ---'],
-    ['Source', 'Total Leads', 'Won', 'Win Rate (%)'],
-    ...Object.entries(metrics.conversion.bySource).map(([src, d]) => [src, String(d.total), String(d.won), String(d.rate.toFixed(1))]),
-    ...(metrics.comparison ? [
-      [],
-      ['--- VS PREVIOUS PERIOD ---'],
-      ['Metric', 'Current', 'Previous', 'Change (%)'],
-      ...(['revenue', 'leads', 'converted', 'winRate', 'activities'] as const).map(k => {
-        const m = metrics.comparison!.metrics[k];
-        return [k, String(m.current), String(m.previous), String(m.deltaPct)];
-      }),
-    ] : []),
-    ...(metrics.followUpPunctuality ? [
-      [],
-      ['--- FOLLOW-UP PUNCTUALITY ---'],
-      ['Completed', String(metrics.followUpPunctuality.completed)],
-      ['On Time', String(metrics.followUpPunctuality.onTime)],
-      ['Late', String(metrics.followUpPunctuality.late)],
-      ['On-Time Rate (%)', String(metrics.followUpPunctuality.onTimeRate)],
-      ['Avg Delay (days)', String(metrics.followUpPunctuality.avgDelayDays)],
-    ] : []),
-    ...(metrics.pipeline ? [
-      [],
-      ['--- OWN PIPELINE ---'],
-      ['Stage', 'Deals', 'Total Value (INR)', 'Weighted (INR)'],
-      ...metrics.pipeline.stages.map(s => [s.stage, String(s.dealCount), String(s.totalValue), String(s.weightedValue)]),
-      ['Weighted Forecast (INR)', String(metrics.pipeline.weightedForecast)],
-    ] : []),
-    ...(metrics.lossAnalysis && metrics.lossAnalysis.totalLost > 0 ? [
-      [],
-      ['--- LOSS ANALYSIS ---'],
-      ['Lost', String(metrics.lossAnalysis.lostCount), 'Dropped', String(metrics.lossAnalysis.droppedCount), 'Lost Value (INR)', String(metrics.lossAnalysis.lostValue)],
-      ['Reason', 'Count', 'Value (INR)'],
-      ...metrics.lossAnalysis.byReason.map(r => [r.reason, String(r.count), String(r.lostValue)]),
-    ] : []),
-  ];
-  downloadCSV(`personal-report-${user.name.replace(/\s+/g, '-')}-${period.startDate}.csv`, rows);
+async function exportPersonalExcel(report: PersonalReport) {
+  try {
+    const buffer = await generatePersonalReportExcel({
+      user: report.user,
+      period: report.period,
+      metrics: report.metrics,
+      topDeals: report.topDeals,
+    });
+    const uint8Array = new Uint8Array(buffer);
+    const blob = new Blob([uint8Array], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `personal-report-${report.user.name.replace(/\s+/g, '-')}-${report.period.startDate}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Export failed:', error);
+    alert('Failed to export report. Please try again.');
+  }
 }
 
 function exportTeamCSV(report: TeamReport) {
@@ -1045,13 +1048,13 @@ export default function ReportViewPage() {
           <div className="flex gap-2 flex-wrap print:hidden">
             <button
               onClick={() => {
-                if (report.reportType === 'PERSONAL') exportPersonalCSV(report as PersonalReport);
+                if (report.reportType === 'PERSONAL') exportPersonalExcel(report as PersonalReport);
                 else if (report.reportType === 'TEAM') exportTeamCSV(report as TeamReport);
                 else exportPipelineCSV(report as PipelineReport);
               }}
               className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
             >
-              Export CSV
+              Export Excel
             </button>
             <button
               onClick={handlePrint}
