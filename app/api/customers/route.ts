@@ -10,7 +10,7 @@ export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
 
   const where: any = { deletedAt: null };
 
@@ -20,6 +20,7 @@ export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
       { gstNumber: { contains: search, mode: 'insensitive' } },
       { contacts: { some: { name: { contains: search, mode: 'insensitive' } } } },
       { contacts: { some: { email: { contains: search, mode: 'insensitive' } } } },
+      { contacts: { some: { phone: { contains: search, mode: 'insensitive' } } } },
     ];
   }
 

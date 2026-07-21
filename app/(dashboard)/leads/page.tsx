@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Lead {
   id: string;
@@ -204,6 +205,30 @@ export default function LeadsPage() {
 
   const setF = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value }));
 
+  const fetchLeadSuggestions = useCallback(async (query: string): Promise<Lead[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/leads?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.leads || []) as Lead[];
+  }, []);
+
+  const renderLeadSuggestion = (lead: Lead, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(lead.name, query)}</span>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
+          {lead.status}
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {highlightMatch(lead.company, query)}
+        {lead.quoteNo ? ` · ${lead.quoteNo}` : ''}
+      </p>
+    </div>
+  );
+
   const isAdmin = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
 
   const handleDelete = async (id: string) => {
@@ -262,13 +287,18 @@ export default function LeadsPage() {
       {/* Search bar + filter toggle */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
         <div className="flex gap-3 flex-wrap items-center">
-          <input
-            type="text"
-            placeholder="Search by name, company, lead number, remarks..."
+          <LiveSearchDropdown<Lead>
             value={filters.search}
-            onChange={(e) => setF('search', e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
-            className="border border-gray-200 rounded-lg px-3 py-2 flex-1 min-w-64 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(v) => setF('search', v)}
+            onSearch={applyFilters}
+            fetchSuggestions={fetchLeadSuggestions}
+            getKey={(l) => l.id}
+            getHref={(l) => `/leads/${l.id}`}
+            renderItem={renderLeadSuggestion}
+            placeholder="Search by name, company, lead number, remarks..."
+            ariaLabel="Search leads"
+            cacheKeyPrefix="leads"
+            className="flex-1 min-w-64"
           />
           <button
             onClick={() => setShowFilters(f => !f)}

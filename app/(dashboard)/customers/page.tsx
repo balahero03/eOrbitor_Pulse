@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Customer {
   id: string;
@@ -32,6 +33,52 @@ export default function CustomersPage() {
 
   useEffect(() => { setPage(1); }, [search]);
   useEffect(() => { fetchCustomers(); }, [page, search]);
+
+  // Mirrors fetchCustomers' own won-lead + manual-customer merge, but scoped
+  // to a small `limit` for the live dropdown rather than the full page list.
+  const fetchCustomerSuggestions = useCallback(async (query: string): Promise<Customer[]> => {
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+    const params = new URLSearchParams({ search: query, page: '1', limit: '6' });
+
+    const [wonRes, custRes] = await Promise.all([
+      fetch(`/api/leads/won?${params}`, { headers }),
+      fetch(`/api/customers?${params}`, { headers }),
+    ]);
+
+    const wonData = wonRes.ok ? await wonRes.json() : { customers: [] };
+    const wonList: Customer[] = (wonData.customers || []).map((c: any) => ({ ...c, source: 'lead' as const }));
+
+    let manualList: Customer[] = [];
+    if (custRes.ok) {
+      const custData = await custRes.json();
+      const linkedIds = new Set((wonData.customers || []).map((c: any) => c.linkedCustomerId).filter(Boolean));
+      manualList = (custData.customers || [])
+        .filter((c: any) => !linkedIds.has(c.id))
+        .map((c: any) => {
+          const primary = c.contacts?.[0];
+          return {
+            id: c.id,
+            name: primary?.name || '—',
+            company: c.companyName,
+            email: primary?.email || '—',
+            phone: primary?.phone || undefined,
+            source: 'manual' as const,
+          };
+        });
+    }
+
+    return [...manualList, ...wonList].slice(0, 8);
+  }, []);
+
+  const renderCustomerSuggestion = (c: Customer, query: string) => (
+    <div className="min-w-0">
+      <p className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(c.name, query)}</p>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {highlightMatch(c.company, query)} · {highlightMatch(c.email, query)}
+      </p>
+    </div>
+  );
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -115,12 +162,17 @@ export default function CustomersPage() {
 
       {/* Search */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <input
-          type="text"
-          placeholder="Search by customer name, company, or email..."
+        <LiveSearchDropdown<Customer>
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={setSearch}
+          onSearch={() => setPage(1)}
+          fetchSuggestions={fetchCustomerSuggestions}
+          getKey={(c) => c.id}
+          getHref={(c) => `/customers/${c.id}`}
+          renderItem={renderCustomerSuggestion}
+          placeholder="Search by customer name, company, or email..."
+          ariaLabel="Search customers"
+          cacheKeyPrefix="customers"
         />
       </div>
 

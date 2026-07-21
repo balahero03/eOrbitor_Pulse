@@ -11,7 +11,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const status = searchParams.get('status');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
 
   const leadId = searchParams.get('leadId');
 
