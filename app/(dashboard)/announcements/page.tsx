@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { AnnouncementIcon, ClipboardIcon, CloseIcon } from '@/components/icons';
+import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
+import { highlightRingClass, requestHighlight } from '@/lib/notificationHighlight';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Announcement {
   id: string;
@@ -22,12 +25,15 @@ interface Announcement {
 export default function AnnouncementsPage() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const router = useRouter();
+  // Deep-linked from the search dropdown (no detail route — rings the card).
+  const flashAnnouncementId = useNotificationHighlight('announcement');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -156,6 +162,41 @@ export default function AnnouncementsPage() {
     setShowModal(true);
   };
 
+  const fetchAnnouncementSuggestions = useCallback(async (query: string): Promise<Announcement[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/announcements?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.data || []) as Announcement[];
+  }, []);
+
+  const renderAnnouncementSuggestion = (ann: Announcement, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(ann.title, query)}</span>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+          ann.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
+        }`}>
+          {ann.isPublished ? 'Published' : 'Draft'}
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{highlightMatch(ann.content, query)}</p>
+    </div>
+  );
+
+  // No detail route for announcements — ring the matching card in place.
+  const selectAnnouncementSuggestion = (ann: Announcement) => {
+    setSearch(ann.title);
+    requestHighlight('announcement', ann.id);
+  };
+
+  const displayAnnouncements = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return announcements;
+    return announcements.filter(a => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q));
+  })();
+
   if (loading) return <div className="p-6 text-center">Loading...</div>;
 
   return (
@@ -173,16 +214,34 @@ export default function AnnouncementsPage() {
         </button>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 max-w-md">
+        <LiveSearchDropdown<Announcement>
+          value={search}
+          onChange={setSearch}
+          onSearch={() => {}}
+          onSelect={selectAnnouncementSuggestion}
+          fetchSuggestions={fetchAnnouncementSuggestions}
+          getKey={(a) => a.id}
+          getHref={() => '/announcements'}
+          renderItem={renderAnnouncementSuggestion}
+          placeholder="Search title or content..."
+          ariaLabel="Search announcements"
+          cacheKeyPrefix="announcements"
+        />
+      </div>
+
       <div className="space-y-4">
-        {announcements.length === 0 ? (
+        {displayAnnouncements.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
-            No announcements yet. Create one to get started.
+            {search.trim() ? `No announcements match "${search.trim()}".` : 'No announcements yet. Create one to get started.'}
           </div>
         ) : (
-          announcements.map(ann => (
+          displayAnnouncements.map(ann => (
             <div
               key={ann.id}
-              className={`card p-5 border-l-4 ${ann.priority === 'URGENT'
+              id={`announcement-${ann.id}`}
+              className={`card p-5 border-l-4 ${highlightRingClass(flashAnnouncementId === ann.id)} ${ann.priority === 'URGENT'
                   ? 'border-l-red-500 bg-red-50'
                   : ann.priority === 'NORMAL'
                     ? 'border-l-blue-500 bg-blue-50'

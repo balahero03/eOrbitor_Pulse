@@ -8,7 +8,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const status = searchParams.get('status');
   const paymentStatus = searchParams.get('paymentStatus');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
 
   const where: any = {};
 
@@ -29,6 +29,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (search) {
     where.OR = [
       { orderNumber: { contains: search, mode: 'insensitive' } },
+      { poNumber: { contains: search, mode: 'insensitive' } },
       { customer: { companyName: { contains: search, mode: 'insensitive' } } },
     ];
   }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 import { ProductIcon } from '@/components/icons';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Product {
   id: string;
@@ -286,6 +287,28 @@ export default function ProductsPage() {
     finally { setLoading(false); }
   };
 
+  const fetchProductSuggestions = useCallback(async (query: string): Promise<Product[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/products?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.products || []) as Product[];
+  }, []);
+
+  const renderProductSuggestion = (p: Product, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(p.name, query)}</span>
+        <span className="flex-shrink-0 text-xs font-semibold text-gray-700">{fmt(p.basePrice)}</span>
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {highlightMatch(p.sku, query)}
+        {p.oemName ? <> · {highlightMatch(p.oemName, query)}</> : null}
+      </p>
+    </div>
+  );
+
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -397,10 +420,18 @@ export default function ProductsPage() {
       <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && fetchProducts()}
+          <LiveSearchDropdown<Product>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => { setPage(1); fetchProducts(); }}
+            fetchSuggestions={fetchProductSuggestions}
+            getKey={(p) => p.id}
+            getHref={(p) => `/products/${p.id}`}
+            renderItem={renderProductSuggestion}
             placeholder="Product name or SKU…"
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+            ariaLabel="Search products"
+            cacheKeyPrefix="products"
+          />
         </div>
         {categories.length > 0 && (
           <div>

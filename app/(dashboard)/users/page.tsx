@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
 import { canManageUser, roleRank } from '@/lib/roles';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
-import { highlightRowClass } from '@/lib/notificationHighlight';
+import { highlightRowClass, requestHighlight } from '@/lib/notificationHighlight';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface User {
   id: string;
@@ -241,6 +242,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeMenuUserId, setActiveMenuUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   // Modal state
   const [modal, setModal] = useState<ModalMode | null>(null);
@@ -303,6 +305,38 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchUserSuggestions = useCallback(async (query: string): Promise<User[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/users?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.users || []) as User[];
+  }, []);
+
+  const renderUserSuggestion = (u: User, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(`${u.firstName} ${u.lastName}`, query)}</span>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+          {ROLE_LABELS[u.role] || u.role}
+        </span>
+        {!u.isActive && (
+          <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Inactive</span>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">{highlightMatch(u.email, query)}</p>
+    </div>
+  );
+
+  // Users has no dedicated detail route — "opening" a result means ringing
+  // the matching row in the table already on screen (same mechanism the
+  // "user inactive" notification uses to point at a specific row).
+  const selectUserSuggestion = (u: User) => {
+    setSearch(`${u.firstName} ${u.lastName}`);
+    requestHighlight('user', u.id);
   };
 
   const openAdd = () => {
@@ -679,6 +713,17 @@ export default function UsersPage() {
     { label: 'On Field Team', Icon: UsersMultiIcon, role: 'ON_FIELD_TEAM' },
   ];
 
+  // "View all results" / bare Enter on the search box narrows the tables
+  // below to matching users — everything's already loaded client-side, so
+  // this is a plain filter rather than a re-fetch.
+  const displayUsers = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u =>
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    );
+  })();
+
   const totalActive = users.filter(u => u.isActive).length;
 
   // Build manager → exec map for team view
@@ -723,12 +768,29 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 max-w-md">
+        <LiveSearchDropdown<User>
+          value={search}
+          onChange={setSearch}
+          onSearch={() => {}}
+          onSelect={selectUserSuggestion}
+          fetchSuggestions={fetchUserSuggestions}
+          getKey={(u) => u.id}
+          getHref={() => '/users'}
+          renderItem={renderUserSuggestion}
+          placeholder="Search by name or email..."
+          ariaLabel="Search users"
+          cacheKeyPrefix="users"
+        />
+      </div>
+
       {loading ? (
         <div className="p-10 text-center text-gray-400">Loading...</div>
       ) : (
         <div className="space-y-6">
           {groups.map(({ label, Icon, role }) => {
-            const list = users.filter(u => u.role === role);
+            const list = displayUsers.filter(u => u.role === role);
             if (list.length === 0) return null;
             return (
               <div key={role}>

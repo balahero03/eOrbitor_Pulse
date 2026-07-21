@@ -142,6 +142,18 @@ textarea {
   animation: notif-glow 2.8s ease-in-out;
 }
 
+/* ── Live search suggestion dropdown ──────────────────────────────────────── */
+
+@keyframes search-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+
+.search-dropdown-enter {
+  animation: search-dropdown-in 0.16s ease-out forwards;
+  transform-origin: top;
+}
+
 /* ── Tiptap Editor & Formatted Content Styles ──────────────────────────────── */
 .ProseMirror {
   min-height: 120px;

@@ -6,6 +6,7 @@ import { WarningIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRowClass } from '@/lib/notificationHighlight';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Task {
   id: string;
@@ -120,6 +121,30 @@ export default function TasksPage() {
     task.dueDate && task.status !== 'COMPLETED' && task.status !== 'CANCELLED' &&
     new Date(task.dueDate) < new Date();
 
+  const fetchTaskSuggestions = useCallback(async (query: string): Promise<Task[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/tasks?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.tasks || []) as Task[];
+  }, []);
+
+  const renderTaskSuggestion = (task: Task, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(task.title, query)}</span>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[task.status] || 'bg-gray-100 text-gray-600'}`}>
+          {task.status.replace('_', ' ')}
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {task.dueDate ? `Due ${new Date(task.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : 'No due date'}
+        {task.assignedTo ? ` · ${task.assignedTo.firstName} ${task.assignedTo.lastName}` : ''}
+      </p>
+    </div>
+  );
+
   const totalPages = Math.ceil(total / limit);
 
   return (
@@ -168,13 +193,17 @@ export default function TasksPage() {
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-48">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <input
-              type="text"
-              placeholder="Search tasks..."
+            <LiveSearchDropdown<Task>
               value={filters.search}
-              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-              onKeyDown={e => e.key === 'Enter' && applyFilters()}
-              className="w-full"
+              onChange={(v) => setFilters(f => ({ ...f, search: v }))}
+              onSearch={applyFilters}
+              fetchSuggestions={fetchTaskSuggestions}
+              getKey={(t) => t.id}
+              getHref={(t) => `/tasks/${t.id}`}
+              renderItem={renderTaskSuggestion}
+              placeholder="Search tasks..."
+              ariaLabel="Search tasks"
+              cacheKeyPrefix="tasks"
             />
           </div>
           <div className="min-w-36">

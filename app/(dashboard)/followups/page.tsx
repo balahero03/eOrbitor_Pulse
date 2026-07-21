@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface FollowUp {
   id: string;
@@ -82,6 +83,34 @@ export default function FollowUpsPage() {
     setSearch(''); setType(''); setStatus('');
     setFromDate(''); setToDate(''); setQuickFilter('');
     setPage(1);
+  };
+
+  const fetchFollowUpSuggestions = useCallback(async (query: string): Promise<FollowUp[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/followups?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.followUps || []) as FollowUp[];
+  }, []);
+
+  const renderFollowUpSuggestion = (f: FollowUp, query: string) => {
+    const who = f.deal?.customer?.companyName || f.lead?.name || f.lead?.company || '—';
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <FollowUpIcon type={f.type} className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(who, query)}</span>
+          <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+            {f.type.replace('_', ' ')}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate">
+          {fmtDate(f.scheduledDate)}
+          {f.notes ? <> · {highlightMatch(f.notes, query)}</> : null}
+        </p>
+      </div>
+    );
   };
 
   const fetchFollowUps = useCallback(async () => {
@@ -218,9 +247,18 @@ export default function FollowUpsPage() {
           {/* Search */}
           <div className="flex-1 min-w-[180px]">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <input type="text" value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
+            <LiveSearchDropdown<FollowUp>
+              value={search}
+              onChange={(v) => { setSearch(v); resetPage(); }}
+              onSearch={resetPage}
+              fetchSuggestions={fetchFollowUpSuggestions}
+              getKey={(f) => f.id}
+              getHref={(f) => `/followups/${f.id}`}
+              renderItem={renderFollowUpSuggestion}
               placeholder="Customer, lead, notes..."
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              ariaLabel="Search follow-ups"
+              cacheKeyPrefix="followups"
+            />
           </div>
 
           {/* Type */}

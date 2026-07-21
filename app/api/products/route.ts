@@ -8,7 +8,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const category = searchParams.get('category');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
   const isActive = searchParams.get('isActive') !== 'false';
 
   const where: any = { isActive };
@@ -17,6 +17,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { sku: { contains: search, mode: 'insensitive' } },
+      { oemName: { contains: search, mode: 'insensitive' } },
     ];
   }
 

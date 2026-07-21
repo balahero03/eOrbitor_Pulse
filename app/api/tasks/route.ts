@@ -25,7 +25,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const assignedToId = searchParams.get('assignedToId');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
 
   const where: any = {};
 

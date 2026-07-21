@@ -10,7 +10,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const type = searchParams.get('type');
   const fromDate = searchParams.get('fromDate');
   const toDate = searchParams.get('toDate');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
   const status = searchParams.get('status'); // 'pending' | 'completed' | 'overdue'
 
   const where: any = {};

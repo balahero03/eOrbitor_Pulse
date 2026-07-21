@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useId, KeyboardEvent, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { SearchIcon } from '@/components/icons';
 
 // Wraps case-insensitive matches of `query` inside `text` in a <mark>, so the
 // part of a suggestion that actually matched what you typed stands out.
@@ -30,7 +31,14 @@ interface LiveSearchDropdownProps<T> {
   onSearch: (query: string) => void;
   fetchSuggestions: (query: string) => Promise<T[]>;
   getKey: (item: T) => string;
+  /** Default select behaviour: router.push(getHref(item)). */
   getHref: (item: T) => string;
+  /**
+   * Overrides the default push-to-href select behaviour — for modules with
+   * no detail route (Users, Announcements), where "opening" a result means
+   * staying on the list and ringing the matching row instead.
+   */
+  onSelect?: (item: T) => void;
   renderItem: (item: T, query: string) => ReactNode;
   placeholder: string;
   ariaLabel: string;
@@ -48,6 +56,7 @@ export default function LiveSearchDropdown<T>({
   fetchSuggestions,
   getKey,
   getHref,
+  onSelect,
   renderItem,
   placeholder,
   ariaLabel,
@@ -130,7 +139,8 @@ export default function LiveSearchDropdown<T>({
 
   const selectItem = (item: T) => {
     setOpen(false);
-    router.push(getHref(item));
+    if (onSelect) onSelect(item);
+    else router.push(getHref(item));
   };
 
   const runFullSearch = () => {
@@ -167,6 +177,7 @@ export default function LiveSearchDropdown<T>({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
+        <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           type="text"
           role="combobox"
@@ -181,7 +192,7 @@ export default function LiveSearchDropdown<T>({
           onKeyDown={handleKeyDown}
           onFocus={() => { if (value.trim().length >= minChars) setOpen(true); }}
           autoComplete="off"
-          className="w-full border border-gray-300 rounded-lg pl-3 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full border border-gray-300 rounded-lg pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
         />
         {loading && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden="true">
@@ -195,13 +206,17 @@ export default function LiveSearchDropdown<T>({
           id={listboxId}
           role="listbox"
           aria-label={`${ariaLabel} suggestions`}
-          className="absolute z-40 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-96 overflow-y-auto"
+          className="search-dropdown-enter absolute z-40 left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl ring-1 ring-black/5 overflow-hidden max-h-96 overflow-y-auto"
         >
           {loading && suggestions.length === 0 ? (
-            <div className="px-4 py-4 text-sm text-gray-400 text-center" aria-live="polite">Searching…</div>
+            <div className="px-4 py-6 text-sm text-gray-400 text-center flex items-center justify-center gap-2" aria-live="polite">
+              <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              Searching…
+            </div>
           ) : showEmptyState ? (
-            <div className="px-4 py-4 text-sm text-gray-400 text-center" aria-live="polite">
-              No results found for &ldquo;{value.trim()}&rdquo;
+            <div className="px-4 py-6 text-center" aria-live="polite">
+              <SearchIcon className="w-5 h-5 mx-auto mb-1.5 opacity-60" />
+              <p className="text-sm text-gray-500">No results found for &ldquo;{value.trim()}&rdquo;</p>
             </div>
           ) : (
             <>
@@ -227,8 +242,8 @@ export default function LiveSearchDropdown<T>({
                   aria-selected={activeIndex === suggestions.length}
                   onMouseEnter={() => setActiveIndex(suggestions.length)}
                   onMouseDown={(e) => { e.preventDefault(); runFullSearch(); }}
-                  className={`px-4 py-2 text-sm font-medium text-blue-600 text-center cursor-pointer transition-colors ${
-                    activeIndex === suggestions.length ? 'bg-blue-50' : 'hover:bg-blue-50'
+                  className={`px-4 py-2.5 text-sm font-medium text-blue-600 text-center cursor-pointer transition-colors border-t border-gray-100 ${
+                    activeIndex === suggestions.length ? 'bg-blue-50' : 'bg-gray-50/60 hover:bg-blue-50'
                   }`}
                 >
                   View all results for &ldquo;{value.trim()}&rdquo; →

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 
 interface Order {
   id: string;
@@ -71,6 +72,29 @@ export default function OrdersPage() {
     setPage(1);
     fetchOrders();
   };
+
+  const fetchOrderSuggestions = useCallback(async (query: string): Promise<Order[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/orders?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.orders || []) as Order[];
+  }, []);
+
+  const renderOrderSuggestion = (order: Order, query: string) => (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(order.orderNumber, query)}</span>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${getStatusBadgeColor(order.status)}`}>
+          {order.status}
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {highlightMatch(order.customer?.companyName || '—', query)} · {formatCurrency(order.totalAmount)}
+      </p>
+    </div>
+  );
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure?')) return;
@@ -156,12 +180,17 @@ export default function OrdersPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <input
-              type="text"
-              placeholder="Search by order number..."
+            <LiveSearchDropdown<Order>
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={setSearch}
+              onSearch={() => { setPage(1); fetchOrders(); }}
+              fetchSuggestions={fetchOrderSuggestions}
+              getKey={(o) => o.id}
+              getHref={(o) => `/orders/${o.id}`}
+              renderItem={renderOrderSuggestion}
+              placeholder="Search by order number..."
+              ariaLabel="Search orders"
+              cacheKeyPrefix="orders"
             />
           </div>
 

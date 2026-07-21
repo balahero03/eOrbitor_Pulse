@@ -12,7 +12,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
   const role = searchParams.get('role');
-  const search = searchParams.get('search');
+  const search = searchParams.get('search')?.trim();
   // status=ex returns soft-deleted (ex-employee) users; default returns active records only.
   const status = searchParams.get('status');
   // active=true restricts to currently-active users (for assignment pickers).

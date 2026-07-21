@@ -7,10 +7,17 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100);
+  const search = searchParams.get('search')?.trim();
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
   // Admins see all (drafts + published), others see only published
-  const where = isAdmin ? {} : { isPublished: true };
+  const where: any = isAdmin ? {} : { isPublished: true };
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { content: { contains: search, mode: 'insensitive' } },
+    ];
+  }
 
   const skip = (page - 1) * limit;
   const [announcements, total] = await Promise.all([
