@@ -46,7 +46,48 @@ const ROLE_LABELS: Record<string, string> = {
 
 const DEPT_OPTIONS = ['Sales', 'Management', 'Support', 'Operations', 'Finance', 'Other'];
 
-type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view' | 'ex-records' | 'role-switch';
+type ModalMode = 'add' | 'edit' | 'password' | 'assign-manager' | 'team-view' | 'ex-records' | 'role-switch' | 'delete-preview' | 'deactivate-warn';
+
+type RecordAction = 'keep' | 'transfer';
+
+// Delete-preview modal state — same keep/transfer-per-category shape as
+// role-switch, but covers every business record type the delete endpoint
+// counts (it also includes quotations/follow-ups, which role switching
+// doesn't touch).
+interface DeletePreviewState {
+  user: User;
+  leadsAssigned: number;
+  broughtLeads: number;
+  deals: number;
+  quotations: number;
+  followUps: number;
+  tasksCreated: number;
+  tasksAssigned: number;
+  subordinates: number;
+  leadsAction: RecordAction; leadsTargetUserId: string;
+  broughtLeadsAction: RecordAction; broughtLeadsTargetUserId: string;
+  dealsAction: RecordAction; dealsTargetUserId: string;
+  quotationsAction: RecordAction; quotationsTargetUserId: string;
+  followUpsAction: RecordAction; followUpsTargetUserId: string;
+  tasksCreatedAction: RecordAction; tasksCreatedTargetUserId: string;
+  tasksAssignedAction: RecordAction; tasksAssignedTargetUserId: string;
+  subordinatesAction: RecordAction; subordinatesTargetUserId: string;
+  step: 'preview' | 'confirm';
+}
+
+// Deactivation is reversible, so this is informational only — no forced
+// reassignment, just a heads-up on what the account still owns.
+interface DeactivateWarnState {
+  user: User;
+  leadsAssigned: number;
+  broughtLeads: number;
+  deals: number;
+  quotations: number;
+  followUps: number;
+  tasksCreated: number;
+  tasksAssigned: number;
+  subordinates: number;
+}
 
 // Role-switch modal state
 interface RoleSwitchState {
@@ -232,6 +273,53 @@ function UserActionMenu({
   );
 }
 
+// One keep/transfer row for a record category inside the delete-preview and
+// role-switch-style modals. Renders nothing once the category is empty.
+function RecordTransferRow({
+  label, count, action, targetUserId, onActionChange, onTargetChange, targets,
+}: {
+  label: string;
+  count: number;
+  action: RecordAction;
+  targetUserId: string;
+  onActionChange: (a: RecordAction) => void;
+  onTargetChange: (id: string) => void;
+  targets: User[];
+}) {
+  if (count === 0) return null;
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-gray-700">{label} ({count})</label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onActionChange('keep')}
+          className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${action === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+        >
+          Keep with them
+        </button>
+        <button
+          type="button"
+          onClick={() => onActionChange('transfer')}
+          className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${action === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+        >
+          Transfer to →
+        </button>
+      </div>
+      {action === 'transfer' && (
+        <select
+          value={targetUserId}
+          onChange={e => onTargetChange(e.target.value)}
+          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 ${!targetUserId ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+        >
+          <option value="">Select recipient…</option>
+          {targets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+
 export default function UsersPage() {
   // Deep-linked from a user-inactive notification — rings the matching row.
   const flashUserId = useNotificationHighlight('user');
@@ -272,6 +360,10 @@ export default function UsersPage() {
 
   // Role-switch modal state
   const [roleSwitchState, setRoleSwitchState] = useState<RoleSwitchState | null>(null);
+
+  // Delete-preview / deactivate-warning modal state
+  const [deletePreviewState, setDeletePreviewState] = useState<DeletePreviewState | null>(null);
+  const [deactivateWarnState, setDeactivateWarnState] = useState<DeactivateWarnState | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -380,7 +472,10 @@ export default function UsersPage() {
     setModal('assign-manager');
   };
 
-  const closeModal = () => { setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId(''); setRoleSwitchState(null); };
+  const closeModal = () => {
+    setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId('');
+    setRoleSwitchState(null); setDeletePreviewState(null); setDeactivateWarnState(null);
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -609,8 +704,28 @@ export default function UsersPage() {
     }
   };
 
-  const handleToggleActive = async (u: User) => {
-    if (u.id === currentUser?.id) { alert("You can't deactivate your own account."); return; }
+  // Pulls the same business-record breakdown the ex-records panel uses, keyed
+  // for both the delete-preview and deactivate-warning modals.
+  const fetchBusinessBreakdown = async (u: User) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/users/${u.id}/records`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const rd: RecordBreakdown = await res.json();
+    const biz = Object.fromEntries(rd.business.map(r => [r.key, r.count])) as Record<string, number>;
+    return {
+      businessTotal: rd.businessTotal,
+      leadsAssigned: biz.leadsAssigned ?? 0,
+      broughtLeads: biz.leadsBrought ?? 0,
+      deals: biz.deals ?? 0,
+      quotations: biz.quotations ?? 0,
+      followUps: biz.followUps ?? 0,
+      tasksCreated: biz.tasksCreated ?? 0,
+      tasksAssigned: biz.tasksAssigned ?? 0,
+      subordinates: biz.subordinates ?? 0,
+    };
+  };
+
+  const doToggleActive = async (u: User) => {
     const token = localStorage.getItem('token');
     await fetch(`/api/users/${u.id}`, {
       method: 'PATCH',
@@ -620,26 +735,105 @@ export default function UsersPage() {
     setUsers(users.map(x => x.id === u.id ? { ...x, isActive: !x.isActive } : x));
   };
 
+  const handleToggleActive = async (u: User) => {
+    if (u.id === currentUser?.id) { alert("You can't deactivate your own account."); return; }
+    // Deactivation is reversible, so we only warn (not block) — but the admin
+    // should know what still sits under this account before they lock it out.
+    if (u.isActive) {
+      const breakdown = await fetchBusinessBreakdown(u);
+      if (breakdown && breakdown.businessTotal > 0) {
+        setDeactivateWarnState({ user: u, ...breakdown });
+        setModal('deactivate-warn');
+        return;
+      }
+    }
+    await doToggleActive(u);
+  };
+
+  const openDeletePreview = (u: User, breakdown: NonNullable<Awaited<ReturnType<typeof fetchBusinessBreakdown>>>) => {
+    setDeletePreviewState({
+      user: u,
+      leadsAssigned: breakdown.leadsAssigned, broughtLeads: breakdown.broughtLeads, deals: breakdown.deals,
+      quotations: breakdown.quotations, followUps: breakdown.followUps,
+      tasksCreated: breakdown.tasksCreated, tasksAssigned: breakdown.tasksAssigned, subordinates: breakdown.subordinates,
+      leadsAction: 'keep', leadsTargetUserId: '',
+      broughtLeadsAction: 'keep', broughtLeadsTargetUserId: '',
+      dealsAction: 'keep', dealsTargetUserId: '',
+      quotationsAction: 'keep', quotationsTargetUserId: '',
+      followUpsAction: 'keep', followUpsTargetUserId: '',
+      tasksCreatedAction: 'keep', tasksCreatedTargetUserId: '',
+      tasksAssignedAction: 'keep', tasksAssignedTargetUserId: '',
+      subordinatesAction: 'keep', subordinatesTargetUserId: '',
+      step: 'preview',
+    });
+    setSelectedUser(u);
+    setModal('delete-preview');
+  };
+
   const handleDelete = async (u: User) => {
     if (u.id === currentUser?.id) { alert("You can't delete your own account."); return; }
-    if (!confirm(
-      `Delete ${u.firstName} ${u.lastName}?\n\n` +
-      `If they own no records they'll be permanently removed. ` +
-      `If they own leads/deals/activity, they'll be marked as an ex-employee and their data preserved.`
-    )) return;
+    const breakdown = await fetchBusinessBreakdown(u);
+    // Nothing to reassign — same one-click delete as before, no modal friction.
+    if (!breakdown || breakdown.businessTotal === 0) {
+      if (!confirm(`Delete ${u.firstName} ${u.lastName}? They own no records and will be permanently removed.`)) return;
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/users/${u.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to delete user'); return; }
+      alert(`${u.firstName} was permanently deleted.`);
+      fetchUsers();
+      return;
+    }
+    openDeletePreview(u, breakdown);
+  };
+
+  const handleDeletePreviewSubmit = async () => {
+    if (!deletePreviewState) return;
+    const ds = deletePreviewState;
+    // Any category set to "transfer" must have a recipient picked.
+    const incomplete = [
+      ds.leadsAssigned > 0 && ds.leadsAction === 'transfer' && !ds.leadsTargetUserId,
+      ds.broughtLeads > 0 && ds.broughtLeadsAction === 'transfer' && !ds.broughtLeadsTargetUserId,
+      ds.deals > 0 && ds.dealsAction === 'transfer' && !ds.dealsTargetUserId,
+      ds.quotations > 0 && ds.quotationsAction === 'transfer' && !ds.quotationsTargetUserId,
+      ds.followUps > 0 && ds.followUpsAction === 'transfer' && !ds.followUpsTargetUserId,
+      ds.tasksCreated > 0 && ds.tasksCreatedAction === 'transfer' && !ds.tasksCreatedTargetUserId,
+      ds.tasksAssigned > 0 && ds.tasksAssignedAction === 'transfer' && !ds.tasksAssignedTargetUserId,
+      ds.subordinates > 0 && ds.subordinatesAction === 'transfer' && !ds.subordinatesTargetUserId,
+    ].some(Boolean);
+    if (incomplete) { alert('Pick a recipient for every category marked "Transfer to".'); return; }
+
+    setSaving(true);
     const token = localStorage.getItem('token');
-    const res = await fetch(`/api/users/${u.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to delete user'); return; }
-    alert(
-      data.deleted === 'soft'
-        ? `${u.firstName} was marked as an ex-employee (${data.recordCount} record(s) preserved).`
-        : `${u.firstName} was permanently deleted.`
-    );
-    fetchUsers();
+    try {
+      const res = await fetch(`/api/users/${ds.user.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          leadsAction: ds.leadsAction, leadsTargetUserId: ds.leadsAction === 'transfer' ? ds.leadsTargetUserId : undefined,
+          broughtLeadsAction: ds.broughtLeadsAction, broughtLeadsTargetUserId: ds.broughtLeadsAction === 'transfer' ? ds.broughtLeadsTargetUserId : undefined,
+          dealsAction: ds.dealsAction, dealsTargetUserId: ds.dealsAction === 'transfer' ? ds.dealsTargetUserId : undefined,
+          quotationsAction: ds.quotationsAction, quotationsTargetUserId: ds.quotationsAction === 'transfer' ? ds.quotationsTargetUserId : undefined,
+          followUpsAction: ds.followUpsAction, followUpsTargetUserId: ds.followUpsAction === 'transfer' ? ds.followUpsTargetUserId : undefined,
+          tasksCreatedAction: ds.tasksCreatedAction, tasksCreatedTargetUserId: ds.tasksCreatedAction === 'transfer' ? ds.tasksCreatedTargetUserId : undefined,
+          tasksAssignedAction: ds.tasksAssignedAction, tasksAssignedTargetUserId: ds.tasksAssignedAction === 'transfer' ? ds.tasksAssignedTargetUserId : undefined,
+          subordinatesAction: ds.subordinatesAction, subordinatesTargetUserId: ds.subordinatesAction === 'transfer' ? ds.subordinatesTargetUserId : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete user');
+      closeModal();
+      alert(
+        data.deleted === 'soft'
+          ? `${ds.user.firstName} was marked as an ex-employee — ${data.recordCount} record(s) remain (whatever you chose to transfer is already moved).`
+          : `${ds.user.firstName} was permanently deleted — all records were transferred.`
+      );
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRestore = async (u: User) => {
@@ -1274,6 +1468,218 @@ export default function UsersPage() {
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── DELETE PREVIEW MODAL — keep/transfer per category, mirrors Switch Role ── */}
+      {modal === 'delete-preview' && deletePreviewState && (() => {
+        const ds = deletePreviewState;
+        const transferTargets = users.filter(u => u.isActive && u.id !== ds.user.id);
+        const managerTargets = transferTargets.filter(u => u.role === 'BACKEND_TEAM' || u.role === 'ADMIN');
+        const updateDS = (patch: Partial<DeletePreviewState>) =>
+          setDeletePreviewState(prev => prev ? { ...prev, ...patch } : prev);
+
+        const categories: Array<{
+          key: 'leads' | 'broughtLeads' | 'deals' | 'quotations' | 'followUps' | 'tasksCreated' | 'tasksAssigned' | 'subordinates';
+          label: string; count: number; action: RecordAction; targetUserId: string; targets: User[];
+        }> = [
+          { key: 'leads', label: 'Leads assigned to them', count: ds.leadsAssigned, action: ds.leadsAction, targetUserId: ds.leadsTargetUserId, targets: transferTargets },
+          { key: 'broughtLeads', label: 'Leads brought by them', count: ds.broughtLeads, action: ds.broughtLeadsAction, targetUserId: ds.broughtLeadsTargetUserId, targets: transferTargets },
+          { key: 'deals', label: 'Deals', count: ds.deals, action: ds.dealsAction, targetUserId: ds.dealsTargetUserId, targets: transferTargets },
+          { key: 'quotations', label: 'Quotations', count: ds.quotations, action: ds.quotationsAction, targetUserId: ds.quotationsTargetUserId, targets: transferTargets },
+          { key: 'followUps', label: 'Follow-ups', count: ds.followUps, action: ds.followUpsAction, targetUserId: ds.followUpsTargetUserId, targets: transferTargets },
+          { key: 'tasksCreated', label: 'Tasks created by them', count: ds.tasksCreated, action: ds.tasksCreatedAction, targetUserId: ds.tasksCreatedTargetUserId, targets: transferTargets },
+          { key: 'tasksAssigned', label: 'Tasks assigned to them', count: ds.tasksAssigned, action: ds.tasksAssignedAction, targetUserId: ds.tasksAssignedTargetUserId, targets: transferTargets },
+          { key: 'subordinates', label: 'Team members reporting to them', count: ds.subordinates, action: ds.subordinatesAction, targetUserId: ds.subordinatesTargetUserId, targets: managerTargets },
+        ];
+        const actionKey: Record<typeof categories[number]['key'], keyof DeletePreviewState> = {
+          leads: 'leadsAction', broughtLeads: 'broughtLeadsAction', deals: 'dealsAction', quotations: 'quotationsAction',
+          followUps: 'followUpsAction', tasksCreated: 'tasksCreatedAction', tasksAssigned: 'tasksAssignedAction', subordinates: 'subordinatesAction',
+        };
+        const targetKey: Record<typeof categories[number]['key'], keyof DeletePreviewState> = {
+          leads: 'leadsTargetUserId', broughtLeads: 'broughtLeadsTargetUserId', deals: 'dealsTargetUserId', quotations: 'quotationsTargetUserId',
+          followUps: 'followUpsTargetUserId', tasksCreated: 'tasksCreatedTargetUserId', tasksAssigned: 'tasksAssignedTargetUserId', subordinates: 'subordinatesTargetUserId',
+        };
+
+        const willHardDelete = categories.every(c => c.count === 0 || (c.action === 'transfer' && c.targetUserId));
+        const kept = categories.filter(c => c.count > 0 && c.action === 'keep');
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
+              <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Delete User</h2>
+                  <p className="text-sm text-gray-500">{ds.user.firstName} {ds.user.lastName} · {ds.user.email}</p>
+                </div>
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                {ds.step === 'preview' ? (
+                  <>
+                    <div className="rounded-xl p-4 border bg-red-50 border-red-200">
+                      <p className="text-xs font-semibold text-red-800 mb-1">This account owns records — decide what happens to each before deleting</p>
+                      <p className="text-xs text-red-700">
+                        Anything kept stays with them and the account becomes an ex-employee (data preserved, login disabled).
+                        Transfer everything and the account is removed permanently instead.
+                      </p>
+                    </div>
+
+                    {/* Quick shortcut: fill every category at once */}
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-indigo-50 border border-indigo-100">
+                      <span className="text-xs text-indigo-800 font-semibold whitespace-nowrap">Transfer everything to →</span>
+                      <select
+                        className="flex-1 border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        defaultValue=""
+                        onChange={e => {
+                          const targetId = e.target.value;
+                          if (!targetId) return;
+                          const patch: Partial<DeletePreviewState> = {};
+                          categories.forEach(c => {
+                            if (c.count === 0) return;
+                            (patch as any)[actionKey[c.key]] = 'transfer';
+                            (patch as any)[targetKey[c.key]] = c.key === 'subordinates'
+                              ? (managerTargets.some(m => m.id === targetId) ? targetId : '')
+                              : targetId;
+                          });
+                          updateDS(patch);
+                        }}
+                      >
+                        <option value="">— Pick one recipient for all —</option>
+                        {transferTargets.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {ROLE_LABELS[t.role] || t.role}</option>)}
+                      </select>
+                    </div>
+
+                    {categories.map(c => (
+                      <RecordTransferRow
+                        key={c.key}
+                        label={c.label}
+                        count={c.count}
+                        action={c.action}
+                        targetUserId={c.targetUserId}
+                        targets={c.targets}
+                        onActionChange={a => updateDS({ [actionKey[c.key]]: a } as Partial<DeletePreviewState>)}
+                        onTargetChange={id => updateDS({ [targetKey[c.key]]: id } as Partial<DeletePreviewState>)}
+                      />
+                    ))}
+                    {categories.some(c => c.key === 'subordinates' && c.count > 0) && (
+                      <p className="text-xs text-gray-400 -mt-3">Only Backend Team / Admin users can be picked as the new manager.</p>
+                    )}
+                  </>
+                ) : (
+                  /* Confirm step */
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-700">
+                      Ready to delete <span className="text-red-600">{ds.user.firstName} {ds.user.lastName}</span>.
+                    </p>
+                    <div className={`rounded-xl p-3 border text-xs font-medium ${willHardDelete ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                      {willHardDelete
+                        ? 'Every record is being transferred — this account will be permanently removed.'
+                        : `${kept.reduce((s, c) => s + c.count, 0)} record(s) are being kept — this account will become an ex-employee instead of being removed.`}
+                    </div>
+                    <div className="rounded-xl border divide-y divide-gray-100 text-sm">
+                      {categories.filter(c => c.count > 0).map(c => (
+                        <div key={c.key} className="flex justify-between px-4 py-2.5">
+                          <span className="text-gray-600">{c.label} ({c.count})</span>
+                          <span className="font-medium text-gray-800">
+                            {c.action === 'keep' ? 'Kept with them' : `→ ${c.targets.find(t => t.id === c.targetUserId)?.firstName || '?'}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
+                <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
+                  Cancel
+                </button>
+                <div className="flex gap-2">
+                  {ds.step === 'confirm' && (
+                    <button onClick={() => updateDS({ step: 'preview' })} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
+                      ← Back
+                    </button>
+                  )}
+                  {ds.step === 'preview' ? (
+                    <button
+                      onClick={() => updateDS({ step: 'confirm' })}
+                      className="px-5 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700"
+                    >
+                      Review & Confirm →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleDeletePreviewSubmit}
+                      disabled={saving}
+                      className="px-5 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Deleting…' : 'Confirm & Delete'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── DEACTIVATE WARNING MODAL — informational only, deactivation is reversible ── */}
+      {modal === 'deactivate-warn' && deactivateWarnState && (() => {
+        const dw = deactivateWarnState;
+        const rows = [
+          { label: 'Leads (assigned)', count: dw.leadsAssigned },
+          { label: 'Leads (brought)', count: dw.broughtLeads },
+          { label: 'Deals', count: dw.deals },
+          { label: 'Quotations', count: dw.quotations },
+          { label: 'Follow-ups', count: dw.followUps },
+          { label: 'Tasks (created)', count: dw.tasksCreated },
+          { label: 'Tasks (assigned)', count: dw.tasksAssigned },
+          { label: 'Team members reporting to them', count: dw.subordinates },
+        ].filter(r => r.count > 0);
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+              <div className="px-6 py-4 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Deactivate User</h2>
+                  <p className="text-sm text-gray-500">{dw.user.firstName} {dw.user.lastName}</p>
+                </div>
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
+                  <p className="text-xs font-semibold text-amber-800 mb-1">This account still owns active records</p>
+                  <p className="text-xs text-amber-700">
+                    Deactivating only blocks login — nothing below is reassigned automatically, and everything stays
+                    visible and assigned to {dw.user.firstName} exactly as it is now. You can reactivate this account
+                    anytime, or use Delete User instead if you want to hand these off to someone else right now.
+                  </p>
+                </div>
+                <div className="rounded-xl border divide-y divide-gray-100 text-sm">
+                  {rows.map(r => (
+                    <div key={r.label} className="flex justify-between px-4 py-2.5">
+                      <span className="text-gray-600">{r.label}</span>
+                      <span className="font-semibold text-gray-900">{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t flex items-center justify-between gap-3">
+                <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => { await doToggleActive(dw.user); closeModal(); }}
+                  className="px-5 py-2 text-sm rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700"
+                >
+                  Deactivate Anyway
+                </button>
               </div>
             </div>
           </div>

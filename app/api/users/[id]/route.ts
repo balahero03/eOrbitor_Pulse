@@ -173,9 +173,84 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
     const { searchParams } = new URL(req.url);
     const hard = searchParams.get('hard') === 'true';
 
-    // Business records have required FKs and would orphan data; they must be
-    // reassigned before deletion. Personal logs (dailyActivity, activityLog,
-    // timeLog, notifications, …) cascade automatically on user.delete().
+    // Optional reassignment instructions from the delete-preview flow — lets an
+    // admin hand business records off to a replacement in the same step instead
+    // of reassigning later via the ex-employee records panel. Mirrors the
+    // keep/transfer pattern used by /role-switch.
+    let body: any = {};
+    try { body = await req.json(); } catch { body = {}; }
+    const {
+      leadsAction = 'keep', leadsTargetUserId,
+      broughtLeadsAction = 'keep', broughtLeadsTargetUserId,
+      dealsAction = 'keep', dealsTargetUserId,
+      quotationsAction = 'keep', quotationsTargetUserId,
+      followUpsAction = 'keep', followUpsTargetUserId,
+      tasksCreatedAction = 'keep', tasksCreatedTargetUserId,
+      tasksAssignedAction = 'keep', tasksAssignedTargetUserId,
+      subordinatesAction = 'keep', subordinatesTargetUserId,
+    } = body;
+
+    const transferTargetIds = [
+      leadsAction === 'transfer' ? leadsTargetUserId : null,
+      broughtLeadsAction === 'transfer' ? broughtLeadsTargetUserId : null,
+      dealsAction === 'transfer' ? dealsTargetUserId : null,
+      quotationsAction === 'transfer' ? quotationsTargetUserId : null,
+      followUpsAction === 'transfer' ? followUpsTargetUserId : null,
+      tasksCreatedAction === 'transfer' ? tasksCreatedTargetUserId : null,
+      tasksAssignedAction === 'transfer' ? tasksAssignedTargetUserId : null,
+      subordinatesAction === 'transfer' ? subordinatesTargetUserId : null,
+    ].filter(Boolean) as string[];
+
+    if (transferTargetIds.length > 0) {
+      const uniqueTargetIds = [...new Set(transferTargetIds)];
+      if (uniqueTargetIds.includes(id)) {
+        return NextResponse.json({ error: 'Cannot reassign records to the user being deleted' }, { status: 400 });
+      }
+      const activeTargets = await prisma.user.findMany({
+        where: { id: { in: uniqueTargetIds }, deletedAt: null, isActive: true },
+        select: { id: true },
+      });
+      const foundIds = new Set(activeTargets.map((u: any) => u.id));
+      const missing = uniqueTargetIds.filter(tid => !foundIds.has(tid));
+      if (missing.length > 0) {
+        return NextResponse.json({ error: 'One or more transfer target users are inactive or not found.' }, { status: 400 });
+      }
+    }
+
+    // Run any requested transfers atomically before deciding hard vs. soft delete.
+    const transferred: Record<string, number> = await prisma.$transaction(async (tx) => {
+      const out: Record<string, number> = {};
+      if (leadsAction === 'transfer' && leadsTargetUserId) {
+        out.leadsAssigned = (await tx.lead.updateMany({ where: { assignedToId: id }, data: { assignedToId: leadsTargetUserId } })).count;
+      }
+      if (broughtLeadsAction === 'transfer' && broughtLeadsTargetUserId) {
+        out.leadsBrought = (await tx.lead.updateMany({ where: { broughtById: id }, data: { broughtById: broughtLeadsTargetUserId } })).count;
+      }
+      if (dealsAction === 'transfer' && dealsTargetUserId) {
+        out.deals = (await tx.deal.updateMany({ where: { assignedToId: id }, data: { assignedToId: dealsTargetUserId } })).count;
+      }
+      if (quotationsAction === 'transfer' && quotationsTargetUserId) {
+        out.quotations = (await tx.quotation.updateMany({ where: { createdById: id }, data: { createdById: quotationsTargetUserId } })).count;
+      }
+      if (followUpsAction === 'transfer' && followUpsTargetUserId) {
+        out.followUps = (await tx.followUp.updateMany({ where: { createdById: id }, data: { createdById: followUpsTargetUserId } })).count;
+      }
+      if (tasksCreatedAction === 'transfer' && tasksCreatedTargetUserId) {
+        out.tasksCreated = (await tx.task.updateMany({ where: { createdById: id }, data: { createdById: tasksCreatedTargetUserId } })).count;
+      }
+      if (tasksAssignedAction === 'transfer' && tasksAssignedTargetUserId) {
+        out.tasksAssigned = (await tx.task.updateMany({ where: { assignedToId: id }, data: { assignedToId: tasksAssignedTargetUserId } })).count;
+      }
+      if (subordinatesAction === 'transfer' && subordinatesTargetUserId) {
+        out.subordinates = (await tx.user.updateMany({ where: { managerId: id }, data: { managerId: subordinatesTargetUserId } })).count;
+      }
+      return out;
+    });
+
+    // Business records have required FKs and would orphan data; whatever wasn't
+    // just transferred must be reassigned before hard deletion. Personal logs
+    // (dailyActivity, activityLog, timeLog, notifications, …) cascade
+    // automatically on user.delete().
     const [
       leads, broughtLeads, deals, quotations, followUps,
       tasks, assignedTasks, subordinates,
@@ -194,6 +269,16 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
       leads + broughtLeads + deals + quotations + followUps +
       tasks + assignedTasks + subordinates;
 
+    const logDelete = (deleteType: 'hard' | 'soft') => prisma.activityLog.create({
+      data: {
+        userId: auth.id,
+        action: 'DELETE',
+        entityType: 'USER',
+        entityId: id,
+        changes: { deleteType, transferred, remainingRecordCount: businessCount },
+      },
+    });
+
     // Hard-delete (permanent): Super Admin only, and only once all business
     // records have been reassigned. Personal logs cascade away with the user.
     if (hard) {
@@ -206,24 +291,30 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
           { status: 409 }
         );
       }
+      await logDelete('hard');
       await prisma.user.delete({ where: { id } });
-      return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard' });
+      return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard', transferred });
     }
 
-    // Default delete: hard-delete if no business records, otherwise mark as ex-employee.
+    // Default delete: hard-delete if no business records remain, otherwise mark as ex-employee.
     if (businessCount === 0) {
+      await logDelete('hard');
       await prisma.user.delete({ where: { id } });
-      return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard' });
+      return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard', transferred });
     }
 
+    await logDelete('soft');
     await prisma.user.update({
       where: { id },
       data: { deletedAt: new Date(), isActive: false },
     });
     return NextResponse.json({
-      message: 'User marked as ex-employee (records preserved)',
+      message: Object.keys(transferred).length > 0
+        ? `User marked as ex-employee — ${businessCount} record(s) remain (some were reassigned).`
+        : 'User marked as ex-employee (records preserved)',
       deleted: 'soft',
       recordCount: businessCount,
+      transferred,
     });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });

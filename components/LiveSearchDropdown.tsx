@@ -192,7 +192,7 @@ export default function LiveSearchDropdown<T>({
           onKeyDown={handleKeyDown}
           onFocus={() => { if (value.trim().length >= minChars) setOpen(true); }}
           autoComplete="off"
-          className="w-full border border-gray-300 rounded-lg pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+          className="w-full border border-gray-300 rounded-lg !pl-9 !pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
         />
         {loading && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden="true">
