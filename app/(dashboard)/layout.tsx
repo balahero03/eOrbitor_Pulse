@@ -235,6 +235,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  // Ids currently mid-delete-animation — kept separate from `notifications`
+  // so the row can play its collapse/fade before actually leaving the list.
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -408,6 +411,76 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!token) return;
     await fetch('/api/notifications/read-all', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  // Duration of the row's collapse/fade-out (kept in sync with the inline
+  // transition durations on the row wrapper below).
+  const DELETE_ANIM_MS = 260;
+  // Gap between each row starting its animation during a bulk clear, so the
+  // list sweeps away in a cascade rather than vanishing all at once.
+  const DELETE_STAGGER_MS = 45;
+
+  // Plays the collapse animation for `ids`, then drops them from state once
+  // it finishes. The API call runs alongside the animation, not after it, so
+  // the row's exit isn't gated on network latency.
+  const animateOutAndRemove = (ids: string[]) => {
+    if (ids.length === 0) return;
+    ids.forEach((id, i) => {
+      setTimeout(() => {
+        setRemovingIds(prev => new Set(prev).add(id));
+      }, i * DELETE_STAGGER_MS);
+    });
+    const totalMs = (ids.length - 1) * DELETE_STAGGER_MS + DELETE_ANIM_MS;
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => !ids.includes(n.id)));
+      setRemovingIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+    }, totalMs);
+  };
+
+  const deleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    animateOutAndRemove([id]);
+    try {
+      const res = await fetch(`/api/notifications/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) console.error('Failed to delete notification');
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!confirm('Are you sure you want to clear all notifications? This cannot be undone.')) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const ids = notifications.map(n => n.id);
+    animateOutAndRemove(ids);
+    try {
+      await Promise.all(ids.map(id =>
+        fetch(`/api/notifications/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      ));
+    } catch (error) {
+      console.error('Failed to clear notifications:', error);
+    }
+  };
+
+  const clearReadNotifications = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const ids = notifications.filter(n => n.isRead).map(n => n.id);
+    animateOutAndRemove(ids);
+    try {
+      await Promise.all(ids.map(id =>
+        fetch(`/api/notifications/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      ));
+    } catch (error) {
+      console.error('Failed to clear read notifications:', error);
+    }
   };
 
   // Initialise sidebar state from window width after mount (avoids SSR mismatch)
@@ -655,40 +728,131 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <span className="text-sm font-semibold text-gray-800">Notifications</span>
+                <div className="absolute right-0 top-10 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+                    <div>
+                      <span className="text-sm font-bold text-gray-900">Notifications</span>
+                      {notifications.length > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {unreadCount} unread · {notifications.length} total
+                        </p>
+                      )}
+                    </div>
                     {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline">
+                      <button
+                        onClick={markAllRead}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded transition-colors"
+                      >
                         Mark all read
                       </button>
                     )}
                   </div>
-                  <div className="max-h-80 overflow-y-auto">
+
+                  {/* Notifications list */}
+                  <div className="flex-1 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-8">No notifications</p>
-                    ) : notifications.map(n => (
-                      <button
-                        key={n.id}
-                        onClick={() => handleNotifClick(n)}
-                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
-                          !n.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: n.isRead ? '#d1d5db' : '#3b82f6' }} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-gray-800 truncate">{n.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
-                          </div>
-                          <svg className="w-3 h-3 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </button>
-                    ))}
+                      <div className="text-center py-12 px-4">
+                        <p className="text-sm text-gray-400">No notifications yet</p>
+                        <p className="text-xs text-gray-300 mt-1">Activity updates will appear here</p>
+                      </div>
+                    ) : (
+                      <div>
+                        {notifications.map((n, idx) => {
+                          const removing = removingIds.has(n.id);
+                          const isLast = idx === notifications.length - 1;
+                          return (
+                            <div
+                              key={n.id}
+                              style={{
+                                display: 'grid',
+                                gridTemplateRows: removing ? '0fr' : '1fr',
+                                opacity: removing ? 0 : 1,
+                                transform: removing ? 'translateX(28px)' : 'translateX(0)',
+                                transition: 'grid-template-rows 260ms ease, opacity 220ms ease, transform 260ms ease',
+                              }}
+                            >
+                              <div className="overflow-hidden">
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => handleNotifClick(n)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n); } }}
+                                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
+                                    !n.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''
+                                  } ${!isLast ? 'border-b border-gray-100' : ''}`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    {/* Read indicator dot */}
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5"
+                                      style={{ background: n.isRead ? '#e5e7eb' : '#3b82f6' }}
+                                    />
+
+                                    {/* Notification content */}
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-gray-900 truncate">{n.title}</p>
+                                      <p className="text-sm text-gray-600 mt-1 line-clamp-2 break-words">{n.message}</p>
+                                      <p className="text-xs text-gray-400 mt-1.5">
+                                        {new Date(n.createdAt).toLocaleString('en-IN', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: false,
+                                        })}
+                                      </p>
+                                    </div>
+
+                                    {/* Delete button on hover */}
+                                    <button
+                                      onClick={(e) => deleteNotification(n.id, e)}
+                                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded transition-all flex-shrink-0 text-gray-400 hover:text-red-500"
+                                      title="Delete notification"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={1.5}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3H4v2h16V7h-3z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Footer with action buttons */}
+                  {notifications.length > 0 && (
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2 flex-shrink-0">
+                      {notifications.some(n => n.isRead) && (
+                        <button
+                          onClick={clearReadNotifications}
+                          className="text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 hover:bg-gray-200 rounded transition-colors flex-1"
+                        >
+                          Clear read
+                        </button>
+                      )}
+                      <button
+                        onClick={clearAllNotifications}
+                        className="text-xs font-medium text-red-600 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded transition-colors flex-1"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
