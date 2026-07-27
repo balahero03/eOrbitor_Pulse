@@ -232,7 +232,40 @@ export default function QuotationsPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {quotations.map(q => {
+                const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
+                const meta = isPendingApproval
+                  ? { label: 'Pending Approval', style: 'bg-amber-100 text-amber-700 border-amber-200' }
+                  : STATUS_META[q.status] ?? { label: q.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
+                return (
+                  <Link
+                    key={q.id}
+                    href={`/quotations/${q.id}`}
+                    className="block p-4 active:bg-blue-50/70 transition-colors space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-gray-900 block">{q.quotationNumber}</span>
+                        <p className="text-xs font-semibold text-gray-700 mt-0.5">{q.customer.companyName}</p>
+                      </div>
+                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${meta.style}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                      <span className="text-sm font-bold text-gray-900">{fmt(q.totalAmount)}</span>
+                      <span className="text-gray-400 text-[11px]">{fmtDate(q.issueDate)}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
@@ -247,8 +280,6 @@ export default function QuotationsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {quotations.map(q => {
-                    // A non-admin's SENT quote is really awaiting a manager/admin's
-                    // sign-off, not actually dispatched to the customer yet.
                     const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
                     const meta = isPendingApproval
                       ? { label: 'Pending Approval', style: 'bg-amber-100 text-amber-700 border-amber-200' }
