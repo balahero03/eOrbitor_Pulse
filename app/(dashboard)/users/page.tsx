@@ -114,7 +114,7 @@ interface RoleSwitchState {
   loading: boolean;
 }
 
-interface RecordRow { key: string; label: string; count: number; }
+interface RecordRow { key: string; label: string; count: number; items?: any[]; moreCount?: number; }
 interface RecordBreakdown {
   business: RecordRow[];
   personal: RecordRow[];
@@ -357,6 +357,7 @@ export default function UsersPage() {
   const [records, setRecords] = useState<RecordBreakdown | null>(null);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [reassignTargetId, setReassignTargetId] = useState<string>('');
+  const [expandedRecordCategory, setExpandedRecordCategory] = useState<string | null>(null);
 
   // Role-switch modal state
   const [roleSwitchState, setRoleSwitchState] = useState<RoleSwitchState | null>(null);
@@ -474,7 +475,7 @@ export default function UsersPage() {
 
   const closeModal = () => {
     setModal(null); setSelectedUser(null); setError(''); setRecords(null); setReassignTargetId('');
-    setRoleSwitchState(null); setDeletePreviewState(null); setDeactivateWarnState(null);
+    setExpandedRecordCategory(null); setRoleSwitchState(null); setDeletePreviewState(null); setDeactivateWarnState(null);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -869,7 +870,7 @@ export default function UsersPage() {
     setRecordsLoading(true);
     setRecords(null);
     const token = localStorage.getItem('token');
-    const res = await fetch(`/api/users/${u.id}/records`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`/api/users/${u.id}/records?detail=true`, { headers: { Authorization: `Bearer ${token}` } });
     setRecordsLoading(false);
     if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to load records'); return; }
     setRecords(await res.json());
@@ -879,8 +880,32 @@ export default function UsersPage() {
     setSelectedUser(u);
     setReassignTargetId('');
     setRecords(null);
+    setExpandedRecordCategory(null);
     setModal('ex-records');
     fetchRecords(u);
+  };
+
+  // One identifying line per record type — lets an admin see *which* leads,
+  // deals, etc. an (ex-)employee actually owned, not just a bare count.
+  const renderRecordItem = (key: string, item: any) => {
+    switch (key) {
+      case 'leadsAssigned':
+      case 'leadsBrought':
+        return <a href={`/leads/${item.id}`} className="hover:underline hover:text-indigo-700">{item.name} <span className="text-gray-400">· {item.company} · {item.status}</span></a>;
+      case 'deals':
+        return <span>{item.dealName} <span className="text-gray-400">· {item.customerName || '—'} · {item.stage} · ₹{Number(item.dealValue).toLocaleString('en-IN')}</span></span>;
+      case 'quotations':
+        return <a href={`/quotations/${item.id}`} className="hover:underline hover:text-indigo-700">{item.quotationNumber} <span className="text-gray-400">· {item.status} · ₹{Number(item.totalAmount).toLocaleString('en-IN')}</span></a>;
+      case 'followUps':
+        return <a href={`/followups/${item.id}`} className="hover:underline hover:text-indigo-700">{item.type} <span className="text-gray-400">· {new Date(item.scheduledDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}{item.outcome ? ` · ${item.outcome}` : ''}</span></a>;
+      case 'tasksCreated':
+      case 'tasksAssigned':
+        return <a href={`/tasks/${item.id}`} className="hover:underline hover:text-indigo-700">{item.title} <span className="text-gray-400">· {item.status}</span></a>;
+      case 'subordinates':
+        return <span>{item.firstName} {item.lastName} <span className="text-gray-400">· {item.email}</span></span>;
+      default:
+        return <span>{item.id}</span>;
+    }
   };
 
   const handleReassign = async () => {
@@ -940,17 +965,17 @@ export default function UsersPage() {
   const reassignTargets = users.filter(u => u.isActive && u.id !== selectedUser?.id);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-sm text-gray-500 mt-1">{users.length} total · {totalActive} active</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setModal('team-view')}
-            className="px-4 py-2 text-sm rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
+            className="px-4 py-2 text-sm rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium flex-1 sm:flex-none text-center"
           >
             Team Structure
           </button>
@@ -1114,30 +1139,35 @@ export default function UsersPage() {
                           {u.deletedAt ? new Date(u.deletedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3">
-                          {isSuperAdmin ? (
-                            <div className="flex items-center gap-1 flex-wrap">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {/* Read-only lookup — any admin can see what an ex-employee owned. */}
+                            {canEdit && (
                               <button
                                 onClick={() => openExRecords(u)}
                                 className="px-2 py-1 text-xs rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                               >
                                 View Records
                               </button>
-                              <button
-                                onClick={() => handleRestore(u)}
-                                className="px-2 py-1 text-xs rounded border border-green-200 text-green-700 hover:bg-green-50"
-                              >
-                                Restore
-                              </button>
-                              <button
-                                onClick={() => handlePermanentRemove(u)}
-                                className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50"
-                              >
-                                Remove Permanently
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">Super Admin only</span>
-                          )}
+                            )}
+                            {/* Reinstating or permanently erasing an account stays Super Admin-only. */}
+                            {isSuperAdmin && (
+                              <>
+                                <button
+                                  onClick={() => handleRestore(u)}
+                                  className="px-2 py-1 text-xs rounded border border-green-200 text-green-700 hover:bg-green-50"
+                                >
+                                  Restore
+                                </button>
+                                <button
+                                  onClick={() => handlePermanentRemove(u)}
+                                  className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50"
+                                >
+                                  Remove Permanently
+                                </button>
+                              </>
+                            )}
+                            {!canEdit && <span className="text-xs text-gray-400">—</span>}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1711,23 +1741,49 @@ export default function UsersPage() {
                         {records.businessTotal} total
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mb-2">These must be reassigned to a current employee before this account can be removed.</p>
+                    <p className="text-xs text-gray-400 mb-2">These must be reassigned to a current employee before this account can be removed. Click a row to see which ones.</p>
                     <div className="border rounded-lg divide-y divide-gray-100">
                       {records.business.filter(r => r.count > 0).length === 0 ? (
                         <p className="px-3 py-2 text-xs text-gray-400 italic">None — ready to remove.</p>
                       ) : (
-                        records.business.filter(r => r.count > 0).map(r => (
-                          <div key={r.key} className="flex items-center justify-between px-3 py-2 text-sm">
-                            <span className="text-gray-700">{r.label}</span>
-                            <span className="font-semibold text-gray-900">{r.count}</span>
-                          </div>
-                        ))
+                        records.business.filter(r => r.count > 0).map(r => {
+                          const isExpanded = expandedRecordCategory === r.key;
+                          return (
+                            <div key={r.key}>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedRecordCategory(isExpanded ? null : r.key)}
+                                className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50"
+                              >
+                                <span className="flex items-center gap-1.5 text-gray-700">
+                                  <svg className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                  {r.label}
+                                </span>
+                                <span className="font-semibold text-gray-900">{r.count}</span>
+                              </button>
+                              {isExpanded && (
+                                <div className="px-3 pb-2.5 pl-8 space-y-1 text-xs text-gray-700 bg-gray-50/60">
+                                  {!r.items || r.items.length === 0 ? (
+                                    <p className="text-gray-400 italic py-1">No preview available.</p>
+                                  ) : (
+                                    <>
+                                      {r.items.map((item: any) => <div key={item.id}>{renderRecordItem(r.key, item)}</div>)}
+                                      {!!r.moreCount && <p className="text-gray-400 italic pt-0.5">+{r.moreCount} more not shown</p>}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
 
-                  {/* Reassign control */}
-                  {records.businessTotal > 0 && (
+                  {/* Reassign control — Super Admin only, matches the /reassign endpoint's own gate */}
+                  {records.businessTotal > 0 && isSuperAdmin && (
                     <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100 space-y-2">
                       <label className="text-xs font-semibold text-indigo-800">Reassign all business records to</label>
                       <div className="flex gap-2">
@@ -1752,6 +1808,9 @@ export default function UsersPage() {
                         </button>
                       </div>
                     </div>
+                  )}
+                  {records.businessTotal > 0 && !isSuperAdmin && (
+                    <p className="text-xs text-gray-400 italic">Only a Super Admin can reassign or permanently remove this account.</p>
                   )}
 
                   {/* Personal records — deleted on removal */}
@@ -1782,14 +1841,16 @@ export default function UsersPage() {
               <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
                 Close
               </button>
-              <button
-                onClick={() => handlePermanentRemove(selectedUser)}
-                disabled={!records || !records.canHardDelete}
-                title={records && !records.canHardDelete ? 'Reassign all business records first' : ''}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
-              >
-                Remove Permanently
-              </button>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => handlePermanentRemove(selectedUser)}
+                  disabled={!records || !records.canHardDelete}
+                  title={records && !records.canHardDelete ? 'Reassign all business records first' : ''}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  Remove Permanently
+                </button>
+              )}
             </div>
           </div>
         </div>
