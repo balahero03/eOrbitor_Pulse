@@ -569,7 +569,63 @@ export default function LeadsPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {leads.map((lead) => (
+                <div
+                  key={lead.id}
+                  onClick={() => router.push(`/leads/${lead.id}`)}
+                  className="p-4 active:bg-blue-50/70 transition-colors cursor-pointer space-y-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {lead.quoteNo && (
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">
+                            {lead.quoteNo}
+                          </span>
+                        )}
+                        <h3 className="font-bold text-gray-900 text-sm">{lead.name}</h3>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{lead.company}</p>
+                    </div>
+                    <span className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${getStatusColor(lead.status)}`}>
+                      {lead.status.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <div>
+                      {lead.quoteValue ? (
+                        <span className="font-bold text-gray-900 text-sm">₹{Number(lead.quoteValue).toLocaleString('en-IN')}</span>
+                      ) : (
+                        <span className="text-gray-400">No quote value</span>
+                      )}
+                    </div>
+                    {lead.assignedTo && (
+                      <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                          {lead.assignedTo.firstName.charAt(0)}
+                        </div>
+                        <span>{lead.assignedTo.firstName}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {lead.followUpDate && (
+                    <div className="text-[11px] flex items-center gap-1 text-gray-500">
+                      <span>Follow-up:</span>
+                      <span className={new Date(lead.followUpDate) < new Date() ? 'text-red-600 font-bold' : 'text-gray-700'}>
+                        {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
