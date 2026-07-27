@@ -264,6 +264,7 @@ export default function TasksPage() {
         ) : tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No tasks found.</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -333,6 +334,7 @@ export default function TasksPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
 
         {totalPages > 1 && (
