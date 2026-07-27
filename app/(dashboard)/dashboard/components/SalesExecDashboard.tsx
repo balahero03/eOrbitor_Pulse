@@ -41,9 +41,9 @@ function StatCard({ label, value, color, alert, href }: {
   label: string; value: string | number; color: string; alert?: boolean; href?: string;
 }) {
   const inner = (
-    <div className={`bg-white rounded-xl border p-4 shadow-sm hover:shadow-md transition-shadow ${alert && Number(value) > 0 ? 'border-red-200' : ''} ${href ? 'cursor-pointer' : ''}`}>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+    <div className={`bg-white rounded-xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow ${alert && Number(value) > 0 ? 'border-red-200' : ''} ${href ? 'cursor-pointer' : ''}`}>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</p>
+      <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 truncate ${color}`}>{value}</p>
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -97,29 +97,28 @@ export default function SalesExecDashboard({ data }: { data: any }) {
       {/* Announcements at the top */}
       <AnnouncementsPanel announcements={announcements} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">My Workspace</h1>
           <p className="text-sm text-gray-500">{today}</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/leads/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/leads/new" className="px-3.5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 text-center flex-1 sm:flex-none">
             + New Lead
           </Link>
-          <Link href="/daily-activity" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          <Link href="/daily-activity" className="px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center flex-1 sm:flex-none">
             Log Activity
           </Link>
         </div>
       </div>
 
-      {/* Personal KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard label="My Leads" value={stats.myLeadsTotal} color="text-blue-600" href="/leads" />
         <StatCard label="Won This Month" value={stats.wonThisMonth} color="text-green-600" />
         <StatCard label="Follow-ups Today" value={stats.followUpsToday} color={stats.followUpsToday > 0 ? 'text-blue-600' : 'text-gray-400'} />
         <StatCard label="Overdue Follow-ups" value={stats.overdueFollowUps} color={stats.overdueFollowUps > 0 ? 'text-red-600' : 'text-gray-400'} alert href="/leads" />
         <StatCard label="Open Tasks" value={stats.openTasks} color="text-gray-700" href="/tasks" />
-        <StatCard label="Overdue Tasks" value={stats.overdueTasks} color={stats.overdueTasks > 0 ? 'text-red-600' : 'text-gray-400'} alert href="/tasks" />
       </div>
 
       {/* Today's Follow-ups + Overdue */}

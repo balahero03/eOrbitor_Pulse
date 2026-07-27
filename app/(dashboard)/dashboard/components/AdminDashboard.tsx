@@ -13,10 +13,10 @@ function KpiCard({
   label, value, sub, color, href,
 }: { label: string; value: string | number; sub?: string; color: string; href?: string }) {
   const inner = (
-    <div className={`bg-white rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow ${href ? 'cursor-pointer' : ''}`}>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className={`bg-white rounded-xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow ${href ? 'cursor-pointer' : ''}`}>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</p>
+      <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 truncate ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-1 truncate">{sub}</p>}
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -81,20 +81,20 @@ export default function AdminDashboard({ data }: { data: any }) {
       {/* Announcements at the top */}
       <AnnouncementsPanel announcements={announcements} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-sm text-gray-500">Company-wide overview</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/users" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          <Link href="/users" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center w-full sm:w-auto">
             Manage Users
           </Link>
         </div>
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard label="Total Leads" value={fmtNum(kpis?.totalLeads || 0)} color="text-blue-600" href="/leads" />
         <KpiCard label="Active Deals" value={fmtNum(kpis?.activeDeals || 0)} color="text-purple-600" />
         <KpiCard label="Pipeline Value" value={fmt(kpis?.dealsPipelineValue || 0)} color="text-indigo-600" />
