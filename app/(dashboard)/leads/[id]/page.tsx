@@ -1194,8 +1194,8 @@ function ClosureModal({
   const cfg = outcomeConfig[form.outcome];
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -1438,8 +1438,8 @@ function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editM
   const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered && form.clientFeedback && form.nextSteps && form.materialsProvided;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92dvh]">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><StageIcon stage="PROPOSAL" className="w-5 h-5 text-indigo-600" /> Proposal Stage Details</h2>
@@ -1610,8 +1610,8 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90dvh] sm:max-h-[94vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><StageIcon stage="NEGOTIATION" className="w-5 h-5 text-orange-600" /> Negotiation Stage Details</h2>
