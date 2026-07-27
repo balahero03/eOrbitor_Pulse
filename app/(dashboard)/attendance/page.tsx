@@ -514,9 +514,9 @@ export default function AttendancePage() {
   const isDayPresent = (day: number) => recordsForDay(day).length > 0;
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 sm:p-6">
       {activityModal && <ActivityModal rec={activityModal} onClose={() => setActivityModal(null)} />}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
           <p className="text-sm text-gray-500 mt-1">Employee login/logout tracking</p>

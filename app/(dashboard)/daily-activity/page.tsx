@@ -336,16 +336,16 @@ export default function DailyActivityPage() {
   })();
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Daily Activity</h1>
           <p className="text-sm text-gray-500 mt-0.5">{dateLabel}</p>
         </div>
         <input type="date" value={selectedDate} max={today}
           onChange={e => setSelectedDate(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 w-full sm:w-auto" />
       </div>
 
       {/* Lock banner */}
