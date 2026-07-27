@@ -868,9 +868,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto relative">
+        <main className="flex-1 overflow-auto relative pb-16 md:pb-0">
           {children}
         </main>
+
+        {/* Mobile Bottom Navigation Bar (< 768px) */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-1 py-1 flex items-center justify-around shadow-lg">
+          {[
+            { label: 'Home', href: '/dashboard', icon: HomeIcon },
+            { label: 'Leads', href: '/leads', icon: FunnelIcon },
+            { label: 'Quotes', href: '/quotations', icon: PencilSquareIcon },
+            { label: 'Orders', href: '/orders', icon: ShoppingBagIcon },
+            { label: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
+          ].map((item) => {
+            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg text-[10px] font-medium transition-all ${
+                  active
+                    ? 'text-blue-600 font-bold scale-105'
+                    : 'text-gray-500 hover:text-gray-900 active:scale-95'
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${active ? 'text-blue-600 stroke-[2.2]' : 'text-gray-500'}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
