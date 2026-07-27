@@ -667,7 +667,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
           {/* Terms */}
           <div className="border-t pt-4">
             <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Terms &amp; Conditions</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { key: 'priceValidity', label: 'Price Validity', placeholder: 'e.g. 30 days from quotation date' },
                 { key: 'taxDetails', label: 'Taxes', placeholder: 'e.g. GST 18% extra as applicable' },
