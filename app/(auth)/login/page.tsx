@@ -71,7 +71,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@company.local"
+                placeholder="admin@eorbitor.com"
                 required
               />
             </div>
