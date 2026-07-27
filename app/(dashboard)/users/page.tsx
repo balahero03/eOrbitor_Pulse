@@ -1018,8 +1018,8 @@ export default function UsersPage() {
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</h2>
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-                  <table className="w-full table-fixed text-sm">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
                         <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Name</th>
@@ -1107,8 +1107,8 @@ export default function UsersPage() {
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Ex-Employees</h2>
                 <span className="text-xs text-gray-400">({exEmployees.length})</span>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <table className="w-full min-w-[600px] text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
