@@ -237,18 +237,18 @@ export default function NewCustomerPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Add Existing Customer</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Add Customer</h1>
         <Link
           href="/customers"
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center w-full sm:w-auto"
         >
           Back to Customers
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-8 max-w-2xl">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {error}
