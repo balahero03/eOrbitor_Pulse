@@ -96,7 +96,7 @@ export default function ApprovalsPage() {
   const activeCategory = canReviewAccess ? category : 'record';
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Approvals</h1>
 
       {/* Category switch — only admins get the after-hours access category. */}
