@@ -1018,82 +1018,134 @@ export default function UsersPage() {
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</h2>
                   <span className="text-xs text-gray-400">({list.length})</span>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-                  <table className="w-full min-w-[700px] text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Name</th>
-                        <th className="w-[22%] px-4 py-3 text-left font-semibold text-gray-600">Email</th>
-                        <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Role</th>
-                        <th className="w-[10%] px-4 py-3 text-left font-semibold text-gray-600">Department</th>
-                        <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Reports To</th>
-                        <th className="w-[8%] px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                        <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                       {list.map(u => {
-                        const isMenuOpen = activeMenuUserId === u.id;
-                        return (
-                          <tr key={u.id} id={`user-${u.id}`} className={`transition-all duration-150 ${!u.isActive ? 'opacity-50' : ''} ${isMenuOpen ? 'bg-blue-50/50 hover:bg-blue-50 border-l-2 border-blue-500 shadow-sm' : 'hover:bg-gray-50'} ${highlightRowClass(flashUserId === u.id)}`}>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
-                                  u.role === 'ADMIN' ? 'bg-red-500' :
-                                    u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
-                                  }`}>
-                                  {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
-                                  {u.id === currentUser?.id && <p className="text-xs text-blue-500">You</p>}
-                                </div>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  {/* Mobile Card View (< 640px) */}
+                  <div className="block sm:hidden divide-y divide-gray-100">
+                    {list.map(u => {
+                      const isMenuOpen = activeMenuUserId === u.id;
+                      return (
+                        <div key={u.id} className="p-4 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
+                                u.role === 'ADMIN' ? 'bg-red-500' :
+                                  u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
+                                }`}>
+                                {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
                               </div>
-                            </td>
-                            <td className="px-4 py-3 text-gray-600 truncate" title={u.email}>{u.email}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
-                                {ROLE_LABELS[u.role] || u.role}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
-                            <td className="px-4 py-3 text-gray-500 text-xs">
-                              {u.manager ? (
-                                <span className="flex items-center gap-1 min-w-0" title={`${u.manager.firstName} ${u.manager.lastName}`}>
-                                  <span className="w-2 h-2 rounded-full bg-blue-400 inline-block flex-shrink-0" />
-                                  <span className="truncate">{u.manager.firstName} {u.manager.lastName}</span>
+                              <div className="min-w-0">
+                                <p className="font-bold text-gray-900 text-sm truncate">{u.firstName} {u.lastName}</p>
+                                <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                              </div>
+                            </div>
+                            <UserActionMenu
+                              user={u}
+                              currentUser={currentUser}
+                              canEdit={canEdit}
+                              canManageTarget={canManageTarget}
+                              isSelf={isSelf}
+                              isOpen={isMenuOpen}
+                              onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
+                              onEdit={() => openEdit(u)}
+                              onAssignManager={() => openAssignManager(u)}
+                              onSwitchRole={() => openRoleSwitchModal(u)}
+                              onPassword={() => openPassword(u)}
+                              onToggleActive={() => handleToggleActive(u)}
+                              onDelete={() => handleDelete(u)}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                              {ROLE_LABELS[u.role] || u.role}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop / Tablet Table View (>= 640px) */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full min-w-[700px] text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Name</th>
+                          <th className="w-[22%] px-4 py-3 text-left font-semibold text-gray-600">Email</th>
+                          <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Role</th>
+                          <th className="w-[10%] px-4 py-3 text-left font-semibold text-gray-600">Department</th>
+                          <th className="w-[12%] px-4 py-3 text-left font-semibold text-gray-600">Reports To</th>
+                          <th className="w-[8%] px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                          <th className="w-[18%] px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {list.map(u => {
+                          const isMenuOpen = activeMenuUserId === u.id;
+                          return (
+                            <tr key={u.id} id={`user-${u.id}`} className={`transition-all duration-150 ${!u.isActive ? 'opacity-50' : ''} ${isMenuOpen ? 'bg-blue-50/50 hover:bg-blue-50 border-l-2 border-blue-500 shadow-sm' : 'hover:bg-gray-50'} ${highlightRowClass(flashUserId === u.id)}`}>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${u.role === 'SUPER_ADMIN' ? 'bg-purple-600' :
+                                    u.role === 'ADMIN' ? 'bg-red-500' :
+                                      u.role === 'BACKEND_TEAM' ? 'bg-blue-500' : 'bg-green-500'
+                                    }`}>
+                                    {u.firstName.charAt(0)}{(u.lastName || '').charAt(0)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
+                                    {u.id === currentUser?.id && <p className="text-xs text-blue-500">You</p>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600 truncate" title={u.email}>{u.email}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                                  {ROLE_LABELS[u.role] || u.role}
                                 </span>
-                              ) : (
-                                <span className="text-gray-300">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                {u.isActive ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <UserActionMenu
-                                user={u}
-                                currentUser={currentUser}
-                                canEdit={canEdit}
-                                canManageTarget={canManageTarget}
-                                isSelf={isSelf}
-                                isOpen={isMenuOpen}
-                                onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
-                                onEdit={() => openEdit(u)}
-                                onAssignManager={() => openAssignManager(u)}
-                                  onSwitchRole={() => openRoleSwitchModal(u)}
-                                  onPassword={() => openPassword(u)}
-                                  onToggleActive={() => handleToggleActive(u)}
-                                  onDelete={() => handleDelete(u)}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{u.department || '—'}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">
+                                {u.manager ? (
+                                  <span className="flex items-center gap-1 min-w-0" title={`${u.manager.firstName} ${u.manager.lastName}`}>
+                                    <span className="w-2 h-2 rounded-full bg-blue-400 inline-block flex-shrink-0" />
+                                    <span className="truncate">{u.manager.firstName} {u.manager.lastName}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  {u.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <UserActionMenu
+                                  user={u}
+                                  currentUser={currentUser}
+                                  canEdit={canEdit}
+                                  canManageTarget={canManageTarget}
+                                  isSelf={isSelf}
+                                  isOpen={isMenuOpen}
+                                  onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
+                                  onEdit={() => openEdit(u)}
+                                  onAssignManager={() => openAssignManager(u)}
+                                    onSwitchRole={() => openRoleSwitchModal(u)}
+                                    onPassword={() => openPassword(u)}
+                                    onToggleActive={() => handleToggleActive(u)}
+                                    onDelete={() => handleDelete(u)}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             );
