@@ -241,7 +241,43 @@ export default function OrdersPage() {
           <div className="p-10 text-center text-gray-500">No orders found</div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {orders.map((order) => (
+                <Link
+                  key={order.id}
+                  href={`/orders/${order.id}`}
+                  className="block p-4 active:bg-blue-50/70 transition-colors cursor-pointer space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-gray-900 block">{order.orderNumber}</span>
+                      <p className="text-xs font-semibold text-gray-700 mt-0.5">{order.customer.companyName}</p>
+                    </div>
+                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${getStatusBadgeColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <div>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                      {parseFloat(order.amountPaid) > 0 && (
+                        <span className="text-[11px] text-green-700 font-semibold block">
+                          Paid: {formatCurrency(order.amountPaid)}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
+                      {order.paymentStatus}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
