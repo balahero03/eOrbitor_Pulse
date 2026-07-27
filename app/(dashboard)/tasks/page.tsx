@@ -264,77 +264,124 @@ export default function TasksPage() {
         ) : tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No tasks found.</div>
         ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Task</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Priority</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Assigned To</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Due Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Deal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+          <>
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
               {tasks.map(task => {
                 const badge = currentUser ? originBadge(task, currentUser.id) : null;
                 return (
-                <tr key={task.id} id={`task-${task.id}`} className={`hover:bg-gray-50 ${highlightRowClass(flashTaskId === task.id)}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
-                        {task.title}
-                      </Link>
-                      {badge && (
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
-                          {badge.label}
+                  <Link
+                    key={task.id}
+                    href={`/tasks/${task.id}`}
+                    className="block p-4 active:bg-blue-50/70 transition-colors space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-bold text-gray-900 text-sm">{task.title}</h3>
+                          {badge && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          )}
+                        </div>
+                        {task.relatedDeal && (
+                          <p className="text-xs text-blue-600 font-medium">{task.relatedDeal.dealName}</p>
+                        )}
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold flex-shrink-0 ${STATUS_COLORS[task.status] || ''}`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${PRIORITY_COLORS[task.priority] || ''}`}>
+                        {task.priority} Priority
+                      </span>
+                      {task.dueDate && (
+                        <span className={`text-[11px] ${isOverdue(task) ? 'text-red-600 font-bold' : 'text-gray-500'}`}>
+                          Due: {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </span>
                       )}
                     </div>
-                    {task.description && (
-                      <p className="text-gray-400 text-xs mt-0.5 truncate max-w-xs">{stripHtml(task.description)}</p>
-                    )}
-                    {task.tags.length > 0 && (
-                      <div className="flex gap-1 mt-1 flex-wrap">
-                        {task.tags.map(tag => (
-                          <span key={tag} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_COLORS[task.priority] || ''}`}>
-                      {task.priority}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[task.status] || ''}`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : <span className="text-gray-400 italic">Unassigned</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {task.dueDate ? (
-                      <span className={`inline-flex items-center gap-1 ${isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                        {isOverdue(task) && <WarningIcon className="w-3.5 h-3.5 text-red-500" />}
-                        {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {task.relatedDeal ? task.relatedDeal.dealName : <span className="text-gray-400">—</span>}
-                  </td>
-                </tr>
+                  </Link>
                 );
               })}
-            </tbody>
-          </table>
-          </div>
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Task</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Priority</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Assigned To</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Due Date</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Deal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {tasks.map(task => {
+                    const badge = currentUser ? originBadge(task, currentUser.id) : null;
+                    return (
+                    <tr key={task.id} id={`task-${task.id}`} className={`hover:bg-gray-50 ${highlightRowClass(flashTaskId === task.id)}`}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
+                            {task.title}
+                          </Link>
+                          {badge && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          )}
+                        </div>
+                        {task.description && (
+                          <p className="text-gray-400 text-xs mt-0.5 truncate max-w-xs">{stripHtml(task.description)}</p>
+                        )}
+                        {task.tags.length > 0 && (
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {task.tags.map(tag => (
+                              <span key={tag} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_COLORS[task.priority] || ''}`}>
+                          {task.priority}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[task.status] || ''}`}>
+                          {task.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : <span className="text-gray-400 italic">Unassigned</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {task.dueDate ? (
+                          <span className={`inline-flex items-center gap-1 ${isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
+                            {isOverdue(task) && <WarningIcon className="w-3.5 h-3.5 text-red-500" />}
+                            {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {task.relatedDeal ? task.relatedDeal.dealName : <span className="text-gray-400">—</span>}
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (
