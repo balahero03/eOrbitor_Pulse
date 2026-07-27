@@ -1,3 +1,19 @@
+const os = require('os');
+
+function getLocalDevOrigins() {
+  const origins = ['localhost', 'localhost:3000', '127.0.0.1', '127.0.0.1:3000'];
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name] || []) {
+      if ((net.family === 'IPv4' || net.family === 4) && !net.internal) {
+        origins.push(net.address);
+        origins.push(`${net.address}:3000`);
+      }
+    }
+  }
+  return origins;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -7,11 +23,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // pdf-parse (and its pdfjs-dist dependency) load worker/font/wasm resources
-  // via runtime-relative paths that break when the bundler inlines them. Keep
-  // it external so Next loads it through normal Node require at runtime.
   serverExternalPackages: ['pdf-parse', 'mammoth'],
-  allowedDevOrigins: ['192.168.1.143', '192.168.1.143:3000'],
+  allowedDevOrigins: getLocalDevOrigins(),
 };
 
 module.exports = nextConfig;
