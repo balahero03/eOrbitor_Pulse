@@ -184,7 +184,43 @@ export default function CustomersPage() {
           <div className="p-6 text-center text-gray-500">No customers found</div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {customers.map((customer) => (
+                <Link
+                  key={customer.id}
+                  href={`/customers/${customer.id}`}
+                  className="block p-4 active:bg-blue-50/70 transition-colors space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">{customer.company}</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Contact: {customer.name}</p>
+                    </div>
+                    {customer.source === 'manual' ? (
+                      <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-[11px] font-semibold border border-purple-200">Existing</span>
+                    ) : (
+                      <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-[11px] font-semibold border border-green-200">Won Lead</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <span className="font-bold text-gray-900 text-sm">{fmt(customer.quoteValue)}</span>
+                    <span className="text-gray-400 text-[11px]">{fmtDate(customer.closedAt)}</span>
+                  </div>
+
+                  {(customer.phone || customer.email) && (
+                    <div className="text-[11px] text-gray-500 flex flex-wrap gap-2 pt-0.5">
+                      {customer.phone && <span>📞 {customer.phone}</span>}
+                      {customer.email && <span className="truncate">✉ {customer.email}</span>}
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
