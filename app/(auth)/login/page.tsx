@@ -41,9 +41,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-gray-100">
       <div className="w-full max-w-md">
-        <div className="card p-8">
+        <div className="card p-5 sm:p-8">
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <Image
