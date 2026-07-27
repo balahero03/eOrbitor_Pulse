@@ -974,7 +974,7 @@ function SpancoKanban({
       </div>
 
       {/* 6 Kanban columns */}
-      <div className="flex divide-x divide-gray-100 overflow-x-auto" style={{ minHeight: 200 }}>
+      <div className="flex divide-x divide-gray-100 overflow-x-auto snap-x snap-mandatory" style={{ minHeight: 200 }}>
         {SPANCO.map((stage, idx) => {
           const isActive = stage.key === activeStageKey;
           const isPast = activeIdx > idx;
@@ -999,8 +999,8 @@ function SpancoKanban({
                 onStageChange(stage.key);
               }}
               className={`
-                flex flex-col transition-all duration-300 min-w-[110px]
-                ${isActive ? 'flex-[2]' : 'flex-1'}
+                flex flex-col transition-all duration-300 snap-start
+                ${isActive ? 'min-w-[160px] sm:min-w-[120px] flex-[2]' : 'min-w-[110px] flex-1'}
                 ${isDropTarget ? 'ring-2 ring-inset ring-blue-400 bg-blue-50' : ''}
                 ${isClickable ? 'cursor-pointer hover:bg-gray-50' : ''}
               `}
@@ -2550,11 +2550,11 @@ export default function LeadDetailPage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* ── TOP HALF: kanban board (scrolls with the page) ──────────────── */}
-      <div className="bg-gray-50 border-b border-gray-200 px-6 pt-5 pb-5 shadow-sm">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-4 shadow-sm">
 
         {/* Header */}
-        <div className="flex items-start gap-3 mb-4">
-          <Link href="/leads" className="mt-0.5 p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 text-sm flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
+          <Link href="/leads" className="mt-0.5 p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 text-sm flex-shrink-0 self-start">
             ← Back
           </Link>
           <div className="flex-1 min-w-0">
@@ -2613,11 +2613,11 @@ export default function LeadDetailPage() {
       </div>
 
       {/* ── BOTTOM HALF: details ─────────────────────────────────────────── */}
-      <div className="flex-1 px-6 py-5">
-        <div className="grid grid-cols-3 gap-6">
+      <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Left 2/3 */}
-          <div className="col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5">
 
             {/* Closed banner */}
             {isClosed && (
@@ -2642,7 +2642,7 @@ export default function LeadDetailPage() {
             {/* Lead Info */}
             <div id={`lead-${lead.id}`} className={`bg-white rounded-xl border p-5 shadow-sm ${highlightRingClass(leadFlashId === lead.id)}`}>
               <h2 className="text-base font-semibold text-gray-800 mb-4">Lead Information</h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Opportunity</p>
                   <p className="font-medium text-gray-800">{lead.name}</p>
@@ -2695,7 +2695,7 @@ export default function LeadDetailPage() {
                   {/* Name & Company — restricted to ADMIN / SUPER_ADMIN / BACKEND_TEAM only */}
                   {currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role) && (
                     <>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium mb-1">Name *</label>
                           <input type="text" value={editData.name}
@@ -2709,7 +2709,7 @@ export default function LeadDetailPage() {
                             required className="w-full border rounded-lg px-3 py-2 text-sm" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium mb-1">Email</label>
                           <input type="email" value={editData.email}
