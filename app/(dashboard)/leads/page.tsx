@@ -477,7 +477,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Status quick-filter chips */}
-      <div className="flex gap-2 flex-wrap mb-4">
+      <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap mb-4">
         <button
           onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
           className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
