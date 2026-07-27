@@ -64,8 +64,8 @@ function ProductModal({
     setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) }));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
@@ -473,7 +473,62 @@ export default function ProductsPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {products.map((p) => {
+                const unitPrice = Number(p.basePrice);
+                const taxAmt = unitPrice * (Number(p.tax) / 100);
+                const withTax = unitPrice + taxAmt;
+                const stock = p.inventory?.quantity ?? 0;
+                const lowStock = !!(p.inventory?.reorderLevel && stock <= p.inventory.reorderLevel);
+
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 space-y-2.5 active:bg-blue-50/70 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">
+                          {p.sku}
+                        </span>
+                        <h3 className="font-bold text-gray-900 text-sm mt-1">{p.name}</h3>
+                      </div>
+                      {p.inventory && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${stock === 0
+                            ? 'bg-red-100 text-red-600 border-red-200'
+                            : lowStock
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : 'bg-green-100 text-green-700 border-green-200'
+                          }`}>
+                          {stock === 0 ? 'Out of stock' : `${stock} in stock`}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                      <div>
+                        <span className="font-bold text-gray-900 text-sm">{fmt(withTax)}</span>
+                        <span className="text-[10px] text-gray-400 block">incl. {p.tax}% GST</span>
+                      </div>
+                      {canManage && (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => openEdit(p)} className="text-xs text-blue-600 font-semibold">
+                            Edit
+                          </button>
+                          <button onClick={() => setDeleteId(p.id)} className="text-xs text-red-500 font-semibold">
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
