@@ -212,33 +212,33 @@ export default function OrderDetailPage() {
   const paidPct = Math.min((paid / total) * 100, 100);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{order.customer.companyName}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={openEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
           >
-            <EditIcon className="w-4 h-4" /> Edit Order
+            <EditIcon className="w-4 h-4" /> Edit
           </button>
-          <Link href="/orders" className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-            ← Back to Orders
+          <Link href="/orders" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 whitespace-nowrap">
+            ← Orders
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
 
           {/* Info */}
           <div id={`order-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 ${highlightRingClass(orderFlashId === id)}`}>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
                 <p className="text-lg font-semibold text-gray-900">{order.customer.companyName}</p>
@@ -267,7 +267,7 @@ export default function OrderDetailPage() {
           {/* PO Details */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">PO Details</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">PO Number</p>
                 <p className="text-sm font-medium text-gray-900">{order.poNumber || '—'}</p>
