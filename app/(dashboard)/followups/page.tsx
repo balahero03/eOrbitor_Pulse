@@ -323,7 +323,7 @@ export default function FollowUpsPage() {
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
