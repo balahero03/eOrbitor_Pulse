@@ -728,7 +728,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {notifOpen && (
-                <div className="absolute -right-2 sm:right-0 top-10 w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm sm:max-w-md bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[80vh] sm:max-h-96">
+                <div className="absolute right-0 top-11 w-[min(calc(100vw-1rem),24rem)] bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[80dvh] sm:max-h-[28rem]">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>
@@ -857,8 +857,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
-            <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
-              {roleInfo.label}
+            <span className={`hidden xs:inline-flex text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
+              <span className="hidden sm:inline">{roleInfo.label}</span>
+              <span className="sm:hidden">{roleInfo.label.charAt(0)}</span>
             </span>
             <span className="text-sm text-gray-600 hidden sm:block truncate">{user.firstName} {user.lastName}</span>
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
