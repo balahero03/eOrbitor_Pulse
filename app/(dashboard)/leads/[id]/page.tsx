@@ -2568,7 +2568,7 @@ export default function LeadDetailPage() {
             </div>
             <p className="text-sm text-gray-500">{lead.company} · {lead.source}</p>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="hidden sm:flex gap-2 flex-shrink-0">
             {!isClosed && lead.status === 'CLOSURE' && canEdit && (
               <button
                 onClick={() => setShowClosureModal(true)}
@@ -2588,6 +2588,28 @@ export default function LeadDetailPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Mobile Sticky Action Bar (< 640px) */}
+        <div className="sm:hidden fixed bottom-14 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 p-2.5 flex items-center gap-2 shadow-lg">
+          {!isClosed && lead.status === 'CLOSURE' && canEdit && (
+            <button
+              onClick={() => setShowClosureModal(true)}
+              className="flex-1 py-2 bg-blue-600 text-white text-xs rounded-lg font-bold hover:bg-blue-700 shadow-sm flex items-center justify-center gap-1"
+            >
+              <LockIcon className="w-3.5 h-3.5" color="text-white" /> Close Deal
+            </button>
+          )}
+          <button onClick={() => setShowFollowUpModal(true)}
+            className="flex-1 py-2 bg-white border border-gray-300 text-gray-800 text-xs rounded-lg font-semibold hover:bg-gray-50 shadow-xs text-center">
+            + Follow-up
+          </button>
+          {canEditDetails && (
+            <button onClick={() => setEditing(!editing)}
+              className={`flex-1 py-2 border text-xs rounded-lg font-semibold transition-colors text-center ${editing ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-800 hover:bg-gray-100'}`}>
+              {editing ? 'Cancel' : 'Edit'}
+            </button>
+          )}
         </div>
 
         {/* SPANCO Kanban Board */}
