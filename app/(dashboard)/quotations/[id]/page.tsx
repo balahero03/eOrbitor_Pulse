@@ -213,12 +213,12 @@ export default function QuotationDetailPage() {
   ].filter(f => f.value);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
             {originBadge && (
               <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${originBadge.className}`}>
                 {originBadge.label}
@@ -229,18 +229,18 @@ export default function QuotationDetailPage() {
         </div>
         <Link
           href="/quotations"
-          className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          className="self-start sm:self-auto px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
         >
           ← Back to Quotations
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Header Info */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
                 <p className="text-base font-semibold text-gray-900">{quotation.customer?.companyName ?? '—'}</p>
@@ -309,7 +309,7 @@ export default function QuotationDetailPage() {
           {extendedFields.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Terms & Conditions</h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {extendedFields.map(field => (
                   <div key={field.label}>
                     <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">{field.label}</p>
