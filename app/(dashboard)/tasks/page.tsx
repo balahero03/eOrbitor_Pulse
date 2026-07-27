@@ -148,22 +148,22 @@ export default function TasksPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-500 text-sm mt-1">{total} total tasks</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canAssignOthers && (
             <Link
               href="/tasks/new?assign=1"
-              className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
+              className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors text-center flex-1 sm:flex-none"
             >
               Assign Task
             </Link>
           )}
-          <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">+ New Task</Link>
+          <Link href="/tasks/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors text-center flex-1 sm:flex-none">+ New Task</Link>
         </div>
       </div>
 
