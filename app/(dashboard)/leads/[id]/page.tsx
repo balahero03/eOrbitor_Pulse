@@ -1215,7 +1215,7 @@ function ClosureModal({
           {/* Outcome selector */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Outcome</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {(['WON', 'LOST', 'DROPPED'] as const).map(o => {
                 const c = outcomeConfig[o];
                 return (
@@ -1236,7 +1236,7 @@ function ClosureModal({
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
                 Lead moves to <strong>Orders</strong> · Manager &amp; Admin notified by email with attachments
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Reference <span className="text-red-400">*</span></label>
                   <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
@@ -1269,7 +1269,7 @@ function ClosureModal({
               <div className="border-t pt-4">
                 <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3"><LockIcon className="w-4 h-4" /> Closure Stage Details</p>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value (₹) <span className="text-red-400">*</span></label>
                       <input type="number" value={form.finalDealValue} onChange={e => set('finalDealValue', e.target.value)}
@@ -1288,7 +1288,7 @@ function ClosureModal({
                       placeholder="PO number, contract reference…"
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms (Final)</label>
                       <input type="text" value={form.paymentTermsFinal} onChange={e => set('paymentTermsFinal', e.target.value)}
@@ -1439,7 +1439,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editM
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92dvh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><StageIcon stage="PROPOSAL" className="w-5 h-5 text-indigo-600" /> Proposal Stage Details</h2>
@@ -1451,7 +1451,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editM
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-800">
             Fill in the proposal and presentation details before moving to Proposal stage. These fields are required.
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Proposal Date <span className="text-red-400">*</span></label>
               <input type="date" value={form.proposalDate} onChange={e => set('proposalDate', e.target.value)}
@@ -1768,7 +1768,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
           {/* ── Terms & Conditions ── */}
           <div className="border-t pt-4">
             <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Terms &amp; Conditions</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { key: 'priceValidity', label: 'Price Validity', ph: 'e.g. 30 days from quotation date', required: true },
                 { key: 'taxDetails', label: 'Taxes', ph: 'e.g. GST 18% extra as applicable', required: false },
@@ -1783,7 +1783,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                     placeholder={ph} className="w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200" />
                 </div>
               ))}
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Additional Notes</label>
                 <textarea value={terms.qNotes} onChange={e => setTerms(t => ({ ...t, qNotes: e.target.value }))}
                   placeholder="Any other terms or conditions…" rows={2}
@@ -1801,7 +1801,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                 <input type="text" value={meta.paymentTerms} onChange={e => setM('paymentTerms', e.target.value)}
                   placeholder="e.g. 30% advance, 70% on delivery" className="w-full border rounded-lg px-3 py-2 text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Timeline <span className="text-red-400">*</span></label>
                   <input type="text" value={meta.deliveryTimeline} onChange={e => setM('deliveryTimeline', e.target.value)}
