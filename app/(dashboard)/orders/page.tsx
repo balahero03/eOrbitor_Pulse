@@ -146,16 +146,16 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Purchase orders from won leads</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Orders</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Purchase orders from won leads</p>
         </div>
         <Link
           href="/orders/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm"
         >
           + New Order
         </Link>
