@@ -455,15 +455,23 @@ function DailyActivityContent() {
           </h2>
           <div className="flex gap-2">
             {isEditable && !editing && (
-              <button onClick={() => setEditing(true)}
-                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 inline-flex items-center gap-1.5">
-                <EditIcon className="w-4 h-4" /> Edit
-              </button>
+              <>
+                {entries.length > 0 && (
+                  <button onClick={() => setEditing(true)}
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 inline-flex items-center gap-1.5 shadow-sm transition-colors">
+                    <EditIcon className="w-4 h-4" /> Edit Log
+                  </button>
+                )}
+                <button onClick={() => { setEditing(true); setEntries(p => [...p, makeEntry()]); }}
+                  className="px-3.5 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm transition-colors">
+                  + Add Activity
+                </button>
+              </>
             )}
             {isEditable && editing && (
               <button onClick={() => setEntries(p => [...p, makeEntry()])}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
-                + Add Activity
+                className="px-3.5 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm transition-colors">
+                + Add Another Activity
               </button>
             )}
           </div>
@@ -476,11 +484,12 @@ function DailyActivityContent() {
         ) : editing ? (
           <>
             {entries.length === 0 ? (
-              <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
-                <p className="text-gray-400 text-sm mb-3">No activities yet</p>
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                <p className="text-gray-500 font-medium text-sm mb-1">No activities added yet</p>
+                <p className="text-gray-400 text-xs mb-4">Click below to add your first activity for this day.</p>
                 <button onClick={() => setEntries([makeEntry()])}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
-                  + Add First Activity
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors">
+                  + Add Activity
                 </button>
               </div>
             ) : entries.map((entry, idx) => (
@@ -498,22 +507,28 @@ function DailyActivityContent() {
 
             <div className="flex gap-3 pt-1">
               <button onClick={handleSave} disabled={saving}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
                 {saving ? 'Saving…' : 'Save Activity Log'}
               </button>
               <button onClick={() => { setEditing(false); fetchActivity(); }}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
           </>
         ) : entries.length === 0 ? (
-          <div className="text-center py-14 bg-white rounded-xl border border-gray-100">
+          <div className="text-center py-14 bg-white rounded-xl border border-gray-100 shadow-sm">
             <ClipboardIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500 font-medium">No activities logged</p>
-            <p className="text-sm text-gray-400 mt-1">
-              {isEditable ? 'Click Edit to start logging your day' : 'No records for this date'}
+            <p className="text-gray-700 font-semibold">No activities logged</p>
+            <p className="text-sm text-gray-400 mt-1 mb-4">
+              {isEditable ? 'Start logging your meetings, calls, and tasks for today.' : 'No records logged for this date.'}
             </p>
+            {isEditable && (
+              <button onClick={() => { setEditing(true); setEntries([makeEntry()]); }}
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 inline-flex items-center gap-1.5 shadow-sm transition-colors">
+                + Log Your First Activity
+              </button>
+            )}
           </div>
         ) : (
           <>
