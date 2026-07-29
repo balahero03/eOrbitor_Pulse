@@ -337,15 +337,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (entityId && ['LEAD', 'ORDER', 'CUSTOMER'].includes(entityType || '')) {
         return { destination: '/approvals', highlight: { scope: 'approval', id: entityId } };
       }
-      // After-hours access requests are reviewed under the Access category of
-      // the same approvals hub — ring the matching request (keyed by its id).
-      if (entityType === 'AFTER_HOURS_ACCESS' && entityId) {
+      // After-hours access & activity unlock requests are reviewed under Access category
+      if (['AFTER_HOURS_ACCESS', 'ACTIVITY_UNLOCK'].includes(entityType || '') && entityId) {
         return { destination: '/approvals', highlight: { scope: 'access', id: entityId } };
       }
       return { destination: '/approvals', highlight: null };
     }
 
     if (type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
+      // Daily activity unlock & after-hours access notifications redirect user straight to daily-activity page with target date
+      if (
+        ['ACTIVITY_UNLOCK', 'AFTER_HOURS_ACCESS'].includes(entityType || '') ||
+        n.title?.includes('Daily Activity') ||
+        n.title?.includes('After-Hours Access')
+      ) {
+        let targetDate: string | null = null;
+        const dateMatch = n.message?.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+        if (dateMatch) {
+          const [, y, m, d] = dateMatch;
+          targetDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        } else if (n.createdAt) {
+          targetDate = new Date(n.createdAt).toISOString().slice(0, 10);
+        }
+        const destination = targetDate ? `/daily-activity?date=${targetDate}` : '/daily-activity';
+        return { destination, highlight: null };
+      }
       // The outcome is about the requester's entity — go there if it still
       // exists (a reopen, or a rejected delete), else its list (an approved
       // delete). No-entity outcomes (after-hours) have no page → dashboard.

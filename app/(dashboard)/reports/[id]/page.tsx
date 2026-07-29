@@ -27,9 +27,8 @@ interface PersonalReport {
     salesCycle: { avgDuration: number; median: number };
     performance: { score: number; breakdown: { winRate: number; revenue: number; activity: number; leads: number } };
     dailyActivity?: {
-      totalLoggedHours: number; totalActivityHours: number; totalUnproductiveHours: number;
-      unproductiveDays: number; daysPresent: number;
-      dailyBreakdown: { date: string; loginTime?: string | null; logoutTime?: string | null; loggedHours: number; activityHours: number; unproductiveHours: number; activityCount: number; entries?: any[] }[];
+      totalLoggedHours: number; totalActivityHours: number; daysPresent: number;
+      dailyBreakdown: { date: string; loginTime?: string | null; logoutTime?: string | null; loggedHours: number; activityHours: number; activityCount: number; entries?: any[] }[];
     };
     comparison?: {
       previousPeriod: { startDate: string; endDate: string };
@@ -171,41 +170,25 @@ function DailyActivitySection({ da }: { da: NonNullable<PersonalReport['metrics'
       return next;
     });
 
-  const prodPct = da.totalLoggedHours > 0 ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100) : 0;
   const hm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—');
+  const totalActivitiesCount = da.dailyBreakdown.reduce((sum, d) => sum + d.activityCount, 0);
 
   return (
     <div className="mt-5">
       <SectionCard title="Attendance & Daily Activity">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          <div className="bg-blue-50 rounded-xl p-4 text-center">
             <p className="text-2xl font-bold text-blue-700">{da.daysPresent}</p>
-            <p className="text-xs text-blue-600 mt-1">Days Present</p>
+            <p className="text-xs text-blue-600 mt-1 font-medium">Days Present</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-3 text-center">
+          <div className="bg-green-50 rounded-xl p-4 text-center">
             <p className="text-2xl font-bold text-green-700">{da.totalLoggedHours}h</p>
-            <p className="text-xs text-green-600 mt-1">Total Logged Hours</p>
+            <p className="text-xs text-green-600 mt-1 font-medium">Total Logged Hours</p>
           </div>
-          <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-purple-700">{da.totalActivityHours}h</p>
-            <p className="text-xs text-purple-600 mt-1">Activity-Covered Hours</p>
+          <div className="bg-purple-50 rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-purple-700">{totalActivitiesCount}</p>
+            <p className="text-xs text-purple-600 mt-1 font-medium">Activities Logged</p>
           </div>
-          <div className={`rounded-lg p-3 text-center ${da.totalUnproductiveHours > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-            <p className={`text-2xl font-bold ${da.totalUnproductiveHours > 0 ? 'text-red-600' : 'text-gray-600'}`}>{da.totalUnproductiveHours}h</p>
-            <p className={`text-xs mt-1 ${da.totalUnproductiveHours > 0 ? 'text-red-500' : 'text-gray-500'}`}>Unproductive Hours</p>
-          </div>
-        </div>
-
-        {/* Productivity bar */}
-        <div className="mb-5">
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>Productivity Rate</span>
-            <span className={`font-bold ${prodPct >= 70 ? 'text-green-600' : prodPct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>{prodPct}%</span>
-          </div>
-          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${prodPct >= 70 ? 'bg-green-500' : prodPct >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${prodPct}%` }} />
-          </div>
-          <p className="text-xs text-gray-400 mt-1">{da.unproductiveDays} day(s) with &gt;30 min unaccounted time · click a day to see its activities</p>
         </div>
 
         {/* Day-by-day timeline */}
@@ -215,21 +198,19 @@ function DailyActivitySection({ da }: { da: NonNullable<PersonalReport['metrics'
               const open = openDates.has(d.date);
               const entries = d.entries || [];
               return (
-                <div key={d.date} className={`border rounded-lg overflow-hidden ${d.unproductiveHours > 0.5 ? 'border-red-100' : 'border-gray-100'}`}>
+                <div key={d.date} className="border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => toggle(d.date)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 ${d.unproductiveHours > 0.5 ? 'bg-red-50/40' : 'bg-white'}`}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 bg-white"
                   >
                     <span className="text-gray-400 text-xs w-4">{open ? '▾' : '▸'}</span>
                     <span className="text-sm font-medium text-gray-800 w-40">
-                      {new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                     <span className="text-xs text-gray-500">{hm(d.loginTime)} → {hm(d.logoutTime)}</span>
                     <span className="ml-auto flex items-center gap-3 text-xs">
-                      <span className="text-gray-600">{d.loggedHours}h logged</span>
-                      <span className="text-green-700">{d.activityHours}h covered</span>
-                      {d.unproductiveHours > 0.5 && <span className="text-red-600 font-semibold">{d.unproductiveHours}h gap</span>}
-                      <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{d.activityCount} {d.activityCount === 1 ? 'entry' : 'entries'}</span>
+                      <span className="text-gray-700 font-medium">{d.loggedHours}h logged</span>
+                      <span className="bg-gray-100 text-gray-600 rounded-full px-2.5 py-0.5 font-medium">{d.activityCount} {d.activityCount === 1 ? 'entry' : 'entries'}</span>
                     </span>
                   </button>
 
@@ -272,106 +253,38 @@ function DailyActivitySection({ da }: { da: NonNullable<PersonalReport['metrics'
 function PersonalView({ report }: { report: PersonalReport }) {
   const { metrics, topDeals } = report;
 
-  const byMonthData = metrics.revenue.byMonth;
-  const byStatusData = Object.entries(metrics.leads.byStatus)
+  const byMonthData = metrics.revenue.byMonth || [];
+  const byStatusData = Object.entries(metrics.leads.byStatus || {})
     .map(([status, count]) => ({ status, count }))
     .sort((a, b) => b.count - a.count);
-  const bySourcePie = Object.entries(metrics.revenue.bySource)
+  const bySourcePie = Object.entries(metrics.revenue.bySource || {})
     .filter(([, v]) => v > 0)
     .map(([name, value]) => ({ name, value }));
-  const conversionTable = Object.entries(metrics.conversion.bySource)
+  const conversionTable = Object.entries(metrics.conversion.bySource || {})
     .sort((a, b) => b[1].total - a[1].total);
 
-  const perfBreakdown = [
-    { label: 'Win Rate', score: metrics.performance.breakdown.winRate, max: 30, color: 'bg-blue-500' },
-    { label: 'Revenue', score: metrics.performance.breakdown.revenue, max: 40, color: 'bg-green-500' },
-    { label: 'Activity', score: metrics.performance.breakdown.activity, max: 20, color: 'bg-orange-500' },
-    { label: 'Leads', score: metrics.performance.breakdown.leads, max: 10, color: 'bg-purple-500' },
-  ];
+  const hasRevenueData = metrics.revenue.total > 0 || byMonthData.length > 0 || bySourcePie.length > 0;
+  const hasPipelineData = metrics.pipeline && metrics.pipeline.totalDeals > 0;
+  const hasFollowupData = metrics.followUpPunctuality && metrics.followUpPunctuality.completed > 0;
 
   return (
-    <>
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="space-y-6">
+      {/* 1. Essential Executive KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Total Leads" value={metrics.leads.total} sub={`${metrics.leads.converted} converted`} />
         <MetricCard label="Win Rate" value={`${metrics.conversion.winRate}%`} sub={`Conversion: ${metrics.conversion.conversionRate}%`} accent="text-blue-600" />
         <MetricCard label="Total Revenue" value={inrShort(metrics.revenue.total)} sub={`Pipeline: ${inrShort(metrics.revenue.pipeline)}`} accent="text-green-600" />
         <MetricCard label="Avg Deal Value" value={inrShort(metrics.revenue.average)} sub={`${topDeals.length} deals won`} />
       </div>
 
-      {/* Period-over-period comparison */}
-      {metrics.comparison && (
-        <div className="mb-6">
-          <SectionCard title={`vs Previous Period (${new Date(metrics.comparison.previousPeriod.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(metrics.comparison.previousPeriod.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})`}>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              {[
-                { key: 'revenue', label: 'Revenue', fmt: (v: number) => inrShort(v) },
-                { key: 'leads', label: 'Leads', fmt: (v: number) => String(v) },
-                { key: 'converted', label: 'Converted', fmt: (v: number) => String(v) },
-                { key: 'winRate', label: 'Win Rate', fmt: (v: number) => `${v}%` },
-                { key: 'activities', label: 'Activities', fmt: (v: number) => String(v) },
-              ].map(({ key, label, fmt }) => {
-                const m = metrics.comparison!.metrics[key as keyof typeof metrics.comparison.metrics];
-                return (
-                  <div key={key} className="text-center">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">{fmt(m.current)}</p>
-                    <div className="mt-1 flex items-center justify-center gap-1">
-                      <DeltaBadge pct={m.deltaPct} />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">was {fmt(m.previous)}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </SectionCard>
-        </div>
-      )}
+      {/* 2. Attendance & Daily Activity Timeline (Essential) */}
+      {metrics.dailyActivity && <DailyActivitySection da={metrics.dailyActivity} />}
 
-      {/* Charts row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <SectionCard title="Revenue Over Time">
-          {byMonthData.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={byMonthData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={v => inrShort(v)} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: any) => inr(v)} />
-                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Revenue by Source">
-          {bySourcePie.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={bySourcePie}
-                  cx="50%" cy="50%"
-                  outerRadius={90}
-                  dataKey="value"
-                  label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {bySourcePie.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any) => inr(v)} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </SectionCard>
-      </div>
-
-      {/* Charts row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <SectionCard title="Leads by Status">
-          {byStatusData.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer width="100%" height={240}>
+      {/* 3. Lead & Conversion Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {byStatusData.length > 0 && (
+          <SectionCard title="Leads by Status">
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byStatusData} margin={{ top: 4, right: 8, left: 0, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="status" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" interval={0} />
@@ -380,81 +293,11 @@ function PersonalView({ report }: { report: PersonalReport }) {
                 <Bar dataKey="count" fill="#10b981" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Performance Score">
-          <div className="flex items-center gap-4 mb-5">
-            <div className="relative w-24 h-24 flex-shrink-0">
-              <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                <circle
-                  cx="18" cy="18" r="15.9"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="3"
-                  strokeDasharray={`${metrics.performance.score} ${100 - metrics.performance.score}`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold text-gray-900">{metrics.performance.score}</span>
-              </div>
-            </div>
-            <div className="flex-1 space-y-3">
-              {perfBreakdown.map(p => (
-                <div key={p.label}>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>{p.label}</span>
-                    <span className="font-medium">{p.score.toFixed(1)}/{p.max}</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${p.color} rounded-full`} style={{ width: `${(p.score / p.max) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-
-      {/* Top Deals */}
-      <SectionCard title="Top Deals Won">
-        {topDeals.length === 0 ? (
-          <p className="text-sm text-gray-400 py-6 text-center">No deals won in this period</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">#</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Deal</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Closed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topDeals.map((deal, i) => (
-                  <tr key={deal.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2.5 px-3 text-gray-400 font-mono text-xs">{i + 1}</td>
-                    <td className="py-2.5 px-3 text-gray-800 font-medium">{deal.dealName}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-green-700">{inr(deal.value)}</td>
-                    <td className="py-2.5 px-3 text-gray-500 text-xs">{deal.closedDate}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          </SectionCard>
         )}
-      </SectionCard>
 
-      {/* Daily Activity & Unproductive Hours */}
-      {metrics.dailyActivity && <DailyActivitySection da={metrics.dailyActivity} />}
-
-      {/* Conversion by source + Sales cycle */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-        <SectionCard title="Conversion by Source">
-          {conversionTable.length === 0 ? <EmptyChart /> : (
+        {conversionTable.length > 0 && (
+          <SectionCard title="Conversion by Source">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -462,7 +305,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
                     <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Source</th>
                     <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Leads</th>
                     <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Won</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Rate</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Win Rate</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -485,156 +328,193 @@ function PersonalView({ report }: { report: PersonalReport }) {
                 </tbody>
               </table>
             </div>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Sales Cycle & Activity">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-blue-700">{metrics.salesCycle.avgDuration}</p>
-              <p className="text-xs text-blue-600 mt-1">Avg Days to Close</p>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-purple-700">{metrics.salesCycle.median}</p>
-              <p className="text-xs text-purple-600 mt-1">Median Sales Cycle</p>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-green-700">{metrics.activities.followupsCompleted}</p>
-              <p className="text-xs text-green-600 mt-1">Follow-ups Done</p>
-            </div>
-            <div className="bg-orange-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-orange-700">{metrics.activities.tasksCompleted}</p>
-              <p className="text-xs text-orange-600 mt-1">Tasks Completed</p>
-            </div>
-          </div>
-          <div className="mt-4 bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-3xl font-bold text-gray-800">{metrics.activities.total}</p>
-            <p className="text-xs text-gray-500 mt-1">Total Activity Log Entries</p>
-          </div>
-        </SectionCard>
-      </div>
-
-      {/* Own pipeline funnel + Follow-up punctuality */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-        {metrics.pipeline && (
-          <SectionCard title="Own Pipeline">
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-blue-700">{metrics.pipeline.totalDeals}</p>
-                <p className="text-xs text-blue-600 mt-1">Active Deals</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-gray-800">{inrShort(metrics.pipeline.totalValue)}</p>
-                <p className="text-xs text-gray-500 mt-1">Total Value</p>
-              </div>
-              <div className="bg-green-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-green-700">{inrShort(metrics.pipeline.weightedForecast)}</p>
-                <p className="text-xs text-green-600 mt-1">Weighted Forecast</p>
-              </div>
-            </div>
-            {metrics.pipeline.stages.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">No active deals</p>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Deals</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Weighted</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.pipeline.stages.map(s => (
-                    <tr key={s.stage} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2.5 px-3">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style={{ background: `${STAGE_COLORS[s.stage] ?? '#6b7280'}20`, color: STAGE_COLORS[s.stage] ?? '#6b7280' }}
-                        >
-                          {s.stage}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-gray-700">{s.dealCount}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-800 font-medium">{inr(s.totalValue)}</td>
-                      <td className="py-2.5 px-3 text-right text-green-700">{inr(s.weightedValue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </SectionCard>
-        )}
-
-        {metrics.followUpPunctuality && (
-          <SectionCard title="Follow-up Punctuality">
-            <div className="flex items-center gap-4 mb-5">
-              <div className="relative w-24 h-24 flex-shrink-0">
-                <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                  <circle
-                    cx="18" cy="18" r="15.9" fill="none"
-                    stroke={metrics.followUpPunctuality.onTimeRate >= 70 ? '#10b981' : metrics.followUpPunctuality.onTimeRate >= 40 ? '#f59e0b' : '#ef4444'}
-                    strokeWidth="3"
-                    strokeDasharray={`${metrics.followUpPunctuality.onTimeRate} ${100 - metrics.followUpPunctuality.onTimeRate}`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold text-gray-900">{metrics.followUpPunctuality.onTimeRate}%</span>
-                </div>
-              </div>
-              <div className="flex-1 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Completed</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality.completed}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">On time</span><span className="font-semibold text-green-700">{metrics.followUpPunctuality.onTime}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Late</span><span className="font-semibold text-red-600">{metrics.followUpPunctuality.late}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Avg delay</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality.avgDelayDays} days</span></div>
-              </div>
-            </div>
           </SectionCard>
         )}
       </div>
 
-      {/* Loss analysis */}
-      {metrics.lossAnalysis && metrics.lossAnalysis.totalLost > 0 && (
-        <div className="mt-5">
-          <SectionCard title="Loss Analysis">
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-red-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-red-600">{metrics.lossAnalysis.lostCount}</p>
-                <p className="text-xs text-red-500 mt-1">Lost</p>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-orange-600">{metrics.lossAnalysis.droppedCount}</p>
-                <p className="text-xs text-orange-500 mt-1">Dropped</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-gray-800">{inrShort(metrics.lossAnalysis.lostValue)}</p>
-                <p className="text-xs text-gray-500 mt-1">Lost Value</p>
-              </div>
-            </div>
+      {/* 4. Top Deals Won (Only shown if deals exist) */}
+      {topDeals.length > 0 && (
+        <SectionCard title="Top Deals Won">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Count</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">#</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Deal</th>
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Closed Date</th>
                 </tr>
               </thead>
               <tbody>
-                {metrics.lossAnalysis.byReason.map(r => (
-                  <tr key={r.reason} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2.5 px-3 text-gray-700">{r.reason}</td>
-                    <td className="py-2.5 px-3 text-right text-gray-600">{r.count}</td>
-                    <td className="py-2.5 px-3 text-right text-gray-800">{inr(r.lostValue)}</td>
+                {topDeals.map((deal, i) => (
+                  <tr key={deal.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 px-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                    <td className="py-2.5 px-3 text-gray-800 font-medium">{deal.dealName}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-green-700">{inr(deal.value)}</td>
+                    <td className="py-2.5 px-3 text-gray-500 text-xs">{deal.closedDate}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </SectionCard>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* 5. Revenue Charts (Only shown if revenue data exists) */}
+      {hasRevenueData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {byMonthData.length > 0 && (
+            <SectionCard title="Revenue Over Time">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={byMonthData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={v => inrShort(v)} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => inr(v)} />
+                  <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          )}
+
+          {bySourcePie.length > 0 && (
+            <SectionCard title="Revenue by Source">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={bySourcePie}
+                    cx="50%" cy="50%"
+                    outerRadius={85}
+                    dataKey="value"
+                    label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {bySourcePie.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => inr(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          )}
         </div>
       )}
-    </>
+
+      {/* 6. Active Pipeline (Only shown if active deals exist) */}
+      {hasPipelineData && (
+        <SectionCard title="Active Pipeline Stage Breakdown">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-blue-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-blue-700">{metrics.pipeline!.totalDeals}</p>
+              <p className="text-xs text-blue-600 mt-1">Active Deals</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-gray-800">{inrShort(metrics.pipeline!.totalValue)}</p>
+              <p className="text-xs text-gray-500 mt-1">Total Value</p>
+            </div>
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-green-700">{inrShort(metrics.pipeline!.weightedForecast)}</p>
+              <p className="text-xs text-green-600 mt-1">Weighted Forecast</p>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Deals</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Weighted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.pipeline!.stages.map(s => (
+                <tr key={s.stage} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="py-2.5 px-3">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+                      style={{ background: `${STAGE_COLORS[s.stage] ?? '#6b7280'}20`, color: STAGE_COLORS[s.stage] ?? '#6b7280' }}
+                    >
+                      {s.stage}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-gray-700">{s.dealCount}</td>
+                  <td className="py-2.5 px-3 text-right text-gray-800 font-medium">{inr(s.totalValue)}</td>
+                  <td className="py-2.5 px-3 text-right text-green-700">{inr(s.weightedValue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SectionCard>
+      )}
+
+      {/* 7. Follow-up Punctuality (Only shown if follow-ups completed exist) */}
+      {hasFollowupData && (
+        <SectionCard title="Follow-up Punctuality">
+          <div className="flex items-center gap-4">
+            <div className="relative w-20 h-20 flex-shrink-0">
+              <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                <circle
+                  cx="18" cy="18" r="15.9" fill="none"
+                  stroke={metrics.followUpPunctuality!.onTimeRate >= 70 ? '#10b981' : metrics.followUpPunctuality!.onTimeRate >= 40 ? '#f59e0b' : '#ef4444'}
+                  strokeWidth="3"
+                  strokeDasharray={`${metrics.followUpPunctuality!.onTimeRate} ${100 - metrics.followUpPunctuality!.onTimeRate}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-base font-bold text-gray-900">{metrics.followUpPunctuality!.onTimeRate}%</span>
+              </div>
+            </div>
+            <div className="flex-1 space-y-1.5 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Completed</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality!.completed}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">On time</span><span className="font-semibold text-green-700">{metrics.followUpPunctuality!.onTime}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Late</span><span className="font-semibold text-red-600">{metrics.followUpPunctuality!.late}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Avg delay</span><span className="font-semibold text-gray-800">{metrics.followUpPunctuality!.avgDelayDays} days</span></div>
+            </div>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* 8. Loss Analysis (Only shown if lost deals exist) */}
+      {metrics.lossAnalysis && metrics.lossAnalysis.totalLost > 0 && (
+        <SectionCard title="Loss Analysis">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-red-600">{metrics.lossAnalysis.lostCount}</p>
+              <p className="text-xs text-red-500 mt-1">Lost</p>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-orange-600">{metrics.lossAnalysis.droppedCount}</p>
+              <p className="text-xs text-orange-500 mt-1">Dropped</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-gray-800">{inrShort(metrics.lossAnalysis.lostValue)}</p>
+              <p className="text-xs text-gray-500 mt-1">Lost Value</p>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Count</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.lossAnalysis.byReason.map(r => (
+                <tr key={r.reason} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="py-2.5 px-3 text-gray-700">{r.reason}</td>
+                  <td className="py-2.5 px-3 text-right text-gray-600">{r.count}</td>
+                  <td className="py-2.5 px-3 text-right text-gray-800">{inr(r.lostValue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SectionCard>
+      )}
+    </div>
   );
 }
 
@@ -690,17 +570,12 @@ function TeamView({ report }: { report: TeamReport }) {
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Leads</th>
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Won</th>
                   <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Win Rate</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Logged Hrs</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Unproductive</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Productivity</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Logged Hours</th>
                 </tr>
               </thead>
               <tbody>
                 {metrics.members.map((m: any) => {
                   const da = m.dailyActivity;
-                  const prodPct = da && da.totalLoggedHours > 0
-                    ? Math.round((da.totalActivityHours / da.totalLoggedHours) * 100)
-                    : null;
                   return (
                     <tr key={m.userId} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-3 px-3 text-center">
@@ -730,22 +605,6 @@ function TeamView({ report }: { report: TeamReport }) {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right text-gray-600">{da ? `${da.totalLoggedHours}h` : '—'}</td>
-                      <td className="py-3 px-3 text-right">
-                        {da ? (
-                          da.totalUnproductiveHours > 0.5
-                            ? <span className="text-red-600 font-semibold">{da.totalUnproductiveHours}h</span>
-                            : <span className="text-gray-400">{da.totalUnproductiveHours}h</span>
-                        ) : '—'}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        {prodPct !== null ? (
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            prodPct >= 70 ? 'bg-green-100 text-green-700' :
-                            prodPct >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>{prodPct}%</span>
-                        ) : '—'}
-                      </td>
                     </tr>
                   );
                 })}
@@ -757,7 +616,7 @@ function TeamView({ report }: { report: TeamReport }) {
                   <td className="py-3 px-3 text-right">{metrics.totals.totalLeads}</td>
                   <td className="py-3 px-3 text-right">{metrics.totals.totalConverted}</td>
                   <td className="py-3 px-3 text-right">{metrics.average.winRate.toFixed(1)}%</td>
-                  <td className="py-3 px-3" colSpan={3} />
+                  <td className="py-3 px-3 text-right">—</td>
                 </tr>
               </tfoot>
             </table>

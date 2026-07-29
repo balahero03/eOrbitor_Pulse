@@ -257,20 +257,31 @@ export class ReportCalculator {
 
     let totalLoggedHours = 0;
     let totalActivityMinutes = 0;
-    let unproductiveDays = 0;
     const dailyBreakdown: {
       date: string;
       loginTime: string | null;
       logoutTime: string | null;
       loggedHours: number;
       activityHours: number;
-      unproductiveHours: number;
       activityCount: number;
       entries: any[];
     }[] = [];
 
     for (const rec of records) {
-      const loggedHours = rec.totalHours ? Number(rec.totalHours) : 0;
+      let loggedHours = rec.totalHours ? Number(rec.totalHours) : 0;
+
+      // Sanitize impossible/corrupted totalHours (>24h or <0h)
+      if (loggedHours > 24 || loggedHours < 0) {
+        if (rec.loginTime && rec.logoutTime) {
+          let mins = (rec.logoutTime.getTime() - rec.loginTime.getTime()) / (1000 * 60);
+          if (mins < 0 && mins > -1440) mins += 24 * 60;
+          const h = Math.round((mins / 60) * 100) / 100;
+          loggedHours = (h >= 0 && h <= 24) ? h : 0;
+        } else {
+          loggedHours = 0;
+        }
+      }
+
       totalLoggedHours += loggedHours;
 
       let entries: any[] = [];
@@ -289,8 +300,6 @@ export class ReportCalculator {
 
       totalActivityMinutes += coveredMinutes;
       const activityHours = Math.round((coveredMinutes / 60) * 100) / 100;
-      const unproductiveHours = Math.max(0, Math.round((loggedHours - activityHours) * 100) / 100);
-      if (unproductiveHours > 0.5) unproductiveDays++;
 
       dailyBreakdown.push({
         date: rec.date,
@@ -298,24 +307,14 @@ export class ReportCalculator {
         logoutTime: rec.logoutTime ? rec.logoutTime.toISOString() : null,
         loggedHours: Math.round(loggedHours * 100) / 100,
         activityHours,
-        unproductiveHours,
         activityCount: entries.length,
-        // The full per-day timeline (each activity entry), so the report can
-        // show/export the day's work the same way the attendance modal does.
         entries,
       });
     }
 
-    const totalUnproductiveHours = Math.max(
-      0,
-      Math.round((totalLoggedHours - totalActivityMinutes / 60) * 100) / 100
-    );
-
     return {
       totalLoggedHours: Math.round(totalLoggedHours * 100) / 100,
       totalActivityHours: Math.round((totalActivityMinutes / 60) * 100) / 100,
-      totalUnproductiveHours,
-      unproductiveDays,
       daysPresent: records.length,
       dailyBreakdown,
     };

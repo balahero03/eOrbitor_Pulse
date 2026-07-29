@@ -100,14 +100,13 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   };
 
   if (finalLoginTime && finalLogoutTime) {
-    // The client only ever sends a logout clock-time on the same calendar
-    // date as the record itself. For a shift that crosses midnight that
-    // clock-time is numerically before the login, which would otherwise
-    // persist a negative totalHours — treat it as the next day instead.
-    const logoutForCalc = finalLogoutTime.getTime() < finalLoginTime.getTime()
-      ? new Date(finalLogoutTime.getTime() + 24 * 60 * 60 * 1000)
-      : finalLogoutTime;
-    data.totalHours = (logoutForCalc.getTime() - finalLoginTime.getTime()) / (1000 * 60 * 60);
+    let rawMins = (finalLogoutTime.getTime() - finalLoginTime.getTime()) / (1000 * 60);
+    // If logout is numerically earlier on the same day (crosses midnight)
+    if (rawMins < 0 && rawMins > -1440) {
+      rawMins += 24 * 60;
+    }
+    const calcHours = Math.round((rawMins / 60) * 100) / 100;
+    data.totalHours = (calcHours >= 0 && calcHours <= 24) ? calcHours : 0;
   } else {
     data.totalHours = null;
   }

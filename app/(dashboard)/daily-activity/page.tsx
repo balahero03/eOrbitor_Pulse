@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import TimeField from '@/components/TimeField';
 import { ActivityIcon, ActivityChip, LockIcon, ClipboardIcon, PendingIcon, ErrorIcon, EditIcon, QuotationIcon, OrderIcon, CheckGlyph } from '@/components/icons';
 
@@ -195,9 +196,15 @@ function EntryCard({ entry, idx }: { entry: ActivityEntry; idx: number }) {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function DailyActivityPage() {
+// ─── Main Page ────────────────────────────────────────────────────────────────
+function DailyActivityContent() {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get('date');
   const today = new Date().toISOString().slice(0, 10);
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam;
+    return today;
+  });
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loginTime, setLoginTime] = useState('');
   const [logoutTime, setLogoutTime] = useState('');
@@ -216,6 +223,12 @@ export default function DailyActivityPage() {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockReason, setUnlockReason] = useState('');
   const [requestingUnlock, setRequestingUnlock] = useState(false);
+
+  useEffect(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) && dateParam !== selectedDate) {
+      setSelectedDate(dateParam);
+    }
+  }, [dateParam]);
 
   useEffect(() => { fetchActivity(); }, [selectedDate]);
 
@@ -539,5 +552,19 @@ export default function DailyActivityPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DailyActivityPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <div className="w-7 h-7 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <DailyActivityContent />
+    </Suspense>
   );
 }

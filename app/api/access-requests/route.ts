@@ -54,20 +54,41 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
+  const typeFilter = searchParams.get('type');
 
-  const isAdmin = ADMIN_ROLES.includes(user.role);
-  const where: any = isAdmin ? {} : { userId: user.id };
-  if (isAdmin) {
-    where.status = status || 'PENDING';
-  } else if (status) {
-    where.status = status;
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role);
+  const baseWhere: any = isAdmin ? {} : { userId: user.id };
+  if (status && status !== 'ALL') {
+    baseWhere.status = status;
+  } else if (isAdmin && !status) {
+    baseWhere.status = 'PENDING';
   }
 
-  const requests = await prisma.afterHoursAccessRequest.findMany({
-    where,
-    include: isAdmin ? { user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } } : undefined,
-    orderBy: { createdAt: 'desc' },
-  });
+  const includeUser = isAdmin ? { user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } } : undefined;
 
-  return NextResponse.json({ requests });
+  let afterHoursRequests: any[] = [];
+  let unlockRequests: any[] = [];
+
+  if (!typeFilter || typeFilter === 'AFTER_HOURS') {
+    afterHoursRequests = await prisma.afterHoursAccessRequest.findMany({
+      where: baseWhere,
+      include: includeUser,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  if (!typeFilter || typeFilter === 'ACTIVITY_UNLOCK') {
+    unlockRequests = await prisma.activityUnlockRequest.findMany({
+      where: baseWhere,
+      include: includeUser,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  const combined = [
+    ...afterHoursRequests.map((r) => ({ ...r, requestType: 'AFTER_HOURS' as const })),
+    ...unlockRequests.map((r) => ({ ...r, requestType: 'ACTIVITY_UNLOCK' as const })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return NextResponse.json({ requests: combined });
 });

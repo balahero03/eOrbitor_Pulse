@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
+import { createNotification, notifyAdminsAndManagers } from '@/lib/notify';
 
 // POST /api/daily-activity/unlock — user requests unlock for a locked date
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
@@ -21,6 +22,15 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const req2 = await prisma.activityUnlockRequest.create({
     data: { userId: user.id, date, reason: reason.trim(), status: 'PENDING' },
   });
+
+  await notifyAdminsAndManagers(
+    'APPROVAL_REQUESTED',
+    'Daily Activity Unlock Request',
+    `${user.firstName} ${user.lastName} is requesting access to edit locked daily activity for ${date}.`,
+    'ACTIVITY_UNLOCK',
+    req2.id,
+    user.id
+  );
 
   return NextResponse.json({ message: 'Unlock request submitted', request: req2 }, { status: 201 });
 });
@@ -48,7 +58,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) throw new ForbiddenError();
 
-  const { requestId, action } = await req.json(); // action: 'APPROVE' | 'REJECT'
+  const { requestId, action, rejectionReason } = await req.json(); // action: 'APPROVE' | 'REJECT'
   if (!requestId || !['APPROVE', 'REJECT'].includes(action)) {
     throw new ValidationError('requestId and action (APPROVE|REJECT) are required');
   }
@@ -58,7 +68,12 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   await prisma.activityUnlockRequest.update({
     where: { id: requestId },
-    data: { status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED', reviewedBy: user.id, reviewedAt: new Date() },
+    data: {
+      status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      reviewedBy: user.id,
+      reviewedAt: new Date(),
+      ...(action === 'REJECT' && { rejectionReason: rejectionReason || null }),
+    },
   });
 
   if (action === 'APPROVE') {
@@ -75,6 +90,17 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       },
     });
   }
+
+  await createNotification(
+    unlockReq.userId,
+    action === 'APPROVE' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
+    action === 'APPROVE' ? 'Daily Activity Unlock Approved' : 'Daily Activity Unlock Rejected',
+    action === 'APPROVE'
+      ? `Your unlock request for ${unlockReq.date} was approved. You can now edit your activity.`
+      : `Your unlock request for ${unlockReq.date} was rejected.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
+    'ACTIVITY_UNLOCK',
+    unlockReq.id
+  );
 
   return NextResponse.json({ message: `Request ${action === 'APPROVE' ? 'approved' : 'rejected'}` });
 });

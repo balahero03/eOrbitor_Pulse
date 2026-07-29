@@ -5,7 +5,7 @@ import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightRequest } from '@/lib/notificationHighlight';
-import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon } from '@/components/icons';
+import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'record' | 'access';
@@ -26,9 +26,10 @@ interface RecordRequest {
   lead?: { id: string; name: string; company: string; status: string };
 }
 
-// After-hours access requests.
+// After-hours access & Daily activity unlock requests.
 interface AccessRequest {
   id: string;
+  requestType?: 'AFTER_HOURS' | 'ACTIVITY_UNLOCK';
   date: string;
   reason?: string;
   status: Status;
@@ -363,6 +364,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'AFTER_HOURS' | 'ACTIVITY_UNLOCK'>('ALL');
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -417,25 +419,67 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     } finally { setProcessingId(null); }
   };
 
+  const filteredRequests = requests.filter((r) => {
+    if (typeFilter === 'ALL') return true;
+    if (typeFilter === 'ACTIVITY_UNLOCK') return r.requestType === 'ACTIVITY_UNLOCK';
+    return r.requestType !== 'ACTIVITY_UNLOCK'; // AFTER_HOURS or undefined
+  });
+
   return (
     <div className="space-y-4">
-      <StatusTabs tab={tab} setTab={setTab} counts={counts} />
-      {loading ? <Spinner /> : requests.length === 0 ? <EmptyState tab={tab} /> : (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <StatusTabs tab={tab} setTab={setTab} counts={counts} />
+        {/* Sub-type filter pills */}
+        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-medium">
+          <button
+            onClick={() => setTypeFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'ALL' ? 'bg-white text-gray-800 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            All Access Requests
+          </button>
+          <button
+            onClick={() => setTypeFilter('AFTER_HOURS')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'AFTER_HOURS' ? 'bg-white text-amber-700 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            <LockIcon className="w-3.5 h-3.5" color="text-amber-600" />
+            After-Hours Access
+          </button>
+          <button
+            onClick={() => setTypeFilter('ACTIVITY_UNLOCK')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'ACTIVITY_UNLOCK' ? 'bg-white text-indigo-700 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" />
+            Activity Date Unlock
+          </button>
+        </div>
+      </div>
+
+      {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
         <div className="space-y-3">
-          {requests.map((req) => {
+          {filteredRequests.map((req) => {
             const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
+            const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';
+
             return (
               <div key={req.id} id={`access-${req.id}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.id)}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-1.5"><LockIcon className="w-4 h-4 text-gray-400" /> After-Hours Access</h3>
+                      {isActivityUnlock ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" /> Daily Activity Unlock
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                          <LockIcon className="w-3.5 h-3.5" color="text-amber-600" /> After-Hours Access
+                        </span>
+                      )}
                       <StatusPill status={req.status} />
                     </div>
                     <p className="text-sm text-gray-700">
                       <span className="font-medium">{who}</span>
                       {req.user && <span className="text-gray-400"> · {req.user.role}</span>}
-                      <span className="text-gray-400"> · for {fmtDate(req.date)}</span>
+                      <span className="text-gray-400"> · for <strong className="text-gray-800">{fmtDate(req.date)}</strong></span>
                     </p>
                     <div className="mt-2 space-y-1 text-xs text-gray-500">
                       <p className="flex items-center gap-1.5">

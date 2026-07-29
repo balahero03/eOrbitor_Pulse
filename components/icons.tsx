@@ -19,6 +19,7 @@ import {
   ScaleIcon,
   TagIcon,
   LockClosedIcon,
+  LockOpenIcon,
   ClipboardDocumentListIcon,
   CalendarDaysIcon,
   ExclamationTriangleIcon,
@@ -135,6 +136,7 @@ const mk = (Icon: IconType, defaultColor: string) =>
 
 export const QuotationIcon = mk(DocumentTextIcon, 'text-blue-600');
 export const LockIcon = mk(LockClosedIcon, 'text-amber-600');
+export const UnlockIcon = mk(LockOpenIcon, 'text-indigo-600');
 export const ClipboardIcon = mk(ClipboardDocumentListIcon, 'text-gray-400');
 export const CalendarIcon = mk(CalendarDaysIcon, 'text-blue-600');
 export const WarningIcon = mk(ExclamationTriangleIcon, 'text-amber-500');
