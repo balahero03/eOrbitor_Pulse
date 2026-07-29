@@ -951,12 +951,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto relative pb-16 md:pb-0">
+        <main className="flex-1 overflow-auto relative pb-20 md:pb-0">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation Bar (< 768px) */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-1 py-1 flex items-center justify-around shadow-lg">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-1 py-1.5 flex items-center justify-around shadow-lg pb-[env(safe-area-inset-bottom,0.375rem)]">
           {[
             { label: 'Home', href: '/dashboard', icon: HomeIcon },
             { label: 'Leads', href: '/leads', icon: FunnelIcon },
