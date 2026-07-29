@@ -97,13 +97,16 @@ export default function ApprovalsPage() {
   const activeCategory = canReviewAccess ? category : 'record';
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Approvals</h1>
-
-      {/* Category switch — only admins get the after-hours access category. */}
-      {canReviewAccess && (
-        <CategoryBar category={activeCategory} onChange={(c) => { setCategory(c); setTab('PENDING'); }} />
-      )}
+    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Approvals</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Review and manage pending approval requests</p>
+        </div>
+        {canReviewAccess && (
+          <CategoryBar category={activeCategory} onChange={(c) => { setCategory(c); setTab('PENDING'); }} />
+        )}
+      </div>
 
       {/* Status sub-tabs live inside each category so counts stay accurate. */}
       {activeCategory === 'record' ? (
