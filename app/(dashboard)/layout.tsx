@@ -229,6 +229,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Initialise sidebar state from window width after mount (avoids SSR mismatch)
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    setSidebarOpen(window.innerWidth >= 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [user, setUser] = useState<any>(null);
   const [accessBlocked, setAccessBlocked] = useState<{ date: string; windowStart: string; windowEnd: string } | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
@@ -499,11 +512,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  // Initialise sidebar state from window width after mount (avoids SSR mismatch)
-  useEffect(() => {
-    setSidebarOpen(window.innerWidth >= 768);
-  }, []);
-
   // Poll notifications every 30 s after user loads
   useEffect(() => {
     if (!user) return;
@@ -607,8 +615,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const roleInfo = ROLE_LABELS[user.role] || { label: user.role, color: 'bg-gray-100 text-gray-600' };
-  // On desktop: full or icon-only. On mobile: overlay drawer or hidden.
-  const showLabels = !desktopCollapsed;
+  // On mobile overlay drawer: always show full labels and brand info. On desktop: toggle full vs icon-only.
+  const showLabels = isMobile ? true : !desktopCollapsed;
 
   const sidebarContent = (
     <>
