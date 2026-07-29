@@ -956,7 +956,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
 
         {/* Mobile Bottom Navigation Bar (< 768px) */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-1 py-1.5 flex items-center justify-around shadow-lg pb-[env(safe-area-inset-bottom,0.375rem)]">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200/80 px-2 py-1.5 flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom,0.375rem)]">
           {[
             { label: 'Home', href: '/dashboard', icon: HomeIcon },
             { label: 'Leads', href: '/leads', icon: FunnelIcon },
@@ -970,9 +970,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg text-[10px] font-medium transition-all ${
+                className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl text-[10px] font-medium transition-all ${
                   active
-                    ? 'text-blue-600 font-bold scale-105'
+                    ? 'text-blue-600 font-bold scale-105 bg-blue-50/60'
                     : 'text-gray-500 hover:text-gray-900 active:scale-95'
                 }`}
               >
