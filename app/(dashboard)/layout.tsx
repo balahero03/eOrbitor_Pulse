@@ -752,7 +752,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-11 w-[min(calc(100vw-1rem),24rem)] bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[80dvh] sm:max-h-[28rem]">
+                <div className="fixed inset-x-3 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-5rem)] sm:max-h-[28rem]">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>
