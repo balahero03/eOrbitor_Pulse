@@ -251,7 +251,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Ids currently mid-delete-animation — kept separate from `notifications`
   // so the row can play its collapse/fade before actually leaving the list.
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -547,11 +549,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(interval);
   }, [user]);
 
-  // Close notification dropdown when clicking outside
+  // Close notification & profile dropdowns when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -881,13 +886,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
-            <span className={`hidden xs:inline-flex text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
-              <span className="hidden sm:inline">{roleInfo.label}</span>
-              <span className="sm:hidden">{roleInfo.label.charAt(0)}</span>
-            </span>
-            <span className="text-sm text-gray-600 hidden sm:block truncate">{user.firstName} {user.lastName}</span>
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {user.firstName.charAt(0)}{(user.lastName || '').charAt(0)}
+            {/* User Profile Dropdown Menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(o => !o)}
+                className="flex items-center gap-2 p-1 rounded-xl hover:bg-gray-100 transition-colors focus:outline-none"
+                aria-label="User menu"
+              >
+                <span className={`hidden xs:inline-flex text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${roleInfo.color}`}>
+                  <span className="hidden sm:inline">{roleInfo.label}</span>
+                  <span className="sm:hidden">{roleInfo.label.charAt(0)}</span>
+                </span>
+                <span className="text-sm font-medium text-gray-700 hidden sm:block truncate max-w-[140px]">
+                  {user.firstName} {user.lastName}
+                </span>
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm flex-shrink-0">
+                  {user.firstName.charAt(0)}{(user.lastName || '').charAt(0)}
+                </div>
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-11 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden py-2 divide-y divide-gray-100">
+                  <div className="px-4 py-3 bg-gray-50/50">
+                    <p className="text-sm font-bold text-gray-900 truncate">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
+                    <div className="mt-2">
+                      <span className={`inline-block text-[11px] px-2 py-0.5 rounded-full font-semibold ${roleInfo.color}`}>
+                        {roleInfo.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="py-1">
+                    <Link
+                      href="/daily-activity"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                    >
+                      <PencilSquareIcon className="w-4 h-4 text-gray-400" />
+                      Daily Activity Log
+                    </Link>
+                    <Link
+                      href="/attendance"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                    >
+                      <CheckCircleIcon className="w-4 h-4 text-gray-400" />
+                      Attendance &amp; Clock-in
+                    </Link>
+                  </div>
+
+                  <div className="py-1">
+                    <button
+                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <ArrowLeftOnRectangleIcon className="w-4 h-4 text-red-500" />
+                      Log Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
