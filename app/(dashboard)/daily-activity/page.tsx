@@ -349,28 +349,28 @@ function DailyActivityContent() {
   })();
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Daily Activity</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{dateLabel}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Daily Activity</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{dateLabel}</p>
         </div>
         <input type="date" value={selectedDate} max={today}
           onChange={e => setSelectedDate(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 w-full sm:w-auto" />
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 w-full sm:w-auto font-medium text-gray-700 bg-gray-50/50" />
       </div>
 
       {/* Lock banner */}
       {!isEditable && (
-        <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${unlockRequest?.status === 'PENDING' ? 'bg-amber-50 border-amber-200' :
+        <div className={`rounded-xl border p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${unlockRequest?.status === 'PENDING' ? 'bg-amber-50 border-amber-200' :
             unlockRequest?.status === 'REJECTED' ? 'bg-red-50 border-red-200' :
               'bg-gray-50 border-gray-200'
           }`}>
           <div>
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              <LockIcon className="w-4 h-4" /> This date is locked
-              <span className="ml-1 text-xs font-normal text-gray-500">(free edit window: today &amp; yesterday)</span>
+              <LockIcon className="w-4 h-4 flex-shrink-0 text-amber-600" /> This date is locked
+              <span className="ml-1 text-xs font-normal text-gray-500 hidden xs:inline">(free edit window: today &amp; yesterday)</span>
             </p>
             {unlockRequest?.status === 'PENDING' && <p className="text-xs text-amber-700 mt-0.5 flex items-center gap-1"><PendingIcon className="w-3.5 h-3.5" /> Unlock request pending admin/support review</p>}
             {unlockRequest?.status === 'REJECTED' && <p className="text-xs text-red-600 mt-0.5 flex items-center gap-1"><ErrorIcon className="w-3.5 h-3.5" /> Previous unlock request was rejected</p>}
@@ -378,7 +378,7 @@ function DailyActivityContent() {
           </div>
           {(!unlockRequest || unlockRequest.status === 'REJECTED') && (
             <button onClick={() => setShowUnlockModal(true)}
-              className="flex-shrink-0 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700">
+              className="w-full sm:w-auto flex-shrink-0 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 shadow-sm transition-colors">
               Request Unlock
             </button>
           )}
@@ -386,7 +386,7 @@ function DailyActivityContent() {
       )}
 
       {/* Work hours — three aligned stat tiles */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Work Hours</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
           {/* First Login */}
