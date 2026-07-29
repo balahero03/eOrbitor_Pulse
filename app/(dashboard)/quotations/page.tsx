@@ -142,14 +142,14 @@ export default function QuotationsPage() {
   );
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
-          <p className="text-sm text-gray-500">All customer quotations</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quotations</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">All customer quotations</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {isAdminUser && policyLoaded && (
             <button
               onClick={togglePolicy}
@@ -157,7 +157,7 @@ export default function QuotationsPage() {
               title={restrictionsDisabled
                 ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
                 : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors disabled:opacity-50 ${
                 restrictionsDisabled
                   ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -167,20 +167,20 @@ export default function QuotationsPage() {
               {togglingPolicy
                 ? 'Updating…'
                 : restrictionsDisabled
-                  ? 'Creation Restrictions: OFF (everyone can create)'
-                  : 'Creation Restrictions: ON'}
+                  ? 'Restrictions: OFF'
+                  : 'Restrictions: ON'}
             </button>
           )}
           <Link href="/quotations/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm">
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap">
             + New Quotation
           </Link>
         </div>
       </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearch} className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[200px]">
+      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div className="flex-1 min-w-0">
           <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
           <LiveSearchDropdown<Quotation>
             value={search}
@@ -195,25 +195,27 @@ export default function QuotationsPage() {
             cacheKeyPrefix="quotations"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-          <select
-            value={status}
-            onChange={e => { setStatus(e.target.value); setPage(1); }}
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          >
-            <option value="">All Status</option>
-            <option value="DRAFT">Draft</option>
-            <option value="SENT">Sent</option>
-            <option value="ACCEPTED">Accepted</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="EXPIRED">Expired</option>
-          </select>
+        <div className="flex gap-2">
+          <div className="flex-1 sm:w-40">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <select
+              value={status}
+              onChange={e => { setStatus(e.target.value); setPage(1); }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-gray-50/50"
+            >
+              <option value="">All Status</option>
+              <option value="DRAFT">Draft</option>
+              <option value="SENT">Sent</option>
+              <option value="ACCEPTED">Accepted</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+          </div>
+          <button type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors self-end">
+            Search
+          </button>
         </div>
-        <button type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-          Search
-        </button>
       </form>
 
       {/* Table */}
