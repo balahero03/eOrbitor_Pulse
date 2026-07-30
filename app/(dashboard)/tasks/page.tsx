@@ -189,54 +189,70 @@ export default function TasksPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-48">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search</label>
             <LiveSearchDropdown<Task>
               value={filters.search}
               onChange={(v) => setFilters(f => ({ ...f, search: v }))}
               onSearch={applyFilters}
               fetchSuggestions={fetchTaskSuggestions}
               getKey={(t) => t.id}
-              getHref={(t) => `/tasks/${t.id}`}
+              getHref={(t) => `/tasks#task-${t.id}`}
               renderItem={renderTaskSuggestion}
-              placeholder="Search tasks..."
+              placeholder="Search by title, description..."
               ariaLabel="Search tasks"
               cacheKeyPrefix="tasks"
+              className="w-full"
             />
           </div>
-          <div className="min-w-36">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-            <select
-              value={filters.status}
-              onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
-              className="w-full"
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap flex-shrink-0">
+            <div className="flex-1 sm:w-36">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="flex-1 sm:w-36">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Priority</label>
+              <select
+                value={filters.priority}
+                onChange={(e) => setFilters(f => ({ ...f, priority: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Priorities</option>
+                <option value="URGENT">Urgent</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+
+            <button
+              onClick={applyFilters}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm self-end"
             >
-              <option value="">All Statuses</option>
-              <option value="TODO">To Do</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-          <div className="min-w-36">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
-            <select
-              value={filters.priority}
-              onChange={e => setFilters(f => ({ ...f, priority: e.target.value }))}
-              className="w-full"
-            >
-              <option value="">All Priorities</option>
-              <option value="URGENT">Urgent</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={applyFilters} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Apply</button>
-            <button onClick={resetFilters} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Reset</button>
+              Filter
+            </button>
+            {(applied.status || applied.priority || applied.search) && (
+              <button
+                onClick={resetFilters}
+                className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors self-end"
+              >
+                Reset
+              </button>
+            )}
           </div>
         </div>
       </div>

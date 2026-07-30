@@ -177,9 +177,9 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
+          <div className="w-full">
             <LiveSearchDropdown<Order>
               value={search}
               onChange={setSearch}
@@ -191,6 +191,7 @@ export default function OrdersPage() {
               placeholder="Search by order number..."
               ariaLabel="Search orders"
               cacheKeyPrefix="orders"
+              className="w-full"
             />
           </div>
 
@@ -200,7 +201,7 @@ export default function OrdersPage() {
               setStatus(e.target.value);
               setPage(1);
             }}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
@@ -216,7 +217,7 @@ export default function OrdersPage() {
               setPaymentStatus(e.target.value);
               setPage(1);
             }}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">All Payments</option>
             <option value="PENDING">Unpaid</option>
@@ -226,7 +227,7 @@ export default function OrdersPage() {
 
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
           >
             Search
           </button>

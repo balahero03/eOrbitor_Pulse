@@ -179,42 +179,43 @@ export default function QuotationsPage() {
       </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
-        <div className="flex-1 min-w-0">
-          <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-          <LiveSearchDropdown<Quotation>
-            value={search}
-            onChange={setSearch}
-            onSearch={() => { setPage(1); fetchQuotations(); }}
-            fetchSuggestions={fetchQuotationSuggestions}
-            getKey={(q) => q.id}
-            getHref={(q) => `/quotations/${q.id}`}
-            renderItem={renderQuotationSuggestion}
-            placeholder="Quotation number or company…"
-            ariaLabel="Search quotations"
-            cacheKeyPrefix="quotations"
-          />
-        </div>
-        <div className="flex gap-2">
-          <div className="flex-1 sm:w-40">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-            <select
-              value={status}
-              onChange={e => { setStatus(e.target.value); setPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-gray-50/50"
-            >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SENT">Sent</option>
-              <option value="ACCEPTED">Accepted</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="EXPIRED">Expired</option>
-            </select>
+      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <div className="flex-1 min-w-0">
+            <LiveSearchDropdown<Quotation>
+              value={search}
+              onChange={setSearch}
+              onSearch={() => { setPage(1); fetchQuotations(); }}
+              fetchSuggestions={fetchQuotationSuggestions}
+              getKey={(q) => q.id}
+              getHref={(q) => `/quotations/${q.id}`}
+              renderItem={renderQuotationSuggestion}
+              placeholder="Quotation number or company…"
+              ariaLabel="Search quotations"
+              cacheKeyPrefix="quotations"
+              className="w-full"
+            />
           </div>
-          <button type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors self-end">
-            Search
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex-1 sm:w-40">
+              <select
+                value={status}
+                onChange={e => { setStatus(e.target.value); setPage(1); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Status</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SENT">Sent</option>
+                <option value="ACCEPTED">Accepted</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
+            </div>
+            <button type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors flex-shrink-0">
+              Search
+            </button>
+          </div>
         </div>
       </form>
 
