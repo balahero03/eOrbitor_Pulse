@@ -285,8 +285,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Search bar + filter toggle */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
-        <div className="flex gap-3 flex-wrap items-center">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
           <LiveSearchDropdown<Lead>
             value={filters.search}
             onChange={(v) => setF('search', v)}
@@ -298,37 +298,39 @@ export default function LeadsPage() {
             placeholder="Search by name, company, lead number, remarks..."
             ariaLabel="Search leads"
             cacheKeyPrefix="leads"
-            className="flex-1 min-w-64"
+            className="w-full sm:flex-1 min-w-0"
           />
-          <button
-            onClick={() => setShowFilters(f => !f)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-              showFilters || activeFilterCount > 0
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="bg-white text-blue-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={applyFilters}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-          >
-            Search
-          </button>
-          {activeFilterCount > 0 && (
-            <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-600 underline">
-              Clear all
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
+                showFilters || activeFilterCount > 0
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
-          )}
+            <button
+              onClick={applyFilters}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {activeFilterCount > 0 && (
+              <button onClick={clearFilters} className="text-xs text-gray-500 hover:text-red-600 underline px-1">
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Expanded filter panel */}

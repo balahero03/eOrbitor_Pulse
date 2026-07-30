@@ -1062,54 +1062,52 @@ function SpancoKanban({
       {/* Quick-action footer */}
       {canEdit && !isClosed && (
         <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400 font-medium">Mark as:</span>
+          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Action:</span>
           {lead.status === 'SUSPECT' && (
             <button onClick={() => onShowConvertModal?.()} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-cyan-50 text-cyan-700 border-cyan-200 hover:opacity-80 disabled:opacity-40 font-semibold">
-              <ClipboardIcon className="w-3.5 h-3.5" color="text-cyan-600" /> Convert to Prospect
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
+              <ClipboardIcon className="w-3.5 h-3.5 text-cyan-600" /> Convert to Prospect
             </button>
           )}
           {lead.status !== 'ON_HOLD' && lead.status !== 'SUSPECT' && (
             <button onClick={() => onStageChange('ON_HOLD')} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 hover:opacity-80 disabled:opacity-40">
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
               <StatusIcon status="ON_HOLD" className="w-3.5 h-3.5" color="text-amber-600" /> On Hold
             </button>
           )}
           {isAdmin && lead.status !== 'DROPPED' && (
             <button onClick={() => onStageChange('DROPPED')} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 hover:opacity-80 disabled:opacity-40 font-semibold">
-              <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-red-600" /> Dropped
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
+              <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-red-600" /> Drop Lead
             </button>
           )}
           {lead.status === 'CLOSURE' && (
-            <>
-              <button onClick={onClosureClick} disabled={changing}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-green-50 text-green-700 border-green-200 hover:opacity-80 disabled:opacity-40">
-                <CheckGlyph className="w-3.5 h-3.5" /> Close Deal
-              </button>
-            </>
+            <button onClick={onClosureClick} disabled={changing}
+              className="inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 active:scale-95 disabled:opacity-40 font-bold shadow-sm transition-all">
+              <CheckGlyph className="w-4 h-4 text-white" /> Close Deal
+            </button>
           )}
         </div>
       )}
 
       {isClosed && (
-        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2">
-          <span className="text-xs text-amber-700 font-medium inline-flex items-center gap-1.5">
-            <LockIcon className="w-3.5 h-3.5" />
+        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span className="text-xs text-amber-800 font-medium inline-flex items-center gap-1.5">
+            <LockIcon className="w-4 h-4 flex-shrink-0" />
             {isAdmin
               ? 'This lead is closed. As admin you can re-open it directly.'
               : 'This lead is closed and cannot be moved. Request admin approval to re-open.'}
           </span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             {onRequestReopen && (
               <button onClick={onRequestReopen}
-                className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 flex-shrink-0">
+                className="text-xs px-3.5 py-1.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 shadow-sm transition-all">
                 {isAdmin ? 'Re-open Lead' : 'Request Re-open'}
               </button>
             )}
             {isAdmin && lead.status === 'ON_HOLD' && (
               <button onClick={() => onStageChange('DROPPED')} disabled={changing}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-40 flex-shrink-0">
+                className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-40 shadow-sm transition-all">
                 <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-white" /> Drop Lead
               </button>
             )}

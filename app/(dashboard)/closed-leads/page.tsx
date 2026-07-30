@@ -185,7 +185,49 @@ export default function ClosedLeadsPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< 640px) */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {leads.map(lead => {
+                const meta = STATUS_META[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
+                return (
+                  <div
+                    key={lead.id}
+                    onClick={() => router.push(`/leads/${lead.id}`)}
+                    className="p-4 active:bg-blue-50/70 transition-colors cursor-pointer space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-gray-900 text-sm">{lead.name}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{lead.company}</p>
+                      </div>
+                      <span className={`inline-flex items-center text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${meta.style}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-50">
+                      <div>
+                        <span className="text-xs text-gray-400">Value: </span>
+                        <span className="font-bold text-gray-900">{lead.quoteValue ? fmt(Number(lead.quoteValue)) : '—'}</span>
+                      </div>
+                      <div className="text-gray-500 text-[11px]">
+                        Closed {lead.closedAt ? fmtDate(lead.closedAt) : fmtDate(lead.updatedAt)}
+                      </div>
+                    </div>
+
+                    {lead.closureReason && (
+                      <div className="text-[11px] text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                        <span className="font-medium text-gray-600">Reason: </span>
+                        {lead.closureReason}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
