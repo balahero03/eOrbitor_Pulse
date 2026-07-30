@@ -974,7 +974,7 @@ function SpancoKanban({
       </div>
 
       {/* 6 Kanban columns */}
-      <div className="flex divide-x divide-gray-100 overflow-x-auto snap-x snap-mandatory" style={{ minHeight: 200 }}>
+      <div className="flex divide-x divide-gray-100 overflow-x-auto max-w-full scrollbar-none snap-x snap-mandatory" style={{ minHeight: 200 }}>
         {SPANCO.map((stage, idx) => {
           const isActive = stage.key === activeStageKey;
           const isPast = activeIdx > idx;
