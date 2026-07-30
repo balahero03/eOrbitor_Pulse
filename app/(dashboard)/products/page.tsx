@@ -417,7 +417,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-end">
+      <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-end max-w-full overflow-hidden">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
           <LiveSearchDropdown<Product>
