@@ -179,7 +179,7 @@ export default function QuotationsPage() {
       </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
           <div className="flex-1 min-w-0">
             <LiveSearchDropdown<Quotation>
