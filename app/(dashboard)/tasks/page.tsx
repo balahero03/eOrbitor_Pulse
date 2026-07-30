@@ -189,7 +189,7 @@ export default function TasksPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search</label>
