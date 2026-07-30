@@ -161,7 +161,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 max-w-full overflow-hidden">
         <LiveSearchDropdown<Customer>
           value={search}
           onChange={setSearch}
