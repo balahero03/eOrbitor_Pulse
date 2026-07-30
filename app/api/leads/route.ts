@@ -79,6 +79,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         { company: { contains: search, mode: 'insensitive' } },
         { quoteNo: { contains: search, mode: 'insensitive' } },
         { remarks: { contains: search, mode: 'insensitive' } },
+        { assignedTo: { firstName: { contains: search, mode: 'insensitive' } } },
+        { assignedTo: { lastName: { contains: search, mode: 'insensitive' } } },
+        { assignedTo: { email: { contains: search, mode: 'insensitive' } } },
+        { broughtBy: { firstName: { contains: search, mode: 'insensitive' } } },
+        { broughtBy: { lastName: { contains: search, mode: 'insensitive' } } },
+        { broughtBy: { email: { contains: search, mode: 'insensitive' } } },
       ],
     });
   }

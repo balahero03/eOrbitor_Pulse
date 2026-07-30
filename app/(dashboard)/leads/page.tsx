@@ -214,20 +214,24 @@ export default function LeadsPage() {
     return (data.leads || []) as Lead[];
   }, []);
 
-  const renderLeadSuggestion = (lead: Lead, query: string) => (
-    <div className="min-w-0">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(lead.name, query)}</span>
-        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
-          {lead.status}
-        </span>
+  const renderLeadSuggestion = (lead: Lead, query: string) => {
+    const ownerName = lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName || ''}`.trim() : '';
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 justify-between">
+          <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(lead.name, query)}</span>
+          <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${getStatusColor(lead.status)}`}>
+            {lead.status}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate">
+          {highlightMatch(lead.company, query)}
+          {lead.quoteNo ? ` · ${lead.quoteNo}` : ''}
+          {ownerName ? <> · Owner: {highlightMatch(ownerName, query)}</> : ''}
+        </p>
       </div>
-      <p className="text-xs text-gray-500 mt-0.5 truncate">
-        {highlightMatch(lead.company, query)}
-        {lead.quoteNo ? ` · ${lead.quoteNo}` : ''}
-      </p>
-    </div>
-  );
+    );
+  };
 
   const isAdmin = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
 
@@ -295,7 +299,7 @@ export default function LeadsPage() {
             getKey={(l) => l.id}
             getHref={(l) => `/leads/${l.id}`}
             renderItem={renderLeadSuggestion}
-            placeholder="Search by name, company, lead number, remarks..."
+            placeholder="Search by name, company, lead number, assigned user..."
             ariaLabel="Search leads"
             cacheKeyPrefix="leads"
             className="w-full sm:flex-1 min-w-0"
