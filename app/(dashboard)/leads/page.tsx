@@ -479,7 +479,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Status quick-filter chips — horizontal scroll on mobile */}
-      <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap mb-4 scrollbar-hide -mx-4 sm:mx-0 px-4 sm:px-0">
+      <div className="flex gap-2 overflow-x-auto pb-2 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         <button
           onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
           className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
