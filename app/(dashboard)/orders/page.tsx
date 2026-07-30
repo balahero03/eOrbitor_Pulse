@@ -177,7 +177,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
         <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
           <div className="w-full">
             <LiveSearchDropdown<Order>
