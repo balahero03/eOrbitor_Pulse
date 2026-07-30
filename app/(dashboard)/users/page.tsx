@@ -988,7 +988,7 @@ export default function UsersPage() {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 max-w-md">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 max-w-md overflow-hidden">
         <LiveSearchDropdown<User>
           value={search}
           onChange={setSearch}
