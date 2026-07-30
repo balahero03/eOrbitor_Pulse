@@ -757,7 +757,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {notifOpen && (
-                <div className="fixed inset-x-3 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-5rem)] sm:max-h-[28rem]">
+                <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 w-[calc(100vw-1rem)] max-w-sm sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-5rem)] sm:max-h-[28rem] mx-auto sm:mx-0">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>
@@ -886,6 +886,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
+            {/* Quick Mobile Logout Header Button */}
+            <button
+              onClick={handleLogout}
+              className="sm:hidden p-1.5 text-red-600 hover:bg-red-50 active:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1 font-semibold text-xs flex-shrink-0"
+              aria-label="Log out"
+              title="Log out"
+            >
+              <ArrowLeftOnRectangleIcon className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span className="text-[11px] font-bold">Logout</span>
+            </button>
+
             {/* User Profile Dropdown Menu */}
             <div className="relative" ref={userMenuRef}>
               <button
@@ -906,7 +917,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 top-11 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden py-2 divide-y divide-gray-100">
+                <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 w-[calc(100vw-1rem)] max-w-xs sm:w-64 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden py-2 divide-y divide-gray-100 mx-auto sm:mx-0">
                   <div className="px-4 py-3 bg-gray-50/50">
                     <p className="text-sm font-bold text-gray-900 truncate">{user.firstName} {user.lastName}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
