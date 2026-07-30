@@ -710,7 +710,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-x-hidden max-w-full">
       {/* Mobile overlay backdrop */}
       {sidebarOpen && (
         <div
@@ -730,7 +730,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 max-w-full">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
           <button
@@ -886,17 +886,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
-            {/* Quick Mobile Logout Header Button */}
-            <button
-              onClick={handleLogout}
-              className="sm:hidden p-1.5 text-red-600 hover:bg-red-50 active:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1 font-semibold text-xs flex-shrink-0"
-              aria-label="Log out"
-              title="Log out"
-            >
-              <ArrowLeftOnRectangleIcon className="w-4 h-4 text-red-600 flex-shrink-0" />
-              <span className="text-[11px] font-bold">Logout</span>
-            </button>
-
             {/* User Profile Dropdown Menu */}
             <div className="relative" ref={userMenuRef}>
               <button
@@ -962,7 +951,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto relative pb-20 md:pb-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative pb-20 md:pb-0 max-w-full">
           {children}
         </main>
 
