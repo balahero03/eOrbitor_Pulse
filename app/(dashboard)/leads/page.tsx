@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface Lead {
   id: string;
@@ -137,6 +139,8 @@ const EMPTY_FILTERS = {
 
 export default function LeadsPage() {
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -236,10 +240,10 @@ export default function LeadsPage() {
   const isAdmin = currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
 
   const handleDelete = async (id: string) => {
-    const confirmMsg = isAdmin
-      ? 'Are you sure you want to permanently delete this lead? This cannot be undone.'
-      : 'Submit this lead for deletion approval?';
-    if (!confirm(confirmMsg)) return;
+    const confirmed = isAdmin
+      ? await confirm('This lead will be permanently deleted. This cannot be undone.', { title: 'Delete this lead?', danger: true })
+      : await confirm('Submit this lead for deletion approval?', { title: 'Request deletion' });
+    if (!confirmed) return;
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/leads/${id}`, {
@@ -250,17 +254,17 @@ export default function LeadsPage() {
       if (res.ok) {
         const data = await res.json();
         if (isAdmin) {
-          alert('Lead deleted successfully.');
+          toast.success('Lead deleted successfully.');
         } else {
-          alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}`);
+          toast.success(`Deletion request submitted for approval (Request ID: ${data.requestId}).`);
         }
         fetchLeads();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(`Failed: ${err.message || 'Unknown error'}`);
+        toast.error(`Failed: ${err.message || 'Unknown error'}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message || 'Failed'}`);
+      toast.error(`Error: ${err.message || 'Failed'}`);
     }
   };
 

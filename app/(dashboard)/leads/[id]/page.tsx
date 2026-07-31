@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import {
   StageIcon, StatusIcon, QuotationIcon, UploadIcon, SuccessIcon, WarningIcon, LockIcon,
   CalendarIcon, ClipboardIcon, TrophyIcon2, ErrorIcon, BlockedIcon, IdeaIcon, AttachmentIcon,
@@ -144,6 +146,8 @@ interface QuotationRecord {
 }
 
 function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: string; lead: LeadDetail; canEdit: boolean; currentUser: any }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
@@ -172,8 +176,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
         body: JSON.stringify({ restrictionsDisabled: !quotaRestrictionsDisabled }),
       });
       if (res.ok) { const d = await res.json(); setQuotaRestrictionsDisabled(!!d.restrictionsDisabled); }
-      else alert('Failed to update the setting. Please try again.');
-    } catch { alert('Failed to update the setting. Please try again.'); }
+      else toast.error('Failed to update the setting. Please try again.');
+    } catch { toast.error('Failed to update the setting. Please try again.'); }
     finally { setTogglingQuotaPolicy(false); }
   };
 
@@ -394,7 +398,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   };
 
   const handleAction = async (qId: string, action: 'send' | 'approve' | 'delete') => {
-    if (action === 'delete' && !confirm('Delete this quotation?')) return;
+    if (action === 'delete' && !(await confirm('This quotation will be permanently deleted.', { title: 'Delete this quotation?', danger: true }))) return;
 
     setActionId(qId);
     try {
@@ -411,7 +415,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
         });
       }
       fetchQuotations();
-    } catch { alert('Action failed.'); }
+    } catch { toast.error('Action failed.'); }
     finally { setActionId(null); }
   };
 
@@ -433,7 +437,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
       setRejectTarget(null);
       setRejectReason('');
       fetchQuotations();
-    } catch { alert('Action failed.'); }
+    } catch { toast.error('Action failed.'); }
     finally { setRejecting(false); }
   };
 
@@ -880,7 +884,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
       )}
 
       {rejectTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-orange-600 mb-1">Reject Quotation</h2>
             <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
@@ -1192,7 +1196,7 @@ function ClosureModal({
   const cfg = outcomeConfig[form.outcome];
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
 
         {/* Header */}
@@ -1436,7 +1440,7 @@ function ProposalModal({ lead, onClose, onSubmit, submitting, initialData, editM
   const canSubmit = form.proposalDate && form.demoDate && form.clientAttendees && form.topicsCovered && form.clientFeedback && form.nextSteps && form.materialsProvided;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
@@ -1608,7 +1612,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90dvh] sm:max-h-[94vh]">
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div>
@@ -1869,6 +1873,8 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
 export default function LeadDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   // Deep-linked from a lead notification (assignment / approval outcome) —
@@ -2001,12 +2007,12 @@ export default function LeadDetailPage() {
         const allowedBack = (lead.status === 'CLOSURE' && newStatus === 'NEGOTIATION') ||
           (lead.status === 'NEGOTIATION' && newStatus === 'CLOSURE');
         if (!allowedBack) {
-          alert(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
+          toast.warning(`Cannot revert from ${lead.status} back to ${newStatus}. The pipeline can only move forward.`);
           return;
         }
       } else if (newIdx > currentIdx && newIdx !== currentIdx + 1 && !isSkipNegotiation) {
         const nextStage = STAGE_ORDER[currentIdx + 1];
-        alert(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
+        toast.warning(`Cannot skip stages. You must move to ${nextStage} next. No stage skipping allowed.`);
         return;
       }
     }
@@ -2055,7 +2061,7 @@ export default function LeadDetailPage() {
       await res.json();
       fetchLead();
     } catch (err: any) {
-      alert(`Failed to update stage: ${err?.message || 'Unknown error'}`);
+      toast.error(`Failed to update stage: ${err?.message || 'Unknown error'}`);
     } finally {
       setStageChanging(false);
     }
@@ -2074,10 +2080,10 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: 'PROPOSAL', closureDetails: merged }),
       });
-      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(e.message || 'Failed'); return; }
       setShowProposalModal(false);
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setStageSubmitting(false); }
   };
 
@@ -2118,7 +2124,7 @@ export default function LeadDetailPage() {
         } else {
           // Don't silently drop the itemized quotation — abort so the user can retry.
           const e = await qRes.json().catch(() => ({}));
-          alert(e.message || 'Failed to save the quotation. Please try again.');
+          toast.error(e.message || 'Failed to save the quotation. Please try again.');
           return;
         }
       }
@@ -2147,15 +2153,15 @@ export default function LeadDetailPage() {
           quoteValue: data.quoteValue,
         }),
       });
-      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(e.message || 'Failed'); return; }
       setShowNegotiationModal(false);
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setStageSubmitting(false); }
   };
 
   const handleSkipNegotiation = async () => {
-    if (!confirm('Skip Negotiation stage and move directly to Closure stage?')) return;
+    if (!(await confirm('This will move the lead directly to Closure stage.', { title: 'Skip Negotiation stage?' }))) return;
     setStageSubmitting(true);
     try {
       const token = localStorage.getItem('token');
@@ -2177,10 +2183,10 @@ export default function LeadDetailPage() {
           closureDetails: merged,
         }),
       });
-      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(e.message || 'Failed'); return; }
       setShowNegotiationModal(false);
       fetchLead();
-    } catch { alert('An error occurred while skipping negotiation.'); }
+    } catch { toast.error('An error occurred while skipping negotiation.'); }
     finally { setStageSubmitting(false); }
   };
 
@@ -2195,10 +2201,10 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ closureDetails: merged }),
       });
-      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(e.message || 'Failed'); return; }
       setEditProposalModal(false);
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setStageSubmitting(false); }
   };
 
@@ -2238,7 +2244,7 @@ export default function LeadDetailPage() {
           quoteNumber = q.quotationNumber;
         } else {
           const e = await qRes.json().catch(() => ({}));
-          alert(e.message || 'Failed to save the quotation. Please try again.');
+          toast.error(e.message || 'Failed to save the quotation. Please try again.');
           return;
         }
       }
@@ -2263,10 +2269,10 @@ export default function LeadDetailPage() {
           quoteValue: data.quoteValue,
         }),
       });
-      if (!res.ok) { const e = await res.json(); alert(e.message || 'Failed'); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(e.message || 'Failed'); return; }
       setEditNegotiationModal(false);
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setStageSubmitting(false); }
   };
 
@@ -2278,7 +2284,7 @@ export default function LeadDetailPage() {
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
-        alert(e.message || 'Could not download file');
+        toast.error(e.message || 'Could not download file');
         return;
       }
       const blob = await res.blob();
@@ -2291,7 +2297,7 @@ export default function LeadDetailPage() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      alert('Download failed.');
+      toast.error('Download failed.');
     }
   };
 
@@ -2345,7 +2351,7 @@ export default function LeadDetailPage() {
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
-        alert(e.message || `Server error ${res.status}`);
+        toast.error(e.message || `Server error ${res.status}`);
         return;
       }
       setShowClosureModal(false);
@@ -2355,7 +2361,7 @@ export default function LeadDetailPage() {
         router.push('/closed-leads');
       }
     } catch (err: any) {
-      alert(`Failed: ${err?.message || 'Unknown error'}`);
+      toast.error(`Failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setClosureSubmitting(false);
     }
@@ -2380,7 +2386,7 @@ export default function LeadDetailPage() {
       setLead(prev => prev ? { ...prev, ...updated, followUps: prev.followUps } : null);
       setEditing(false);
     } catch {
-      alert('Failed to save changes.');
+      toast.error('Failed to save changes.');
     }
   };
 
@@ -2397,16 +2403,16 @@ export default function LeadDetailPage() {
           body: JSON.stringify({ status: 'SUSPECT', deletedAt: null }),
         });
         if (res.ok) {
-          alert('Lead re-opened successfully.');
+          toast.success('Lead re-opened successfully.');
           setShowReopenModal(false);
           fetchLead();
         } else {
           const e = await res.json();
-          alert(e.message || 'Failed to re-open lead');
+          toast.error(e.message || 'Failed to re-open lead');
         }
       } else {
         // Non-admins must request approval.
-        if (!reopenReason.trim()) { alert('Please provide a reason for re-opening.'); setRequestingReopen(false); return; }
+        if (!reopenReason.trim()) { toast.warning('Please provide a reason for re-opening.'); setRequestingReopen(false); return; }
         const res = await fetch('/api/approval-requests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -2417,17 +2423,17 @@ export default function LeadDetailPage() {
           }),
         });
         if (res.ok) {
-          alert('Re-open request submitted. An admin will review and approve.');
+          toast.success('Re-open request submitted. An admin will review and approve.');
           setShowReopenModal(false);
           setReopenReason('');
           router.push('/leads');
         } else {
           const e = await res.json();
-          alert(e.message || 'Failed to submit request');
+          toast.error(e.message || 'Failed to submit request');
         }
       }
     } catch {
-      alert('An error occurred.');
+      toast.error('An error occurred.');
     } finally {
       setRequestingReopen(false);
     }
@@ -2467,10 +2473,10 @@ export default function LeadDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) { const e = await res.json(); alert(`Failed: ${e.message}`); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(`Failed: ${e.message}`); return; }
       setShowConvertModal(false);
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setConverting(false); }
   };
 
@@ -2479,7 +2485,7 @@ export default function LeadDetailPage() {
   const handleDeleteRequest = async () => {
     // Admins don't need a reason — they delete directly.
     if (!isAdminUser && !deleteReason.trim()) {
-      alert('Please provide a reason for deletion.');
+      toast.warning('Please provide a reason for deletion.');
       return;
     }
     setDeleting(true);
@@ -2492,18 +2498,18 @@ export default function LeadDetailPage() {
       });
       if (res.ok) {
         if (isAdminUser) {
-          alert('Lead deleted successfully.');
+          toast.success('Lead deleted successfully.');
         } else {
           const data = await res.json();
-          alert(`Deletion request submitted for approval.\nRequest ID: ${data.requestId}\n\nAn admin will review your request.`);
+          toast.success(`Deletion request submitted for approval (Request ID: ${data.requestId}). An admin will review your request.`);
         }
         router.push('/leads');
       } else {
         const e = await res.json();
-        alert(e.message || 'Failed to delete lead');
+        toast.error(e.message || 'Failed to delete lead');
       }
     } catch (err: any) {
-      alert(`An error occurred: ${err.message || 'Unknown error'}`);
+      toast.error(`An error occurred: ${err.message || 'Unknown error'}`);
     } finally {
       setDeleting(false);
       setShowDeleteModal(false);
@@ -2511,7 +2517,7 @@ export default function LeadDetailPage() {
   };
 
   const handleAddFollowUp = async () => {
-    if (!followUpForm.scheduledDate) { alert('Please select a date.'); return; }
+    if (!followUpForm.scheduledDate) { toast.warning('Please select a date.'); return; }
     setSavingFollowUp(true);
     try {
       const token = localStorage.getItem('token');
@@ -2525,11 +2531,11 @@ export default function LeadDetailPage() {
           outcome: followUpForm.outcome,
         }),
       });
-      if (!res.ok) { const e = await res.json(); alert(`Failed: ${e.message}`); return; }
+      if (!res.ok) { const e = await res.json(); toast.error(`Failed: ${e.message}`); return; }
       setShowFollowUpModal(false);
       setFollowUpForm({ type: 'CALL', scheduledDate: '', notes: '', outcome: '' });
       fetchLead();
-    } catch { alert('An error occurred.'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setSavingFollowUp(false); }
   };
 
@@ -2617,10 +2623,10 @@ export default function LeadDetailPage() {
           onStageChange={handleStageChange}
           changing={stageChanging}
           onClosureClick={() => setShowClosureModal(true)}
-          onRequestReopen={() => {
+          onRequestReopen={async () => {
             if (isAdminUser) {
               // Admins get a quick confirm instead of a modal
-              if (confirm('Re-open this lead? It will return to the Suspect stage.')) {
+              if (await confirm('It will return to the Suspect stage.', { title: 'Re-open this lead?' })) {
                 handleReopenRequest();
               }
             } else {
@@ -3195,10 +3201,10 @@ export default function LeadDetailPage() {
             <div className="space-y-2">
 
             {canEdit && !isClosed && (
-                <button onClick={() => {
+                <button onClick={async () => {
                   if (isAdminUser) {
                     // Admins delete immediately — no approval modal needed
-                    if (confirm('Are you sure you want to permanently delete this lead? This action cannot be undone.')) {
+                    if (await confirm('This action cannot be undone.', { title: 'Permanently delete this lead?', danger: true })) {
                       setShowDeleteModal(true);
                     }
                   } else {
@@ -3267,7 +3273,7 @@ export default function LeadDetailPage() {
       )}
 
       {showConvertModal && lead && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b p-6">
               <h2 className="text-lg font-bold">Convert Suspect to Prospect</h2>
@@ -3383,11 +3389,11 @@ export default function LeadDetailPage() {
                           const input = document.getElementById('customOem') as HTMLInputElement;
                           const customOem = input?.value.trim();
                           if (!customOem) {
-                            alert('Please enter an OEM name');
+                            toast.warning('Please enter an OEM name');
                             return;
                           }
                           if (editData.oemNames?.includes(customOem)) {
-                            alert('This OEM is already added');
+                            toast.warning('This OEM is already added');
                             return;
                           }
                           setEditData(prev => ({
@@ -3608,7 +3614,7 @@ export default function LeadDetailPage() {
       )}
 
       {showFollowUpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
             <h2 className="text-lg font-bold mb-4">Add Follow-up</h2>
             <div className="space-y-4">
@@ -3650,7 +3656,7 @@ export default function LeadDetailPage() {
       )}
 
       {showReopenModal && !isAdminUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Re-open</h2>
             <p className="text-sm text-gray-500 mb-4">
@@ -3678,7 +3684,7 @@ export default function LeadDetailPage() {
       )}
 
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold mb-3 text-red-600">
               {isAdminUser ? 'Delete Lead' : 'Request Lead Deletion'}

@@ -6,6 +6,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { LockIcon } from '@/components/icons';
 import { requestHighlight } from '@/lib/notificationHighlight';
+import { ToastProvider } from '@/components/Toast';
+import { ConfirmProvider, useConfirm } from '@/components/ConfirmDialog';
+import { BrandedLoader } from '@/components/BrandedLoader';
 import {
   HomeIcon,
   FunnelIcon,
@@ -225,8 +228,19 @@ function AccessRestrictedScreen({
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ToastProvider>
+      <ConfirmProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </ConfirmProvider>
+    </ToastProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const confirm = useConfirm();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -486,7 +500,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const clearAllNotifications = async () => {
-    if (!confirm('Are you sure you want to clear all notifications? This cannot be undone.')) return;
+    if (!(await confirm('All notifications will be permanently removed.', { title: 'Clear all notifications?', danger: true }))) return;
     const token = localStorage.getItem('token');
     if (!token) return;
     const ids = notifications.map(n => n.id);
@@ -605,14 +619,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // "user loaded" and "access-status resolved" before flipping to the
   // restricted screen, which flashes real data a blocked user shouldn't see.
   if (!user || !accessChecked) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">Loading...</p>
-        </div>
-      </div>
-    );
+    return <BrandedLoader />;
   }
 
   if (accessBlocked) {
@@ -714,7 +721,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile overlay backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+          className="fixed inset-0 z-20 bg-black/40 md:hidden animate-fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -762,7 +769,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       the page rather than a floating overlay, and there is no
                       large target to dismiss it by tapping away. */}
                   <div
-                    className="fixed inset-0 bg-black/30 z-[90] sm:hidden"
+                    className="fixed inset-0 bg-black/30 z-[90] sm:hidden animate-fade-in"
                     onClick={() => setNotifOpen(false)}
                     aria-hidden="true"
                   />
@@ -770,7 +777,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       (3.5rem) and the mobile bottom nav (3.5rem + safe area)
                       together need ~9rem — so the panel ran underneath the nav and
                       swallowed the screen. Reserve 10rem and it floats clear of both. */}
-                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem]">
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem] animate-scale-in origin-top-right">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-2.5 sm:py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>
@@ -927,7 +934,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {userMenuOpen && (
-                <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 w-[calc(100vw-1rem)] max-w-xs sm:w-64 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden py-2 divide-y divide-gray-100 mx-auto sm:mx-0">
+                <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 w-[calc(100vw-1rem)] max-w-xs sm:w-64 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden py-2 divide-y divide-gray-100 mx-auto sm:mx-0 animate-scale-in origin-top-right">
                   <div className="px-4 py-3 bg-gray-50/50">
                     <p className="text-sm font-bold text-gray-900 truncate">{user.firstName} {user.lastName}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>

@@ -7,6 +7,8 @@ import { canManageUser, roleRank } from '@/lib/roles';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRowClass, requestHighlight } from '@/lib/notificationHighlight';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface User {
   id: string;
@@ -321,6 +323,8 @@ function RecordTransferRow({
 }
 
 export default function UsersPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   // Deep-linked from a user-inactive notification — rings the matching row.
   const flashUserId = useNotificationHighlight('user');
   const router = useRouter();
@@ -509,13 +513,13 @@ export default function UsersPage() {
     if (form.role !== selectedUser.role) {
       const oldRoleLabel = ROLE_LABELS[selectedUser.role] || selectedUser.role;
       const newRoleLabel = ROLE_LABELS[form.role] || form.role;
-      let warningMsg = `Are you sure you want to change ${selectedUser.firstName}'s role from ${oldRoleLabel} to ${newRoleLabel}?`;
+      let warningMsg = `${oldRoleLabel} → ${newRoleLabel}`;
 
       if (selectedUser.role === 'BACKEND_TEAM' && form.role === 'ON_FIELD_TEAM') {
-        warningMsg += `\n\nWARNING: Since they are being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
+        warningMsg += `\n\nWarning: since they're being demoted to On Field Team, any team members reporting to them will be unassigned (their manager will be set to None).`;
       }
 
-      if (!confirm(warningMsg)) return;
+      if (!(await confirm(warningMsg, { title: `Change ${selectedUser.firstName}'s role?` }))) return;
     }
 
     setSaving(true); setError('');
@@ -619,7 +623,7 @@ export default function UsersPage() {
     if (isDemotion && subordinates.length > 0) {
       const unassigned = subordinates.filter(s => !subordinateManagerMap[s.id]);
       if (unassigned.length > 0) {
-        alert(`Please assign a new manager for: ${unassigned.map(s => s.firstName).join(', ')}`);
+        toast.warning(`Please assign a new manager for: ${unassigned.map(s => s.firstName).join(', ')}`);
         return;
       }
     }
@@ -648,7 +652,7 @@ export default function UsersPage() {
       closeModal();
       fetchUsers();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -737,7 +741,7 @@ export default function UsersPage() {
   };
 
   const handleToggleActive = async (u: User) => {
-    if (u.id === currentUser?.id) { alert("You can't deactivate your own account."); return; }
+    if (u.id === currentUser?.id) { toast.warning("You can't deactivate your own account."); return; }
     // Deactivation is reversible, so we only warn (not block) — but the admin
     // should know what still sits under this account before they lock it out.
     if (u.isActive) {
@@ -772,16 +776,16 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (u: User) => {
-    if (u.id === currentUser?.id) { alert("You can't delete your own account."); return; }
+    if (u.id === currentUser?.id) { toast.warning("You can't delete your own account."); return; }
     const breakdown = await fetchBusinessBreakdown(u);
     // Nothing to reassign — same one-click delete as before, no modal friction.
     if (!breakdown || breakdown.businessTotal === 0) {
-      if (!confirm(`Delete ${u.firstName} ${u.lastName}? They own no records and will be permanently removed.`)) return;
+      if (!(await confirm('They own no records and will be permanently removed.', { title: `Delete ${u.firstName} ${u.lastName}?`, danger: true }))) return;
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/users/${u.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Failed to delete user'); return; }
-      alert(`${u.firstName} was permanently deleted.`);
+      if (!res.ok) { toast.error(data.error || 'Failed to delete user'); return; }
+      toast.success(`${u.firstName} was permanently deleted.`);
       fetchUsers();
       return;
     }
@@ -802,7 +806,7 @@ export default function UsersPage() {
       ds.tasksAssigned > 0 && ds.tasksAssignedAction === 'transfer' && !ds.tasksAssignedTargetUserId,
       ds.subordinates > 0 && ds.subordinatesAction === 'transfer' && !ds.subordinatesTargetUserId,
     ].some(Boolean);
-    if (incomplete) { alert('Pick a recipient for every category marked "Transfer to".'); return; }
+    if (incomplete) { toast.warning('Pick a recipient for every category marked "Transfer to".'); return; }
 
     setSaving(true);
     const token = localStorage.getItem('token');
@@ -824,44 +828,43 @@ export default function UsersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete user');
       closeModal();
-      alert(
+      toast.success(
         data.deleted === 'soft'
           ? `${ds.user.firstName} was marked as an ex-employee — ${data.recordCount} record(s) remain (whatever you chose to transfer is already moved).`
           : `${ds.user.firstName} was permanently deleted — all records were transferred.`
       );
       fetchUsers();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleRestore = async (u: User) => {
-    if (!confirm(`Restore ${u.firstName} ${u.lastName} as an active user?`)) return;
+    if (!(await confirm(`${u.firstName} ${u.lastName} will regain active access.`, { title: 'Restore this user?' }))) return;
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/users/${u.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ restore: true }),
     });
-    if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to restore'); return; }
+    if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Failed to restore'); return; }
     fetchUsers();
   };
 
   const handlePermanentRemove = async (u: User) => {
-    if (!confirm(
-      `Permanently remove ${u.firstName} ${u.lastName}? This cannot be undone.\n\n` +
-      `Their business records must already be reassigned. Their personal logs ` +
-      `(attendance, activity, time logs) will be deleted along with the account.`
-    )) return;
+    if (!(await confirm(
+      `Their business records must already be reassigned. Their personal logs (attendance, activity, time logs) will be deleted along with the account.`,
+      { title: `Permanently remove ${u.firstName} ${u.lastName}?`, danger: true }
+    ))) return;
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/users/${u.id}?hard=true`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to remove user'); return; }
+    if (!res.ok) { toast.error(data.error || 'Failed to remove user'); return; }
     closeModal();
     fetchUsers();
   };
@@ -872,7 +875,7 @@ export default function UsersPage() {
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/users/${u.id}/records?detail=true`, { headers: { Authorization: `Bearer ${token}` } });
     setRecordsLoading(false);
-    if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to load records'); return; }
+    if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Failed to load records'); return; }
     setRecords(await res.json());
   };
 
@@ -919,8 +922,8 @@ export default function UsersPage() {
     });
     const data = await res.json();
     setSaving(false);
-    if (!res.ok) { alert(data.error || 'Failed to reassign'); return; }
-    alert(data.message);
+    if (!res.ok) { toast.error(data.error || 'Failed to reassign'); return; }
+    toast.success(data.message);
     setReassignTargetId('');
     fetchRecords(selectedUser);
   };
@@ -1233,7 +1236,7 @@ export default function UsersPage() {
 
       {/* ── TEAM STRUCTURE MODAL ── */}
       {modal === 'team-view' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
             <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
               <div>
@@ -1339,7 +1342,7 @@ export default function UsersPage() {
           setRoleSwitchState(prev => prev ? { ...prev, ...patch } : prev);
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
               {/* Header */}
               <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
@@ -1590,7 +1593,7 @@ export default function UsersPage() {
         const kept = categories.filter(c => c.count > 0 && c.action === 'keep');
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
               <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
                 <div>
@@ -1725,7 +1728,7 @@ export default function UsersPage() {
         ].filter(r => r.count > 0);
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
               <div className="px-6 py-4 border-b flex items-center justify-between">
                 <div>
@@ -1770,7 +1773,7 @@ export default function UsersPage() {
 
       {/* ── EX-EMPLOYEE RECORDS / ARCHIVE MODAL ── */}
       {modal === 'ex-records' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
             <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
               <div>
@@ -1910,7 +1913,7 @@ export default function UsersPage() {
 
       {/* ── ASSIGN MANAGER MODAL ── */}
       {modal === 'assign-manager' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>
@@ -1973,7 +1976,7 @@ export default function UsersPage() {
 
       {/* ── ADD USER MODAL ── */}
       {modal === 'add' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-bold">Add New User</h2>
@@ -2078,7 +2081,7 @@ export default function UsersPage() {
 
       {/* ── EDIT USER MODAL ── */}
       {modal === 'edit' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>
@@ -2191,7 +2194,7 @@ export default function UsersPage() {
 
       {/* ── CHANGE PASSWORD MODAL ── */}
       {modal === 'password' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface FollowUp {
   id: string;
@@ -38,6 +39,7 @@ const tomorrowStr = () => { const d = new Date(); d.setDate(d.getDate() + 1); re
 const weekEndStr = () => { const d = new Date(); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; };
 
 export default function FollowUpsPage() {
+  const confirm = useConfirm();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [pagination, setPagination] = useState<any>(null);
@@ -158,7 +160,7 @@ export default function FollowUpsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this follow-up?')) return;
+    if (!(await confirm('This follow-up will be permanently deleted.', { title: 'Delete this follow-up?', danger: true }))) return;
     const res = await fetch(`/api/followups/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     if (res.ok) { setFollowUps(prev => prev.filter(f => f.id !== id)); fetchCounts(); }
   };

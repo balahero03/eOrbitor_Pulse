@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface Order {
   id: string;
@@ -27,6 +28,7 @@ interface PaginationInfo {
 }
 
 export default function OrdersPage() {
+  const confirm = useConfirm();
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function OrdersPage() {
   );
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+    if (!(await confirm('This order will be permanently deleted. This cannot be undone.', { title: 'Delete order?', danger: true }))) return;
 
     try {
       const token = localStorage.getItem('token');

@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightRequest } from '@/lib/notificationHighlight';
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
+import { useToast } from '@/components/Toast';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'record' | 'access';
@@ -227,6 +228,7 @@ function cardBorder(status: Status) {
 
 // ── Record approvals ────────────────────────────────────────────────────────
 function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
+  const toast = useToast();
   const [requests, setRequests] = useState<RecordRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [loading, setLoading] = useState(true);
@@ -280,10 +282,10 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
         fetchCounts();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(`Failed to ${status === 'APPROVED' ? 'approve' : 'reject'}: ${err.error || err.message || 'Unknown error'}`);
+        toast.error(`Failed to ${status === 'APPROVED' ? 'approve' : 'reject'}: ${err.error || err.message || 'Unknown error'}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message || 'Failed to process request'}`);
+      toast.error(`Error: ${err.message || 'Failed to process request'}`);
     } finally { setProcessingId(null); }
   };
 
@@ -365,6 +367,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 
 // ── Access approvals ────────────────────────────────────────────────────────
 function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
+  const toast = useToast();
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'AFTER_HOURS' | 'ACTIVITY_UNLOCK'>('ALL');
@@ -415,10 +418,10 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
         fetchCounts();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(`Failed to ${action === 'APPROVE' ? 'approve' : 'reject'}: ${err.message || 'Unknown error'}`);
+        toast.error(`Failed to ${action === 'APPROVE' ? 'approve' : 'reject'}: ${err.message || 'Unknown error'}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message || 'Failed to process request'}`);
+      toast.error(`Error: ${err.message || 'Failed to process request'}`);
     } finally { setProcessingId(null); }
   };
 

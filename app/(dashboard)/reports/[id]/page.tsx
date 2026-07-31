@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { ReportIcon } from '@/components/icons';
+import { useToast } from '@/components/Toast';
 import { generatePersonalReportExcel } from '@/lib/excel-export';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -752,7 +753,7 @@ function downloadCSV(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-async function exportPersonalExcel(report: PersonalReport) {
+async function exportPersonalExcel(report: PersonalReport, onError: (message: string) => void) {
   try {
     const buffer = await generatePersonalReportExcel({
       user: report.user,
@@ -770,7 +771,7 @@ async function exportPersonalExcel(report: PersonalReport) {
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Export failed:', error);
-    alert('Failed to export report. Please try again.');
+    onError('Failed to export report. Please try again.');
   }
 }
 
@@ -828,6 +829,7 @@ export default function ReportViewPage() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -913,7 +915,7 @@ export default function ReportViewPage() {
           <div className="flex gap-2 flex-wrap print:hidden">
             <button
               onClick={() => {
-                if (report.reportType === 'PERSONAL') exportPersonalExcel(report as PersonalReport);
+                if (report.reportType === 'PERSONAL') exportPersonalExcel(report as PersonalReport, toast.error);
                 else if (report.reportType === 'TEAM') exportTeamCSV(report as TeamReport);
                 else exportPipelineCSV(report as PipelineReport);
               }}

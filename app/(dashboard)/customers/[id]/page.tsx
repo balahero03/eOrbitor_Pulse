@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { EditIcon, SuccessIcon } from '@/components/icons';
+import { useToast } from '@/components/Toast';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
 
@@ -47,6 +48,7 @@ const fmtDate = (d: string | undefined) =>
 export default function CustomerDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const toast = useToast();
   // Deep-linked from a customer notification — rings the main info card.
   const customerFlashId = useNotificationHighlight('customer');
   const [lead, setLead] = useState<Lead | null>(null);
@@ -97,7 +99,7 @@ export default function CustomerDetailPage() {
     setEditError('');
     const customerId = lead?.linkedCustomerId;
     if (!customerId) {
-      alert('This customer is not linked to a customer record yet and cannot be edited.');
+      toast.error('This customer is not linked to a customer record yet and cannot be edited.');
       return;
     }
     try {
@@ -125,7 +127,7 @@ export default function CustomerDetailPage() {
       });
       setShowEditModal(true);
     } catch {
-      alert('Could not load customer details for editing.');
+      toast.error('Could not load customer details for editing.');
     }
   };
 
@@ -163,7 +165,7 @@ export default function CustomerDetailPage() {
   const handleDeleteRequest = async () => {
     const customerId = lead?.linkedCustomerId;
     if (!customerId) {
-      alert('This customer is not linked to a customer record yet and cannot be deleted.');
+      toast.error('This customer is not linked to a customer record yet and cannot be deleted.');
       return;
     }
     setRequesting(true);
@@ -177,19 +179,19 @@ export default function CustomerDetailPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) { setDeleteSuccess(true); }
-        else { const e = await res.json(); alert(e.message || 'Failed to delete customer'); }
+        else { const e = await res.json(); toast.error(e.message || 'Failed to delete customer'); }
       } else {
         // Non-admins submit an approval request.
-        if (!deleteReason.trim()) { alert('Please enter a reason'); setRequesting(false); return; }
+        if (!deleteReason.trim()) { toast.error('Please enter a reason'); setRequesting(false); return; }
         const res = await fetch('/api/approval-requests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ entityId: customerId, type: 'CUSTOMER_DELETE', reason: deleteReason }),
         });
         if (res.ok) { setDeleteSuccess(true); }
-        else { const e = await res.json(); alert(e.message || 'Failed to submit request'); }
+        else { const e = await res.json(); toast.error(e.message || 'Failed to submit request'); }
       }
-    } catch { alert('An error occurred'); }
+    } catch { toast.error('An error occurred'); }
     finally { setRequesting(false); }
   };
 
@@ -478,7 +480,7 @@ export default function CustomerDetailPage() {
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
               <h2 className="text-lg font-bold text-gray-900">Edit Customer</h2>
@@ -599,7 +601,7 @@ export default function CustomerDetailPage() {
 
       {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon } from '@/components/icons';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
+import { useToast } from '@/components/Toast';
 
 interface Order {
   id: string;
@@ -52,6 +53,7 @@ const paymentColor: Record<string, string> = {
 export default function OrderDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const toast = useToast();
   // Deep-linked from an order notification — rings the order's main card.
   const orderFlashId = useNotificationHighlight('order');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -116,7 +118,7 @@ export default function OrderDetailPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('File must be under 5 MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('File must be under 5 MB'); return; }
     const reader = new FileReader();
     reader.onload = () => setEditProof({ name: file.name, dataUrl: reader.result as string });
     reader.readAsDataURL(file);
@@ -141,11 +143,11 @@ export default function OrderDetailPage() {
           paymentProofUrl: editProof?.dataUrl ?? null,
         }),
       });
-      if (!res.ok) { alert('Failed to save'); return; }
+      if (!res.ok) { toast.error('Failed to save'); return; }
       const updated = await res.json();
       setOrder(updated);
       setShowEdit(false);
-    } catch { alert('An error occurred'); }
+    } catch { toast.error('An error occurred'); }
     finally { setSaving(false); }
   };
 
@@ -186,20 +188,20 @@ export default function OrderDetailPage() {
           setDeleteSuccess(true);
         } else {
           const e = await res.json();
-          alert(e.message || 'Failed to delete order');
+          toast.error(e.message || 'Failed to delete order');
         }
       } else {
         // Non-admins submit an approval request.
-        if (!deleteReason.trim()) { alert('Please enter a reason'); setRequesting(false); return; }
+        if (!deleteReason.trim()) { toast.error('Please enter a reason'); setRequesting(false); return; }
         const res = await fetch('/api/approval-requests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ entityId: id, type: 'ORDER_DELETE', reason: deleteReason }),
         });
         if (res.ok) { setDeleteSuccess(true); }
-        else { const e = await res.json(); alert(e.message || 'Failed to submit request'); }
+        else { const e = await res.json(); toast.error(e.message || 'Failed to submit request'); }
       }
-    } catch { alert('An error occurred'); }
+    } catch { toast.error('An error occurred'); }
     finally { setRequesting(false); }
   };
 
@@ -424,7 +426,7 @@ export default function OrderDetailPage() {
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
       {showEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="border-b px-6 py-4 flex items-center justify-between flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">Edit Order</h2>
@@ -548,7 +550,7 @@ export default function OrderDetailPage() {
 
       {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">

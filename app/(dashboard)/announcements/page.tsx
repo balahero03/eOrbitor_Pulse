@@ -8,6 +8,8 @@ import { AnnouncementIcon, ClipboardIcon, CloseIcon } from '@/components/icons';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass, requestHighlight } from '@/lib/notificationHighlight';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface Announcement {
   id: string;
@@ -25,6 +27,8 @@ interface Announcement {
 export default function AnnouncementsPage() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN']);
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   // Deep-linked from the search dropdown (no detail route — rings the card).
   const flashAnnouncementId = useNotificationHighlight('announcement');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -84,7 +88,7 @@ export default function AnnouncementsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.content) {
-      alert('Title and content are required');
+      toast.warning('Title and content are required');
       return;
     }
 
@@ -110,9 +114,9 @@ export default function AnnouncementsPage() {
       setShowModal(false);
       resetForm();
       fetchAnnouncements();
-      alert(editingId ? 'Announcement updated' : 'Announcement created');
+      toast.success(editingId ? 'Announcement updated' : 'Announcement created');
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -130,12 +134,12 @@ export default function AnnouncementsPage() {
       if (!res.ok) throw new Error('Failed to update announcement');
       fetchAnnouncements();
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    if (!(await confirm('This announcement will be permanently deleted.', { title: 'Delete this announcement?', danger: true }))) return;
 
     const token = localStorage.getItem('token');
     try {
@@ -147,7 +151,7 @@ export default function AnnouncementsPage() {
       if (!res.ok) throw new Error('Failed to delete announcement');
       fetchAnnouncements();
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message);
     }
   };
 
@@ -325,7 +329,7 @@ export default function AnnouncementsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg font-bold">

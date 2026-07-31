@@ -102,7 +102,7 @@ function normalizeActivity(raw: ActivityEntry | string) {
 function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }) {
   const entries: (ActivityEntry | string)[] = Array.isArray(rec.activities) ? rec.activities : [];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">

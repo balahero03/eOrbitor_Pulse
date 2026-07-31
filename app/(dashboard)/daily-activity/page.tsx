@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import TimeField from '@/components/TimeField';
 import { ActivityIcon, ActivityChip, LockIcon, ClipboardIcon, PendingIcon, ErrorIcon, EditIcon, QuotationIcon, OrderIcon, CheckGlyph } from '@/components/icons';
+import { useToast } from '@/components/Toast';
 
 const ACTIVITY_MODES = [
   { value: 'MEETING', label: 'Meeting' },
@@ -198,6 +199,7 @@ function EntryCard({ entry, idx }: { entry: ActivityEntry; idx: number }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function DailyActivityContent() {
+  const toast = useToast();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
   const today = new Date().toISOString().slice(0, 10);
@@ -271,8 +273,8 @@ function DailyActivityContent() {
         }),
       });
       if (res.ok) { setEditing(false); fetchActivity(); }
-      else { const e = await res.json(); alert(e.error || 'Failed to save'); }
-    } catch { alert('An error occurred.'); }
+      else { const e = await res.json(); toast.error(e.error || 'Failed to save'); }
+    } catch { toast.error('An error occurred.'); }
     finally { setSaving(false); }
   };
 
@@ -296,12 +298,12 @@ function DailyActivityContent() {
       setLogoutTime(json.data.logoutTime ? new Date(json.data.logoutTime).toTimeString().slice(0, 5) : '');
       setWorkHoursSaved(true);
       setTimeout(() => setWorkHoursSaved(false), 2500);
-    } catch (err) { alert(err instanceof Error ? err.message : 'An error occurred.'); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'An error occurred.'); }
     finally { setSavingWorkHours(false); }
   };
 
   const handleUnlockRequest = async () => {
-    if (!unlockReason.trim()) { alert('Please provide a reason.'); return; }
+    if (!unlockReason.trim()) { toast.warning('Please provide a reason.'); return; }
     setRequestingUnlock(true);
     try {
       const token = localStorage.getItem('token');
@@ -311,9 +313,9 @@ function DailyActivityContent() {
         body: JSON.stringify({ date: selectedDate, reason: unlockReason }),
       });
       const data = await res.json();
-      if (res.ok) { alert('Request submitted. Admin/Support will review it.'); setShowUnlockModal(false); setUnlockReason(''); fetchActivity(); }
-      else alert(data.message || 'Failed');
-    } catch { alert('An error occurred.'); }
+      if (res.ok) { toast.success('Request submitted. Admin/Support will review it.'); setShowUnlockModal(false); setUnlockReason(''); fetchActivity(); }
+      else toast.error(data.message || 'Failed');
+    } catch { toast.error('An error occurred.'); }
     finally { setRequestingUnlock(false); }
   };
 
@@ -553,7 +555,7 @@ function DailyActivityContent() {
 
       {/* Unlock Request Modal */}
       {showUnlockModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Date Unlock</h2>
             <p className="text-sm text-gray-500 mb-1"><strong>{dateLabel}</strong></p>

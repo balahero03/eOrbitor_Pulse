@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { QuotationIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import { useToast } from '@/components/Toast';
 
 interface Quotation {
   id: string;
@@ -36,6 +37,7 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function QuotationsPage() {
+  const toast = useToast();
   const { user: currentUser } = useCurrentUser();
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
 
@@ -77,10 +79,10 @@ export default function QuotationsPage() {
         const d = await res.json();
         setRestrictionsDisabled(!!d.restrictionsDisabled);
       } else {
-        alert('Failed to update the setting. Please try again.');
+        toast.error('Failed to update the setting. Please try again.');
       }
     } catch {
-      alert('Failed to update the setting. Please try again.');
+      toast.error('Failed to update the setting. Please try again.');
     } finally {
       setTogglingPolicy(false);
     }

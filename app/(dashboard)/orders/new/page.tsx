@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AttachmentIcon, QuotationIcon, CloseIcon } from '@/components/icons';
+import { useToast } from '@/components/Toast';
 
 interface WonLead {
   id: string;
@@ -24,6 +25,7 @@ const PAYMENT_MODES = ['Bank Transfer', 'Cheque', 'Cash', 'UPI', 'NEFT', 'RTGS',
 
 export default function NewOrderPage() {
   const router = useRouter();
+  const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [wonLeads, setWonLeads] = useState<WonLead[]>([]);
@@ -104,7 +106,7 @@ export default function NewOrderPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('File must be under 5 MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('File must be under 5 MB'); return; }
     const reader = new FileReader();
     reader.onload = () => setProofFile({ name: file.name, dataUrl: reader.result as string });
     reader.readAsDataURL(file);

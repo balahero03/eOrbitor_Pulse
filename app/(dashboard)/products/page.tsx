@@ -64,7 +64,7 @@ function ProductModal({
     setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) }));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -656,7 +656,7 @@ export default function ProductsPage() {
 
       {/* Delete Confirm */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-red-600 mb-2">Deactivate Product?</h2>
             <p className="text-sm text-gray-600 mb-5">

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import TimeField from '@/components/TimeField';
 import { FollowUpIcon } from '@/components/icons';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface FollowUp {
   id: string;
@@ -24,6 +25,7 @@ interface FollowUp {
 export default function FollowUpDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const confirm = useConfirm();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,7 +119,7 @@ export default function FollowUpDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Delete this follow-up?')) return;
+    if (!(await confirm('This follow-up will be permanently deleted.', { title: 'Delete this follow-up?', danger: true }))) return;
 
     try {
       const token = localStorage.getItem('token');

@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import RichTextEditor from '@/components/RichTextEditor';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface Task {
   id: string;
@@ -25,6 +27,8 @@ export default function TaskDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const { user: currentUser } = useCurrentUser();
+  const toast = useToast();
+  const confirm = useConfirm();
   const isAdminUser = !!currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,19 +140,19 @@ export default function TaskDetailPage() {
       const updated = await res.json();
       setTask(updated);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update status');
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancelTask = async () => {
-    if (!confirm('Cancel this task?')) return;
+    if (!(await confirm('This task will be marked as cancelled.', { title: 'Cancel this task?' }))) return;
     await handleStatusChange('CANCELLED');
   };
 
   const handleDeleteTask = async () => {
-    if (!confirm('Delete this task?')) return;
+    if (!(await confirm('This task will be permanently deleted. This cannot be undone.', { title: 'Delete this task?', danger: true }))) return;
 
     try {
       const token = localStorage.getItem('token');

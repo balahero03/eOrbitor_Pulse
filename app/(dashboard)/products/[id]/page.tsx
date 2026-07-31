@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface VendorProduct {
   vendorId: string;
@@ -29,6 +30,7 @@ interface Product {
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -102,7 +104,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   const handleDeleteProduct = async () => {
-    if (!confirm('Deactivate this product?')) return;
+    if (!(await confirm('This product will be marked inactive and hidden from the catalog.', { title: 'Deactivate this product?' }))) return;
 
     try {
       const token = localStorage.getItem('token');

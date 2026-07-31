@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface Quotation {
   id: string;
@@ -37,6 +39,8 @@ export default function QuotationDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const { user: currentUser } = useCurrentUser();
+  const toast = useToast();
+  const confirm = useConfirm();
   const isAdminUser = !!currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,14 +137,14 @@ export default function QuotationDetailPage() {
       setRejectReason('');
     } catch (err) {
       console.error(err);
-      alert('Failed to reject quotation');
+      toast.error('Failed to reject quotation');
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure?')) return;
+    if (!(await confirm('This quotation will be permanently deleted. This cannot be undone.', { title: 'Delete quotation?', danger: true }))) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -446,7 +450,7 @@ export default function QuotationDetailPage() {
       </div>
 
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-red-600 mb-1">Reject Quotation</h2>
             <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
