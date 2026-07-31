@@ -201,7 +201,7 @@ export default function FollowUpsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Follow-ups</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Follow-ups</h1>
           <p className="text-sm text-gray-500 mt-0.5">Track all scheduled follow-up activities</p>
         </div>
         <Link href="/followups/new"
@@ -242,10 +242,14 @@ export default function FollowUpsPage() {
       </div>
 
       {/* Filters + View toggle */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <div className="flex flex-wrap gap-3 items-end">
+      {/* Mobile lays the controls out as a 2-column grid (search spanning the
+          full width) instead of a wrapping flex row — at ~360px the old row
+          pushed the date inputs past the card edge. From sm up it returns to
+          the single wrapping row the other list pages use. */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 max-w-full overflow-hidden">
+        <div className="grid grid-cols-2 gap-3 items-end sm:flex sm:flex-wrap">
           {/* Search */}
-          <div className="flex-1 min-w-[180px]">
+          <div className="col-span-2 sm:flex-1 sm:min-w-[180px] min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
             <LiveSearchDropdown<FollowUp>
               value={search}
@@ -262,10 +266,10 @@ export default function FollowUpsPage() {
           </div>
 
           {/* Type */}
-          <div>
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
             <select value={type} onChange={e => { setType(e.target.value); resetPage(); }}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              className="w-full sm:w-auto border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">All Types</option>
               <option value="CALL">Call</option>
               <option value="EMAIL">Email</option>
@@ -276,10 +280,10 @@ export default function FollowUpsPage() {
           </div>
 
           {/* Status */}
-          <div>
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
             <select value={status} onChange={e => { setStatus(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              className="w-full sm:w-auto border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">All Status</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
@@ -288,33 +292,35 @@ export default function FollowUpsPage() {
           </div>
 
           {/* Date range */}
-          <div>
+          {/* w-full min-w-0 matters on iOS: a bare date input keeps its intrinsic
+              width and would otherwise overflow the grid cell rather than shrink. */}
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">From Date</label>
             <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              className="w-full sm:w-auto min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">To Date</label>
             <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              className="w-full sm:w-auto min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
           </div>
 
           {/* Clear */}
           {hasFilters && (
             <button onClick={clearFilters}
-              className="px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
+              className="col-span-2 sm:col-auto px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
               Clear
             </button>
           )}
 
           {/* View toggle */}
-          <div className="ml-auto flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="col-span-2 sm:col-auto sm:ml-auto flex gap-1 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               <MenuIcon className="w-4 h-4" /> List
             </button>
             <button onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               <CalendarIcon className="w-4 h-4" color="text-current" /> Calendar
             </button>
           </div>
@@ -323,7 +329,7 @@ export default function FollowUpsPage() {
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -336,6 +342,60 @@ export default function FollowUpsPage() {
             </div>
           ) : (
             <>
+              {/* Mobile Card View (< 640px) — a 7-column table is unusable on a
+                  phone, so follow-ups get the same card treatment as the other
+                  list pages (leads, tasks, orders, quotations). */}
+              <div className="block sm:hidden divide-y divide-gray-100">
+                {followUps.map(f => {
+                  const done = !!f.actualDate;
+                  const overdue = isOverdue(f.scheduledDate, done);
+                  const today = isToday(f.scheduledDate);
+                  const tomorrow = isTomorrow(f.scheduledDate);
+                  const canDelete = currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || f.createdBy.id === currentUser.id);
+                  return (
+                    <div key={f.id} className={`p-4 space-y-2 ${overdue ? 'bg-red-50/40' : ''}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={`/followups/${f.id}`} className="block min-w-0 flex-1 active:text-blue-600">
+                          <p className="font-bold text-gray-900 text-sm truncate">{f.deal.customer.companyName}</p>
+                          {f.lead && <p className="text-xs text-gray-400 mt-0.5 truncate">{f.lead.name}</p>}
+                        </Link>
+                        {done ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-semibold flex-shrink-0"><CheckGlyph className="w-3 h-3" /> Done</span>
+                        ) : overdue ? (
+                          <span className="text-[11px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold flex-shrink-0">Overdue</span>
+                        ) : (
+                          <span className="text-[11px] px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-semibold flex-shrink-0">Pending</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                          <FollowUpIcon type={f.type} className="w-3 h-3" /> {f.type.replace('_', ' ')}
+                        </span>
+                        <span className="text-xs text-gray-600 font-medium">{fmtDate(f.scheduledDate)}</span>
+                        <span className="text-[11px] text-gray-400">{fmtTime(f.scheduledDate)}</span>
+                        {today && !done && <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">Today</span>}
+                        {tomorrow && !done && <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">Tomorrow</span>}
+                      </div>
+
+                      {f.notes && <p className="text-xs text-gray-500 line-clamp-2">{f.notes}</p>}
+
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                        <span className="text-[11px] text-gray-400">by {f.createdBy.firstName}</span>
+                        <div className="flex items-center gap-3">
+                          <Link href={`/followups/${f.id}`} className="text-blue-600 text-xs font-semibold">View Details</Link>
+                          {canDelete && (
+                            <button onClick={() => handleDelete(f.id)} className="text-red-500 text-xs font-semibold">Delete</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop / Tablet Table View (>= 640px) */}
+              <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -410,11 +470,12 @@ export default function FollowUpsPage() {
                   })}
                 </tbody>
               </table>
+              </div>
 
               {/* Pagination */}
               {pagination && pagination.pages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                  <p className="text-sm text-gray-500">
+                <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 px-4 py-3 border-t border-gray-100">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     {pagination.total} results · page {page} of {pagination.pages}
                   </p>
                   <div className="flex gap-2">
@@ -445,11 +506,17 @@ export default function FollowUpsPage() {
             <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
               className="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">Next →</button>
           </div>
-          <div className="grid grid-cols-7 border-t border-l border-gray-100">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-              <div key={d} className="border-r border-b border-gray-100 p-2 text-center text-xs font-bold text-gray-400 bg-gray-50">{d}</div>
-            ))}
-            {renderCalendar()}
+          {/* Seven columns inside a 360px phone leaves ~45px per day, which
+              crushes the entry labels to a couple of characters. Give the grid
+              a floor width and let it scroll sideways instead — the month stays
+              readable, and it still fills the card on wider screens. */}
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="grid grid-cols-7 border-t border-l border-gray-100 min-w-[560px]">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                <div key={d} className="border-r border-b border-gray-100 p-2 text-center text-xs font-bold text-gray-400 bg-gray-50">{d}</div>
+              ))}
+              {renderCalendar()}
+            </div>
           </div>
           <div className="mt-3 flex gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-100 inline-block" /> Scheduled</span>

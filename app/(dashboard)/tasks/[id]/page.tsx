@@ -213,7 +213,7 @@ export default function TaskDetailPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{task.title}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">{task.title}</h1>
           {originBadge && (
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${originBadge.className}`}>
               {originBadge.label}

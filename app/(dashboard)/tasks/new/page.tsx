@@ -145,7 +145,7 @@ export default function NewTaskPage() {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-gray-200">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
             {isAssignMode ? 'Assign New Task' : 'Create New Task'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">

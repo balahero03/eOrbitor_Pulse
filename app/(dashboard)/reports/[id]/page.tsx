@@ -418,7 +418,10 @@ function PersonalView({ report }: { report: PersonalReport }) {
               <p className="text-xs text-green-600 mt-1">Weighted Forecast</p>
             </div>
           </div>
-          <table className="w-full text-sm">
+          {/* Four money columns cannot fit a phone; scroll rather than let the
+              card overflow the page (the other tables here already do this). */}
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[420px]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
@@ -445,6 +448,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
               ))}
             </tbody>
           </table>
+          </div>
         </SectionCard>
       )}
 
@@ -494,7 +498,8 @@ function PersonalView({ report }: { report: PersonalReport }) {
               <p className="text-xs text-gray-500 mt-1">Lost Value</p>
             </div>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[360px]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
@@ -512,6 +517,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
               ))}
             </tbody>
           </table>
+          </div>
         </SectionCard>
       )}
     </div>

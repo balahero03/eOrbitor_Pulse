@@ -6,6 +6,14 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // `xs` covers the gap between a narrow phone (~360px) and Tailwind's
+      // default `sm` (640px), which is really a tablet breakpoint. Several
+      // places already wrote `hidden xs:inline` expecting this to exist; with
+      // no `xs` screen defined those classes were never generated, so the
+      // elements stayed hidden at every width.
+      screens: {
+        xs: '480px',
+      },
       colors: {
         primary: '#0066CC',
         secondary: '#1F2937',

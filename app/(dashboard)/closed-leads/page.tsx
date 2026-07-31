@@ -80,7 +80,7 @@ export default function ClosedLeadsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Closed Leads</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Closed Leads</h1>
           <p className="text-sm text-gray-500">Won, Lost and Dropped opportunities</p>
         </div>
         <Link href="/leads" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center w-full sm:w-auto">

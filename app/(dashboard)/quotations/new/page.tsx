@@ -202,7 +202,7 @@ export default function NewQuotationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">New Quotation</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Quotation</h1>
           <p className="text-sm text-gray-500 mt-0.5">Create a quotation from a won lead</p>
         </div>
         <Link href="/quotations" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">

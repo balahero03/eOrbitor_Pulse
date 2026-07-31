@@ -62,11 +62,22 @@ const PRIORITY_BADGE: Record<string, string> = {
 
 function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
   if (!announcements?.length) return null;
+  // The dashboard is a summary, but this panel used to render every published
+  // announcement — on a phone that filled the whole first screen and pushed the
+  // KPIs below the fold. Cap it and link out to the full list, matching how the
+  // other panels on this page ("All leads", "View all") behave.
+  const MAX_SHOWN = 3;
+  const shown = announcements.slice(0, MAX_SHOWN);
   return (
-    <div className="bg-white rounded-xl border p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2"><AnnouncementIcon className="w-5 h-5" /> Announcements</h2>
+    <div className="bg-white rounded-xl border p-4 sm:p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2"><AnnouncementIcon className="w-5 h-5" /> Announcements</h2>
+        <Link href="/announcements" className="text-xs text-blue-600 hover:underline flex-shrink-0">
+          {announcements.length > MAX_SHOWN ? `View all (${announcements.length})` : 'View all'}
+        </Link>
+      </div>
       <div className="space-y-3">
-        {announcements.map((a: any) => (
+        {shown.map((a: any) => (
           <div key={a.id} className={`rounded-lg border-l-4 px-4 py-3 ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.NORMAL}`}>
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-semibold text-gray-900">{a.title}</p>
@@ -74,7 +85,7 @@ function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
                 {a.priority}
               </span>
             </div>
-            <p className="text-xs text-gray-600 mt-1">{a.content}</p>
+            <p className="text-xs text-gray-600 mt-1 line-clamp-3 sm:line-clamp-none">{a.content}</p>
             {a.publishedAt && (
               <p className="text-[10px] text-gray-400 mt-1">
                 {new Date(a.publishedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -99,7 +110,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Workspace</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My Workspace</h1>
           <p className="text-sm text-gray-500">{today}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -113,7 +124,8 @@ export default function SalesExecDashboard({ data }: { data: any }) {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {/* Two-up on phones — see the note in ManagerDashboard. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard label="My Leads" value={stats.myLeadsTotal} color="text-blue-600" href="/leads" />
         <StatCard label="Won This Month" value={stats.wonThisMonth} color="text-green-600" />
         <StatCard label="Follow-ups Today" value={stats.followUpsToday} color={stats.followUpsToday > 0 ? 'text-blue-600' : 'text-gray-400'} />
@@ -249,7 +261,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
           <p className="text-sm text-gray-400 text-center py-4">No leads yet. <Link href="/leads/new" className="text-blue-600 hover:underline">Create your first lead</Link></p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[420px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-2 text-xs font-medium text-gray-500">Lead</th>

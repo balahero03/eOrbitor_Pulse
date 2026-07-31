@@ -81,7 +81,7 @@ export default function NewLeadPage() {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">New Lead (Suspect)</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Lead (Suspect)</h1>
         <Link href="/leads" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center w-full sm:w-auto">Back to Leads</Link>
       </div>
 
