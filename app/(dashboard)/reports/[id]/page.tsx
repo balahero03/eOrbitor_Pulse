@@ -876,7 +876,7 @@ export default function ReportViewPage() {
           <ReportIcon className="w-12 h-12 mx-auto text-gray-300" />
           <p className="text-gray-700 font-semibold">Report not found</p>
           <p className="text-sm text-gray-400">This report may have been deleted or you don't have access.</p>
-          <button onClick={() => router.push('/reports')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          <button onClick={() => router.push('/reports')} className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
             Back to Reports
           </button>
         </div>
@@ -917,13 +917,13 @@ export default function ReportViewPage() {
                 else if (report.reportType === 'TEAM') exportTeamCSV(report as TeamReport);
                 else exportPipelineCSV(report as PipelineReport);
               }}
-              className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+              className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors shadow-sm"
             >
               Export Excel
             </button>
             <button
               onClick={handlePrint}
-              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors shadow-sm"
             >
               Export PDF
             </button>

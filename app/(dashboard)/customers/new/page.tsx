@@ -242,7 +242,7 @@ export default function NewCustomerPage() {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Add Customer</h1>
         <Link
           href="/customers"
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center w-full sm:w-auto"
+          className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto"
         >
           Back to Customers
         </Link>

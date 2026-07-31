@@ -222,11 +222,11 @@ export default function OrderDetailPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={openEdit}
-            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
           >
             <EditIcon className="w-4 h-4" /> Edit
           </button>
-          <Link href="/orders" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 whitespace-nowrap">
+          <Link href="/orders" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap">
             ← Orders
           </Link>
         </div>

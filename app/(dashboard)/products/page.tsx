@@ -403,14 +403,14 @@ export default function ProductsPage() {
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-sm text-gray-500">Product catalog &amp; inventory</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Product catalog &amp; inventory</p>
         </div>
         {canManage && (
           <button onClick={openAdd}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm text-center w-full sm:w-auto">
+            className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center w-full sm:w-auto">
             + Add Product
           </button>
         )}

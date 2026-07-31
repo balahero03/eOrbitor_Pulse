@@ -757,9 +757,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {notifOpen && (
-                <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-11 w-[calc(100vw-1rem)] max-w-sm sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-5rem)] sm:max-h-[28rem] mx-auto sm:mx-0">
+                <>
+                  {/* Scrim (mobile only). Without it the panel reads as part of
+                      the page rather than a floating overlay, and there is no
+                      large target to dismiss it by tapping away. */}
+                  <div
+                    className="fixed inset-0 bg-black/30 z-[90] sm:hidden"
+                    onClick={() => setNotifOpen(false)}
+                    aria-hidden="true"
+                  />
+                  {/* The old max-height reserved only 5rem, but the sticky header
+                      (3.5rem) and the mobile bottom nav (3.5rem + safe area)
+                      together need ~9rem — so the panel ran underneath the nav and
+                      swallowed the screen. Reserve 10rem and it floats clear of both. */}
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem]">
                   {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+                  <div className="flex items-center justify-between px-4 py-2.5 sm:py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>
                       <span className="text-sm font-bold text-gray-900">Notifications</span>
                       {notifications.length > 0 && (
@@ -807,22 +820,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                   tabIndex={0}
                                   onClick={() => handleNotifClick(n)}
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n); } }}
-                                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
+                                  className={`w-full text-left px-3.5 py-2.5 sm:px-4 sm:py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
                                     !n.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''
                                   } ${!isLast ? 'border-b border-gray-100' : ''}`}
                                 >
-                                  <div className="flex items-start gap-3">
+                                  <div className="flex items-start gap-2.5">
                                     {/* Read indicator dot */}
                                     <span
-                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5"
+                                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 mt-1.5"
                                       style={{ background: n.isRead ? '#e5e7eb' : '#3b82f6' }}
                                     />
 
-                                    {/* Notification content */}
+                                    {/* Notification content — a notification is a
+                                        glance, not an article: the body sat at the
+                                        same size as the title, making every row
+                                        ~100px tall on a phone. */}
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-semibold text-gray-900 truncate">{n.title}</p>
-                                      <p className="text-sm text-gray-600 mt-1 line-clamp-2 break-words">{n.message}</p>
-                                      <p className="text-xs text-gray-400 mt-1.5">
+                                      <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate">{n.title}</p>
+                                      <p className="text-xs sm:text-[13px] text-gray-600 mt-0.5 line-clamp-2 break-words">{n.message}</p>
+                                      <p className="text-[11px] text-gray-400 mt-1">
                                         {new Date(n.createdAt).toLocaleString('en-IN', {
                                           day: 'numeric',
                                           month: 'short',
@@ -833,11 +849,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                       </p>
                                     </div>
 
-                                    {/* Delete button on hover */}
+                                    {/* Delete. Revealing this on hover alone meant it
+                                        was unreachable on a touch device, so it stays
+                                        visible on mobile and keeps the hover reveal
+                                        on pointer devices. */}
                                     <button
                                       onClick={(e) => deleteNotification(n.id, e)}
-                                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded transition-all flex-shrink-0 text-gray-400 hover:text-red-500"
+                                      className="p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 rounded transition-all flex-shrink-0 text-gray-400 hover:text-red-500"
                                       title="Delete notification"
+                                      aria-label="Delete notification"
                                     >
                                       <svg
                                         className="w-4 h-4"
@@ -865,7 +885,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   {/* Footer with action buttons */}
                   {notifications.length > 0 && (
-                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2 flex-shrink-0">
+                    <div className="px-4 py-2.5 sm:py-3 border-t border-gray-100 bg-gray-50 flex gap-2 flex-shrink-0">
                       {notifications.some(n => n.isRead) && (
                         <button
                           onClick={clearReadNotifications}
@@ -882,7 +902,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </button>
                     </div>
                   )}
-                </div>
+                  </div>
+                </>
               )}
             </div>
 

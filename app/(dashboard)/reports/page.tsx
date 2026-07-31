@@ -166,9 +166,9 @@ export default function ReportsPage() {
       <div className="max-w-6xl mx-auto">
 
         {/* Page header */}
-        <div className="mb-6">
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sales Reports</h1>
-          <p className="text-sm text-gray-500 mt-1">Generate detailed performance reports with custom date ranges</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Generate detailed performance reports with custom date ranges</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

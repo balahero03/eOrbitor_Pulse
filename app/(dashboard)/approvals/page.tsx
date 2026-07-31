@@ -152,7 +152,7 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
           <button
             key={it.key}
             onClick={() => onChange(it.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
               active ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
             }`}
           >

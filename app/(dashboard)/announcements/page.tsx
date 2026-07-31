@@ -201,16 +201,16 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{announcements.length} announcements</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{announcements.length} announcements</p>
         </div>
         <button
           onClick={openCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto"
+          className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
         >
-          <span className="text-lg">+</span> Create Announcement
+          <span className="text-lg leading-none">+</span> Create Announcement
         </button>
       </div>
 
@@ -427,7 +427,7 @@ export default function AnnouncementsPage() {
       )}
 
       <div className="mt-6">
-        <Link href="/dashboard" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+        <Link href="/dashboard" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors">
           ← Back to Dashboard
         </Link>
       </div>

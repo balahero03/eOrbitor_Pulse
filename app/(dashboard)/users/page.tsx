@@ -967,21 +967,21 @@ export default function UsersPage() {
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-sm text-gray-500 mt-1">{users.length} total · {totalActive} active</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{users.length} total · {totalActive} active</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setModal('team-view')}
-            className="px-4 py-2 text-sm rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium flex-1 sm:flex-none text-center"
+            className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors flex-1 sm:flex-none text-center"
           >
             Team Structure
           </button>
           {canEdit && (
-            <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
-              <span className="text-lg">+</span> Add User
+            <button onClick={openAdd} className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2 flex-1 sm:flex-none">
+              <span className="text-lg leading-none">+</span> Add User
             </button>
           )}
         </div>

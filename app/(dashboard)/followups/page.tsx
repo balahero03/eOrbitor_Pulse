@@ -199,13 +199,13 @@ export default function FollowUpsPage() {
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Follow-ups</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Track all scheduled follow-up activities</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Track all scheduled follow-up activities</p>
         </div>
         <Link href="/followups/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 text-center w-full sm:w-auto">
+          className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm">
           + Schedule Follow-up
         </Link>
       </div>

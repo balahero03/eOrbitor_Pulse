@@ -2576,7 +2576,7 @@ export default function LeadDetailPage() {
               </button>
             )}
             <button onClick={() => setShowFollowUpModal(true)}
-              className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg font-medium hover:bg-gray-50">
+              className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors">
               + Follow-up
             </button>
             {canEditDetails && (

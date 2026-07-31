@@ -172,7 +172,7 @@ export default function QuotationsPage() {
             </button>
           )}
           <Link href="/quotations/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap">
+            className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap">
             + New Quotation
           </Link>
         </div>

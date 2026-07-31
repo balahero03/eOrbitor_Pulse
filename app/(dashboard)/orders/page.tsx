@@ -155,7 +155,7 @@ export default function OrdersPage() {
         </div>
         <Link
           href="/orders/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm"
+          className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm"
         >
           + New Order
         </Link>
