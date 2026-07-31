@@ -317,9 +317,13 @@ function DailyActivityContent() {
     finally { setRequestingUnlock(false); }
   };
 
-  const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const dateLabel = (() => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-IN', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+  })();
 
   const totalMins = entries.reduce((sum, e) => {
     if (!e.timeIn || !e.timeOut) return sum;
@@ -356,8 +360,12 @@ function DailyActivityContent() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Daily Activity</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{dateLabel}</p>
         </div>
+        {/* Clearing a date input reports an empty value. Falling back to today
+            keeps the page on a real day — otherwise the header rendered
+            "Invalid Date" while the API, whose ?date= was blank, quietly served
+            today's log, and any save then failed with "Date is required". */}
         <input type="date" value={selectedDate} max={today}
-          onChange={e => setSelectedDate(e.target.value)}
+          onChange={e => setSelectedDate(e.target.value || today)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 w-full sm:w-auto font-medium text-gray-700 bg-gray-50/50" />
       </div>
 

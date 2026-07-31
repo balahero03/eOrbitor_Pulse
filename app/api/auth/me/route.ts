@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/jwt';
 
 
 export async function GET(req: NextRequest) {
+  // Outside the try/catch: a missing JWT_SECRET is a server misconfiguration,
+  // and must not be swallowed into the generic 401 below.
+  const secret = getJwtSecret();
+
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -11,7 +16,7 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
+    const decoded = jwt.verify(token, secret) as any;
 
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
 

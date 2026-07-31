@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/jwt';
 import { checkAccessGate, isExemptPath } from '@/lib/accessControl';
 
 export type AuthUser = {
@@ -21,9 +22,13 @@ export function withAuth(handler: Handler) {
     }
 
     const token = authHeader.split(' ')[1];
+    // Resolved outside the try/catch below so that a missing JWT_SECRET fails
+    // as a server error instead of being reported to every user as an expired
+    // token — a misconfigured deploy should be obvious, not look like mass logout.
+    const secret = getJwtSecret();
     let decoded: AuthUser;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as AuthUser;
+      decoded = jwt.verify(token, secret) as AuthUser;
     } catch {
       return NextResponse.json(
         { message: 'Invalid or expired token — please log in again' },

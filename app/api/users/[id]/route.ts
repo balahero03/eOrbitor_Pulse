@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { withAuth } from '@/lib/middleware/auth';
 import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
 
-export const GET = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withAuth(async (_req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
 
@@ -23,6 +23,7 @@ export const GET = withAuth(async (_req: NextRequest, _user, { params }: { param
         jobTitle: true,
         isActive: true,
         createdAt: true,
+        managerId: true,
       },
     });
 
@@ -30,7 +31,23 @@ export const GET = withAuth(async (_req: NextRequest, _user, { params }: { param
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    // This profile carries personal data (phone, employee ID, territory), and
+    // used to be readable by any authenticated user — so an on-field rep could
+    // dump an admin's details by id. Restrict it to the people who have a
+    // reason to see it: yourself, an admin, or your own manager.
+    const isSelf = auth.id === user.id;
+    const isDirectReport = auth.role === 'BACKEND_TEAM' && user.managerId === auth.id;
+    if (!isSelf && !isAdmin(auth.role) && !isDirectReport) {
+      return NextResponse.json(
+        { error: 'You do not have permission to view this user.' },
+        { status: 403 }
+      );
+    }
+
+    // managerId was selected only for the check above; keep the response shape
+    // as it was before.
+    const { managerId: _managerId, ...profile } = user;
+    return NextResponse.json(profile);
   } catch (err) {
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }

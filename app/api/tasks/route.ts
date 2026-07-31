@@ -30,6 +30,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const where: any = {};
 
   // Role-based scoping
+  let teamIds: string[] | null = null;
   if (user.role === 'ON_FIELD_TEAM') {
     where.assignedToId = user.id;
   } else if (user.role === 'BACKEND_TEAM') {
@@ -37,15 +38,27 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       where: { managerId: user.id },
       select: { id: true },
     });
-    const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
+    teamIds = [user.id, ...teamMembers.map((u) => u.id)];
     where.assignedToId = { in: teamIds };
   }
   // ADMIN/SUPER_ADMIN see all
 
   if (status) where.status = status;
   if (priority) where.priority = priority;
-  if (assignedToId && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
-    where.assignedToId = assignedToId;
+  // The assignedToId filter overwrites the team scope set above, so it has to
+  // be validated rather than just role-gated: a manager passing an id from
+  // outside their own reports would otherwise replace their scope with someone
+  // else's and read another team's tasks. Admins may filter to anyone;
+  // on-field users stay pinned to themselves and the param is ignored.
+  if (assignedToId) {
+    if (ADMIN_ROLES.includes(user.role)) {
+      where.assignedToId = assignedToId;
+    } else if (user.role === 'BACKEND_TEAM') {
+      if (!teamIds!.includes(assignedToId)) {
+        throw new ForbiddenError('You can only filter tasks within your own team.');
+      }
+      where.assignedToId = assignedToId;
+    }
   }
   if (search) {
     where.OR = [

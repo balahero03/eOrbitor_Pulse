@@ -6,6 +6,24 @@ import { ForbiddenError } from '@/lib/errors';
 
 const MANAGER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'];
 
+async function getTeamIds(managerId: string): Promise<string[]> {
+  const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
+  return [managerId, ...team.map((u) => u.id)];
+}
+
+// Whether `user` may see a lead assigned to `assignedToId` — the same rule the
+// leads routes use: on-field sees only their own, backend sees self + their
+// reports, admins see everything.
+async function canAccessLead(user: AuthUser, assignedToId: string | null): Promise<boolean> {
+  if (['SUPER_ADMIN', 'ADMIN'].includes(user.role)) return true;
+  if (user.role === 'ON_FIELD_TEAM') return assignedToId === user.id;
+  if (user.role === 'BACKEND_TEAM') {
+    if (!assignedToId) return false;
+    return (await getTeamIds(user.id)).includes(assignedToId);
+  }
+  return false;
+}
+
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -17,21 +35,35 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const where: any = {};
 
-  // If fetching by leadId, skip role scoping — the lead page already enforces access
-  if (!leadId) {
-    if (user.role === 'ON_FIELD_TEAM') {
-      where.createdById = user.id;
-    } else if (user.role === 'BACKEND_TEAM') {
-      const teamMembers = await prisma.user.findMany({
-        where: { managerId: user.id },
-        select: { id: true },
+  if (leadId) {
+    // Lead-scoped view. This branch used to skip role scoping entirely on the
+    // grounds that "the lead page already enforces access" — but that check is
+    // client-side, so any user could read another team's quotations (and their
+    // values) just by passing a guessed ?leadId=. Authorise against the lead
+    // itself instead: whoever can see the lead sees every quotation on it,
+    // including ones raised by a colleague, and nobody else sees any.
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { assignedToId: true, deletedAt: true },
+    });
+
+    if (!lead || lead.deletedAt) {
+      return NextResponse.json({
+        quotations: [],
+        pagination: { page, limit, total: 0, pages: 0 },
       });
-      const teamIds = [user.id, ...teamMembers.map((u) => u.id)];
-      where.createdById = { in: teamIds };
     }
+    if (!(await canAccessLead(user, lead.assignedToId))) {
+      throw new ForbiddenError('You do not have access to this lead.');
+    }
+
+    where.leadId = leadId;
+  } else if (user.role === 'ON_FIELD_TEAM') {
+    where.createdById = user.id;
+  } else if (user.role === 'BACKEND_TEAM') {
+    where.createdById = { in: await getTeamIds(user.id) };
   }
 
-  if (leadId) where.leadId = leadId;
   if (status) where.status = status;
   if (search) {
     where.OR = [
@@ -121,20 +153,47 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     if (resolvedLead.linkedCustomerId) {
       resolvedCustomerId = resolvedLead.linkedCustomerId;
     } else {
+      // Read-then-write: two quotations raised for the same unlinked lead at
+      // once would each see linkedCustomerId as null and create their own
+      // Customer, leaving duplicate companies in the master. Claim the link
+      // with a conditional update so exactly one writer can win; the loser
+      // drops its now-orphaned customer and reuses the winner's.
+      // The placeholder GST also carries a random suffix — Date.now() alone
+      // collides for two creates inside the same millisecond, and gstNumber
+      // is unique.
+      const placeholderGst = `PENDING-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const newCustomer = await prisma.customer.create({
         data: {
           companyName: resolvedLead.company,
-          gstNumber: `PENDING-${Date.now()}`,
+          gstNumber: placeholderGst,
           website: '',
           industry: '',
           billingAddress: resolvedLead.address ? { street: resolvedLead.address } : undefined,
         },
       });
-      resolvedCustomerId = newCustomer.id;
-      await prisma.lead.update({
-        where: { id: resolvedLead.id },
+
+      const claim = await prisma.lead.updateMany({
+        where: { id: resolvedLead.id, linkedCustomerId: null },
         data: { linkedCustomerId: newCustomer.id },
       });
+
+      if (claim.count === 1) {
+        resolvedCustomerId = newCustomer.id;
+      } else {
+        const winner = await prisma.lead.findUnique({
+          where: { id: resolvedLead.id },
+          select: { linkedCustomerId: true },
+        });
+        if (winner?.linkedCustomerId) {
+          resolvedCustomerId = winner.linkedCustomerId;
+          // Best-effort cleanup — the quotation is still valid if this fails.
+          await prisma.customer.delete({ where: { id: newCustomer.id } }).catch(() => {});
+        } else {
+          // Link vanished rather than being taken (lead deleted mid-flight);
+          // keep our customer instead of orphaning the quotation.
+          resolvedCustomerId = newCustomer.id;
+        }
+      }
     }
   }
 

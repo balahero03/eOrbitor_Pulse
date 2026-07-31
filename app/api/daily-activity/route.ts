@@ -9,8 +9,13 @@ function isWithinEditWindow(dateStr: string): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const actDate = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(actDate.getTime())) return false;
   const diffDays = Math.floor((today.getTime() - actDate.getTime()) / (1000 * 60 * 60 * 24));
-  return diffDays <= EDIT_WINDOW_DAYS;
+  // A future date yields a negative diff, which used to satisfy `<= 2` and so
+  // reported itself as editable — the UI then offered "+ Add Activity" for a
+  // day that hasn't happened, and POST rejected the save with "Cannot log
+  // future dates". The window only ever opens backwards.
+  return diffDays >= 0 && diffDays <= EDIT_WINDOW_DAYS;
 }
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/jwt';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 async function verifyAuth(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '');
   if (!token) throw new Error('Unauthorized');
 
+  // Resolved per-request rather than once at module load, so the secret is
+  // validated against the running environment (see lib/jwt.ts).
+  const secret = getJwtSecret();
   try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; role: string };
+    return jwt.verify(token, secret) as { id: string; role: string };
   } catch {
     throw new Error('Invalid token');
   }

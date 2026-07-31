@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { signToken } from '@/lib/jwt';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -74,11 +74,7 @@ export async function POST(req: NextRequest) {
     }
     // If already exists, loginTime stays as the first login of the day — don't overwrite
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'dev-secret',
-      { expiresIn: '30d' }
-    );
+    const token = signToken({ id: user.id, email: user.email, role: user.role });
 
     return NextResponse.json({
       token,
