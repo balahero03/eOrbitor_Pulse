@@ -139,17 +139,18 @@ function addKpiBlock(
     row.getCell(1).border = THIN_BORDER;
     row.getCell(1).alignment = { vertical: 'middle', indent: 1 };
 
-    row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: bg };
-    row.getCell(2).font = { size: 11, bold: true, color: BANNER_BG, name: 'Calibri' };
-    row.getCell(2).border = THIN_BORDER;
-    row.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
-    if (kpi.fmt === 'currency') row.getCell(2).numFmt = CURRENCY_FMT;
-    if (kpi.fmt === 'percent') row.getCell(2).numFmt = PERCENT_FMT;
-
-    for (let c = 3; c <= span; c++) {
-      sheet.getCell(row.number, c).fill = { type: 'pattern', pattern: 'solid', fgColor: bg };
-      sheet.getCell(row.number, c).border = THIN_BORDER;
-    }
+    // The value cell spans every remaining column instead of leaving them as
+    // bare bordered-but-empty cells — a KPI row only ever has one real value,
+    // so a wide sheet (sized for a wider table elsewhere on the same tab)
+    // used to trail off into dangling empty boxes past column 2.
+    if (span > 2) sheet.mergeCells(row.number, 2, row.number, span);
+    const valueCell = row.getCell(2);
+    valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: bg };
+    valueCell.font = { size: 11, bold: true, color: BANNER_BG, name: 'Calibri' };
+    valueCell.border = THIN_BORDER;
+    valueCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    if (kpi.fmt === 'currency') valueCell.numFmt = CURRENCY_FMT;
+    if (kpi.fmt === 'percent') valueCell.numFmt = PERCENT_FMT;
   });
   sheet.addRow([]);
 }
@@ -186,7 +187,7 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   const da0 = metrics.dailyActivity;
   const summary = workbook.addWorksheet('Summary', {
     pageSetup: { paperSize: 9, orientation: 'landscape' },
-    views: [{ showGridLines: true, state: 'frozen', ySplit: 4 }],
+    views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
   });
   summary.columns = [
     { width: 28 }, { width: 20 }, { width: 18 }, { width: 18 },
@@ -233,7 +234,7 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   if (da0?.dailyBreakdown?.length > 0) {
     const actSheet = workbook.addWorksheet('Daily Activity Log', {
       pageSetup: { paperSize: 9, orientation: 'landscape' },
-      views: [{ showGridLines: true, state: 'frozen', ySplit: 4 }],
+      views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
     });
     actSheet.columns = [
       { width: 16 }, { width: 14 }, { width: 18 }, { width: 18 },
@@ -308,7 +309,7 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   // ─── 3. Revenue & Deals Sheet ──────────────────────────────────────────────
   const revSheet = workbook.addWorksheet('Revenue & Deals', {
     pageSetup: { paperSize: 9, orientation: 'landscape' },
-    views: [{ showGridLines: true, state: 'frozen', ySplit: 4 }],
+    views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
   });
   revSheet.columns = [{ width: 30 }, { width: 20 }, { width: 18 }, { width: 18 }];
   bannerTitle(revSheet, 'Revenue & Deals Breakdown', periodLabel, 4);
@@ -327,8 +328,12 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   }
 
   if (topDeals && topDeals.length > 0) {
+    // d.closedDate already arrives as an 'en-IN' (DD/MM/YYYY) display string
+    // from the calculator. Re-parsing it with `new Date(...)` here read it as
+    // MM/DD/YYYY instead — silently swapping day and month for any day ≤ 12,
+    // and producing a literal "Invalid Date" cell for any day > 12.
     addTable(revSheet, 'Top Deals Won', ['Deal Name', 'Value', 'Closed Date', 'Status'],
-      topDeals.map((d) => [d.dealName, d.value, new Date(d.closedDate).toLocaleDateString('en-IN'), d.status]),
+      topDeals.map((d) => [d.dealName, d.value, d.closedDate, d.status]),
       { currencyCols: [1], statusCol: { index: 3, resolver: (v: string) => STATUS_STYLE[v] || null } },
     );
   }
@@ -336,7 +341,7 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   // ─── 4. Leads & Conversion Sheet ──────────────────────────────────────────
   const leadsSheet = workbook.addWorksheet('Leads & Conversion', {
     pageSetup: { paperSize: 9, orientation: 'landscape' },
-    views: [{ showGridLines: true }],
+    views: [{ showGridLines: false }],
   });
   leadsSheet.columns = [{ width: 24 }, { width: 16 }, { width: 16 }, { width: 16 }];
   bannerTitle(leadsSheet, 'Leads & Conversion', periodLabel, 4);
