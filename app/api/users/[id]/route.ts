@@ -74,12 +74,21 @@ export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { param
     }
 
     const isSelf = auth.id === id;
+    // A SUPER_ADMIN resetting another SUPER_ADMIN's password (account
+    // recovery) is the one deliberate exception to the seniority rule below —
+    // and only that: the request must touch password and nothing else, so a
+    // role/profile/deactivation change can't ride along with it.
+    const otherFields = { firstName, lastName, role, department, assignedTerritory, isActive, managerId, phone, employeeId, jobTitle, restore };
+    const isPasswordOnly = password && Object.values(otherFields).every(v => v === undefined);
+    const isSuperAdminPasswordReset =
+      auth.role === 'SUPER_ADMIN' && targetUser.role === 'SUPER_ADMIN' && !isSelf && isPasswordOnly;
+
     // You may only edit a user ranked strictly below you — editing yourself is
     // allowed for profile fields, but never your own role (guarded below).
     // This stops an ADMIN from deactivating, resetting, or demoting a
     // SUPER_ADMIN (or another ADMIN), which would otherwise sidestep the
     // delete-hierarchy rule.
-    if (!isSelf && !canManageUser(auth.role, targetUser.role)) {
+    if (!isSelf && !isSuperAdminPasswordReset && !canManageUser(auth.role, targetUser.role)) {
       return NextResponse.json(
         { error: 'You do not have permission to edit a user of this role.' },
         { status: 403 }

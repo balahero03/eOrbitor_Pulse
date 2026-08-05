@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { StarIconC, KeyIcon2, BriefcaseIcon2, UsersMultiIcon, BlockedIcon, CloseIcon } from '@/components/icons';
 import { canManageUser, roleRank } from '@/lib/roles';
@@ -153,11 +154,14 @@ function UserActionMenu({
   onDelete: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (ref.current && !ref.current.contains(target) && btnRef.current && !btnRef.current.contains(target)) {
         onOpenToggle(false);
       }
     };
@@ -165,10 +169,38 @@ function UserActionMenu({
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen]);
 
+  // The table this menu lives in scrolls horizontally (overflow-x-auto), which
+  // clips any absolutely-positioned child that extends past its bounds — so
+  // the dropdown was invisible even though the click handler fired fine.
+  // Portal it to <body> and position it from the button's viewport rect instead.
+  useEffect(() => {
+    if (!isOpen) { setMenuPos(null); return; }
+    const updatePos = () => {
+      const rect = btnRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const menuWidth = 192; // w-48
+      setMenuPos({
+        top: rect.bottom + window.scrollY + 6,
+        left: Math.min(rect.right, window.innerWidth - 8) + window.scrollX - menuWidth,
+      });
+    };
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [isOpen]);
+
   const hasEdit = canEdit && (canManageTarget(user) || isSelf(user));
   const hasAssignMgr = canEdit && canManageTarget(user) && user.role === 'ON_FIELD_TEAM';
   const hasSwitchRole = canEdit && canManageTarget(user) && (user.role === 'BACKEND_TEAM' || user.role === 'ON_FIELD_TEAM');
-  const hasPassword = canEdit && (canManageTarget(user) || isSelf(user));
+  // A SUPER_ADMIN may reset a peer SUPER_ADMIN's password (account recovery)
+  // even though canManageTarget blocks same-rank actions everywhere else —
+  // matches the one deliberate exception carved out server-side.
+  const isSuperAdminPeerReset = currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN' && !isSelf(user);
+  const hasPassword = canEdit && (canManageTarget(user) || isSelf(user) || isSuperAdminPeerReset);
   const hasToggleActive = canEdit && canManageTarget(user);
   const hasDelete = canEdit && canManageTarget(user);
 
@@ -177,8 +209,9 @@ function UserActionMenu({
   }
 
   return (
-    <div className="relative inline-block text-left" ref={ref}>
+    <div className="relative inline-block text-left">
       <button
+        ref={btnRef}
         onClick={(e) => {
           e.stopPropagation();
           onOpenToggle(!isOpen);
@@ -192,8 +225,12 @@ function UserActionMenu({
         </svg>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 text-left">
+      {isOpen && menuPos && createPortal(
+        <div
+          ref={ref}
+          style={{ position: 'absolute', top: menuPos.top, left: menuPos.left }}
+          className="w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 text-left"
+        >
           {hasEdit && (
             <button
               onClick={() => { onEdit(); onOpenToggle(false); }}
@@ -267,7 +304,8 @@ function UserActionMenu({
               Delete User
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1022,7 +1060,12 @@ export default function UsersPage() {
                   {/* Mobile Card View (< 640px) */}
                   <div className="block sm:hidden divide-y divide-gray-100">
                     {list.map(u => {
-                      const isMenuOpen = activeMenuUserId === u.id;
+                      // Prefixed so this (CSS-hidden but still DOM-mounted on
+                      // desktop) menu never opens in lockstep with the desktop
+                      // table's menu for the same user — two portaled dropdowns
+                      // stacking/racing each other made clicks on the visible
+                      // one unreliable.
+                      const isMenuOpen = activeMenuUserId === `mobile-${u.id}`;
                       return (
                         <div key={u.id} className="p-4 space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
@@ -1045,7 +1088,7 @@ export default function UsersPage() {
                               canManageTarget={canManageTarget}
                               isSelf={isSelf}
                               isOpen={isMenuOpen}
-                              onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
+                              onOpenToggle={(open) => setActiveMenuUserId(open ? `mobile-${u.id}` : null)}
                               onEdit={() => openEdit(u)}
                               onAssignManager={() => openAssignManager(u)}
                               onSwitchRole={() => openRoleSwitchModal(u)}
