@@ -180,7 +180,11 @@ function UserActionMenu({
   const hasEdit = canEdit && (canManageTarget(user) || isSelf(user));
   const hasAssignMgr = canEdit && canManageTarget(user) && user.role === 'ON_FIELD_TEAM';
   const hasSwitchRole = canEdit && canManageTarget(user) && (user.role === 'BACKEND_TEAM' || user.role === 'ON_FIELD_TEAM');
-  const hasPassword = canEdit && (canManageTarget(user) || isSelf(user));
+  // A SUPER_ADMIN may reset a peer SUPER_ADMIN's password (account recovery)
+  // even though canManageTarget blocks same-rank actions everywhere else —
+  // matches the one deliberate exception carved out server-side.
+  const isSuperAdminPeerReset = currentUser?.role === 'SUPER_ADMIN' && user.role === 'SUPER_ADMIN' && !isSelf(user);
+  const hasPassword = canEdit && (canManageTarget(user) || isSelf(user) || isSuperAdminPeerReset);
   const hasToggleActive = canEdit && canManageTarget(user);
   const hasDelete = canEdit && canManageTarget(user);
 
@@ -1036,7 +1040,12 @@ export default function UsersPage() {
                   {/* Mobile Card View (< 640px) */}
                   <div className="block sm:hidden divide-y divide-gray-100">
                     {list.map(u => {
-                      const isMenuOpen = activeMenuUserId === u.id;
+                      // Prefixed so this (CSS-hidden but still DOM-mounted on
+                      // desktop) menu never opens in lockstep with the desktop
+                      // table's menu for the same user — two portaled dropdowns
+                      // stacking/racing each other made clicks on the visible
+                      // one unreliable.
+                      const isMenuOpen = activeMenuUserId === `mobile-${u.id}`;
                       return (
                         <div key={u.id} className="p-4 space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
@@ -1059,7 +1068,7 @@ export default function UsersPage() {
                               canManageTarget={canManageTarget}
                               isSelf={isSelf}
                               isOpen={isMenuOpen}
-                              onOpenToggle={(open) => setActiveMenuUserId(open ? u.id : null)}
+                              onOpenToggle={(open) => setActiveMenuUserId(open ? `mobile-${u.id}` : null)}
                               onEdit={() => openEdit(u)}
                               onAssignManager={() => openAssignManager(u)}
                               onSwitchRole={() => openRoleSwitchModal(u)}
