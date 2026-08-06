@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { DropdownPortal } from '@/components/DropdownPortal';
 
 interface Lead {
   id: string;
@@ -77,7 +78,8 @@ function ActionMenu({
   userRole: string;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // ON_FIELD_TEAM cannot initiate any deletion — hide menu entirely
   const canRequestDelete = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(userRole);
@@ -85,7 +87,15 @@ function ActionMenu({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // The panel is portaled to document.body (see DropdownPortal), so a
+      // click inside it is no longer a descendant of the trigger — both
+      // refs need checking, or the menu would close before its own item's
+      // onClick fires.
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     };
@@ -96,8 +106,9 @@ function ActionMenu({
   if (!canRequestDelete) return null;
 
   return (
-    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
         title="Actions"
@@ -109,8 +120,8 @@ function ActionMenu({
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+      <DropdownPortal anchorRef={triggerRef} open={open} panelRef={panelRef}>
+        <div className="w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-scale-in origin-top-right">
           <button
             onClick={() => { onDelete(); setOpen(false); }}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -118,7 +129,7 @@ function ActionMenu({
             {isAdmin ? 'Delete' : 'Request Deletion'}
           </button>
         </div>
-      )}
+      </DropdownPortal>
     </div>
   );
 }

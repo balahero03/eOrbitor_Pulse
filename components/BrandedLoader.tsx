@@ -18,7 +18,13 @@ export function BrandedLoader({ message = 'Loading your workspace…' }: { messa
             style={{ animationDuration: '1000ms' }}
           />
           <div className="absolute inset-[10px] flex items-center justify-center animate-scale-in">
-            <Image src="/icon.png" alt="eOrbitor" width={56} height={56} priority className="drop-shadow-sm" />
+            {/* app/icon.png is the favicon/PWA asset and is deliberately
+                opaque (a solid white square) — correct for a home-screen
+                icon, wrong here where it sat on a gradient and read as a
+                stray white box. e-mark.png is the same mark with the
+                background properly removed (alpha-decontaminated edges, not
+                just a hard cutout) for use directly on colored surfaces. */}
+            <Image src="/e-mark.png" alt="eOrbitor" width={56} height={56} priority className="drop-shadow-sm" />
           </div>
         </div>
         <div

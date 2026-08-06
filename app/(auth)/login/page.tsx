@@ -54,7 +54,7 @@ export default function LoginPage() {
   if (entering) return <BrandedLoader message="Signing you in…" />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 via-white to-gray-100">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gray-50">
       <div className="w-full max-w-md animate-slide-up">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/60 p-6 sm:p-8">
           {/* Logo */}

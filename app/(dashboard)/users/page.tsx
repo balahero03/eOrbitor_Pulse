@@ -9,6 +9,7 @@ import { highlightRowClass, requestHighlight } from '@/lib/notificationHighlight
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { DropdownPortal } from '@/components/DropdownPortal';
 
 interface User {
   id: string;
@@ -154,12 +155,21 @@ function UserActionMenu({
   onToggleActive: () => void;
   onDelete: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // The panel is portaled to document.body (see DropdownPortal), so it's
+      // no longer a DOM descendant of the trigger button — both refs have to
+      // be checked, or any click inside the menu would look "outside" and
+      // close it before the item's own onClick even runs.
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
         onOpenToggle(false);
       }
     };
@@ -179,8 +189,9 @@ function UserActionMenu({
   }
 
   return (
-    <div className="relative inline-block text-left" ref={ref}>
+    <div className="relative inline-block text-left">
       <button
+        ref={triggerRef}
         onClick={(e) => {
           e.stopPropagation();
           onOpenToggle(!isOpen);
@@ -194,8 +205,8 @@ function UserActionMenu({
         </svg>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 text-left">
+      <DropdownPortal anchorRef={triggerRef} open={isOpen} panelRef={panelRef}>
+        <div className="w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 text-left animate-scale-in origin-top-right">
           {hasEdit && (
             <button
               onClick={() => { onEdit(); onOpenToggle(false); }}
@@ -270,7 +281,7 @@ function UserActionMenu({
             </button>
           )}
         </div>
-      )}
+      </DropdownPortal>
     </div>
   );
 }

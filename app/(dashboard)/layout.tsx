@@ -259,6 +259,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [accessBlocked, setAccessBlocked] = useState<{ date: string; windowStart: string; windowEnd: string } | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
@@ -593,6 +594,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const handleLogout = async () => {
+    // Shown instantly on click, same branded transition as signing in —
+    // otherwise the app just sits on the current page for however long the
+    // time-tracking call takes, which reads as an unresponsive click.
+    setLoggingOut(true);
     const token = localStorage.getItem('token');
     if (token) {
       await fetch('/api/time-tracking', {
@@ -613,6 +618,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }
   };
 
+
+  if (loggingOut) {
+    return <BrandedLoader message="Signing you out…" />;
+  }
 
   // Keep the loading screen up until the access-hours check has actually
   // come back — otherwise the real dashboard renders for one frame between
