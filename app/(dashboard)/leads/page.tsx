@@ -33,38 +33,38 @@ interface User {
 }
 
 const ALL_STATUSES = [
-  { value: 'SUSPECT',     label: 'Suspect' },
-  { value: 'PROSPECT',    label: 'Prospect' },
-  { value: 'PROPOSAL',    label: 'Proposal' },
+  { value: 'SUSPECT', label: 'Suspect' },
+  { value: 'PROSPECT', label: 'Prospect' },
+  { value: 'PROPOSAL', label: 'Proposal' },
   { value: 'NEGOTIATION', label: 'Negotiation' },
-  { value: 'CLOSURE',     label: 'Closure' },
-  { value: 'ON_HOLD',     label: 'On Hold' },
-  { value: 'DROPPED',     label: 'Dropped' },
+  { value: 'CLOSURE', label: 'Closure' },
+  { value: 'ON_HOLD', label: 'On Hold' },
+  { value: 'DROPPED', label: 'Dropped' },
 ];
 
 const ALL_SOURCES = [
-  { value: 'EMAIL',         label: 'Email' },
-  { value: 'WEBSITE',       label: 'Website' },
-  { value: 'REFERRAL',      label: 'Referral' },
-  { value: 'WALKIN',        label: 'Walk-in' },
-  { value: 'CALL',          label: 'Call' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'WEBSITE', label: 'Website' },
+  { value: 'REFERRAL', label: 'Referral' },
+  { value: 'WALKIN', label: 'Walk-in' },
+  { value: 'CALL', label: 'Call' },
   { value: 'ADVERTISEMENT', label: 'Advertisement' },
 ];
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'WON':         return 'bg-green-100 text-green-800 border-green-300';
-    case 'LOST':        return 'bg-red-100 text-red-800 border-red-300';
-    case 'CONVERTED':   return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'WON': return 'bg-green-100 text-green-800 border-green-300';
+    case 'LOST': return 'bg-red-100 text-red-800 border-red-300';
+    case 'CONVERTED': return 'bg-purple-100 text-purple-800 border-purple-300';
     case 'NEGOTIATION': return 'bg-orange-100 text-orange-800 border-orange-300';
-    case 'PROSPECT':    return 'bg-cyan-100 text-cyan-800 border-cyan-300';
-    case 'SUSPECT':     return 'bg-slate-100 text-slate-700 border-slate-300';
-    case 'PROPOSAL':    return 'bg-indigo-100 text-indigo-800 border-indigo-300';
-    case 'CLOSURE':     return 'bg-blue-100 text-blue-800 border-blue-300';
-    case 'DROPPED':     return 'bg-gray-100 text-gray-500 border-gray-300';
-    case 'ON_HOLD':     return 'bg-amber-100 text-amber-800 border-amber-300';
-    case 'REJECTED':    return 'bg-red-200 text-red-900 border-red-400';
-    default:            return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'PROSPECT': return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+    case 'SUSPECT': return 'bg-slate-100 text-slate-700 border-slate-300';
+    case 'PROPOSAL': return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+    case 'CLOSURE': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'DROPPED': return 'bg-gray-100 text-gray-500 border-gray-300';
+    case 'ON_HOLD': return 'bg-amber-100 text-amber-800 border-amber-300';
+    case 'REJECTED': return 'bg-red-200 text-red-900 border-red-400';
+    default: return 'bg-blue-50 text-blue-700 border-blue-200';
   }
 }
 
@@ -172,7 +172,7 @@ export default function LeadsPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(u => { if (u) setCurrentUser(u); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -322,11 +322,10 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2 flex-shrink-0 justify-end">
             <button
               onClick={() => setShowFilters(f => !f)}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
-                showFilters || activeFilterCount > 0
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || activeFilterCount > 0
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
@@ -501,9 +500,8 @@ export default function LeadsPage() {
       <div className="flex gap-2 overflow-x-auto pb-2 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         <button
           onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
-          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-            !applied.status ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-          }`}
+          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${!applied.status ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+            }`}
         >
           All
         </button>
@@ -516,11 +514,10 @@ export default function LeadsPage() {
               setApplied(f => ({ ...f, status: next }));
               setPage(1);
             }}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-              applied.status === s.value
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${applied.status === s.value
                 ? getStatusColor(s.value)
                 : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-            }`}
+              }`}
           >
             {s.label}
           </button>
@@ -590,8 +587,9 @@ export default function LeadsPage() {
           </div>
         ) : (
           <>
-            {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            {/* Card list (< 1024px). Eleven columns cannot be read on a tablet;
+                below lg the cards carry the same fields legibly. */}
+            <div className="block lg:hidden divide-y divide-gray-100">
               {leads.map((lead) => (
                 <div
                   key={lead.id}
@@ -645,9 +643,11 @@ export default function LeadsPage() {
               ))}
             </div>
 
-            {/* Desktop / Tablet Table View (>= 640px) */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm">
+            {/* Table (>= 1024px). min-w keeps the columns at a readable width and
+                lets the container scroll, instead of compressing every cell
+                until the text wraps mid-word. */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[1180px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Lead Number</th>

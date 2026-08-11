@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { passwordWarning, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 
 type Stage = 'request' | 'code' | 'password' | 'done';
 
@@ -171,6 +172,8 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  const warning = password ? passwordWarning(password, { email }) : null;
+
   const inputCls = 'w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500';
   const btnCls = 'w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2';
 
@@ -259,7 +262,14 @@ export default function ForgotPasswordPage() {
                     {showPassword ? <EyeSlashIcon className="w-[18px] h-[18px]" /> : <EyeIcon className="w-[18px] h-[18px]" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1.5">At least 8 characters. Avoid your name or email.</p>
+                {/* Advice, not a gate — the button stays enabled either way.
+                    Blocking on these rules just pushed people toward whatever
+                    the checker happened to accept. */}
+                {warning ? (
+                  <p className="text-xs text-amber-600 mt-1.5">{warning}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1.5">At least {PASSWORD_MIN_LENGTH} characters.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>

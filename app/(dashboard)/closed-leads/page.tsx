@@ -6,17 +6,17 @@ import { useRouter } from 'next/navigation';
 import { InboxIcon } from '@heroicons/react/24/outline';
 
 const TABS = [
-  { key: '',        label: 'All Closed' },
-  { key: 'WON',     label: 'Won → Orders' },
-  { key: 'LOST',    label: 'Lost' },
+  { key: '', label: 'All Closed' },
+  { key: 'WON', label: 'Won → Orders' },
+  { key: 'LOST', label: 'Lost' },
   { key: 'DROPPED', label: 'Dropped' },
 ];
 
 const STATUS_META: Record<string, { label: string; style: string }> = {
-  ORDER:   { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
-  WON:     { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
-  LOST:    { label: 'Lost',        style: 'bg-red-100 text-red-700 border-red-200' },
-  DROPPED: { label: 'Dropped',     style: 'bg-gray-100 text-gray-600 border-gray-200' },
+  ORDER: { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
+  WON: { label: 'Won → Order', style: 'bg-green-100 text-green-800 border-green-200' },
+  LOST: { label: 'Lost', style: 'bg-red-100 text-red-700 border-red-200' },
+  DROPPED: { label: 'Dropped', style: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 const fmt = (v: number) =>
@@ -121,11 +121,10 @@ export default function ClosedLeadsPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                tab === t.key
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors border-b-2 -mb-px ${tab === t.key
                   ? 'border-blue-600 text-blue-700 bg-blue-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
             >
               {t.label}
             </button>
@@ -133,8 +132,11 @@ export default function ClosedLeadsPage() {
         </div>
 
         {/* Filters */}
-        <div className="p-4 border-b border-gray-100 flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[200px]">
+        {/* A grid rather than a wrapping flex row: the two date inputs keep
+            their intrinsic width in flex, which on a narrow phone pushed them
+            past the card edge and through the tablet range left them ragged. */}
+        <div className="p-4 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+          <div className="col-span-2 sm:col-span-2 min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
             <input
               type="text"
@@ -144,28 +146,28 @@ export default function ClosedLeadsPage() {
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Closed from</label>
             <input
               type="date"
               value={from}
               onChange={e => setFrom(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Closed to</label>
             <input
               type="date"
               value={to}
               onChange={e => setTo(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
           </div>
           {(search || from || to) && (
             <button
               onClick={() => { setSearch(''); setFrom(''); setTo(''); }}
-              className="px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50"
+              className="col-span-2 sm:col-span-4 sm:justify-self-start px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50"
             >
               Clear
             </button>
@@ -186,7 +188,7 @@ export default function ClosedLeadsPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            <div className="block lg:hidden divide-y divide-gray-100">
               {leads.map(lead => {
                 const meta = STATUS_META[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                 return (
@@ -227,8 +229,8 @@ export default function ClosedLeadsPage() {
             </div>
 
             {/* Desktop / Tablet Table View (>= 640px) */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead</th>

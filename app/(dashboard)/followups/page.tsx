@@ -223,10 +223,10 @@ export default function FollowUpsPage() {
         ].map(q => (
           <button key={q.key} onClick={() => applyQuick(q.key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${quickFilter === q.key
-                ? q.key === 'overdue'
-                  ? 'bg-red-600 text-white border-red-600'
-                  : 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+              ? q.key === 'overdue'
+                ? 'bg-red-600 text-white border-red-600'
+                : 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
               }`}>
             {q.label}
             {q.key === 'today' && tabCounts.today > 0 && (
@@ -244,14 +244,15 @@ export default function FollowUpsPage() {
       </div>
 
       {/* Filters + View toggle */}
-      {/* Mobile lays the controls out as a 2-column grid (search spanning the
-          full width) instead of a wrapping flex row — at ~360px the old row
-          pushed the date inputs past the card edge. From sm up it returns to
-          the single wrapping row the other list pages use. */}
+      {/* One grid at every width rather than a grid that becomes a wrapping
+          flex row at sm. The old row let each control keep its intrinsic
+          width, so through the tablet range the four short filters wrapped
+          into ragged, unaligned rows. Stepping the column count keeps every
+          label on a shared baseline. */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 max-w-full overflow-hidden">
-        <div className="grid grid-cols-2 gap-3 items-end sm:flex sm:flex-wrap">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 items-end">
           {/* Search */}
-          <div className="col-span-2 sm:flex-1 sm:min-w-[180px] min-w-0">
+          <div className="col-span-2 sm:col-span-4 xl:col-span-2 min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
             <LiveSearchDropdown<FollowUp>
               value={search}
@@ -271,7 +272,7 @@ export default function FollowUpsPage() {
           <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
             <select value={type} onChange={e => { setType(e.target.value); resetPage(); }}
-              className="w-full sm:w-auto border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">All Types</option>
               <option value="CALL">Call</option>
               <option value="EMAIL">Email</option>
@@ -285,7 +286,7 @@ export default function FollowUpsPage() {
           <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
             <select value={status} onChange={e => { setStatus(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full sm:w-auto border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">All Status</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
@@ -299,30 +300,30 @@ export default function FollowUpsPage() {
           <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">From Date</label>
             <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full sm:w-auto min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
           </div>
           <div className="min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">To Date</label>
             <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full sm:w-auto min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
           </div>
 
           {/* Clear */}
           {hasFilters && (
             <button onClick={clearFilters}
-              className="col-span-2 sm:col-auto px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
+              className="col-span-2 sm:col-span-1 px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
               Clear
             </button>
           )}
 
           {/* View toggle */}
-          <div className="col-span-2 sm:col-auto sm:ml-auto flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="col-span-2 sm:col-span-4 xl:col-span-6 xl:justify-self-end xl:w-auto flex gap-1 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('list')}
-              className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 xl:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               <MenuIcon className="w-4 h-4" /> List
             </button>
             <button onClick={() => setViewMode('calendar')}
-              className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 xl:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               <CalendarIcon className="w-4 h-4" color="text-current" /> Calendar
             </button>
           </div>
@@ -347,7 +348,7 @@ export default function FollowUpsPage() {
               {/* Mobile Card View (< 640px) — a 7-column table is unusable on a
                   phone, so follow-ups get the same card treatment as the other
                   list pages (leads, tasks, orders, quotations). */}
-              <div className="block sm:hidden divide-y divide-gray-100">
+              <div className="block lg:hidden divide-y divide-gray-100">
                 {followUps.map(f => {
                   const done = !!f.actualDate;
                   const overdue = isOverdue(f.scheduledDate, done);
@@ -397,81 +398,81 @@ export default function FollowUpsPage() {
               </div>
 
               {/* Desktop / Tablet Table View (>= 640px) */}
-              <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-28">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-52">Scheduled</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Notes</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-20">By</th>
-                    <th className="px-4 py-3 w-20"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {followUps.map(f => {
-                    const done = !!f.actualDate;
-                    const overdue = isOverdue(f.scheduledDate, done);
-                    const today = isToday(f.scheduledDate);
-                    const tomorrow = isTomorrow(f.scheduledDate);
-                    return (
-                      <tr key={f.id} className={`hover:bg-gray-50 transition-colors ${overdue ? 'bg-red-50/40' : ''}`}>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                            <FollowUpIcon type={f.type} className="w-3.5 h-3.5" /> {f.type.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <Link href={`/followups/${f.id}`} className="block group hover:text-blue-600">
-                            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{f.deal.customer.companyName}</p>
-                            {f.lead && <p className="text-xs text-gray-400 mt-0.5">{f.lead.name}</p>}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-baseline gap-2 flex-wrap">
-                            <p className="font-medium text-gray-900 whitespace-nowrap">{fmtDate(f.scheduledDate)}</p>
-                            <p className="text-xs text-gray-400 whitespace-nowrap">{fmtTime(f.scheduledDate)}</p>
-                            {today && !done && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold whitespace-nowrap">Today</span>
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm min-w-[940px]">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-28">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-52">Scheduled</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-20">By</th>
+                      <th className="px-4 py-3 w-20"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {followUps.map(f => {
+                      const done = !!f.actualDate;
+                      const overdue = isOverdue(f.scheduledDate, done);
+                      const today = isToday(f.scheduledDate);
+                      const tomorrow = isTomorrow(f.scheduledDate);
+                      return (
+                        <tr key={f.id} className={`hover:bg-gray-50 transition-colors ${overdue ? 'bg-red-50/40' : ''}`}>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                              <FollowUpIcon type={f.type} className="w-3.5 h-3.5" /> {f.type.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <Link href={`/followups/${f.id}`} className="block group hover:text-blue-600">
+                              <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{f.deal.customer.companyName}</p>
+                              {f.lead && <p className="text-xs text-gray-400 mt-0.5">{f.lead.name}</p>}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <p className="font-medium text-gray-900 whitespace-nowrap">{fmtDate(f.scheduledDate)}</p>
+                              <p className="text-xs text-gray-400 whitespace-nowrap">{fmtTime(f.scheduledDate)}</p>
+                              {today && !done && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold whitespace-nowrap">Today</span>
+                              )}
+                              {tomorrow && !done && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold whitespace-nowrap">Tomorrow</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {done ? (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium"><CheckGlyph className="w-3.5 h-3.5" /> Done</span>
+                            ) : overdue ? (
+                              <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">Overdue</span>
+                            ) : (
+                              <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">Pending</span>
                             )}
-                            {tomorrow && !done && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold whitespace-nowrap">Tomorrow</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          {done ? (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium"><CheckGlyph className="w-3.5 h-3.5" /> Done</span>
-                          ) : overdue ? (
-                            <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">Overdue</span>
-                          ) : (
-                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">Pending</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 text-gray-500 max-w-[180px]">
-                          <p className="truncate text-xs" title={f.notes || ''}>{f.notes || '—'}</p>
-                        </td>
-                        <td className="px-4 py-3.5 text-xs text-gray-400">
-                          {f.createdBy.firstName}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <Link href={`/followups/${f.id}`} className="text-blue-600 hover:text-blue-800 text-xs font-semibold whitespace-nowrap">View Details</Link>
-                            {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || f.createdBy.id === currentUser.id) && (
-                              <>
-                                <span className="text-gray-300 text-xs">|</span>
-                                <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 text-xs font-semibold whitespace-nowrap">Delete</button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-4 py-3.5 text-gray-500 max-w-[180px]">
+                            <p className="truncate text-xs" title={f.notes || ''}>{f.notes || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-gray-400">
+                            {f.createdBy.firstName}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <Link href={`/followups/${f.id}`} className="text-blue-600 hover:text-blue-800 text-xs font-semibold whitespace-nowrap">View Details</Link>
+                              {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || f.createdBy.id === currentUser.id) && (
+                                <>
+                                  <span className="text-gray-300 text-xs">|</span>
+                                  <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 text-xs font-semibold whitespace-nowrap">Delete</button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
               {/* Pagination */}
