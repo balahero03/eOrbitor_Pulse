@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { AnnouncementIcon } from '@/components/icons';
+import {
+  FunnelIcon, TrophyIcon, CalendarDaysIcon, BellAlertIcon, ClipboardDocumentListIcon, PlusIcon, PencilSquareIcon, EnvelopeIcon,
+} from '@heroicons/react/24/outline';
 
 const fmt = (v: number | string) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v) || 0);
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-
-const isOverdue = (d: string) => new Date(d) < new Date();
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-slate-100 text-slate-700',
@@ -37,16 +38,36 @@ const PRIORITY_COLORS: Record<string, string> = {
   LOW: 'bg-gray-100 text-gray-600',
 };
 
-function StatCard({ label, value, color, alert, href }: {
-  label: string; value: string | number; color: string; alert?: boolean; href?: string;
-}) {
+// Same flat white-card-with-icon-chip StatCard used on the other dashboards —
+// see the note in AdminDashboard.tsx. `alert` swaps the chip to red once the
+// count is above zero, so overdue items visually stand out without a full
+// gradient card.
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  tint: string;
+  color: string;
+  alert?: boolean;
+  href?: string;
+}
+
+function StatCard({ label, value, icon: Icon, tint, color, alert, href }: StatCardProps) {
+  const isAlert = alert && Number(value) > 0;
   const inner = (
-    <div className={`bg-white rounded-xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow ${alert && Number(value) > 0 ? 'border-red-200' : ''} ${href ? 'cursor-pointer' : ''}`}>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</p>
-      <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 truncate ${color}`}>{value}</p>
+    <div className={`h-full bg-white rounded-xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow ${isAlert ? 'border-red-200' : 'border-gray-200'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+          <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 leading-tight break-words ${isAlert ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+        </div>
+        <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isAlert ? 'bg-red-50' : tint}`}>
+          <Icon className={`w-5 h-5 ${isAlert ? 'text-red-600' : color}`} />
+        </span>
+      </div>
     </div>
   );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return href ? <Link href={href} className="block h-full">{inner}</Link> : inner;
 }
 
 const PRIORITY_STYLE: Record<string, string> = {
@@ -69,7 +90,7 @@ function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
   const MAX_SHOWN = 3;
   const shown = announcements.slice(0, MAX_SHOWN);
   return (
-    <div className="bg-white rounded-xl border p-4 sm:p-5 shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between gap-2 mb-4">
         <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2"><AnnouncementIcon className="w-5 h-5" /> Announcements</h2>
         <Link href="/announcements" className="text-xs text-blue-600 hover:underline flex-shrink-0">
@@ -98,45 +119,66 @@ function AnnouncementsPanel({ announcements }: { announcements: any[] }) {
   );
 }
 
+// Login email isn't guaranteed to be a real mailbox, so "forgot password"
+// self-service only works once a verified recovery email is on file — nudge
+// toward Profile until it is.
+function RecoveryEmailBanner() {
+  return (
+    <Link
+      href="/profile"
+      className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm hover:bg-amber-100/70 transition-colors"
+    >
+      <span className="flex items-center gap-2 text-amber-800 min-w-0">
+        <EnvelopeIcon className="w-4 h-4 flex-shrink-0" />
+        <span className="truncate">Add and verify a recovery email so you can reset your password if you're ever locked out.</span>
+      </span>
+      <span className="text-xs font-semibold text-amber-900 whitespace-nowrap flex-shrink-0">Go to Profile →</span>
+    </Link>
+  );
+}
+
 export default function SalesExecDashboard({ data }: { data: any }) {
-  const { stats, followUpsToday, overdueFollowUps, tasksToday, recentLeads, upcomingFollowUps, leadsByStatus, announcements } = data;
+  const { stats, followUpsToday, overdueFollowUps, tasksToday, recentLeads, upcomingFollowUps, leadsByStatus, announcements, needsRecoveryEmail } = data;
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      {/* Announcements at the top */}
-      <AnnouncementsPanel announcements={announcements} />
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {needsRecoveryEmail && <RecoveryEmailBanner />}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My Workspace</h1>
-          <p className="text-sm text-gray-500">{today}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{today}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/leads/new" className="px-3.5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 text-center flex-1 sm:flex-none">
-            + New Lead
+          <Link href="/leads/new" className="px-3.5 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center flex-1 sm:flex-none shadow-sm inline-flex items-center justify-center gap-1.5">
+            <PlusIcon className="w-4 h-4" />
+            New Lead
           </Link>
-          <Link href="/daily-activity" className="px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 text-center flex-1 sm:flex-none">
+          <Link href="/daily-activity" className="px-3.5 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5">
+            <PencilSquareIcon className="w-4 h-4" />
             Log Activity
           </Link>
         </div>
       </div>
 
+      <AnnouncementsPanel announcements={announcements} />
+
       {/* KPI Grid */}
-      {/* Two-up on phones — see the note in ManagerDashboard. */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <StatCard label="My Leads" value={stats.myLeadsTotal} color="text-blue-600" href="/leads" />
-        <StatCard label="Won This Month" value={stats.wonThisMonth} color="text-green-600" />
-        <StatCard label="Follow-ups Today" value={stats.followUpsToday} color={stats.followUpsToday > 0 ? 'text-blue-600' : 'text-gray-400'} />
-        <StatCard label="Overdue Follow-ups" value={stats.overdueFollowUps} color={stats.overdueFollowUps > 0 ? 'text-red-600' : 'text-gray-400'} alert href="/leads" />
-        <StatCard label="Open Tasks" value={stats.openTasks} color="text-gray-700" href="/tasks" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <StatCard label="My Leads" value={stats.myLeadsTotal} icon={FunnelIcon} tint="bg-blue-50" color="text-blue-600" href="/leads" />
+        <StatCard label="Won This Month" value={stats.wonThisMonth} icon={TrophyIcon} tint="bg-green-50" color="text-green-600" />
+        <StatCard label="Follow-ups Today" value={stats.followUpsToday} icon={CalendarDaysIcon} tint="bg-blue-50" color="text-blue-600" />
+        <StatCard label="Overdue Follow-ups" value={stats.overdueFollowUps} icon={BellAlertIcon} tint="bg-orange-50" color="text-orange-600" alert href="/leads" />
+        <StatCard label="Open Tasks" value={stats.openTasks} icon={ClipboardDocumentListIcon} tint="bg-gray-100" color="text-gray-600" href="/tasks" />
       </div>
 
       {/* Today's Follow-ups + Overdue */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Today's Follow-ups */}
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Follow-ups Today</h2>
             <Link href="/leads" className="text-xs text-blue-600 hover:underline">All leads</Link>
@@ -167,7 +209,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
         </div>
 
         {/* Overdue Follow-ups */}
-        <div className="bg-white rounded-xl border border-red-100 p-5 shadow-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-red-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Overdue Follow-ups</h2>
             {overdueFollowUps.length > 0 && (
@@ -202,9 +244,9 @@ export default function SalesExecDashboard({ data }: { data: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Tasks Due Today */}
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Tasks Due Today</h2>
             <Link href="/tasks" className="text-xs text-blue-600 hover:underline">All tasks</Link>
@@ -227,7 +269,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
         </div>
 
         {/* My Lead Status Breakdown */}
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">My Leads by Status</h2>
             <Link href="/leads" className="text-xs text-blue-600 hover:underline">View all</Link>
@@ -252,7 +294,7 @@ export default function SalesExecDashboard({ data }: { data: any }) {
       </div>
 
       {/* Recent Leads */}
-      <div className="bg-white rounded-xl border p-5 shadow-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-800">Recently Updated Leads</h2>
           <Link href="/leads" className="text-xs text-blue-600 hover:underline">All leads</Link>

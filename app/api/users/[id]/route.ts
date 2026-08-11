@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { withAuth } from '@/lib/middleware/auth';
 import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
+import { validatePassword } from '@/lib/passwordPolicy';
+import { revokeChallenges } from '@/lib/passwordReset';
+import { sendMailAfterResponse, buildPasswordChangedEmail } from '@/lib/mail';
 
 export const GET = withAuth(async (_req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
@@ -144,10 +147,16 @@ export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { param
       updateData.isActive = true;
     }
     if (password) {
-      if (password.length < 6) {
-        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+      const verdict = validatePassword(password);
+      if (!verdict.ok) {
+        return NextResponse.json({ error: verdict.message }, { status: 400 });
       }
       updateData.passwordHash = await bcrypt.hash(password, 10);
+      // Same revocation the self-service reset performs. Without it an admin
+      // rescuing a compromised account would leave the intruder's session
+      // alive — and any reset code mailed before the admin stepped in would
+      // still be able to override the password they just set.
+      updateData.passwordChangedAt = new Date();
     }
 
     const user = await prisma.user.update({
@@ -161,10 +170,25 @@ export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { param
         role: true,
         department: true,
         isActive: true,
+        personalEmail: true,
       },
     });
 
-    return NextResponse.json(user);
+    if (password) {
+      await revokeChallenges(id);
+      // Tell the account owner out-of-band. If an admin resetting a password
+      // was not expected, this is the user's only chance to notice.
+      if (user.personalEmail) {
+        sendMailAfterResponse('password-changed alert (admin)', {
+          to: user.personalEmail,
+          subject: 'Your eOrbitor Pulse password was changed',
+          html: buildPasswordChangedEmail({ firstName: user.firstName, when: new Date(), method: 'admin' }),
+        });
+      }
+    }
+
+    const { personalEmail: _hidden, ...safe } = user;
+    return NextResponse.json(safe);
   } catch (err) {
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }

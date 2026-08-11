@@ -9,6 +9,9 @@ datasource db {
 
 model User {
   id                 String            @id @default(cuid())
+  // Login identifier — NOT guaranteed to be a real, reachable mailbox (many
+  // accounts use an internal placeholder domain). Do not send account-recovery
+  // mail here; use `personalEmail` once it's verified.
   email              String            @unique
   passwordHash       String
   firstName          String
@@ -20,6 +23,16 @@ model User {
   employeeId         String?           @unique
   jobTitle           String?
   isActive           Boolean           @default(true)
+  // Self-service recovery/contact email, set from the Profile page. Nullable
+  // because most existing accounts won't have one yet; only usable for
+  // password-reset delivery once `personalEmailVerifiedAt` is set.
+  personalEmail             String?   @unique
+  personalEmailVerifiedAt   DateTime?
+  // Every JWT carries the second it was issued (`iat`). Stamping this on any
+  // password write lets withAuth reject tokens minted before it, which is the
+  // only way a stateless 30-day token can be revoked — without it, resetting
+  // a password leaves a thief's stolen session fully alive.
+  passwordChangedAt         DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?
@@ -43,10 +56,65 @@ model User {
   manager               User?             @relation("UserManager", fields: [managerId], references: [id])
   subordinates          User[]            @relation("UserManager")
   reports               Report[]
+  passwordResetChallenges PasswordResetChallenge[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@index([email])
   @@index([role])
   @@index([isActive])
+}
+
+// One "forgot password" attempt, from requesting a code through to setting the
+// new password.
+//
+// Replaces the earlier emailed-link token. Links are pre-fetched by corporate
+// mail scanners, which silently spends a single-use token and leaves the real
+// user staring at "this link has expired"; a code cannot be spent by merely
+// reading the message.
+//
+// Neither secret is stored in the clear — `codeHash` and `ticketHash` are
+// SHA-256 — so a database read alone can never be replayed into a takeover.
+// A six-digit code is only 1,000,000 possibilities, so `attempts` is the
+// control that makes it safe: without the cap this design would be weaker
+// than the tokens it replaces.
+model PasswordResetChallenge {
+  id              String    @id @default(cuid())
+  userId          String
+  codeHash        String
+  attempts        Int       @default(0)
+  expiresAt       DateTime
+  verifiedAt      DateTime?
+  // Issued only once the code has been verified, so the code itself can never
+  // be replayed to set a second password.
+  ticketHash      String?   @unique
+  ticketExpiresAt DateTime?
+  usedAt          DateTime?
+  requestIp       String?
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Rate limiting counts recent rows per user and per IP; both reads are
+  // covered by these.
+  @@index([userId, createdAt])
+  @@index([requestIp, createdAt])
+  @@index([expiresAt])
+}
+
+// One-time tokens proving ownership of a `User.personalEmail` value before
+// it's trusted for account recovery. `email` is snapshotted at issue time so
+// a stale link can't confirm a since-changed address.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Lead {

@@ -5,6 +5,15 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { id: userId, role } = user;
 
+  // Surfaced on every role's dashboard as a nudge toward Profile — a login
+  // ID isn't a verified mailbox, and "forgot password" self-service only
+  // works once a verified recovery email is on file.
+  const recoveryEmail = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { personalEmail: true, personalEmailVerifiedAt: true },
+  });
+  const needsRecoveryEmail = !recoveryEmail?.personalEmail || !recoveryEmail?.personalEmailVerifiedAt;
+
   // ── ON FIELD TEAM: personal daily dashboard ────────────────────────────
   if (role === 'ON_FIELD_TEAM') {
     const today = new Date();
@@ -83,6 +92,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
     return NextResponse.json({
       role: 'ON_FIELD_TEAM',
+      needsRecoveryEmail,
       today: today.toISOString(),
       stats: {
         myLeadsTotal, openTasks: myOpenTasks, overdueTasks: myOverdueTasks,
@@ -178,6 +188,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
     return NextResponse.json({
       role: 'BACKEND_TEAM',
+      needsRecoveryEmail,
       teamName: `${subs.length + 1} member team`,
       stats: { teamLeads, teamDeals, teamWonThisMonth, teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue },
       teamMembers: subs.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })),
@@ -211,7 +222,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     prisma.activityLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
-      select: { id: true, action: true, entityType: true, createdAt: true },
+      select: { id: true, action: true, entityType: true, entityId: true, createdAt: true },
     }),
   ]);
 
@@ -229,6 +240,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     role: 'ADMIN',
+    needsRecoveryEmail,
     kpis: {
       totalLeads, totalCustomers, activeDeals,
       dealsPipelineValue: Number(dealsPipelineValue._sum.dealValue || 0),
@@ -241,7 +253,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
     })),
     recentActivity: recentActivity.map((a) => ({
-      id: a.id, action: a.action, entity: a.entityType, createdAt: a.createdAt.toISOString(),
+      id: a.id, action: a.action, entity: a.entityType, entityId: a.entityId, createdAt: a.createdAt.toISOString(),
     })),
     announcements,
   });

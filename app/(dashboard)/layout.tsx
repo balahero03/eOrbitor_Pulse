@@ -26,7 +26,8 @@ import {
   UsersIcon,
   BellIcon,
   ArrowLeftOnRectangleIcon,
-  Bars3Icon
+  Bars3Icon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface MenuItem {
@@ -136,6 +137,78 @@ interface AccessRequest {
   date: string;
   status: string;
   rejectionReason: string | null;
+}
+
+// Shown when a user has no verified recovery email. Before the enforcement
+// date it carries a Skip button and a countdown; on or after it, the Skip is
+// gone and nothing but the profile page is reachable.
+function RecoveryEmailRequiredScreen({
+  hardBlocked, daysRemaining, hasUnverifiedAddress, onSkip, onLogout,
+}: {
+  hardBlocked: boolean;
+  daysRemaining: number | null;
+  hasUnverifiedAddress: boolean;
+  onSkip?: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/60 p-6 sm:p-8 animate-slide-up">
+        <div className="flex justify-center mb-5">
+          <Image src="/e-mark.png" alt="eOrbitor" width={52} height={52} priority />
+        </div>
+
+        <span className={`mx-auto mb-4 flex w-12 h-12 rounded-xl items-center justify-center ${
+          hardBlocked ? 'bg-red-50' : 'bg-amber-50'
+        }`}>
+          <ShieldCheckIcon className={`w-6 h-6 ${hardBlocked ? 'text-red-600' : 'text-amber-600'}`} />
+        </span>
+
+        <h1 className="text-xl font-bold text-center text-gray-900 tracking-tight">
+          {hardBlocked ? 'Recovery email required' : 'Add a recovery email'}
+        </h1>
+
+        <p className="text-sm text-gray-500 text-center mt-2 leading-relaxed">
+          {hardBlocked
+            ? 'Your account needs a verified recovery email before you can continue using eOrbitor Pulse.'
+            : hasUnverifiedAddress
+              ? 'You have added an address but not confirmed it yet. Verify it so you can reset your own password if you are ever locked out.'
+              : 'Your login email is not a mailbox we can reach. Add one you can open, so you can reset your own password if you are ever locked out.'}
+        </p>
+
+        {!hardBlocked && typeof daysRemaining === 'number' && (
+          <p className="text-xs text-center mt-3 font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 px-3">
+            {daysRemaining === 0
+              ? 'This becomes required today.'
+              : `Required in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}.`}
+          </p>
+        )}
+
+        <div className="mt-6 space-y-2">
+          <Link href="/profile"
+            className="block w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold text-center shadow-sm hover:bg-blue-700 transition-colors">
+            {hasUnverifiedAddress ? 'Verify my email' : 'Add recovery email'}
+          </Link>
+          {onSkip && (
+            <button onClick={onSkip}
+              className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors">
+              Skip for now
+            </button>
+          )}
+          <button onClick={onLogout}
+            className="w-full py-2 text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
+            Log out
+          </button>
+        </div>
+
+        {hardBlocked && (
+          <p className="text-[11px] text-gray-400 text-center mt-5 leading-relaxed">
+            No mailbox you can reach? Ask an administrator — they can set your password directly.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function AccessRestrictedScreen({
@@ -257,6 +330,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const [user, setUser] = useState<any>(null);
+  // Session-scoped only, deliberately not persisted: the reminder should
+  // return on the next sign-in rather than being dismissed once and forgotten
+  // until the deadline arrives.
+  const [recoveryReminderSkipped, setRecoveryReminderSkipped] = useState(false);
   const [accessBlocked, setAccessBlocked] = useState<{ date: string; windowStart: string; windowEnd: string } | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -635,6 +712,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return <AccessRestrictedScreen blocked={accessBlocked} onLogout={handleLogout} />;
   }
 
+  // Recovery-email requirement. Two distinct states, and the difference is
+  // the whole point of the rollout: before the configured date this is a
+  // skippable reminder so nobody already using the CRM is interrupted, and
+  // only afterwards does it become a wall. The server enforces the same rule
+  // independently — this screen exists to explain it, not to impose it.
+  const re = user.recoveryEmail;
+  const needsRecovery = re && !re.verified;
+  const onProfile = pathname === '/profile';
+  if (needsRecovery && !onProfile && !recoveryReminderSkipped) {
+    return (
+      <RecoveryEmailRequiredScreen
+        hardBlocked={!!re.blocked}
+        daysRemaining={re.daysRemaining}
+        hasUnverifiedAddress={!!re.address}
+        onSkip={re.blocked ? undefined : () => setRecoveryReminderSkipped(true)}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   const roleInfo = ROLE_LABELS[user.role] || { label: user.role, color: 'bg-gray-100 text-gray-600' };
   // On mobile overlay drawer: always show full labels and brand info. On desktop: toggle full vs icon-only.
   const showLabels = isMobile ? true : !desktopCollapsed;
@@ -955,6 +1052,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   </div>
 
                   <div className="py-1">
+                    <Link
+                      href="/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                    >
+                      <UserCircleIcon className="w-4 h-4 text-gray-400" />
+                      My Profile
+                    </Link>
                     <Link
                       href="/daily-activity"
                       onClick={() => setUserMenuOpen(false)}

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { getJwtSecret } from '@/lib/jwt';
 import { checkAccessGate, isExemptPath } from '@/lib/accessControl';
+import { getRecoveryEmailPolicy, isAllowedWhileRecoveryIncomplete } from '@/lib/recoveryEmailPolicy';
 
 export type AuthUser = {
   id: string;
@@ -42,10 +43,29 @@ export function withAuth(handler: Handler) {
     // access until the token happens to expire.
     const dbUser = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, role: true, firstName: true, lastName: true, isActive: true, deletedAt: true },
+      select: {
+        id: true, email: true, role: true, firstName: true, lastName: true,
+        isActive: true, deletedAt: true, passwordChangedAt: true,
+        personalEmail: true, personalEmailVerifiedAt: true,
+      },
     });
     if (!dbUser || !dbUser.isActive || dbUser.deletedAt) {
       return NextResponse.json({ message: 'Your account is no longer active — please contact your admin' }, { status: 401 });
+    }
+
+    // Revocation for a stateless token. Tokens live 30 days, so without this a
+    // password reset left any stolen session fully alive — at exactly the
+    // moment the owner believed they had taken the account back. `iat` is
+    // stamped by jsonwebtoken at signing time and is in seconds; anything
+    // issued before the last password change is no longer trusted.
+    // `Math.floor` on the boundary keeps a token minted in the same second as
+    // the change from being rejected by sub-second rounding alone.
+    const issuedAtMs = (decoded as any).iat ? (decoded as any).iat * 1000 : 0;
+    if (dbUser.passwordChangedAt && issuedAtMs < Math.floor(dbUser.passwordChangedAt.getTime() / 1000) * 1000) {
+      return NextResponse.json(
+        { message: 'Your password was changed — please log in again' },
+        { status: 401 }
+      );
     }
 
     const user: AuthUser = {
@@ -55,6 +75,23 @@ export function withAuth(handler: Handler) {
       firstName: dbUser.firstName,
       lastName: dbUser.lastName,
     };
+
+    // Recovery-email requirement. Enforced server-side for the same reason
+    // the after-hours gate below is: a client-only check is bypassed by
+    // calling the API directly. Gated behind a configured date so existing
+    // users are never locked out of a system they were already using.
+    const recoveryPolicy = getRecoveryEmailPolicy();
+    if (recoveryPolicy.enforced && !isAllowedWhileRecoveryIncomplete(req.nextUrl.pathname)) {
+      if (!dbUser.personalEmail || !dbUser.personalEmailVerifiedAt) {
+        return NextResponse.json(
+          {
+            message: 'Add and verify a recovery email in your profile to continue.',
+            code: 'RECOVERY_EMAIL_REQUIRED',
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // After-hours access gate — this used to only be checked client-side
     // (the dashboard polling /api/access-status), so a restricted user could

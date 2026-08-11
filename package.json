@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "mail:test": "node scripts/test-mail.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
