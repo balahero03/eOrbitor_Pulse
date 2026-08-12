@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { InboxIcon } from '@heroicons/react/24/outline';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
 
 const TABS = [
   { key: '', label: 'All Closed' },
@@ -76,39 +78,43 @@ export default function ClosedLeadsPage() {
     : '0';
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Closed Leads</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Closed Leads</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Won, Lost and Dropped opportunities</p>
         </div>
-        <Link href="/leads" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto">
+        <Link href="/leads" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>
           ← Active Leads
         </Link>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-green-300 transition-colors" onClick={() => setTab('WON')}>
-          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Won (incl. Orders)</p>
-          <p className="text-3xl font-bold text-green-600 mt-1">{totalWonCount}</p>
-          <p className="text-sm text-green-700 font-medium mt-1">{fmt(totalWonValue)}</p>
-        </div>
-        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-red-300 transition-colors" onClick={() => setTab('LOST')}>
-          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Lost</p>
-          <p className="text-3xl font-bold text-red-600 mt-1">{stats?.lost?.count ?? 0}</p>
-          <p className="text-sm text-red-700 font-medium mt-1">{fmt(stats?.lost?.value ?? 0)}</p>
-        </div>
-        <div className="bg-white rounded-xl border p-5 shadow-sm cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setTab('DROPPED')}>
-          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Dropped</p>
-          <p className="text-3xl font-bold text-gray-600 mt-1">{stats?.dropped?.count ?? 0}</p>
-          <p className="text-sm text-gray-500 mt-1">{fmt(stats?.dropped?.value ?? 0)}</p>
-        </div>
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Win Rate</p>
-          <p className="text-3xl font-bold text-blue-600 mt-1">{winRate}%</p>
-          <p className="text-sm text-gray-500 mt-1">{totalWonCount + totalLostCount} total closed</p>
+      {/* Stats row — 2×2 on a phone rather than four stacked full-width cards.
+          At `p-5` with a `text-3xl` figure each card ran ~120px tall, so the
+          four of them filled the entire first screen and the list they
+          summarise started below the fold. Two-up with tighter type puts all
+          four in about the height one used to take. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+        <button type="button" className="text-left bg-white rounded-xl border p-3 sm:p-5 shadow-sm cursor-pointer hover:border-green-300 transition-colors" onClick={() => setTab('WON')}>
+          <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-medium tracking-wide truncate">Won <span className="hidden xs:inline">(incl. Orders)</span></p>
+          <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-0.5 sm:mt-1 leading-none">{totalWonCount}</p>
+          <p className="text-xs sm:text-sm text-green-700 font-medium mt-1 truncate">{fmt(totalWonValue)}</p>
+        </button>
+        <button type="button" className="text-left bg-white rounded-xl border p-3 sm:p-5 shadow-sm cursor-pointer hover:border-red-300 transition-colors" onClick={() => setTab('LOST')}>
+          <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-medium tracking-wide truncate">Lost</p>
+          <p className="text-2xl sm:text-3xl font-bold text-red-600 mt-0.5 sm:mt-1 leading-none">{stats?.lost?.count ?? 0}</p>
+          <p className="text-xs sm:text-sm text-red-700 font-medium mt-1 truncate">{fmt(stats?.lost?.value ?? 0)}</p>
+        </button>
+        <button type="button" className="text-left bg-white rounded-xl border p-3 sm:p-5 shadow-sm cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setTab('DROPPED')}>
+          <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-medium tracking-wide truncate">Dropped</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-600 mt-0.5 sm:mt-1 leading-none">{stats?.dropped?.count ?? 0}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">{fmt(stats?.dropped?.value ?? 0)}</p>
+        </button>
+        <div className="bg-white rounded-xl border p-3 sm:p-5 shadow-sm">
+          <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-medium tracking-wide truncate">Win Rate</p>
+          <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-0.5 sm:mt-1 leading-none">{winRate}%</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">{totalWonCount + totalLostCount} closed</p>
         </div>
       </div>
 
@@ -188,7 +194,7 @@ export default function ClosedLeadsPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block lg:hidden divide-y divide-gray-100">
+            <div className="block lg:hidden divide-y divide-gray-200">
               {leads.map(lead => {
                 const meta = STATUS_META[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                 return (
@@ -207,7 +213,7 @@ export default function ClosedLeadsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-50">
+                    <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                       <div>
                         <span className="text-xs text-gray-400">Value: </span>
                         <span className="font-bold text-gray-900">{lead.quoteValue ? fmt(Number(lead.quoteValue)) : '—'}</span>
@@ -302,6 +308,6 @@ export default function ClosedLeadsPage() {
           </>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -28,9 +28,9 @@ function StatCard({ label, value, icon: Icon, tint, color }: {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1">{value}</p>
         </div>
-        <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
+        <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
           <Icon className={`w-5 h-5 ${color}`} />
         </span>
       </div>
@@ -68,10 +68,10 @@ export default function SupportDashboard({ data }: { data: any }) {
   const { stats, tasksToday = [], upcomingTasks = [], announcements = [] } = data;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
       {/* Header */}
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
           {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         </p>
@@ -95,7 +95,7 @@ export default function SupportDashboard({ data }: { data: any }) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <StatCard label="Open Tasks" value={stats?.openTasks ?? 0} icon={ClipboardDocumentListIcon} tint="bg-gray-100" color="text-gray-600" />
         <StatCard
           label="Overdue Tasks" value={stats?.overdueTasks ?? 0}

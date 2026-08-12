@@ -213,11 +213,11 @@ export default function TaskDetailPage() {
     : null;
 
   return (
-    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-3 sm:space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">{task.title}</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight">{task.title}</h1>
           {originBadge && (
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${originBadge.className}`}>
               {originBadge.label}
@@ -235,7 +235,7 @@ export default function TaskDetailPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Main Task Canvas (2 Columns) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Header Card / Status Bar */}

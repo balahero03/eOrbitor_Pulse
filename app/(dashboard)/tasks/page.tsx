@@ -7,6 +7,10 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRowClass } from '@/lib/notificationHighlight';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
+import PageHeader from '@/components/PageHeader';
+import FilterPanel from '@/components/FilterPanel';
 
 interface Task {
   id: string;
@@ -148,30 +152,33 @@ export default function TasksPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{total} total tasks</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canAssignOthers && (
-            <Link
-              href="/tasks/new?assign=1"
-              className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center flex-1 sm:flex-none"
-            >
-              Assign Task
+    <PageContainer>
+      <PageHeader
+        title="Tasks"
+        subtitle={`${total} total tasks`}
+        actions={
+          <>
+            {canAssignOthers && (
+              <Link href="/tasks/new?assign=1" className={buttonClasses({ variant: 'secondary' })}>
+                {/* The verb alone is unambiguous next to "+ New" and saves the
+                    width that pushed these onto their own row on a phone. */}
+                <span className="sm:hidden">Assign</span>
+                <span className="hidden sm:inline">Assign Task</span>
+              </Link>
+            )}
+            <Link href="/tasks/new" className={buttonClasses()}>
+              <span className="sm:hidden">+ New</span>
+              <span className="hidden sm:inline">+ New Task</span>
             </Link>
-          )}
-          <Link href="/tasks/new" className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center flex-1 sm:flex-none shadow-sm">+ New Task</Link>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {showMyTasksTab && (
-        <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-full sm:w-fit">
           <button
             onClick={() => { setMyTasksOnly(false); setPage(1); }}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               !myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -179,7 +186,7 @@ export default function TasksPage() {
           </button>
           <button
             onClick={() => { setMyTasksOnly(true); setPage(1); }}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -189,7 +196,11 @@ export default function TasksPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
+      <FilterPanel
+        label="Search & Filters"
+        activeCount={[applied.status, applied.priority, applied.search].filter(Boolean).length}
+        onClear={resetFilters}
+      >
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search</label>
@@ -209,7 +220,12 @@ export default function TasksPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap flex-shrink-0">
-            <div className="flex-1 sm:w-36">
+            {/* Status lives in the chip row below, which is always visible and
+                one tap. Repeating it as a select here meant two controls
+                driving one value — and on a phone, two rows for it. Kept on
+                desktop, where the chips and the filter card sit side by side
+                and the extra row costs nothing. */}
+            <div className="hidden sm:block sm:w-36">
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
               <select
                 value={filters.status}
@@ -255,15 +271,17 @@ export default function TasksPage() {
             )}
           </div>
         </div>
-      </div>
+      </FilterPanel>
 
-      {/* Status quick filters */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      {/* Status quick filters. One scrolling line on a phone instead of
+          wrapping to two rows — the same trick every mobile app uses for
+          category chips, and it keeps the list itself above the fold. */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:flex-wrap sm:overflow-visible">
         {['', 'TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map(s => (
           <button
             key={s}
             onClick={() => { setApplied(a => ({ ...a, status: s })); setPage(1); }}
-            className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+            className={`flex-shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
               applied.status === s
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
@@ -282,7 +300,7 @@ export default function TasksPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            <div className="block sm:hidden divide-y divide-gray-200">
               {tasks.map(task => {
                 const badge = currentUser ? originBadge(task, currentUser.id) : null;
                 return (
@@ -310,7 +328,7 @@ export default function TasksPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${PRIORITY_COLORS[task.priority] || ''}`}>
                         {task.priority} Priority
                       </span>
@@ -424,6 +442,6 @@ export default function TasksPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import TimeField from '@/components/TimeField';
+import { buttonClasses } from '@/components/Button';
 
 interface Deal {
   id: string;
@@ -93,10 +94,10 @@ export default function NewFollowUpPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Schedule Follow-up</h1>
-        <Link href="/followups" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto">Back to Follow-ups</Link>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Schedule Follow-up</h1>
+        <Link href="/followups" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>Back to Follow-ups</Link>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-2xl">
@@ -141,7 +142,7 @@ export default function NewFollowUpPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Scheduled Date *</label>
               <input
@@ -179,7 +180,7 @@ export default function NewFollowUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              className={buttonClasses({ size: 'lg', className: 'flex-1' })}
             >
               {loading ? 'Scheduling...' : 'Schedule Follow-up'}
             </button>

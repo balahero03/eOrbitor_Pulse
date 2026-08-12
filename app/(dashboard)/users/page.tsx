@@ -10,6 +10,8 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { DropdownPortal } from '@/components/DropdownPortal';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface User {
   id: string;
@@ -985,9 +987,9 @@ export default function UsersPage() {
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">User Management</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{users.length} total · {totalActive} active</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1023,7 +1025,7 @@ export default function UsersPage() {
       </div>
 
       {loading ? (
-        <div className="p-10 text-center text-gray-400">Loading...</div>
+        <InlineLoader message="Loading users…" />
       ) : (
         <div className="space-y-6">
           {groups.map(({ label, Icon, role }) => {
@@ -1038,7 +1040,7 @@ export default function UsersPage() {
                 </div>
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                   {/* Mobile Card View (< 640px) */}
-                  <div className="block sm:hidden divide-y divide-gray-100">
+                  <div className="block sm:hidden divide-y divide-gray-200">
                     {list.map(u => {
                       // Prefixed so this (CSS-hidden but still DOM-mounted on
                       // desktop) menu never opens in lockstep with the desktop
@@ -1256,9 +1258,9 @@ export default function UsersPage() {
 
       {/* ── TEAM STRUCTURE MODAL ── */}
       {modal === 'team-view' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-2xl shadow-2xl max-h-[92vh] sm:max-h-[80vh] flex flex-col animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold">Team Structure</h2>
                 <p className="text-sm text-gray-500">Manager → Salesperson relationships</p>
@@ -1362,10 +1364,10 @@ export default function UsersPage() {
           setRoleSwitchState(prev => prev ? { ...prev, ...patch } : prev);
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
               {/* Header */}
-              <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between flex-shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Switch Role</h2>
                   <p className="text-sm text-gray-500">
@@ -1405,7 +1407,7 @@ export default function UsersPage() {
                     {rs.leadsAssigned > 0 && (
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-gray-700">Leads assigned to them ({rs.leadsAssigned})</label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button onClick={() => updateRS({ leadsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.leadsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
                           <button onClick={() => updateRS({ leadsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.leadsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
                         </div>
@@ -1422,7 +1424,7 @@ export default function UsersPage() {
                     {rs.broughtLeads > 0 && (
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-gray-700">Leads brought by them ({rs.broughtLeads})</label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button onClick={() => updateRS({ broughtLeadsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.broughtLeadsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
                           <button onClick={() => updateRS({ broughtLeadsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.broughtLeadsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
                         </div>
@@ -1439,7 +1441,7 @@ export default function UsersPage() {
                     {rs.deals > 0 && (
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-gray-700">Deals assigned ({rs.deals})</label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button onClick={() => updateRS({ dealsAction: 'keep' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.dealsAction === 'keep' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Keep with them</button>
                           <button onClick={() => updateRS({ dealsAction: 'transfer' })} className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${ rs.dealsAction === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' }`}>Transfer to →</button>
                         </div>
@@ -1545,11 +1547,11 @@ export default function UsersPage() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
                 <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
                   Cancel
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {rs.step === 'confirm' && (
                     <button onClick={() => updateRS({ step: 'preview' })} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
                       ← Back
@@ -1613,9 +1615,9 @@ export default function UsersPage() {
         const kept = categories.filter(c => c.count > 0 && c.action === 'keep');
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
-              <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between flex-shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Delete User</h2>
                   <p className="text-sm text-gray-500">{ds.user.firstName} {ds.user.lastName} · {ds.user.email}</p>
@@ -1700,11 +1702,11 @@ export default function UsersPage() {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
                 <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
                   Cancel
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {ds.step === 'confirm' && (
                     <button onClick={() => updateDS({ step: 'preview' })} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" disabled={saving}>
                       ← Back
@@ -1748,16 +1750,16 @@ export default function UsersPage() {
         ].filter(r => r.count > 0);
 
         return (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-              <div className="px-6 py-4 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Deactivate User</h2>
                   <p className="text-sm text-gray-500">{dw.user.firstName} {dw.user.lastName}</p>
                 </div>
                 <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
                   <p className="text-xs font-semibold text-amber-800 mb-1">This account still owns active records</p>
                   <p className="text-xs text-amber-700">
@@ -1775,7 +1777,7 @@ export default function UsersPage() {
                   ))}
                 </div>
               </div>
-              <div className="px-6 py-4 border-t flex items-center justify-between gap-3">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t flex items-center justify-between gap-3">
                 <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
                   Cancel
                 </button>
@@ -1793,9 +1795,9 @@ export default function UsersPage() {
 
       {/* ── EX-EMPLOYEE RECORDS / ARCHIVE MODAL ── */}
       {modal === 'ex-records' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold">Ex-Employee Records</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName} · {selectedUser.email}</p>
@@ -1912,7 +1914,7 @@ export default function UsersPage() {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t flex items-center justify-between flex-shrink-0">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t flex items-center justify-between flex-shrink-0">
               <button onClick={closeModal} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
                 Close
               </button>
@@ -1933,16 +1935,16 @@ export default function UsersPage() {
 
       {/* ── ASSIGN MANAGER MODAL ── */}
       {modal === 'assign-manager' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-md shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">Assign Manager</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName}</p>
               </div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAssignManager} className="p-6 space-y-4">
+            <form onSubmit={handleAssignManager} className="p-4 sm:p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
 
               {/* Current manager info */}
@@ -1985,7 +1987,7 @@ export default function UsersPage() {
 
               <div className="flex gap-3 pt-2 border-t">
                 <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
+                <button type="submit" className={buttonClasses({ size: 'lg', className: 'flex-1' })} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Assignment'}
                 </button>
               </div>
@@ -1996,16 +1998,16 @@ export default function UsersPage() {
 
       {/* ── ADD USER MODAL ── */}
       {modal === 'add' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-bold">Add New User</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAdd} className="p-6 space-y-4">
+            <form onSubmit={handleAdd} className="p-4 sm:p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
                   <input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })}
@@ -2018,7 +2020,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
                   <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
@@ -2031,7 +2033,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
                   <input value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}
@@ -2057,7 +2059,7 @@ export default function UsersPage() {
                 <p className="text-xs text-gray-400 mt-1">User should change this after first login</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
                   <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value, managerId: '' })}
@@ -2090,7 +2092,7 @@ export default function UsersPage() {
 
               <div className="flex gap-3 pt-2 border-t">
                 <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
+                <button type="submit" className={buttonClasses({ size: 'lg', className: 'flex-1' })} disabled={saving}>
                   {saving ? 'Creating...' : 'Create User'}
                 </button>
               </div>
@@ -2101,19 +2103,19 @@ export default function UsersPage() {
 
       {/* ── EDIT USER MODAL ── */}
       {modal === 'edit' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">Edit User</h2>
                 <p className="text-sm text-gray-500">{selectedUser.email}</p>
               </div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleEdit} className="p-6 space-y-4">
+            <form onSubmit={handleEdit} className="p-4 sm:p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
                   <input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })}
@@ -2126,7 +2128,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Role *</label>
                   <select
@@ -2148,7 +2150,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
                   <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
@@ -2161,7 +2163,7 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Job Title</label>
                   <input value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })}
@@ -2203,7 +2205,7 @@ export default function UsersPage() {
 
               <div className="flex gap-3 pt-2 border-t">
                 <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
+                <button type="submit" className={buttonClasses({ size: 'lg', className: 'flex-1' })} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -2214,16 +2216,16 @@ export default function UsersPage() {
 
       {/* ── CHANGE PASSWORD MODAL ── */}
       {modal === 'password' && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-sm shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">Change Password</h2>
                 <p className="text-sm text-gray-500">{selectedUser.firstName} {selectedUser.lastName}</p>
               </div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><CloseIcon className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
+            <form onSubmit={handlePasswordChange} className="p-4 sm:p-6 space-y-4">
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
 
               <div>
@@ -2262,7 +2264,7 @@ export default function UsersPage() {
 
               <div className="flex gap-3 pt-2 border-t">
                 <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" disabled={saving}>Cancel</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled={saving || pwForm.newPassword !== pwForm.confirmPassword}>
+                <button type="submit" className={buttonClasses({ size: 'lg', className: 'flex-1' })} disabled={saving || pwForm.newPassword !== pwForm.confirmPassword}>
                   {saving ? 'Updating...' : 'Update Password'}
                 </button>
               </div>

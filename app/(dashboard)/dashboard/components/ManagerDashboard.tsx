@@ -23,13 +23,13 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, tint, color, href }: StatCardProps) {
   const inner = (
-    <div className="h-full bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="h-full bg-white rounded-xl border border-gray-200 p-3 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
           <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1 leading-tight break-words">{value}</p>
         </div>
-        <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
+        <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
           <Icon className={`w-5 h-5 ${color}`} />
         </span>
       </div>
@@ -128,13 +128,13 @@ export default function ManagerDashboard({ data }: { data: any }) {
   const { stats, teamMembers, leaderboard, pipeline, recentLeads, announcements, needsRecoveryEmail } = data;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
       {needsRecoveryEmail && <RecoveryEmailBanner />}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Manager Dashboard</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Manager Dashboard</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{data.teamName}</p>
         </div>
         <Link href="/attendance"
@@ -147,14 +147,14 @@ export default function ManagerDashboard({ data }: { data: any }) {
       <AnnouncementsPanel announcements={announcements} />
 
       {/* Team results */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard label="Team Leads" value={stats.teamLeads} icon={FunnelIcon} tint="bg-blue-50" color="text-blue-600" href="/leads" />
         <StatCard label="Team Active Deals" value={stats.teamDeals} icon={BriefcaseIcon} tint="bg-purple-50" color="text-purple-600" />
         <StatCard label="Won This Month" value={stats.teamWonThisMonth} icon={TrophyIcon} tint="bg-green-50" color="text-green-600" />
       </div>
 
       {/* Team workload */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard label="Open Tasks" value={stats.teamOpenTasks} icon={ClipboardDocumentListIcon} tint="bg-gray-100" color="text-gray-600" href="/tasks" />
         <StatCard label="Overdue Tasks" value={stats.teamOverdueTasks} icon={ClockIcon} tint="bg-red-50" color="text-red-600" href="/tasks" />
         <StatCard label="Overdue Follow-ups" value={stats.teamFollowUpsOverdue} icon={BellAlertIcon} tint="bg-orange-50" color="text-orange-600" href="/leads" />

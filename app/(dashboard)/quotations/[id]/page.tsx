@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Quotation {
   id: string;
@@ -181,7 +182,7 @@ export default function QuotationDetailPage() {
   };
 
   if (loading) return (
-    <div className="p-6 text-center text-gray-500">Loading...</div>
+    <InlineLoader message="Loading quotation…" />
   );
   if (!quotation) return (
     <div className="p-6 text-center text-gray-500">Quotation not found</div>
@@ -217,12 +218,12 @@ export default function QuotationDetailPage() {
   ].filter(f => f.value);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-3 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{quotation.quotationNumber}</h1>
             {originBadge && (
               <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${originBadge.className}`}>
                 {originBadge.label}
@@ -239,11 +240,11 @@ export default function QuotationDetailPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-4">
           {/* Header Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
@@ -267,7 +268,7 @@ export default function QuotationDetailPage() {
           </div>
 
           {/* Items Table */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">Items</h2>
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
               <table className="w-full text-sm">
@@ -296,7 +297,7 @@ export default function QuotationDetailPage() {
           </div>
 
           {/* Totals */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <div className="space-y-2 text-right max-w-xs ml-auto">
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Subtotal:</span>
@@ -311,7 +312,7 @@ export default function QuotationDetailPage() {
 
           {/* Extended quotation fields */}
           {extendedFields.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Terms & Conditions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {extendedFields.map(field => (
@@ -326,7 +327,7 @@ export default function QuotationDetailPage() {
 
           {/* Notes */}
           {quotation.notes && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <h2 className="text-base font-bold text-gray-900 mb-3">Notes</h2>
               <p className="text-gray-700 text-sm whitespace-pre-wrap">{quotation.notes}</p>
             </div>
@@ -337,7 +338,7 @@ export default function QuotationDetailPage() {
         <div className="space-y-4">
           {/* Actions */}
           {(canSendOrReject || canApprove || canDelete) && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-2">
                 {quotation.status === 'DRAFT' && canSendOrReject && (
@@ -399,7 +400,7 @@ export default function QuotationDetailPage() {
           )}
 
           {/* Details */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-3 text-sm">
               {quotation.sentAt && (
@@ -450,8 +451,8 @@ export default function QuotationDetailPage() {
       </div>
 
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold text-red-600 mb-1">Reject Quotation</h2>
             <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
             <textarea

@@ -7,6 +7,7 @@ import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightRequest } from '@/lib/notificationHighlight';
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
+import PageContainer from '@/components/PageContainer';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'record' | 'access';
@@ -98,10 +99,10 @@ export default function ApprovalsPage() {
   const activeCategory = canReviewAccess ? category : 'record';
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Approvals</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Approvals</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Review and manage pending approval requests</p>
         </div>
         {canReviewAccess && (
@@ -115,7 +116,7 @@ export default function ApprovalsPage() {
       ) : (
         <AccessApprovals tab={tab} setTab={setTab} flashId={flashAccessId} />
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -539,12 +540,12 @@ function RejectForm({ value, onChange, processing, onConfirm, onCancel }: {
     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg space-y-2">
       <input type="text" placeholder="Reason for rejection (optional)" value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200" />
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button onClick={onConfirm} disabled={processing}
-          className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+          className="min-h-[36px] sm:min-h-0 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50 inline-flex items-center justify-center whitespace-nowrap">
           {processing ? 'Processing…' : 'Confirm Rejection'}
         </button>
-        <button onClick={onCancel} className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50">Cancel</button>
+        <button onClick={onCancel} className="min-h-[36px] sm:min-h-0 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 inline-flex items-center justify-center whitespace-nowrap">Cancel</button>
       </div>
     </div>
   );

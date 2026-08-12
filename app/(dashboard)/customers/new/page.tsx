@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { buttonClasses } from '@/components/Button';
 
 const CSV_COLUMNS = [
   'companyName',
@@ -237,12 +238,12 @@ export default function NewCustomerPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-3 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Add Customer</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Add Customer</h1>
         <Link
           href="/customers"
-          className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto"
+          className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}
         >
           Back to Customers
         </Link>
@@ -371,7 +372,7 @@ export default function NewCustomerPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={loading || csvRows.length === 0}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className={buttonClasses({ size: 'lg', className: 'flex-1' })}
               >
                 {loading ? 'Importing...' : `Import ${csvRows.length || ''} Customer${csvRows.length === 1 ? '' : 's'}`}
               </button>
@@ -574,7 +575,7 @@ export default function NewCustomerPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              className={buttonClasses({ size: 'lg', className: 'flex-1' })}
             >
               {loading ? 'Creating...' : 'Create Customer'}
             </button>

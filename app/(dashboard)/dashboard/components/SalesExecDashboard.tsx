@@ -61,7 +61,7 @@ function StatCard({ label, value, icon: Icon, tint, color, alert, href }: StatCa
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
           <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 leading-tight break-words ${isAlert ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
         </div>
-        <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isAlert ? 'bg-red-50' : tint}`}>
+        <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isAlert ? 'bg-red-50' : tint}`}>
           <Icon className={`w-5 h-5 ${isAlert ? 'text-red-600' : color}`} />
         </span>
       </div>
@@ -143,13 +143,13 @@ export default function SalesExecDashboard({ data }: { data: any }) {
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
       {needsRecoveryEmail && <RecoveryEmailBanner />}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My Workspace</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">My Workspace</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{today}</p>
         </div>
         <div className="flex flex-wrap gap-2">

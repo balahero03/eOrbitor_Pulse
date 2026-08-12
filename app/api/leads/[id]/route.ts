@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { parseMoneyInput } from '@/lib/money';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -115,6 +116,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     }
   }
 
+  // Quote value arrives as free text from the stage forms; parsed once here
+  // and reused for both the lead field and the deal sync below.
+  const parsedQuoteValue = parseMoneyInput(quoteValue);
+
   const lead = await prisma.lead.update({
     where: { id },
     data: {
@@ -132,7 +137,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(qualificationNotes !== undefined && { qualificationNotes }),
       ...(remarks !== undefined && { remarks }),
       ...(quoteNo !== undefined && { quoteNo }),
-      ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
+      ...(Number.isFinite(parsedQuoteValue) && { quoteValue: parsedQuoteValue }),
       ...(rfqDate !== undefined && { rfqDate: rfqDate ? new Date(rfqDate) : null }),
       ...(followUpDate !== undefined && { followUpDate: followUpDate ? new Date(followUpDate) : null }),
       ...(expectedClosureDate !== undefined && { expectedClosureDate: expectedClosureDate ? new Date(expectedClosureDate) : null }),
@@ -152,10 +157,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // leads/[id]/followups) in sync with the quote value. Deal.dealValue is
   // otherwise stuck at its initial 0 forever, which silently breaks the
   // dashboard's Pipeline Value figure.
-  if (quoteValue !== undefined && quoteValue !== '') {
+  if (Number.isFinite(parsedQuoteValue)) {
     await prisma.deal.updateMany({
       where: { leadId: id },
-      data: { dealValue: parseFloat(quoteValue) },
+      data: { dealValue: parsedQuoteValue },
     });
   }
 

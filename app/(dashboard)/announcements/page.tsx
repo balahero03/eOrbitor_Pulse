@@ -10,6 +10,8 @@ import { highlightRingClass, requestHighlight } from '@/lib/notificationHighligh
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Announcement {
   id: string;
@@ -201,13 +203,13 @@ export default function AnnouncementsPage() {
     return announcements.filter(a => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q));
   })();
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading) return <InlineLoader message="Loading announcements…" />;
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Announcements</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Announcements</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{announcements.length} announcements</p>
         </div>
         <button
@@ -298,7 +300,7 @@ export default function AnnouncementsPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => handlePublish(ann.id, ann.isPublished)}
                     className={`px-3 py-1 rounded border text-xs ${ann.isPublished
@@ -329,8 +331,8 @@ export default function AnnouncementsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg font-bold">
                 {editingId ? 'Edit Announcement' : 'Create Announcement'}
@@ -346,7 +348,7 @@ export default function AnnouncementsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Title *
@@ -375,7 +377,7 @@ export default function AnnouncementsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     Priority
@@ -419,7 +421,7 @@ export default function AnnouncementsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  className={buttonClasses({ size: 'lg', className: 'flex-1' })}
                   disabled={saving}
                 >
                   {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}

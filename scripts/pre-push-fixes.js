@@ -101,9 +101,69 @@ async function main() {
     console.log('[pre-push-fixes] AccessPolicy/QuotationPolicy/AfterHoursAccessRequest tables ensured.');
   } catch (err) {
     console.log('[pre-push-fixes] Table pre-creation skipped:', err.message);
-  } finally {
-    await prisma.$disconnect();
   }
+
+  // 3. Lead.leadNumber backfill.
+  //
+  //    Lead numbers used to live in `quoteNo`, a free-text column that also
+  //    held imported spreadsheet S.NO values and customers' own quote
+  //    references. With no unique constraint and a generator that ordered
+  //    lexicographically, live data ended up with many leads sharing one
+  //    number and others showing a "QT-…" quotation number instead.
+  //
+  //    This creates the column and index up front (so `db push` finds them
+  //    already in place and cannot fail adding a UNIQUE index to a column
+  //    that still contains duplicates), then issues one number per lead in
+  //    creation order.
+  //
+  //    Idempotent: only rows where leadNumber IS NULL are touched, so a
+  //    second boot is a no-op and numbers already handed out never move.
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "leadNumber" TEXT`);
+
+    // Anything already carrying a well-formed, unique LD-…-… in quoteNo keeps
+    // it, so existing printed/quoted references stay valid.
+    await prisma.$executeRawUnsafe(`
+      UPDATE "Lead" l SET "leadNumber" = l."quoteNo"
+      WHERE l."leadNumber" IS NULL
+        AND l."quoteNo" ~ '^LD-[0-9]{4}-[0-9]+$'
+        AND (SELECT count(*) FROM "Lead" d WHERE d."quoteNo" = l."quoteNo") = 1
+    `);
+
+    // Everyone else — duplicates, QT-prefixed values, blanks — gets a fresh
+    // number continuing after the highest already in use. row_number() makes
+    // the assignment deterministic and collision-free in a single statement.
+    await prisma.$executeRawUnsafe(`
+      WITH start AS (
+        SELECT COALESCE(MAX((regexp_match("leadNumber", '^LD-[0-9]{4}-([0-9]+)$'))[1]::int), 0) AS n
+        FROM "Lead" WHERE "leadNumber" IS NOT NULL
+      ),
+      queued AS (
+        SELECT id, row_number() OVER (ORDER BY "createdAt", id) AS rn
+        FROM "Lead" WHERE "leadNumber" IS NULL
+      )
+      UPDATE "Lead" l
+      SET "leadNumber" = 'LD-' || to_char(COALESCE(l."createdAt", now()), 'YYYY')
+                              || '-' || lpad((start.n + queued.rn)::text, 4, '0')
+      FROM queued, start
+      WHERE l.id = queued.id
+    `);
+
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "Lead_leadNumber_key" ON "Lead"("leadNumber")`
+    );
+
+    const [{ count }] = await prisma.$queryRawUnsafe(
+      `SELECT count(*)::int AS count FROM "Lead" WHERE "leadNumber" IS NOT NULL`
+    );
+    console.log(`[pre-push-fixes] Lead.leadNumber backfilled — ${count} leads numbered, unique index ensured.`);
+  } catch (err) {
+    // A failure here must not block the deploy; the column is additive and the
+    // app falls back to quoteNo for display.
+    console.log('[pre-push-fixes] leadNumber backfill skipped:', err.message);
+  }
+
+  await prisma.$disconnect();
 }
 
 main();

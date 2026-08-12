@@ -1,8 +1,12 @@
-// Neutral segment loader shown during route Suspense.
+import { InlineLoader } from '@/components/BrandedLoader';
+
+// Route-level Suspense fallback. Shares the branded mark with the login/logout
+// transition rather than showing a bare blue spinner, so moving between pages
+// looks like the same product the whole way through.
 export default function Loading() {
   return (
     <div className="flex items-center justify-center min-h-[70vh]">
-      <div className="w-7 h-7 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <InlineLoader message="Loading…" />
     </div>
   );
 }

@@ -119,6 +119,13 @@ model EmailVerificationToken {
 
 model Lead {
   id                 String            @id @default(cuid())
+  // System-issued identifier, LD-<year>-<sequence>. Separate from `quoteNo`
+  // on purpose: quoteNo is free text (imported spreadsheet S.NO values, or a
+  // customer's own quote reference) and was being used for both jobs, which
+  // is how quotation numbers ended up displayed as lead numbers. The unique
+  // constraint is the part that matters — without it the generator could and
+  // did hand the same number to many leads without anything objecting.
+  leadNumber         String?           @unique
   name               String
   email              String
   phone              String?

@@ -162,20 +162,20 @@ export default function ReportsPage() {
   const showUserPicker = (reportType === 'personal' || reportType === 'team') && isManager;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
 
         {/* Page header */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sales Reports</h1>
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm mb-3 sm:mb-5">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Sales Reports</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Generate detailed performance reports with custom date ranges</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
 
           {/* ── Generate Form ── */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-6">
               <h2 className="text-base font-semibold text-gray-800 mb-5">Generate New Report</h2>
 
               {/* Report type */}

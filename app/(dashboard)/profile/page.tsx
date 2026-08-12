@@ -235,7 +235,7 @@ export default function ProfilePage() {
   const emailDirty = personalEmail.trim().toLowerCase() !== (profile.personalEmail || '').toLowerCase();
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-4xl">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5 max-w-4xl">
       {/* Identity header */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
         <div className="flex items-center gap-4">
@@ -243,7 +243,7 @@ export default function ProfilePage() {
             {initials}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
               {profile.firstName} {profile.lastName}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -285,7 +285,7 @@ export default function ProfilePage() {
           </span>
         </div>
 
-        <div className="p-5 sm:p-6">
+        <div className="p-3.5 sm:p-6">
           {isVerified ? (
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
@@ -375,7 +375,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Recovery Email <span className="text-red-500">*</span>
@@ -444,7 +444,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-4">
+        <div className="p-3.5 sm:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Current Password</label>
             <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
@@ -483,7 +483,7 @@ export default function ProfilePage() {
           <h2 className="text-sm font-semibold text-gray-900">Account</h2>
           <p className="text-xs text-gray-500 mt-0.5">Managed by your administrator</p>
         </div>
-        <div className="p-5 sm:p-6">
+        <div className="p-3.5 sm:p-6">
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
             <Field label="Login Email" value={profile.email} />
             <Field label="Employee ID" value={profile.employeeId || '—'} />

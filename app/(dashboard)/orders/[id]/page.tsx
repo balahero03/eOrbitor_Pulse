@@ -7,6 +7,8 @@ import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, Clos
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
 import { useToast } from '@/components/Toast';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Order {
   id: string;
@@ -205,7 +207,7 @@ export default function OrderDetailPage() {
     finally { setRequesting(false); }
   };
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
+  if (loading) return <InlineLoader message="Loading order…" />;
   if (!order) return <div className="p-6 text-center text-gray-500">Order not found</div>;
 
   const total = parseFloat(order.totalAmount);
@@ -214,32 +216,32 @@ export default function OrderDetailPage() {
   const paidPct = Math.min((paid / total) * 100, 100);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-3 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{order.customer.companyName}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={openEdit}
-            className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+            className={buttonClasses()}
           >
             <EditIcon className="w-4 h-4" /> Edit
           </button>
-          <Link href="/orders" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap">
+          <Link href="/orders" className={buttonClasses({ variant: 'secondary', className: 'whitespace-nowrap' })}>
             ← Orders
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Main */}
         <div className="lg:col-span-2 space-y-4">
 
           {/* Info */}
-          <div id={`order-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 ${highlightRingClass(orderFlashId === id)}`}>
+          <div id={`order-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6 ${highlightRingClass(orderFlashId === id)}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
@@ -267,7 +269,7 @@ export default function OrderDetailPage() {
           </div>
 
           {/* PO Details */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">PO Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
@@ -282,7 +284,7 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Amount */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">Order Amount</h2>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
@@ -308,7 +310,7 @@ export default function OrderDetailPage() {
 
           {/* Payment Info */}
           {(order.paymentMode || order.paymentRemarks || order.paymentProofUrl) && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Payment Details</h2>
               <div className="space-y-3">
                 {order.paymentMode && (
@@ -352,7 +354,7 @@ export default function OrderDetailPage() {
         <div className="space-y-4">
 
           {/* Payment Status */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Status</h3>
             <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${paymentColor[order.paymentStatus] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
               {order.paymentStatus}
@@ -370,7 +372,7 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Actions</h3>
             <div className="space-y-2">
               {order.status === 'PENDING' && (
@@ -400,7 +402,7 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-4">Order Timeline</h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2">
@@ -426,8 +428,8 @@ export default function OrderDetailPage() {
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
       {showEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
             <div className="border-b px-6 py-4 flex items-center justify-between flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">Edit Order</h2>
               <button onClick={() => setShowEdit(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -437,7 +439,7 @@ export default function OrderDetailPage() {
               {/* PO */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-3">PO Details</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">PO Number</label>
                     <input type="text" value={editData.poNumber} onChange={e => setEditData(p => ({ ...p, poNumber: e.target.value }))}
@@ -454,7 +456,7 @@ export default function OrderDetailPage() {
               {/* Amount */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Amount</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Total Amount (₹)</label>
                     <input type="number" value={editData.totalAmount} onChange={e => setEditData(p => ({ ...p, totalAmount: e.target.value }))}
@@ -536,7 +538,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="border-t px-6 py-4 flex gap-3 flex-shrink-0">
               <button onClick={handleSaveEdit} disabled={saving}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                className={buttonClasses({ size: 'lg', className: 'flex-1' })}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
               <button onClick={() => setShowEdit(false)}
@@ -550,8 +552,8 @@ export default function OrderDetailPage() {
 
       {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">
                 {isAdminUser ? 'Delete Order' : 'Request Order Deletion'}
@@ -587,7 +589,7 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={handleDeleteRequest} disabled={requesting}
-                      className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                      className={buttonClasses({ variant: 'danger', size: 'lg', className: 'flex-1' })}>
                       {requesting ? 'Deleting...' : 'Delete Order'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}
@@ -613,7 +615,7 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={handleDeleteRequest} disabled={requesting || !deleteReason.trim()}
-                      className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                      className={buttonClasses({ variant: 'danger', size: 'lg', className: 'flex-1' })}>
                       {requesting ? 'Submitting...' : 'Submit Request'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}

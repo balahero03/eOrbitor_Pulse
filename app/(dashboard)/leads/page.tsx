@@ -6,6 +6,9 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { DropdownPortal } from '@/components/DropdownPortal';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Lead {
   id: string;
@@ -14,6 +17,7 @@ interface Lead {
   status: string;
   source: string;
   quoteNo?: string;
+  leadNumber?: string;
   quoteValue?: number;
   rfqDate?: string;
   followUpDate?: string;
@@ -241,7 +245,7 @@ export default function LeadsPage() {
         </div>
         <p className="text-xs text-gray-500 mt-0.5 truncate">
           {highlightMatch(lead.company, query)}
-          {lead.quoteNo ? ` · ${lead.quoteNo}` : ''}
+          {(lead.leadNumber || lead.quoteNo) ? ` · ${lead.leadNumber || lead.quoteNo}` : ''}
           {ownerName ? <> · Owner: {highlightMatch(ownerName, query)}</> : ''}
         </p>
       </div>
@@ -280,23 +284,23 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Leads</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Active pipeline — Suspect through Closure</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <a
             href="/closed-leads"
-            className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap"
+            className={buttonClasses({ variant: 'secondary', className: 'whitespace-nowrap' })}
           >
             ← Closed Leads
           </a>
           <a
             href="/leads/new"
-            className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm"
+            className={buttonClasses({ className: 'whitespace-nowrap' })}
           >
             + New Lead
           </a>
@@ -577,7 +581,7 @@ export default function LeadsPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-gray-500">Loading...</div>
+          <InlineLoader message="Loading leads…" />
         ) : leads.length === 0 ? (
           <div className="p-10 text-center text-gray-500">
             No leads found
@@ -589,7 +593,7 @@ export default function LeadsPage() {
           <>
             {/* Card list (< 1024px). Eleven columns cannot be read on a tablet;
                 below lg the cards carry the same fields legibly. */}
-            <div className="block lg:hidden divide-y divide-gray-100">
+            <div className="block lg:hidden divide-y divide-gray-200">
               {leads.map((lead) => (
                 <div
                   key={lead.id}
@@ -599,9 +603,9 @@ export default function LeadsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {lead.quoteNo && (
+                        {(lead.leadNumber || lead.quoteNo) && (
                           <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">
-                            {lead.quoteNo}
+                            {lead.leadNumber || lead.quoteNo}
                           </span>
                         )}
                         <h3 className="font-bold text-gray-900 text-sm">{lead.name}</h3>
@@ -613,7 +617,7 @@ export default function LeadsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                  <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                     <div>
                       {lead.quoteValue ? (
                         <span className="font-bold text-gray-900 text-sm">₹{Number(lead.quoteValue).toLocaleString('en-IN')}</span>
@@ -671,7 +675,11 @@ export default function LeadsPage() {
                       onClick={() => router.push(`/leads/${lead.id}`)}
                     >
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                        {lead.quoteNo || '—'}
+                        {/* This column is headed "Lead Number" but rendered
+                            `quoteNo`, a free-text field that also carried
+                            imported S.NO values — which is why quotation
+                            numbers appeared here and some rows were blank. */}
+                        {lead.leadNumber || lead.quoteNo || '—'}
                       </td>
                       <td className="px-4 py-3 font-medium text-blue-700 hover:underline">
                         {lead.name}
@@ -767,7 +775,7 @@ export default function LeadsPage() {
         )}
       </div>
 
-    </div>
+    </PageContainer>
   );
 }
 

@@ -6,6 +6,8 @@ import { QuotationIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useToast } from '@/components/Toast';
+import PageContainer from '@/components/PageContainer';
+import FilterPanel from '@/components/FilterPanel';
 
 interface Quotation {
   id: string;
@@ -144,11 +146,11 @@ export default function QuotationsPage() {
   );
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quotations</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Quotations</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">All customer quotations</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -181,7 +183,12 @@ export default function QuotationsPage() {
       </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
+      <FilterPanel
+        label="Search & Filters"
+        activeCount={[search, status].filter(Boolean).length}
+        onClear={() => { setSearch(''); setStatus(''); setPage(1); }}
+      >
+        <form onSubmit={handleSearch} className="max-w-full">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
           <div className="flex-1 min-w-0">
             <LiveSearchDropdown<Quotation>
@@ -219,7 +226,8 @@ export default function QuotationsPage() {
             </button>
           </div>
         </div>
-      </form>
+        </form>
+      </FilterPanel>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -238,7 +246,7 @@ export default function QuotationsPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            <div className="block sm:hidden divide-y divide-gray-200">
               {quotations.map(q => {
                 const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
                 const meta = isPendingApproval
@@ -260,7 +268,7 @@ export default function QuotationsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                       <span className="text-sm font-bold text-gray-900">{fmt(q.totalAmount)}</span>
                       <span className="text-gray-400 text-[11px]">{fmtDate(q.issueDate)}</span>
                     </div>
@@ -332,6 +340,6 @@ export default function QuotationsPage() {
           </>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

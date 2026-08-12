@@ -45,13 +45,13 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, tint, color, sub, trend, href }: StatCardProps) {
   const inner = (
-    <div className="h-full bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="h-full bg-white rounded-xl border border-gray-200 p-3 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
           <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1 leading-tight break-words">{value}</p>
         </div>
-        <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
+        <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tint}`}>
           <Icon className={`w-5 h-5 ${color}`} />
         </span>
       </div>
@@ -184,13 +184,13 @@ export default function AdminDashboard({ data }: { data: any }) {
   const revenueUp = revenueGrowth !== null && revenueGrowth >= 0;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
       {needsRecoveryEmail && <RecoveryEmailBanner />}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Real-time company performance metrics</p>
         </div>
         <Link href="/users" className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center shadow-sm inline-flex items-center justify-center gap-2 w-full sm:w-auto">
@@ -202,7 +202,7 @@ export default function AdminDashboard({ data }: { data: any }) {
       <AnnouncementsPanel announcements={announcements} />
 
       {/* Primary KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Total Leads" value={fmtNum(kpis?.totalLeads || 0)}
           icon={FunnelIcon} tint="bg-blue-50" color="text-blue-600" href="/leads"
@@ -226,7 +226,7 @@ export default function AdminDashboard({ data }: { data: any }) {
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Total Customers" value={fmtNum(kpis?.totalCustomers || 0)}
           icon={BuildingOfficeIcon} tint="bg-teal-50" color="text-teal-600" href="/customers"

@@ -141,11 +141,11 @@ export default function NewTaskPage() {
   const otherAssignableUsers = assignableUsers.filter(u => u.id !== currentUser?.id);
 
   return (
-    <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-3 sm:space-y-6">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-gray-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight">
             {isAssignMode ? 'Assign New Task' : 'Create New Task'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">

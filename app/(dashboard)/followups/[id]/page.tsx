@@ -6,6 +6,8 @@ import Link from 'next/link';
 import TimeField from '@/components/TimeField';
 import { FollowUpIcon } from '@/components/icons';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface FollowUp {
   id: string;
@@ -136,20 +138,25 @@ export default function FollowUpDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading) return <InlineLoader message="Loading follow-up…" />;
   if (!followUp) return <div className="p-6 text-center">Follow-up not found</div>;
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2"><FollowUpIcon type={followUp.type} className="w-7 h-7" /> {followUp.type} Follow-up</h1>
-        <Link href="/followups" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto">Back to Follow-ups</Link>
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-6">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 min-w-0">
+          <FollowUpIcon type={followUp.type} className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
+          <span className="truncate">{followUp.type} Follow-up</span>
+        </h1>
+        <Link href="/followups" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>Back to Follow-ups</Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      {/* Single column until `lg` — see products/[id]; the sidebar is unusable
+          at a third of a phone's width. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Main Content */}
-        <div className="col-span-2 space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             {!editing && currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
               <button
                 onClick={() => setEditing(true)}
@@ -176,7 +183,7 @@ export default function FollowUpDetailPage() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Actual Date</label>
                     <input
@@ -306,14 +313,14 @@ export default function FollowUpDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Deal Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
             <p className="text-sm font-medium">{followUp.deal.dealName}</p>
             <p className="text-sm text-gray-600 mt-1">{followUp.deal.customer?.companyName}</p>
           </div>
 
           {/* Meta */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-2 text-xs text-gray-600">
               <p>
@@ -331,7 +338,7 @@ export default function FollowUpDetailPage() {
 
           {/* Actions */}
           {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <button
                 onClick={handleDelete}
                 className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"

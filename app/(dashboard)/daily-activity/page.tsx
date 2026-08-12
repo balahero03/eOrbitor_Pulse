@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import TimeField from '@/components/TimeField';
 import { ActivityIcon, ActivityChip, LockIcon, ClipboardIcon, PendingIcon, ErrorIcon, EditIcon, QuotationIcon, OrderIcon, CheckGlyph } from '@/components/icons';
 import { useToast } from '@/components/Toast';
+import PageContainer from '@/components/PageContainer';
 
 const ACTIVITY_MODES = [
   { value: 'MEETING', label: 'Meeting' },
@@ -88,8 +89,8 @@ function EntryForm({ entry, idx, onChange, onRemove }: {
         </div>
         <button onClick={onRemove} className="text-gray-300 hover:text-red-500 text-xl leading-none">×</button>
       </div>
-      <div className="p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="p-3 sm:p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Mode <span className="text-red-400">*</span></label>
             <select value={entry.mode} onChange={e => s('mode', e.target.value)}
@@ -104,8 +105,11 @@ function EntryForm({ entry, idx, onChange, onRemove }: {
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
+        {/* Contact person takes the full width on a phone and the two time
+            fields share the row below it — at a hard third each, a name and
+            designation had about eight characters to work with. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="col-span-2 sm:col-span-1">
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contact Person</label>
             <input type="text" value={entry.contactPerson} onChange={e => s('contactPerson', e.target.value)}
               placeholder="Name / designation"
@@ -355,11 +359,11 @@ function DailyActivityContent() {
   })();
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Daily Activity</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Daily Activity</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{dateLabel}</p>
         </div>
         {/* Clearing a date input reports an empty value. Falling back to today
@@ -396,55 +400,69 @@ function DailyActivityContent() {
       )}
 
       {/* Work hours — three aligned stat tiles */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Work Hours</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-5">
+        <h2 className="text-sm font-semibold text-gray-700 mb-2.5 sm:mb-3">Work Hours</h2>
+        {/* Login and Exit share a row on a phone; the running total takes the
+            full width below them, laid out horizontally so it costs one line
+            rather than three. Stacked full-width at `p-4` with `text-2xl`
+            figures and a line of helper text each, these three tiles filled
+            most of the screen before the activity list appeared. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 items-stretch">
           {/* First Login */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 flex flex-col">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">First Login</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1 tabular-nums leading-none">{loginTime || '—'}</p>
-            <p className="text-[11px] text-gray-400 mt-auto pt-2">
-              {loginLocked ? 'Auto-recorded on first login · permanent' : 'Not recorded yet'}
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3 sm:p-4 flex flex-col min-w-0">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider truncate">First Login</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-800 mt-1 tabular-nums leading-none">{loginTime || '—'}</p>
+            <p className="text-[10px] sm:text-[11px] text-gray-400 mt-auto pt-2 leading-tight">
+              {loginLocked
+                ? <><span className="sm:hidden">Auto · permanent</span><span className="hidden sm:inline">Auto-recorded on first login · permanent</span></>
+                : 'Not recorded yet'}
             </p>
           </div>
 
           {/* Exit Time */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 flex flex-col">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Exit Time</p>
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3 sm:p-4 flex flex-col min-w-0">
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider truncate">Exit Time</p>
               {isEditable && selectedDate === today && (
                 <button type="button" onClick={markExit} disabled={savingWorkHours}
-                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50 whitespace-nowrap">
+                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50 whitespace-nowrap flex-shrink-0">
                   {savingWorkHours ? 'Marking…' : 'Mark now'}
                 </button>
               )}
             </div>
-            <p className="text-2xl font-bold text-gray-800 mt-1 tabular-nums leading-none">{logoutTime || '—'}</p>
-            <p className="text-[11px] mt-auto pt-2">
+            <p className="text-xl sm:text-2xl font-bold text-gray-800 mt-1 tabular-nums leading-none">{logoutTime || '—'}</p>
+            <p className="text-[10px] sm:text-[11px] mt-auto pt-2 leading-tight">
               {workHoursSaved ? (
-                <span className="text-green-600 font-medium inline-flex items-center gap-1"><CheckGlyph className="w-3.5 h-3.5" /> Saved from server clock</span>
+                <span className="text-green-600 font-medium inline-flex items-center gap-1"><CheckGlyph className="w-3.5 h-3.5 flex-shrink-0" /> Saved</span>
               ) : (
-                <span className="text-gray-400">Captured from the server clock — can't be typed</span>
+                <span className="text-gray-400">
+                  <span className="sm:hidden">From server clock</span>
+                  <span className="hidden sm:inline">Captured from the server clock — can't be typed</span>
+                </span>
               )}
             </p>
           </div>
 
           {/* Total / In-progress */}
-          <div className={`rounded-xl border p-4 flex flex-col ${
+          <div className={`col-span-2 sm:col-span-1 rounded-xl border p-3 sm:p-4 flex flex-col ${
             !workHours ? 'border-gray-200 bg-gray-50/60'
               : workHours.live ? 'border-amber-200 bg-amber-50'
                 : 'border-blue-200 bg-blue-50'
           }`}>
-            <p className={`text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-              !workHours ? 'text-gray-400' : workHours.live ? 'text-amber-600' : 'text-blue-500'
-            }`}>
-              {workHours?.live && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
-              {workHours ? workHours.label : 'Total Work'}
-            </p>
-            <p className={`text-2xl font-bold mt-1 tabular-nums leading-none ${
-              !workHours ? 'text-gray-400' : workHours.live ? 'text-amber-700' : 'text-blue-700'
-            }`}>{workHours ? workHours.text : '—'}</p>
-            <p className={`text-[11px] mt-auto pt-2 ${!workHours ? 'text-gray-400' : workHours.live ? 'text-amber-600/80' : 'text-blue-500/80'}`}>
+            {/* Full width on a phone, so the label and the running figure can
+                share one line instead of stacking. */}
+            <div className="flex items-center justify-between gap-2 sm:block">
+              <p className={`text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 min-w-0 ${
+                !workHours ? 'text-gray-400' : workHours.live ? 'text-amber-600' : 'text-blue-500'
+              }`}>
+                {workHours?.live && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />}
+                <span className="truncate">{workHours ? workHours.label : 'Total Work'}</span>
+              </p>
+              <p className={`text-xl sm:text-2xl font-bold tabular-nums leading-none flex-shrink-0 sm:mt-1 ${
+                !workHours ? 'text-gray-400' : workHours.live ? 'text-amber-700' : 'text-blue-700'
+              }`}>{workHours ? workHours.text : '—'}</p>
+            </div>
+            <p className={`text-[10px] sm:text-[11px] mt-1 sm:mt-auto sm:pt-2 leading-tight ${!workHours ? 'text-gray-400' : workHours.live ? 'text-amber-600/80' : 'text-blue-500/80'}`}>
               {!workHours ? 'Mark exit to log the day' : workHours.live ? 'Still working…' : 'Logged for the day'}
             </p>
           </div>
@@ -463,7 +481,7 @@ function DailyActivityContent() {
               </span>
             )}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {isEditable && !editing && (
               <>
                 {entries.length > 0 && (
@@ -555,8 +573,8 @@ function DailyActivityContent() {
 
       {/* Unlock Request Modal */}
       {showUnlockModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-sm p-4 sm:p-6 max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Date Unlock</h2>
             <p className="text-sm text-gray-500 mb-1"><strong>{dateLabel}</strong></p>
             <p className="text-xs text-gray-400 mb-4">Explain why you need to update this date — admin/support will review and unlock if approved.</p>
@@ -576,7 +594,7 @@ function DailyActivityContent() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

@@ -8,6 +8,9 @@ import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import SectionHeader from '@/components/SectionHeader';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 import {
   StageIcon, StatusIcon, QuotationIcon, UploadIcon, SuccessIcon, WarningIcon, LockIcon,
   CalendarIcon, ClipboardIcon, TrophyIcon2, ErrorIcon, BlockedIcon, IdeaIcon, AttachmentIcon,
@@ -450,51 +453,68 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   };
 
   return (
-    <div className="bg-white rounded-xl border p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-800 flex items-center gap-1.5"><QuotationIcon className="w-5 h-5" /> Quotations</h2>
-        <div className="flex items-center gap-2">
-          {isAdminUser && quotaPolicyLoaded && !showCreateForm && (
-            <button
-              onClick={toggleQuotaPolicy}
-              disabled={togglingQuotaPolicy}
-              title={quotaRestrictionsDisabled
-                ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
-                : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50 ${
-                quotaRestrictionsDisabled
-                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
-                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${quotaRestrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
-              {togglingQuotaPolicy ? 'Updating…' : quotaRestrictionsDisabled ? 'Creation Restrictions: OFF' : 'Creation Restrictions: ON'}
-            </button>
-          )}
-          {canCreateQuotation && !showCreateForm && (
-            <>
-              <Link href="/products" className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
-                + Add Product
-              </Link>
-              <input ref={importInputRef} type="file"
-                accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
-              <button onClick={() => importInputRef.current?.click()} disabled={importing}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50">
-                {importing ? 'Reading file…' : <><UploadIcon className="w-4 h-4" /> Import PDF / Word</>}
+    <div className="bg-white rounded-xl border p-3.5 sm:p-5 shadow-sm">
+      <SectionHeader
+        icon={<QuotationIcon className="w-5 h-5 flex-shrink-0" />}
+        title="Quotations"
+        actions={
+          <>
+            {isAdminUser && quotaPolicyLoaded && !showCreateForm && (
+              <button
+                onClick={toggleQuotaPolicy}
+                disabled={togglingQuotaPolicy}
+                title={quotaRestrictionsDisabled
+                  ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
+                  : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] sm:min-h-0 rounded-lg font-medium border transition-colors disabled:opacity-50 ${
+                  quotaRestrictionsDisabled
+                    ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${quotaRestrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
+                {togglingQuotaPolicy ? 'Updating…' : (
+                  <>
+                    {/* The full phrase is four words wide and was the single
+                        worst offender in this toolbar; a phone gets the part
+                        that actually varies, with the rest in the tooltip. */}
+                    <span className="hidden sm:inline">Creation Restrictions:</span>
+                    <span className="sm:hidden">Restrictions</span>
+                    {quotaRestrictionsDisabled ? ' OFF' : ' ON'}
+                  </>
+                )}
               </button>
-              <button onClick={() => setShowCreateForm(true)}
-                className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
-                + New Quotation
-              </button>
-            </>
-          )}
-          {showCreateForm && (
-            <button onClick={closeForm} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-          )}
-        </div>
-      </div>
+            )}
+            {canCreateQuotation && !showCreateForm && (
+              <>
+                <Link href="/products" className={buttonClasses({ variant: 'secondary', size: 'xs' })}>
+                  + <span className="hidden xs:inline">Add </span>Product
+                </Link>
+                <input ref={importInputRef} type="file"
+                  accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
+                <button onClick={() => importInputRef.current?.click()} disabled={importing}
+                  className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] sm:min-h-0 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50">
+                  {importing ? 'Reading…' : (
+                    <>
+                      <UploadIcon className="w-4 h-4 flex-shrink-0" />
+                      Import<span className="hidden sm:inline"> PDF / Word</span>
+                    </>
+                  )}
+                </button>
+                <button onClick={() => setShowCreateForm(true)} className={buttonClasses({ size: 'xs' })}>
+                  + New<span className="hidden xs:inline"> Quotation</span>
+                </button>
+              </>
+            )}
+            {showCreateForm && (
+              <button onClick={closeForm} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 min-h-[32px] sm:min-h-0">Cancel</button>
+            )}
+          </>
+        }
+      />
+
 
       {/* Create Form */}
       {showCreateForm && (
@@ -580,7 +600,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                 )}
               </div>
               <button type="button" onClick={addBlank}
-                className="text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0">
+                className="min-h-[36px] sm:min-h-0 text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0 inline-flex items-center justify-center whitespace-nowrap">
                 + Blank
               </button>
             </div>
@@ -647,7 +667,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             {/* Totals */}
             {items.length > 0 && (
               <div className="flex justify-end mt-3">
-                <div className="w-64 space-y-1.5 text-xs">
+                <div className="w-full sm:w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
                   <div className="flex justify-between items-center text-gray-600">
                     <span>Discount ₹</span>
@@ -708,7 +728,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
 
       {/* Quotations list */}
       {loadingQ ? (
-        <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
+        <InlineLoader size="sm" />
       ) : quotations.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-4">No quotations yet</p>
       ) : (
@@ -729,15 +749,22 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             <div key={q.id} id={`quotation-${q.id}`}
               className={`border rounded-xl overflow-hidden ${highlightRingClass(flashId === q.id)}`}>
               {/* Row header */}
-              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+              {/* Five inline items do not fit a phone. Squeezed into one row,
+                  the quotation number was the only shrinkable item and broke at
+                  its hyphens into four lines. On mobile it becomes two rows:
+                  identity on top, money and date below. */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
-                <span className="font-mono text-xs font-bold text-gray-700">{q.quotationNumber}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : (statusColor[q.status] || statusColor.DRAFT)}`}>
-                  {isPendingApproval ? 'Pending Approval' : q.status}
-                </span>
-                <span className="ml-auto text-sm font-bold text-green-700">{fmt(parseFloat(q.totalAmount))}</span>
-                <span className="text-xs text-gray-400">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
-                <span className="text-gray-400 text-xs">{expandedId === q.id ? '▲' : '▼'}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-xs font-bold text-gray-700 whitespace-nowrap truncate">{q.quotationNumber}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap flex-shrink-0 ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : (statusColor[q.status] || statusColor.DRAFT)}`}>
+                    {isPendingApproval ? 'Pending Approval' : q.status}
+                  </span>
+                  <span className="text-gray-400 text-xs ml-auto sm:hidden flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
+                </div>
+                <span className="sm:ml-auto text-sm font-bold text-green-700 whitespace-nowrap">{fmt(parseFloat(q.totalAmount))}</span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
+                <span className="hidden sm:inline text-gray-400 text-xs flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
               </div>
 
               {/* Expanded detail */}
@@ -884,8 +911,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
       )}
 
       {rejectTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold text-orange-600 mb-1">Reject Quotation</h2>
             <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
             <textarea
@@ -942,6 +969,11 @@ function SpancoKanban({
       ? 'CLOSURE'
       : lead.status;
   const activeIdx = SPANCO.findIndex(s => s.key === activeStageKey);
+  // The only forward move the board allows. `undefined` at CLOSURE (the last
+  // stage — closing is a separate action) and for statuses that aren't on the
+  // board at all, e.g. a lead still sitting at NEW.
+  const nextStage = activeIdx >= 0 ? SPANCO[activeIdx + 1] : undefined;
+  const activeStage = activeIdx >= 0 ? SPANCO[activeIdx] : undefined;
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -972,13 +1004,16 @@ function SpancoKanban({
             </span>
           )}
         </div>
+        {/* The drag half of this hint is desktop-only — HTML5 drag events
+            never fire on touch — so on a phone it advertised an interaction
+            that could not work. */}
         <span className="text-xs text-gray-400">
-          {changing ? 'Moving…' : (canEdit && !isClosed) ? 'Click stage or drag card' : ''}
+          {changing ? 'Moving…' : (canEdit && !isClosed) ? <span className="hidden md:inline">Click stage or drag card</span> : ''}
         </span>
       </div>
 
-      {/* 6 Kanban columns */}
-      <div className="flex divide-x divide-gray-100 overflow-x-auto max-w-full scrollbar-none snap-x snap-mandatory" style={{ minHeight: 200 }}>
+      {/* Kanban columns — desktop only, see the stage rail below */}
+      <div className="hidden md:flex divide-x divide-gray-100 overflow-x-auto max-w-full scrollbar-none snap-x snap-mandatory" style={{ minHeight: 200 }}>
         {SPANCO.map((stage, idx) => {
           const isActive = stage.key === activeStageKey;
           const isPast = activeIdx > idx;
@@ -1063,31 +1098,144 @@ function SpancoKanban({
         })}
       </div>
 
+      {/* ── Mobile stage rail (< 640px) ──────────────────────────────────
+          The kanban above is a desktop control. Six columns need ~900px to
+          read, so a phone showed three at a time — and since the completed
+          ones come first, the stage you are actually on was usually scrolled
+          off-screen. Worse, its drag-and-drop is HTML5 DnD, which no touch
+          browser fires, leaving "tap the next column" as an undiscoverable
+          way to advance.
+
+          So on a phone the pipeline collapses to a rail that fits one screen,
+          and the single legal move becomes a full-width button. Same rules as
+          the board: one step forward, Suspect→Prospect still routes through
+          the convert modal, and Closure↔Negotiation stays reversible. */}
+      <div className="md:hidden">
+        <div className="flex items-start px-2 pt-3 pb-1">
+          {SPANCO.map((stage, idx) => {
+            const isActive = stage.key === activeStageKey;
+            const isPast = activeIdx > idx;
+            return (
+              <div key={stage.key} className="flex-1 flex flex-col items-center min-w-0">
+                <div className="flex items-center w-full">
+                  {/* Connector into this node: filled once the previous node
+                      is behind us, so the green run ends at the active node. */}
+                  <span className={`h-0.5 flex-1 ${idx === 0 ? 'bg-transparent' : activeIdx >= idx ? 'bg-green-500' : 'bg-gray-200'}`} />
+                  <span
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 flex-shrink-0 transition-colors ${
+                      isPast
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : isActive
+                          ? `${stage.headerBg} border-transparent text-white ring-2 ring-offset-1 ring-gray-300`
+                          : 'bg-white border-gray-300 text-gray-400'
+                    }`}
+                  >
+                    {isPast ? <CheckGlyph className="w-3.5 h-3.5 text-white" /> : stage.abbr}
+                  </span>
+                  <span className={`h-0.5 flex-1 ${idx === SPANCO.length - 1 ? 'bg-transparent' : activeIdx > idx ? 'bg-green-500' : 'bg-gray-200'}`} />
+                </div>
+                <span className={`text-[9px] mt-1 text-center leading-tight truncate w-full px-0.5 ${isActive ? 'font-bold text-gray-800' : 'text-gray-400'}`}>
+                  {stage.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-3 pb-3 pt-2 space-y-2.5">
+          {activeStage && (
+            <div className={`rounded-xl border-2 p-3 ${activeStage.cardBg}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${activeStage.badge}`}>
+                  {activeStage.abbr}
+                </span>
+                <p className="text-sm font-bold text-gray-900 truncate">{activeStage.label}</p>
+                {!isClosed && (
+                  <span className="ml-auto text-[10px] font-bold text-gray-500 flex-shrink-0 tracking-wide">● CURRENT</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-600 leading-snug">{activeStage.desc}</p>
+              {(lead.quoteValue || lead.followUpDate) && (
+                <div className="flex items-center gap-3 mt-2 pt-2 border-t border-black/5">
+                  {lead.quoteValue ? (
+                    <p className="text-sm font-bold text-green-700">{fmt(lead.quoteValue)}</p>
+                  ) : null}
+                  {lead.followUpDate && (
+                    <p className={`text-[11px] inline-flex items-center gap-1 ${new Date(lead.followUpDate) < new Date() ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                      <CalendarIcon className="w-3 h-3" color="text-current" />
+                      {new Date(lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {canEdit && !isClosed && nextStage && (
+            <button
+              onClick={() => {
+                if (lead.status === 'SUSPECT' && nextStage.key === 'PROSPECT') {
+                  onShowConvertModal?.();
+                  return;
+                }
+                onStageChange(nextStage.key);
+              }}
+              disabled={changing}
+              className={`w-full py-3 rounded-xl text-white text-sm font-bold shadow-sm active:scale-[0.98] transition-transform disabled:opacity-40 inline-flex items-center justify-center gap-2 ${nextStage.headerBg}`}
+            >
+              {changing ? 'Moving…' : <>Move to {nextStage.label} <span aria-hidden>→</span></>}
+            </button>
+          )}
+
+          {/* At Closure the forward move is closing the deal, not a stage hop. */}
+          {canEdit && !isClosed && activeStageKey === 'CLOSURE' && (
+            <>
+              <button
+                onClick={onClosureClick}
+                disabled={changing}
+                className="w-full py-3 rounded-xl bg-green-600 text-white text-sm font-bold shadow-sm active:scale-[0.98] transition-transform disabled:opacity-40 inline-flex items-center justify-center gap-2"
+              >
+                <CheckGlyph className="w-4 h-4 text-white" /> Close Deal
+              </button>
+              <button
+                onClick={() => onStageChange('NEGOTIATION')}
+                disabled={changing}
+                className="w-full py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-semibold active:scale-[0.98] transition-transform disabled:opacity-40"
+              >
+                ← Back to Negotiation
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Quick-action footer */}
       {canEdit && !isClosed && (
-        <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Action:</span>
+        <div className="px-3 sm:px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2 flex-wrap">
+          <span className="hidden md:inline text-xs text-gray-500 font-semibold uppercase tracking-wider">Action:</span>
+          {/* Convert and Close Deal are the mobile rail's primary button, so
+              they would otherwise appear twice on a phone. */}
           {lead.status === 'SUSPECT' && (
             <button onClick={() => onShowConvertModal?.()} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
+              className="hidden md:inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
               <ClipboardIcon className="w-3.5 h-3.5 text-cyan-600" /> Convert to Prospect
             </button>
           )}
           {lead.status !== 'ON_HOLD' && lead.status !== 'SUSPECT' && (
             <button onClick={() => onStageChange('ON_HOLD')} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
+              className="flex-1 md:flex-none justify-center inline-flex items-center gap-1.5 text-xs px-3.5 py-2 md:py-1.5 rounded-lg border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
               <StatusIcon status="ON_HOLD" className="w-3.5 h-3.5" color="text-amber-600" /> On Hold
             </button>
           )}
           {isAdmin && lead.status !== 'DROPPED' && (
             <button onClick={() => onStageChange('DROPPED')} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
+              className="flex-1 md:flex-none justify-center inline-flex items-center gap-1.5 text-xs px-3.5 py-2 md:py-1.5 rounded-lg border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
               <StatusIcon status="DROPPED" className="w-3.5 h-3.5" color="text-red-600" /> Drop Lead
             </button>
           )}
           {lead.status === 'CLOSURE' && (
             <button onClick={onClosureClick} disabled={changing}
-              className="inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 active:scale-95 disabled:opacity-40 font-bold shadow-sm transition-all">
+              className="hidden md:inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 active:scale-95 disabled:opacity-40 font-bold shadow-sm transition-all">
               <CheckGlyph className="w-4 h-4 text-white" /> Close Deal
             </button>
           )}
@@ -1095,7 +1243,7 @@ function SpancoKanban({
       )}
 
       {isClosed && (
-        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="px-3 sm:px-4 py-2.5 bg-amber-50 border-t border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-xs text-amber-800 font-medium inline-flex items-center gap-1.5">
             <LockIcon className="w-4 h-4 flex-shrink-0" />
             {isAdmin
@@ -1105,7 +1253,7 @@ function SpancoKanban({
           <div className="flex gap-2 flex-shrink-0">
             {onRequestReopen && (
               <button onClick={onRequestReopen}
-                className="text-xs px-3.5 py-1.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 shadow-sm transition-all">
+                className="min-h-[36px] sm:min-h-0 text-xs px-3.5 py-1.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 shadow-sm transition-all inline-flex items-center justify-center whitespace-nowrap">
                 {isAdmin ? 'Re-open Lead' : 'Request Re-open'}
               </button>
             )}
@@ -1680,7 +1828,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                 )}
               </div>
               <button type="button" onClick={addBlank}
-                className="text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0">
+                className="min-h-[36px] sm:min-h-0 text-xs px-2.5 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex-shrink-0 inline-flex items-center justify-center whitespace-nowrap">
                 + Blank
               </button>
             </div>
@@ -1836,16 +1984,20 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-shrink-0">
+        {/* Three buttons carrying ~45 characters of label between them cannot
+            share one row on a phone; flex would resolve that by wrapping each
+            label instead. Stacked below `sm`, with the primary action last so
+            it sits closest to the thumb. Unchanged from `sm` up. */}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 flex-shrink-0">
           <button onClick={onClose} disabled={submitting}
-            className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
-          <div className="flex items-center gap-2">
+            className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 whitespace-nowrap">Cancel</button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             {!editMode && onSkip && (
               <button
                 type="button"
                 onClick={onSkip}
                 disabled={submitting}
-                className="px-4 py-2.5 border border-amber-300 text-amber-800 bg-amber-50 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 border border-amber-300 text-amber-800 bg-amber-50 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors whitespace-nowrap"
                 title="Skip negotiation phase and advance straight to Closure"
               >
                 Skip Negotiation ➔
@@ -1859,7 +2011,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
               taxDetails: terms.taxDetails, warranty: terms.warranty, amcPeriod: terms.amcPeriod,
               deliveryEstimate: terms.deliveryEstimate, qNotes: terms.qNotes,
             })} disabled={submitting || !canSubmit}
-              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 transition-colors shadow-xs">
+              className="w-full sm:w-auto px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 transition-colors shadow-xs whitespace-nowrap">
               {submitting ? 'Saving…' : editMode ? 'Save Changes' : 'Move to Negotiation →'}
             </button>
           </div>
@@ -2554,16 +2706,17 @@ export default function LeadDetailPage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* ── TOP HALF: kanban board (scrolls with the page) ──────────────── */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-4 shadow-sm">
+      <div className="bg-gray-50 border-b border-gray-200 px-3 sm:px-4 py-3 sm:py-4 shadow-sm">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
+        {/* Header — the back link sits inline with the title on a phone rather
+            than on its own row above it, which cost a full line of the fold. */}
+        <div className="flex flex-row sm:items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
           <Link href="/leads" className="mt-0.5 p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 text-sm flex-shrink-0 self-start">
-            ← Back
+            ← <span className="hidden xs:inline">Back</span>
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-900">{lead.name}</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 break-words">{lead.name}</h1>
               {isClosed && (
                 <Link href="/closed-leads" className="text-xs text-blue-600 hover:underline">
                   View in Closed Leads →
@@ -2639,11 +2792,15 @@ export default function LeadDetailPage() {
       </div>
 
       {/* ── BOTTOM HALF: details ─────────────────────────────────────────── */}
-      <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* The extra bottom padding below `sm` clears the mobile action bar. The
+          shell's `<main>` already reserves `pb-20` for the bottom nav, but this
+          page stacks a second fixed bar at `bottom-14` on top of it, so without
+          this the last stretch of the page sat underneath the buttons. */}
+      <div className="flex-1 px-3 sm:px-6 py-3 sm:py-5 pb-24 sm:pb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5">
 
           {/* Left 2/3 */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-5">
 
             {/* Closed banner */}
             {isClosed && (
@@ -3273,14 +3430,14 @@ export default function LeadDetailPage() {
       )}
 
       {showConvertModal && lead && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-2xl shadow-xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <div className="sticky top-0 bg-white border-b p-4 sm:p-6 rounded-t-2xl sm:rounded-t-xl">
               <h2 className="text-lg font-bold">Convert Suspect to Prospect</h2>
               <p className="text-sm text-gray-600 mt-1">{lead.company} • {lead.name}</p>
             </div>
-            <div className="p-6 space-y-6">
-              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3 sm:p-4">
                 <p className="text-sm text-cyan-800">
                   <strong>Prospect Stage:</strong> Add detailed information about solution requirements, OEM partners involved, and presales team.
                 </p>
@@ -3488,9 +3645,9 @@ export default function LeadDetailPage() {
               </div>
 
               {/* Company Information */}
-              <div className="border-t pt-6">
-                <h4 className="text-sm font-semibold text-gray-800 mb-4">Company Information</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="border-t pt-4 sm:pt-6">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3 sm:mb-4">Company Information</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">No. of Employees</label>
                     <input
@@ -3614,8 +3771,8 @@ export default function LeadDetailPage() {
       )}
 
       {showFollowUpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl p-4 sm:p-6 w-full max-w-md shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold mb-4">Add Follow-up</h2>
             <div className="space-y-4">
               <div>
@@ -3656,8 +3813,8 @@ export default function LeadDetailPage() {
       )}
 
       {showReopenModal && !isAdminUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Re-open</h2>
             <p className="text-sm text-gray-500 mb-4">
               This lead is closed. Submit a reason — an admin will review and re-open it if approved.
@@ -3684,8 +3841,8 @@ export default function LeadDetailPage() {
       )}
 
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold mb-3 text-red-600">
               {isAdminUser ? 'Delete Lead' : 'Request Lead Deletion'}
             </h2>

@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import TimeField from '@/components/TimeField';
+import PageContainer from '@/components/PageContainer';
+import PageHeader from '@/components/PageHeader';
 import { ActivityIcon, LockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2 } from '@/components/icons';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 const ACTIVITY_MODES: Record<string, { label: string }> = {
   MEETING: { label: 'Meeting' },
@@ -102,22 +105,29 @@ function normalizeActivity(raw: ActivityEntry | string) {
 function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }) {
   const entries: (ActivityEntry | string)[] = Array.isArray(rec.activities) ? rec.activities : [];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    // Bottom sheet on a phone, centred dialog from `sm` up. A centred card
+    // inset by 16px on a 390pt screen wastes the margin and still puts the
+    // close button at the top, which is the hardest place on the screen to
+    // reach one-handed; anchoring to the bottom edge fixes both.
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col animate-slide-up sm:animate-scale-in"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <p className="font-bold text-gray-900 text-lg">{rec.user.firstName} {rec.user.lastName}</p>
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b">
+          <div className="min-w-0">
+            <p className="font-bold text-gray-900 text-base sm:text-lg truncate">{rec.user.firstName} {rec.user.lastName}</p>
             <p className="text-xs text-gray-400">
               {new Date(rec.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               {' · '}<span className="text-gray-500">{rec.user.role}</span>
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-700 text-2xl leading-none flex-shrink-0 -mt-1">&times;</button>
         </div>
 
         {/* Login/logout bar */}
-        <div className="grid grid-cols-3 divide-x px-6 py-3 bg-gray-50 text-center text-sm border-b">
+        <div className="grid grid-cols-3 divide-x px-3 sm:px-6 py-3 bg-gray-50 text-center text-xs sm:text-sm border-b">
           <div>
             <p className="text-xs text-gray-400 font-semibold uppercase">First Login</p>
             <p className="font-bold text-green-700">
@@ -137,17 +147,17 @@ function ActivityModal({ rec, onClose }: { rec: DayRecord; onClose: () => void }
         </div>
 
         {/* Activity list */}
-        <div className="overflow-y-auto flex-1 px-8 py-6">
+        <div className="overflow-y-auto flex-1 px-4 sm:px-8 py-4 sm:py-6">
           {entries.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-10">No activities recorded</p>
           ) : (
-            <div className="relative border-l-2 border-blue-100 ml-4 pl-6 space-y-6 my-2">
+            <div className="relative border-l-2 border-blue-100 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-5 sm:space-y-6 my-2">
               {entries.map((raw, i) => {
                 const a = normalizeActivity(raw);
                 return (
                   <div key={typeof raw === 'string' ? i : raw.id || i} className="relative group">
                     {/* Icon Node centered on the line */}
-                    <div className="absolute -left-[35px] top-0.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center shadow-sm group-hover:border-blue-600 transition-colors">
+                    <div className="absolute -left-[32px] sm:-left-[35px] top-0.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center shadow-sm group-hover:border-blue-600 transition-colors">
                       <ActivityIcon mode={a.mode} className="w-3.5 h-3.5" />
                     </div>
 
@@ -305,18 +315,28 @@ function AccessPolicySection() {
     return () => clearTimeout(t);
   }, [saveMessage]);
 
+  // Each strip is a flex row of exactly two children: the dot, and one text
+  // node. Previously the sentence sat directly in the flex container with a
+  // `<strong>` inside it, which made the bold phrase its own flex item — so the
+  // line broke into three independently-wrapping columns ("…restricted roles
+  // currently" / "have access" / "— we're outside the window"). That was wrong
+  // at every width, not just on a phone. Wrapping the sentence in a single
+  // <span> gives it back to normal inline layout.
   const statusStrip = policy && loaded && (
     !policy.enabled ? (
-      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-xs">
-        <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0" /> Policy is off — nobody is restricted right now.
+      <div className="flex items-start gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-xs">
+        <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0 mt-1" />
+        <span>Policy is off — nobody is restricted right now.</span>
       </div>
     ) : policy.currentlyRestricting ? (
-      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs font-medium">
-        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" /> As of right now: restricted roles are currently <strong>blocked</strong>.
+      <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs font-medium">
+        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse mt-1" />
+        <span>Right now: restricted roles are <strong>blocked</strong>.</span>
       </div>
     ) : (
-      <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs font-medium">
-        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" /> As of right now: restricted roles currently <strong>have access</strong> — we're outside the restricted window.
+      <div className="flex items-start gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs font-medium">
+        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0 mt-1" />
+        <span>Right now: restricted roles <strong>have access</strong> — we're outside the restricted window.</span>
       </div>
     )
   );
@@ -325,7 +345,7 @@ function AccessPolicySection() {
   const longWindowWarning = durationHours > 16;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <button
         onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
@@ -366,27 +386,38 @@ function AccessPolicySection() {
             </div>
 
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase">Quick presets</p>
+              {/* The label sat inline with the chips, so on a narrow column it
+                  pushed the first preset onto its own line and the row read as
+                  three ragged rows. It gets its own line now. */}
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Quick presets</p>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 {WINDOW_PRESETS.map(p => (
                   <button key={p.label} type="button" onClick={() => applyPreset(p.start, p.end)}
-                    className="text-xs px-2.5 py-1 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50">
+                    className="text-xs px-3 py-1.5 min-h-[32px] sm:min-h-0 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors whitespace-nowrap">
                     {p.label}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-4 items-end flex-wrap">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction starts at</label>
+              {/* A two-column grid rather than a wrapping flex row: "Restriction
+                  starts at" is long enough to wrap to two lines on a phone, and
+                  in a flex row that made the two fields sit at different
+                  heights. The grid keeps them aligned however the labels wrap. */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 items-end">
+                <div className="min-w-0">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 leading-tight">
+                    Starts<span className="hidden sm:inline"> at</span>
+                  </label>
                   <TimeField value={policy.windowStart}
                     onChange={v => updatePolicy({ windowStart: v })}
-                    className="w-36" />
+                    className="w-full sm:w-36" />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Restriction ends at</label>
+                <div className="min-w-0">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 leading-tight">
+                    Ends<span className="hidden sm:inline"> at</span>
+                  </label>
                   <TimeField value={policy.windowEnd}
                     onChange={v => updatePolicy({ windowEnd: v })}
-                    className="w-36" />
+                    className="w-full sm:w-36" />
                 </div>
               </div>
               {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
@@ -514,20 +545,18 @@ export default function AttendancePage() {
   const isDayPresent = (day: number) => recordsForDay(day).length > 0;
 
   return (
-    <div className="p-4 sm:p-6">
+    <PageContainer>
       {activityModal && <ActivityModal rec={activityModal} onClose={() => setActivityModal(null)} />}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Attendance</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Employee login/logout tracking</p>
-        </div>
-      </div>
+      <PageHeader title="Attendance" subtitle="Employee login/logout tracking" />
 
       {currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) && <AccessPolicySection />}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4">
+        {/* The month stepper sits beside the employee picker on a phone rather
+            than on its own labelled row — two stacked control rows plus a
+            heading was most of the first screen before any data appeared. */}
+        <div className="flex flex-wrap gap-3 sm:gap-4 items-end">
           <div className="min-w-0 flex-1 basis-40">
             <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Employee</label>
             <select
@@ -543,15 +572,17 @@ export default function AttendancePage() {
               ))}
             </select>
           </div>
-          <div className="flex-shrink-0">
-            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Month</label>
-            <div className="flex items-center gap-2">
+          <div className="w-full sm:w-auto flex-shrink-0">
+            <label className="hidden sm:block text-xs font-semibold text-gray-500 mb-1 uppercase">Month</label>
+            <div className="flex items-center justify-between sm:justify-start gap-2">
               <button
+                aria-label="Previous month"
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
                 className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
               >←</button>
               <span className="font-semibold text-sm px-2 whitespace-nowrap">{monthName}</span>
               <button
+                aria-label="Next month"
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
                 disabled={currentMonth >= new Date()}
                 className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
@@ -560,22 +591,23 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* Summary chips */}
-        <div className="flex gap-3 mt-4">
-          <div className="px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-center">
+        {/* Summary chips — side by side and label-left on a phone. As stacked
+            `text-2xl` blocks these two numbers cost a third of the viewport. */}
+        <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3 mt-3 sm:mt-4">
+          <div className="flex sm:block items-baseline justify-between gap-2 px-3 sm:px-4 py-2 bg-green-50 border border-green-200 rounded-lg sm:text-center">
             <p className="text-xs text-gray-500 font-semibold">Present Days</p>
-            <p className="text-2xl font-bold text-green-700">{presentDays}</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-700 leading-none sm:leading-normal">{presentDays}</p>
           </div>
-          <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-center">
+          <div className="flex sm:block items-baseline justify-between gap-2 px-3 sm:px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg sm:text-center">
             <p className="text-xs text-gray-500 font-semibold">Total Hours</p>
-            <p className="text-2xl font-bold text-blue-700">{totalHoursSum.toFixed(1)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-blue-700 leading-none sm:leading-normal">{totalHoursSum.toFixed(1)}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Calendar */}
-        <div className="lg:col-span-2 card p-6">
+        <div className="lg:col-span-2 card p-2.5 sm:p-6">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
@@ -585,9 +617,9 @@ export default function AttendancePage() {
 
           {/* Day grid */}
           {loading ? (
-            <div className="py-16 text-center text-gray-400">Loading...</div>
+            <InlineLoader />
           ) : (
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
               {/* Empty cells before first day */}
               {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                 <div key={`e-${i}`} />
@@ -607,8 +639,8 @@ export default function AttendancePage() {
                     onClick={() => !isFuture && setSelectedDay(isSelected ? null : dateStr)}
                     disabled={isFuture}
                     className={`
-                      aspect-square rounded-xl border-2 flex flex-col items-center justify-center
-                      text-sm font-semibold transition-all
+                      aspect-square rounded-lg sm:rounded-xl border-2 flex flex-col items-center justify-center
+                      text-xs sm:text-sm font-semibold transition-all
                       ${isFuture ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-default' :
                         isSelected ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md' :
                           present ? 'border-green-400 bg-green-50 text-green-800 hover:border-green-500 hover:shadow' :
@@ -629,7 +661,7 @@ export default function AttendancePage() {
           )}
 
           {/* Legend */}
-          <div className="mt-4 flex gap-4 text-xs text-gray-500">
+          <div className="mt-3 sm:mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded border-2 border-green-400 bg-green-50" />Present
             </div>
@@ -642,8 +674,11 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* Detail Panel */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sticky top-20 self-start">
+        {/* Detail Panel — `sticky` only from `lg`, where it sits in its own
+            column beside the calendar. On a phone it is stacked *below* the
+            calendar, and a sticky element in normal flow there just pins the
+            panel over the content as you scroll past it. */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6 lg:sticky lg:top-20 self-start">
           {selectedDay ? (
             <>
               <h3 className="font-bold text-gray-800 mb-4">
@@ -662,7 +697,7 @@ export default function AttendancePage() {
                   {selectedDayRecords.map(rec => {
                     const entries: (ActivityEntry | string)[] = Array.isArray(rec.activities) ? rec.activities : [];
                     return (
-                      <div key={rec.id} className="border rounded-xl p-4 space-y-3">
+                      <div key={rec.id} className="border rounded-xl p-3 sm:p-4 space-y-3">
                         {/* User header */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -752,6 +787,6 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

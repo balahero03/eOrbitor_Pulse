@@ -8,7 +8,7 @@ import { LockIcon } from '@/components/icons';
 import { requestHighlight } from '@/lib/notificationHighlight';
 import { ToastProvider } from '@/components/Toast';
 import { ConfirmProvider, useConfirm } from '@/components/ConfirmDialog';
-import { BrandedLoader } from '@/components/BrandedLoader';
+import { BrandedLoader, InlineLoader } from '@/components/BrandedLoader';
 import {
   HomeIcon,
   FunnelIcon,
@@ -266,7 +266,7 @@ function AccessRestrictedScreen({
         </div>
 
         {myRequest === undefined ? (
-          <p className="text-sm text-gray-400">Loading…</p>
+          <InlineLoader size="sm" />
         ) : myRequest?.status === 'PENDING' ? (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
             Your request is pending admin review. This screen will update automatically once it's approved.
@@ -897,7 +897,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllRead}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded transition-colors"
+                        className="min-h-[36px] sm:min-h-0 text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded transition-colors inline-flex items-center whitespace-nowrap"
                       >
                         Mark all read
                       </button>
@@ -1002,14 +1002,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       {notifications.some(n => n.isRead) && (
                         <button
                           onClick={clearReadNotifications}
-                          className="text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 hover:bg-gray-200 rounded transition-colors flex-1"
+                          className="min-h-[36px] sm:min-h-0 text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 hover:bg-gray-200 rounded transition-colors flex-1 inline-flex items-center justify-center whitespace-nowrap"
                         >
                           Clear read
                         </button>
                       )}
                       <button
                         onClick={clearAllNotifications}
-                        className="text-xs font-medium text-red-600 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded transition-colors flex-1"
+                        className="min-h-[36px] sm:min-h-0 text-xs font-medium text-red-600 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded transition-colors flex-1 inline-flex items-center justify-center whitespace-nowrap"
                       >
                         Clear all
                       </button>

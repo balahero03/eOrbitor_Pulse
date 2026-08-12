@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface VendorProduct {
   vendorId: string;
@@ -129,7 +131,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     }).format(parseFloat(value.toString()));
   };
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading) return <InlineLoader message="Loading product…" />;
   if (!product) return <div className="p-6 text-center">Product not found</div>;
 
   const stockStatus = product.inventory
@@ -141,17 +143,20 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     : 'NO_INVENTORY';
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{product.name}</h1>
-        <Link href="/products" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto">Back to Products</Link>
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-6">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{product.name}</h1>
+        <Link href="/products" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>Back to Products</Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      {/* Single column until `lg`. At three hard columns the sidebar was ~110px
+          wide on a phone, which turned every stat in it into a vertical stack
+          of two-character lines. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         {/* Main Content */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {/* Product Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
@@ -192,7 +197,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Base Price</label>
                     <input
@@ -254,7 +259,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-4 border-t">
                   <div>
                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Base Price</p>
                     <p className="text-lg font-medium">{formatCurrency(product.basePrice)}</p>
@@ -271,7 +276,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
           {/* Vendors */}
           {product.vendorProducts && product.vendorProducts.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
               <h2 className="text-lg font-bold mb-4">Vendors & Pricing</h2>
               <div className="space-y-3">
                 {product.vendorProducts.map((vp) => (
@@ -282,8 +287,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                         <p className="text-xs text-gray-500">Rating: {vp.vendor.rating || 'N/A'}/5</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+                      <div className="min-w-0">
                         <p className="text-gray-500">Vendor SKU</p>
                         <p className="font-medium">{vp.vendorSku}</p>
                       </div>
@@ -306,7 +311,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Inventory Status */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-lg font-semibold mb-3">Stock Status</h3>
             {product.inventory ? (
               <div className="space-y-3">
@@ -345,7 +350,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
 
           {/* Meta */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
             <div className="space-y-2 text-xs text-gray-600">
               <p>
@@ -362,7 +367,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
 
           {/* Actions */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <button
               onClick={handleDeleteProduct}
               className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"

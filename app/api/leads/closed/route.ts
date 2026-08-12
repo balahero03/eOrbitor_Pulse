@@ -39,6 +39,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       { name: { contains: search, mode: 'insensitive' } },
       { company: { contains: search, mode: 'insensitive' } },
       { quoteNo: { contains: search, mode: 'insensitive' } },
+      { leadNumber: { contains: search, mode: 'insensitive' } },
       { assignedTo: { firstName: { contains: search, mode: 'insensitive' } } },
       { assignedTo: { lastName: { contains: search, mode: 'insensitive' } } },
       { assignedTo: { email: { contains: search, mode: 'insensitive' } } },
@@ -64,7 +65,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       take: limit,
       select: {
         id: true, name: true, company: true, status: true,
-        quoteValue: true, quoteNo: true, source: true,
+        quoteValue: true, quoteNo: true, leadNumber: true, source: true,
         closedAt: (true as any),
         closureReason: (true as any),
         assignedTo: { select: { firstName: true, lastName: true } },

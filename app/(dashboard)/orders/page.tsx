@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useConfirm } from '@/components/ConfirmDialog';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
+import FilterPanel from '@/components/FilterPanel';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Order {
   id: string;
@@ -148,16 +152,16 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Orders</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Purchase orders from won leads</p>
         </div>
         <Link
           href="/orders/new"
-          className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm"
+          className={buttonClasses({ className: 'w-full sm:w-auto' })}
         >
           + New Order
         </Link>
@@ -179,7 +183,11 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4 max-w-full overflow-hidden">
+      <FilterPanel
+        label="Search & Filters"
+        activeCount={[search, status, paymentStatus].filter(Boolean).length}
+        onClear={() => { setSearch(''); setStatus(''); setPaymentStatus(''); setPage(1); }}
+      >
         <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
           <div className="w-full">
             <LiveSearchDropdown<Order>
@@ -234,44 +242,50 @@ export default function OrdersPage() {
             Search
           </button>
         </form>
-      </div>
+      </FilterPanel>
 
       {/* Orders Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-gray-500">Loading...</div>
+          <InlineLoader message="Loading orders…" />
         ) : orders.length === 0 ? (
           <div className="p-10 text-center text-gray-500">No orders found</div>
         ) : (
           <>
-            {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            {/* Mobile Card List (< 640px)
+                Two fixes to how records read as separate things. The row
+                divider was `gray-100` while each row drew its *own* `gray-50`
+                rule between its two halves — near-identical weights, so a
+                single order looked like two records. The inner rule is gone and
+                the divider between records is now `gray-200`, which is the only
+                horizontal line in the list. */}
+            <div className="block sm:hidden divide-y divide-gray-200">
               {orders.map((order) => (
                 <Link
                   key={order.id}
                   href={`/orders/${order.id}`}
-                  className="block p-4 active:bg-blue-50/70 transition-colors cursor-pointer space-y-2"
+                  className="block px-4 py-3.5 active:bg-blue-50/70 transition-colors cursor-pointer space-y-1.5"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-mono text-xs font-bold text-gray-900 block">{order.orderNumber}</span>
-                      <p className="text-xs font-semibold text-gray-700 mt-0.5">{order.customer.companyName}</p>
+                    <div className="min-w-0">
+                      <span className="font-mono text-xs font-bold text-gray-900 block truncate">{order.orderNumber}</span>
+                      <p className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{order.customer.companyName}</p>
                     </div>
-                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${getStatusBadgeColor(order.status)}`}>
+                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 whitespace-nowrap ${getStatusBadgeColor(order.status)}`}>
                       {order.status}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
-                    <div>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0">
                       <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
                       {parseFloat(order.amountPaid) > 0 && (
-                        <span className="text-[11px] text-green-700 font-semibold block">
+                        <span className="text-[11px] text-green-700 font-semibold block truncate">
                           Paid: {formatCurrency(order.amountPaid)}
                         </span>
                       )}
                     </div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${getPaymentBadgeColor(order.paymentStatus)}`}>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium flex-shrink-0 whitespace-nowrap ${getPaymentBadgeColor(order.paymentStatus)}`}>
                       {order.paymentStatus}
                     </span>
                   </div>
@@ -362,6 +376,6 @@ export default function OrdersPage() {
           </>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

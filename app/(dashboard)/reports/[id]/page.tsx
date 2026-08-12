@@ -132,7 +132,7 @@ function MetricCard({ label, value, sub, accent }: { label: string; value: strin
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
+    <div className="bg-white border border-gray-200 rounded-xl p-3.5 sm:p-5">
       <h3 className="text-sm font-semibold text-gray-800 mb-4">{title}</h3>
       {children}
     </div>
@@ -177,7 +177,7 @@ function DailyActivitySection({ da }: { da: NonNullable<PersonalReport['metrics'
   return (
     <div className="mt-5">
       <SectionCard title="Attendance & Daily Activity">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-5">
           <div className="bg-blue-50 rounded-xl p-4 text-center">
             <p className="text-2xl font-bold text-blue-700">{da.daysPresent}</p>
             <p className="text-xs text-blue-600 mt-1 font-medium">Days Present</p>
@@ -269,9 +269,9 @@ function PersonalView({ report }: { report: PersonalReport }) {
   const hasFollowupData = metrics.followUpPunctuality && metrics.followUpPunctuality.completed > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* 1. Essential Executive KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard label="Total Leads" value={metrics.leads.total} sub={`${metrics.leads.converted} converted`} />
         <MetricCard label="Win Rate" value={`${metrics.conversion.winRate}%`} sub={`Conversion: ${metrics.conversion.conversionRate}%`} accent="text-blue-600" />
         <MetricCard label="Total Revenue" value={inrShort(metrics.revenue.total)} sub={`Pipeline: ${inrShort(metrics.revenue.pipeline)}`} accent="text-green-600" />
@@ -282,7 +282,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
       {metrics.dailyActivity && <DailyActivitySection da={metrics.dailyActivity} />}
 
       {/* 3. Lead & Conversion Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5">
         {byStatusData.length > 0 && (
           <SectionCard title="Leads by Status">
             <ResponsiveContainer width="100%" height={220}>
@@ -363,7 +363,7 @@ function PersonalView({ report }: { report: PersonalReport }) {
 
       {/* 5. Revenue Charts (Only shown if revenue data exists) */}
       {hasRevenueData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5">
           {byMonthData.length > 0 && (
             <SectionCard title="Revenue Over Time">
               <ResponsiveContainer width="100%" height={220}>
@@ -538,7 +538,7 @@ function TeamView({ report }: { report: TeamReport }) {
   return (
     <>
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <MetricCard label="Team Size" value={report.teamSize} sub="Active members" />
         <MetricCard label="Total Revenue" value={inrShort(metrics.totals.totalRevenue)} sub={`Avg: ${inrShort(metrics.average.revenue)}`} accent="text-green-600" />
         <MetricCard label="Total Leads" value={metrics.totals.totalLeads} sub={`${metrics.totals.totalConverted} converted`} />
@@ -644,7 +644,7 @@ function PipelineView({ report }: { report: PipelineReport }) {
   return (
     <>
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <MetricCard label="Total Pipeline" value={inrShort(metrics.forecast.expectedRevenue)} sub="Across all stages" accent="text-blue-600" />
         <MetricCard label="Total Deals" value={metrics.forecast.totalDeals} sub="Active in pipeline" />
         <MetricCard label="Active Stages" value={metrics.stages.length} sub="With deals" />
@@ -893,18 +893,18 @@ export default function ReportViewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6" ref={printRef}>
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6" ref={printRef}>
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 flex flex-wrap items-start justify-between gap-4 print:shadow-none">
+        <div className="bg-white border border-gray-200 rounded-xl p-3.5 sm:p-5 mb-3 sm:mb-6 flex flex-wrap items-start justify-between gap-3 sm:gap-4 print:shadow-none">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <button onClick={() => router.push('/reports')} className="text-sm text-gray-400 hover:text-blue-600 transition-colors">
                 ← Reports
               </button>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">{titleMap[report.reportType]}</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">{titleMap[report.reportType]}</h1>
             <p className="text-sm text-gray-500 mt-1">
               {new Date(report.period.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               {' – '}

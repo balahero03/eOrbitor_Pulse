@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 import { ProductIcon } from '@/components/icons';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
+import FilterPanel from '@/components/FilterPanel';
 
 interface Product {
   id: string;
@@ -170,7 +173,7 @@ function ProductModal({
           {!isEdit && (
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Inventory</p>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Opening Qty</label>
                   <input type="number" value={form.initialQuantity} onChange={e => set('initialQuantity', e.target.value)}
@@ -183,7 +186,7 @@ function ProductModal({
                     min="0" placeholder="e.g. 5"
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>
                   <input type="text" value={form.warehouseLocation} onChange={e => set('warehouseLocation', e.target.value)}
                     placeholder="e.g. Shelf A3"
@@ -198,7 +201,7 @@ function ProductModal({
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-gray-400 uppercase">Additional Features / Specs</p>
               <button type="button" onClick={addAttr}
-                className="text-xs px-3 py-1.5 border border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                className="min-h-[36px] sm:min-h-0 text-xs px-3 py-1.5 border border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors inline-flex items-center justify-center whitespace-nowrap">
                 + Add Feature
               </button>
             </div>
@@ -232,7 +235,7 @@ function ProductModal({
             Cancel
           </button>
           <button onClick={() => onSave(form)} disabled={saving || !form.name.trim() || !form.sku.trim() || !form.basePrice}
-            className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+            className={buttonClasses({ size: 'lg', className: 'flex-1' })}>
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Product'}
           </button>
         </div>
@@ -401,11 +404,11 @@ export default function ProductsPage() {
   });
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Products</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Products</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Product catalog &amp; inventory</p>
         </div>
         {canManage && (
@@ -417,7 +420,12 @@ export default function ProductsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-end max-w-full overflow-hidden">
+      <FilterPanel
+        label="Search & Filters"
+        activeCount={[search, categoryFilter].filter(Boolean).length}
+        onClear={() => { setSearch(''); setCategoryFilter(''); setPage(1); }}
+      >
+        <div className="flex flex-wrap gap-3 items-end max-w-full">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
           <LiveSearchDropdown<Product>
@@ -453,7 +461,8 @@ export default function ProductsPage() {
             Clear
           </button>
         )}
-      </div>
+        </div>
+      </FilterPanel>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -474,7 +483,7 @@ export default function ProductsPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            <div className="block sm:hidden divide-y divide-gray-200">
               {products.map((p) => {
                 const unitPrice = Number(p.basePrice);
                 const taxAmt = unitPrice * (Number(p.tax) / 100);
@@ -506,7 +515,7 @@ export default function ProductsPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                    <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                       <div>
                         <span className="font-bold text-gray-900 text-sm">{fmt(withTax)}</span>
                         <span className="text-[10px] text-gray-400 block">incl. {p.tax}% GST</span>
@@ -656,8 +665,8 @@ export default function ProductsPage() {
 
       {/* Delete Confirm */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <h2 className="text-lg font-bold text-red-600 mb-2">Deactivate Product?</h2>
             <p className="text-sm text-gray-600 mb-5">
               This product will be marked inactive and hidden from the catalog. Existing quotations are unaffected.
@@ -673,6 +682,6 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

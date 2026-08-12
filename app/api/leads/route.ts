@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
-import { generateLeadNumber } from '@/lib/leadNumber';
+import { createWithLeadNumber } from '@/lib/leadNumber';
+import { parseMoneyInput } from '@/lib/money';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -78,6 +79,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         { phone: { contains: search, mode: 'insensitive' } },
         { company: { contains: search, mode: 'insensitive' } },
         { quoteNo: { contains: search, mode: 'insensitive' } },
+        { leadNumber: { contains: search, mode: 'insensitive' } },
         { remarks: { contains: search, mode: 'insensitive' } },
         { assignedTo: { firstName: { contains: search, mode: 'insensitive' } } },
         { assignedTo: { lastName: { contains: search, mode: 'insensitive' } } },
@@ -98,7 +100,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       take: limit,
       select: {
         id: true, name: true, email: true, phone: true, company: true,
-        source: true, status: true, leadScore: true, quoteNo: true,
+        source: true, status: true, leadScore: true, quoteNo: true, leadNumber: true,
         quoteValue: true, rfqDate: true, followUpDate: true, remarks: true,
         assignedTo: { select: { firstName: true, lastName: true } },
         broughtBy: { select: { firstName: true, lastName: true } },
@@ -127,37 +129,41 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Opportunity name and company are required' }, { status: 400 });
   }
 
-  let finalQuoteNo = quoteNo;
-  if (!finalQuoteNo) {
-    finalQuoteNo = await generateLeadNumber();
-  }
+  const parsedQuoteValue = parseMoneyInput(quoteValue);
 
-  const lead = await prisma.lead.create({
-    data: {
-      name,
-      email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
-      phone: phone || null,
-      company,
-      address: address || null,
-      source: source || 'EMAIL',
-      status: status || 'SUSPECT',
-      leadScore: 0,
-      assignedToId: assignedToId || user.id,
-      quoteNo: finalQuoteNo,
-      ...(broughtById && { broughtById }),
-      ...(quoteValue !== undefined && quoteValue !== '' && { quoteValue: parseFloat(quoteValue) }),
-      ...(rfqDate && { rfqDate: new Date(rfqDate) }),
-      ...(followUpDate && { followUpDate: new Date(followUpDate) }),
-      ...(expectedClosureDate && { expectedClosureDate: new Date(expectedClosureDate) }),
-      ...(remarks && { remarks }),
-      ...(solutionAreas && solutionAreas.length > 0 && { solutionAreas }),
-      ...(oemNames && oemNames.length > 0 && { oemNames }),
-      ...(presalesIds && presalesIds.length > 0 && { presalesIds }),
-    },
-    include: {
-      assignedTo: { select: { firstName: true, lastName: true } },
-    },
-  });
+  // The lead number is issued by the server, never taken from the request:
+  // it is an identity, and letting a caller choose it is what allowed
+  // duplicates and stray quotation numbers into the field. Anything the user
+  // typed stays in `quoteNo`, which is free-text reference data.
+  const lead = await createWithLeadNumber((leadNumber) =>
+    prisma.lead.create({
+      data: {
+        leadNumber,
+        name,
+        email: email || `${company.toLowerCase().replace(/\s+/g, '.')}@client.local`,
+        phone: phone || null,
+        company,
+        address: address || null,
+        source: source || 'EMAIL',
+        status: status || 'SUSPECT',
+        leadScore: 0,
+        assignedToId: assignedToId || user.id,
+        ...(quoteNo && { quoteNo }),
+        ...(broughtById && { broughtById }),
+        ...(Number.isFinite(parsedQuoteValue) && { quoteValue: parsedQuoteValue }),
+        ...(rfqDate && { rfqDate: new Date(rfqDate) }),
+        ...(followUpDate && { followUpDate: new Date(followUpDate) }),
+        ...(expectedClosureDate && { expectedClosureDate: new Date(expectedClosureDate) }),
+        ...(remarks && { remarks }),
+        ...(solutionAreas && solutionAreas.length > 0 && { solutionAreas }),
+        ...(oemNames && oemNames.length > 0 && { oemNames }),
+        ...(presalesIds && presalesIds.length > 0 && { presalesIds }),
+      },
+      include: {
+        assignedTo: { select: { firstName: true, lastName: true } },
+      },
+    })
+  );
 
   return NextResponse.json(lead, { status: 201 });
 });

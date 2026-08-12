@@ -7,6 +7,7 @@ import { EditIcon, SuccessIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
+import { buttonClasses } from '@/components/Button';
 
 interface Lead {
   id: string;
@@ -288,28 +289,28 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{lead.company}</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{lead.company}</h1>
           <p className="text-sm text-gray-600 mt-1">Contact: {lead.name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/customers" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap">
+          <Link href="/customers" className={buttonClasses({ variant: 'secondary', className: 'whitespace-nowrap' })}>
             ← Customers
           </Link>
           {/* A navigation link, not the page's action — kept neutral so it
               doesn't compete with Edit for attention when both render. */}
           {lead.source !== 'CUSTOMER' && (
-            <Link href={`/leads/${lead.id}`} className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap">
+            <Link href={`/leads/${lead.id}`} className={buttonClasses({ variant: 'secondary', className: 'whitespace-nowrap' })}>
               View Lead
             </Link>
           )}
           {lead.linkedCustomerId && (
             <button
               onClick={openEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+              className={buttonClasses()}
             >
               <EditIcon className="w-4 h-4" /> Edit
             </button>
@@ -324,8 +325,8 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* Customer Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div id={`customer-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 ${highlightRingClass(customerFlashId === id)}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+        <div id={`customer-${id}`} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6 ${highlightRingClass(customerFlashId === id)}`}>
           <h2 className="text-lg font-bold mb-4 text-gray-900">Customer Information</h2>
           <div className="space-y-4">
             <div>
@@ -347,7 +348,7 @@ export default function CustomerDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
           <h2 className="text-lg font-bold mb-4 text-gray-900">Business Information</h2>
           <div className="space-y-4">
             <div>
@@ -480,8 +481,8 @@ export default function CustomerDetailPage() {
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <div className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
               <h2 className="text-lg font-bold text-gray-900">Edit Customer</h2>
               <button onClick={() => setShowEditModal(false)}
@@ -586,7 +587,7 @@ export default function CustomerDetailPage() {
 
               <div className="flex gap-3 pt-2 border-t">
                 <button onClick={handleSaveEdit} disabled={saving}
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                  className={buttonClasses({ size: 'lg', className: 'flex-1' })}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button onClick={() => setShowEditModal(false)}
@@ -601,8 +602,8 @@ export default function CustomerDetailPage() {
 
       {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">
                 {isAdminUser ? 'Delete Customer' : 'Request Customer Deletion'}
@@ -638,7 +639,7 @@ export default function CustomerDetailPage() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={handleDeleteRequest} disabled={requesting}
-                      className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                      className={buttonClasses({ variant: 'danger', size: 'lg', className: 'flex-1' })}>
                       {requesting ? 'Deleting...' : 'Delete Customer'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}
@@ -664,7 +665,7 @@ export default function CustomerDetailPage() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={handleDeleteRequest} disabled={requesting || !deleteReason.trim()}
-                      className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                      className={buttonClasses({ variant: 'danger', size: 'lg', className: 'flex-1' })}>
                       {requesting ? 'Submitting...' : 'Submit Request'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}

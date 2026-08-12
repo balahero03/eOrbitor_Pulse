@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckGlyph, WarningIcon } from '@/components/icons';
+import { buttonClasses } from '@/components/Button';
 
 interface WonLead {
   id: string;
@@ -198,14 +199,14 @@ export default function NewQuotationPage() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 max-w-5xl mx-auto space-y-3 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Quotation</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">New Quotation</h1>
           <p className="text-sm text-gray-500 mt-0.5">Create a quotation from a won lead</p>
         </div>
-        <Link href="/quotations" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center w-full sm:w-auto">
+        <Link href="/quotations" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>
           ← Back
         </Link>
       </div>
@@ -296,7 +297,7 @@ export default function NewQuotationPage() {
                 className="border rounded-lg px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
               {showProductDropdown && productResults.length > 0 && (
-                <div className="absolute z-20 top-full mt-1 right-0 w-72 bg-white border rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                <div className="absolute z-20 top-full mt-1 right-0 w-[min(18rem,calc(100vw-2rem))] sm:w-72 bg-white border rounded-xl shadow-lg max-h-52 overflow-y-auto">
                   {productResults.map(p => (
                     <button
                       key={p.id}
@@ -331,7 +332,7 @@ export default function NewQuotationPage() {
             <button
               type="button"
               onClick={addBlankItem}
-              className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+              className="min-h-[36px] sm:min-h-0 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 inline-flex items-center justify-center whitespace-nowrap"
             >
               + Blank Row
             </button>
@@ -427,7 +428,7 @@ export default function NewQuotationPage() {
         {/* Totals */}
         {items.length > 0 && (
           <div className="mt-4 flex justify-end">
-            <div className="w-72 space-y-2 text-sm">
+            <div className="w-full sm:w-72 space-y-2 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
                 <span className="font-medium">{fmt(subtotal)}</span>
@@ -459,7 +460,7 @@ export default function NewQuotationPage() {
       {/* Terms & Conditions */}
       <div className="bg-white rounded-xl border shadow-sm p-5">
         <h2 className="text-base font-semibold text-gray-800 mb-4">Terms &amp; Conditions</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Price Validity</label>
             <input

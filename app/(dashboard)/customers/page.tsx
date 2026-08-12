@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
 
 interface Customer {
   id: string;
@@ -143,18 +145,18 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Customers</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Customers</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Won leads converted to customers</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/leads/new" className="px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors text-center flex-1 sm:flex-none">
+          <Link href="/leads/new" className={buttonClasses({ variant: 'secondary', className: 'flex-1 sm:flex-none' })}>
             ← Back to Leads
           </Link>
-          <Link href="/customers/new" className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center flex-1 sm:flex-none shadow-sm">
+          <Link href="/customers/new" className={buttonClasses({ className: 'flex-1 sm:flex-none' })}>
             + Add Existing Customer
           </Link>
         </div>
@@ -185,7 +187,7 @@ export default function CustomersPage() {
         ) : (
           <>
             {/* Mobile Card List (< 640px) */}
-            <div className="block sm:hidden divide-y divide-gray-100">
+            <div className="block sm:hidden divide-y divide-gray-200">
               {customers.map((customer) => (
                 <Link
                   key={customer.id}
@@ -204,7 +206,7 @@ export default function CustomersPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-50">
+                  <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                     <span className="font-bold text-gray-900 text-sm">{fmt(customer.quoteValue)}</span>
                     <span className="text-gray-400 text-[11px]">{fmtDate(customer.closedAt)}</span>
                   </div>
@@ -302,6 +304,6 @@ export default function CustomersPage() {
           </>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useConfirm } from '@/components/ConfirmDialog';
+import PageContainer from '@/components/PageContainer';
+import { buttonClasses } from '@/components/Button';
+import PageHeader from '@/components/PageHeader';
+import FilterPanel from '@/components/FilterPanel';
 
 interface FollowUp {
   id: string;
@@ -199,18 +203,18 @@ export default function FollowUpsPage() {
   const hasFilters = search || type || status || fromDate || toDate;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Follow-ups</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Track all scheduled follow-up activities</p>
-        </div>
-        <Link href="/followups/new"
-          className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors text-center w-full sm:w-auto shadow-sm">
-          + Schedule Follow-up
-        </Link>
-      </div>
+      <PageHeader
+        title="Follow-ups"
+        subtitle="Track all scheduled follow-up activities"
+        actions={
+          <Link href="/followups/new" className={buttonClasses()}>
+            <span className="sm:hidden">+ Schedule</span>
+            <span className="hidden sm:inline">+ Schedule Follow-up</span>
+          </Link>
+        }
+      />
 
       {/* Quick filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap">
@@ -249,7 +253,11 @@ export default function FollowUpsPage() {
           width, so through the tablet range the four short filters wrapped
           into ragged, unaligned rows. Stepping the column count keeps every
           label on a shared baseline. */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 max-w-full overflow-hidden">
+      <FilterPanel
+        label="Search & Filters"
+        activeCount={[search, type, status, fromDate, toDate].filter(Boolean).length}
+        onClear={clearFilters}
+      >
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 items-end">
           {/* Search */}
           <div className="col-span-2 sm:col-span-4 xl:col-span-2 min-w-0">
@@ -316,18 +324,22 @@ export default function FollowUpsPage() {
             </button>
           )}
 
-          {/* View toggle */}
-          <div className="col-span-2 sm:col-span-4 xl:col-span-6 xl:justify-self-end xl:w-auto flex gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setViewMode('list')}
-              className={`flex-1 xl:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              <MenuIcon className="w-4 h-4" /> List
-            </button>
-            <button onClick={() => setViewMode('calendar')}
-              className={`flex-1 xl:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              <CalendarIcon className="w-4 h-4" color="text-current" /> Calendar
-            </button>
-          </div>
         </div>
+      </FilterPanel>
+
+      {/* View toggle — deliberately outside the filter panel. It chooses what
+          you are looking at rather than narrowing it, so hiding it behind a
+          collapsed "Filters" control on a phone would bury the only route to
+          the calendar. */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-full sm:w-fit">
+        <button onClick={() => setViewMode('list')}
+          className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          <MenuIcon className="w-4 h-4" /> List
+        </button>
+        <button onClick={() => setViewMode('calendar')}
+          className={`flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          <CalendarIcon className="w-4 h-4" color="text-current" /> Calendar
+        </button>
       </div>
 
       {/* List View */}
@@ -348,7 +360,7 @@ export default function FollowUpsPage() {
               {/* Mobile Card View (< 640px) — a 7-column table is unusable on a
                   phone, so follow-ups get the same card treatment as the other
                   list pages (leads, tasks, orders, quotations). */}
-              <div className="block lg:hidden divide-y divide-gray-100">
+              <div className="block lg:hidden divide-y divide-gray-200">
                 {followUps.map(f => {
                   const done = !!f.actualDate;
                   const overdue = isOverdue(f.scheduledDate, done);
@@ -383,7 +395,7 @@ export default function FollowUpsPage() {
 
                       {f.notes && <p className="text-xs text-gray-500 line-clamp-2">{f.notes}</p>}
 
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
                         <span className="text-[11px] text-gray-400">by {f.createdBy.firstName}</span>
                         <div className="flex items-center gap-3">
                           <Link href={`/followups/${f.id}`} className="text-blue-600 text-xs font-semibold">View Details</Link>
@@ -481,7 +493,7 @@ export default function FollowUpsPage() {
                   <p className="text-xs sm:text-sm text-gray-500">
                     {pagination.total} results · page {page} of {pagination.pages}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
                       className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50">← Prev</button>
                     <button onClick={() => setPage(p => p + 1)} disabled={page >= pagination.pages}
@@ -528,6 +540,6 @@ export default function FollowUpsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
