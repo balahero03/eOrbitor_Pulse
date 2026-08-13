@@ -37,8 +37,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     where: { id },
     data: { status: 'CONFIRMED' },
     include: {
-      customer: { select: { companyName: true } },
-      quotation: { select: { quotationNumber: true } },
+      customer: true,
+      quotation: true,
+      deal: true,
     },
   });
 

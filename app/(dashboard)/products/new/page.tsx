@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buttonClasses } from '@/components/Button';
+import NumberField from '@/components/NumberField';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -139,29 +140,25 @@ export default function NewProductPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Base Price (INR) *</label>
-              <input
-                type="number"
-                name="basePrice"
-                value={formData.basePrice}
-                onChange={handleChange}
-                placeholder="0"
-                step="0.01"
-                required
-                className="w-full"
-              />
+              <NumberField
+                  value={formData.basePrice}
+                  onChange={v => setFormData(prev => ({ ...prev, basePrice: v }))}
+                  prefix="₹"
+                  placeholder="0"
+                  step="0.01"
+                  required
+                />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Tax % (GST)</label>
-              <input
-                type="number"
-                name="tax"
-                value={formData.tax}
-                onChange={handleChange}
-                placeholder="0"
-                step="0.01"
-                className="w-full"
-              />
+              <NumberField
+                  value={formData.tax}
+                  onChange={v => setFormData(prev => ({ ...prev, tax: v }))}
+                  suffix="%"
+                  placeholder="0"
+                  step="0.01"
+                />
             </div>
           </div>
 
@@ -171,27 +168,21 @@ export default function NewProductPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Initial Quantity</label>
-                <input
-                  type="number"
-                  name="initialQuantity"
+                <NumberField
                   value={formData.initialQuantity}
-                  onChange={handleChange}
+                  onChange={v => setFormData(prev => ({ ...prev, initialQuantity: v }))}
                   placeholder="0"
                   min="0"
-                  className="w-full"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Reorder Level</label>
-                <input
-                  type="number"
-                  name="reorderLevel"
+                <NumberField
                   value={formData.reorderLevel}
-                  onChange={handleChange}
+                  onChange={v => setFormData(prev => ({ ...prev, reorderLevel: v }))}
                   placeholder="Min quantity for reorder"
                   min="0"
-                  className="w-full"
                 />
               </div>
 

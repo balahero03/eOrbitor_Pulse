@@ -124,22 +124,22 @@ export default function OrdersPage() {
   // final Completed state. Muted (-50/-200) so the table doesn't read as loud.
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING':   return 'bg-gray-100 text-gray-600 border-gray-200';
+      case 'PENDING': return 'bg-gray-100 text-gray-600 border-gray-200';
       case 'CONFIRMED': return 'bg-sky-50 text-sky-700 border-sky-200';
       case 'FULFILLED': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'INVOICED':  return 'bg-violet-50 text-violet-700 border-violet-200';
+      case 'INVOICED': return 'bg-violet-50 text-violet-700 border-violet-200';
       case 'COMPLETED': return 'bg-green-50 text-green-700 border-green-200';
-      default:          return 'bg-gray-100 text-gray-600 border-gray-200';
+      default: return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
   // Payment — money traffic-light: unpaid (red) → partial (amber) → paid (green).
   const getPaymentBadgeColor = (status: string) => {
     switch (status) {
-      case 'PENDING':   return 'bg-red-50 text-red-700 border-red-200';
-      case 'PARTIAL':   return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'PENDING': return 'bg-red-50 text-red-700 border-red-200';
+      case 'PARTIAL': return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'COMPLETED': return 'bg-green-50 text-green-700 border-green-200';
-      default:          return 'bg-gray-100 text-gray-600 border-gray-200';
+      default: return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 

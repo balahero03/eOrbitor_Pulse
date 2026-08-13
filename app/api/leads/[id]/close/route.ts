@@ -20,6 +20,7 @@ export async function POST(
     const {
       outcome,
       reason        = '',
+      quotationId   = '',
       quoteRef      = '',
       poNumber      = '',
       reasonOfWin   = '',
@@ -137,12 +138,70 @@ export async function POST(
       const orderCount = await prisma.order.count();
       const orderNumber = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(5, '0')}`;
 
+      // The order's value comes from the quotation the customer actually
+      // accepted, falling back to the lead's own quote figure. Previously only
+      // `lead.quoteValue` was consulted, so a lead whose value lived on its
+      // quotation produced a ₹0 order — and because no quotation was linked
+      // either, nothing downstream could recover the number. Someone then had
+      // to retype it by hand.
+      // The quote the user picked in the closure modal is authoritative — it
+      // is the one the customer actually accepted. Only when nothing was
+      // picked do we guess: an ACCEPTED quote, else the most recent.
+      const chosen = quotationId
+        ? await prisma.quotation.findFirst({
+            // Scoped to this lead so a stray id cannot attach someone else's
+            // quotation (and its value) to this order.
+            where: { id: quotationId, leadId: id },
+            select: { id: true, totalAmount: true },
+          })
+        : null;
+
+      const accepted =
+        chosen ??
+        (await prisma.quotation.findFirst({
+          where: { leadId: id, status: 'ACCEPTED' },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, totalAmount: true },
+        })) ??
+        (await prisma.quotation.findFirst({
+          where: { leadId: id },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, totalAmount: true },
+        }));
+
+      // Winning the deal is what makes a quote accepted; recording that here
+      // keeps the quotation list honest instead of leaving the winning quote
+      // sitting in DRAFT/SENT forever.
+      if (chosen) {
+        await prisma.quotation.update({
+          where: { id: chosen.id },
+          data: { status: 'ACCEPTED' },
+        });
+      }
+
+      const dealForOrder = await prisma.deal.findFirst({
+        where: { leadId: id },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+
+      const leadValue = lead.quoteValue ? Number(lead.quoteValue) : 0;
+      const quoteValue = accepted ? Number(accepted.totalAmount) : 0;
+      // An explicitly chosen quote outranks lead.quoteValue, which is often a
+      // stale early estimate. Without a choice, keep the previous precedence.
+      const orderTotal = chosen ? quoteValue : leadValue > 0 ? leadValue : quoteValue;
+
       await prisma.order.create({
         data: {
           orderNumber,
           customerId,
+          // Linking the quotation and the deal is what lets the order page
+          // show where its figure came from, and lets a correction be checked
+          // against the source instead of guessed at.
+          quotationId: accepted?.id ?? null,
+          dealId: dealForOrder?.id ?? null,
           poNumber: poNumber || null,
-          totalAmount: lead.quoteValue ? lead.quoteValue.toString() : '0',
+          totalAmount: orderTotal.toString(),
           amountPaid: '0',
           status: 'PENDING',
           paymentStatus: 'PENDING',

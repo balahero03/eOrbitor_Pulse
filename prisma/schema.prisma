@@ -42,6 +42,7 @@ model User {
   approvalsApproved  ApprovalRequest[] @relation("ApprovalApprovedBy")
   approvalsRequested ApprovalRequest[] @relation("ApprovalRequestedBy")
   approvalsTargeted  ApprovalRequest[] @relation("ApprovalTargetUser")
+  orderPayments      OrderPayment[]    @relation("OrderPaymentRecordedBy")
   transfersFrom      LeadTransfer[]    @relation("LeadTransferFrom")
   transfersTo        LeadTransfer[]    @relation("LeadTransferTo")
   transfersActed     LeadTransfer[]    @relation("LeadTransferActedBy")
@@ -341,7 +342,13 @@ model Order {
   poDate        DateTime?
   status        OrderStatus   @default(PENDING)
   deliveryDate  DateTime?
+  /// Legacy free-text/URL invoice pointer. Superseded by invoiceNumber +
+  /// invoiceFile; kept so existing rows are not silently dropped.
   invoiceUrl      String?
+  invoiceNumber   String?
+  /// StoredFile descriptor for the uploaded invoice — same disk-backed shape
+  /// as OrderPayment.proof, so the PDF never sits inside Postgres.
+  invoiceFile     Json?
   paymentStatus   PaymentStatus @default(PENDING)
   totalAmount     Decimal
   amountPaid      Decimal       @default(0)
@@ -354,10 +361,47 @@ model Order {
   customer      Customer      @relation(fields: [customerId], references: [id])
   deal          Deal?         @relation(fields: [dealId], references: [id])
   quotation     Quotation?    @relation(fields: [quotationId], references: [id])
+  payments      OrderPayment[]
 
   @@index([status])
   @@index([customerId])
   @@index([paymentStatus])
+}
+
+/// One recorded receipt of money against an order.
+///
+/// Before this, an order carried a single running `amountPaid` plus *one*
+/// `paymentMode` / `paymentRemarks` / `paymentProofUrl`. Recording a second
+/// instalment overwrote the first one's mode, reference and receipt, and
+/// nothing recorded when it arrived or who entered it — so a part-paid order
+/// could not be reconciled against a bank statement.
+///
+/// `Order.amountPaid` is kept as a cached sum of these rows (the list query
+/// sorts and filters on it); it is recomputed from the ledger on every write
+/// rather than incremented, so the two can never drift.
+model OrderPayment {
+  id         String   @id @default(cuid())
+  orderId    String
+  amount     Decimal
+  /// When the money actually arrived — not when it was typed in. Backdating a
+  /// receipt is normal, so this is user-supplied and separate from createdAt.
+  paidAt     DateTime @default(now())
+  mode       String?
+  /// UPI ref / cheque no / NEFT UTR — what you match against a bank statement.
+  reference  String?
+  remarks    String?
+  /// StoredFile metadata from lib/storage (id, filename, contentType, size,
+  /// storagePath). The bytes live on disk under FILE_UPLOAD_DIR; only this
+  /// descriptor is in Postgres.
+  proof      Json?
+  recordedById String
+  createdAt  DateTime @default(now())
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recordedBy User  @relation("OrderPaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([orderId])
+  @@index([paidAt])
 }
 
 model Product {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
+import NumberField from '@/components/NumberField';
 import { InlineLoader } from '@/components/BrandedLoader';
 
 interface VendorProduct {
@@ -200,23 +201,21 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Base Price</label>
-                    <input
-                      type="number"
+                    <NumberField
+                      prefix="₹"
                       value={formData.basePrice}
-                      onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, basePrice: v })}
                       step="0.01"
-                      className="w-full"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">Tax %</label>
-                    <input
-                      type="number"
+                    <label className="block text-sm font-medium mb-1">Tax</label>
+                    <NumberField
+                      suffix="%"
                       value={formData.tax}
-                      onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, tax: v })}
                       step="0.01"
-                      className="w-full"
                     />
                   </div>
                 </div>

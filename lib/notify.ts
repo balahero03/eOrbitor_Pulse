@@ -10,7 +10,8 @@ type NotifType =
   | 'TASK_ASSIGNED'
   | 'USER_INACTIVE'
   | 'QUOTATION_APPROVED'
-  | 'LEAD_ASSIGNED';
+  | 'LEAD_ASSIGNED'
+  | 'ORDER_CONFIRMED';
 
 export async function createNotification(
   userId: string,

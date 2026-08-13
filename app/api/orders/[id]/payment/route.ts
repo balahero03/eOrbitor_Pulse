@@ -62,7 +62,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       paymentStatus: paymentStatus as any,
     },
     include: {
-      customer: { select: { companyName: true } },
+      customer: true,
+      quotation: true,
+      deal: true,
     },
   });
 

@@ -7,6 +7,7 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import FilterPanel from '@/components/FilterPanel';
+import NumberField from '@/components/NumberField';
 import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Product {
@@ -134,11 +135,10 @@ function ProductModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Unit Price (₹) <span className="text-red-500">*</span>
+                  Unit Price <span className="text-red-500">*</span>
                 </label>
-                <input type="number" value={form.basePrice} onChange={e => set('basePrice', e.target.value)}
-                  placeholder="0.00" min="0" step="0.01"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                <NumberField prefix="₹" value={form.basePrice} onChange={v => set('basePrice', v)}
+                  placeholder="0.00" min="0" step="0.01" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">GST / Tax %</label>
@@ -153,9 +153,9 @@ function ProductModal({
                       {rate}%
                     </button>
                   ))}
-                  <input type="number" value={form.tax} onChange={e => set('tax', e.target.value)}
+                  <NumberField value={form.tax} onChange={v => set('tax', v)}
                     min="0" max="100" step="0.5" placeholder="Custom"
-                    className="w-20 border rounded-lg px-2 py-2 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    wrapperClassName="w-20" className="text-xs text-center" />
                 </div>
               </div>
             </div>
@@ -177,15 +177,13 @@ function ProductModal({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Opening Qty</label>
-                  <input type="number" value={form.initialQuantity} onChange={e => set('initialQuantity', e.target.value)}
-                    min="0"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  <NumberField value={form.initialQuantity} onChange={v => set('initialQuantity', v)}
+                    min="0" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Reorder Level</label>
-                  <input type="number" value={form.reorderLevel} onChange={e => set('reorderLevel', e.target.value)}
-                    min="0" placeholder="e.g. 5"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  <NumberField value={form.reorderLevel} onChange={v => set('reorderLevel', v)}
+                    min="0" placeholder="e.g. 5" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>

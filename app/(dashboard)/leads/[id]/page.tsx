@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import SectionHeader from '@/components/SectionHeader';
 import { buttonClasses } from '@/components/Button';
+import NumberField from '@/components/NumberField';
 import CustomerAutocomplete, { primaryContact } from '@/components/CustomerAutocomplete';
 import { InlineLoader } from '@/components/BrandedLoader';
 import {
@@ -1299,6 +1300,8 @@ function SpancoKanban({
 interface ClosureFormData {
   outcome: 'WON' | 'LOST' | 'DROPPED';
   // WON fields
+  /** Chosen from the lead's quotations; '' means "not from a quotation". */
+  quotationId: string;
   quoteRef: string;
   poNumber: string;
   reasonOfWin: string;
@@ -1319,6 +1322,13 @@ interface ClosureFormData {
   files: (File | null)[];
 }
 
+interface QuoteOption {
+  id: string;
+  quotationNumber: string;
+  status: string;
+  totalAmount: string;
+}
+
 function ClosureModal({
   lead,
   onClose,
@@ -1330,8 +1340,51 @@ function ClosureModal({
   onSubmit: (form: ClosureFormData) => void;
   closing: boolean;
 }) {
+  // A won lead becomes an order, and the order is worth whatever the customer
+  // actually accepted. Choosing that quotation here is what removes the two
+  // hand-typed fields this modal used to demand (quote reference and final
+  // value) and what lets the resulting order link back to its source.
+  const [quotes, setQuotes] = useState<QuoteOption[]>([]);
+  const [quotesLoading, setQuotesLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/quotations?leadId=${lead.id}&limit=50`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : { quotations: [] }))
+      .then(d => {
+        const list: QuoteOption[] = d.quotations || d.data || [];
+        setQuotes(list);
+        // Pre-select the one the customer accepted; if exactly one quotation
+        // exists, that is unambiguously the deal.
+        const preferred = list.find(q => q.status === 'ACCEPTED') ?? (list.length === 1 ? list[0] : undefined);
+        if (preferred) {
+          setForm(f => ({
+            ...f,
+            quotationId: preferred.id,
+            quoteRef: preferred.quotationNumber,
+            finalDealValue: String(Number(preferred.totalAmount)),
+          }));
+        }
+      })
+      .catch(() => setQuotes([]))
+      .finally(() => setQuotesLoading(false));
+  }, [lead.id]);
+
+  const pickQuote = (quotationId: string) => {
+    const q = quotes.find(x => x.id === quotationId);
+    setForm(f => ({
+      ...f,
+      quotationId,
+      // Selecting a quote fills both derived fields; clearing it leaves
+      // whatever was already there so a manual entry isn't wiped.
+      quoteRef: q ? q.quotationNumber : f.quoteRef,
+      finalDealValue: q ? String(Number(q.totalAmount)) : f.finalDealValue,
+    }));
+  };
+
   const [form, setForm] = useState<ClosureFormData>({
     outcome: 'WON',
+    quotationId: '',
     quoteRef: lead.quoteNo || '',
     poNumber: '',
     reasonOfWin: '',
@@ -1413,10 +1466,38 @@ function ClosureModal({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Quote Reference <span className="text-red-400">*</span></label>
-                  <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
-                    placeholder="e.g. QT-2026-00123"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Final Quote <span className="text-red-400">*</span>
+                  </label>
+                  {quotesLoading ? (
+                    <div className="w-full border rounded-lg px-3 py-2 text-sm text-gray-400">Loading quotations…</div>
+                  ) : quotes.length > 0 ? (
+                    <>
+                      <select value={form.quotationId} onChange={e => pickQuote(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200">
+                        <option value="">— Not from a quotation —</option>
+                        {quotes.map(q => (
+                          <option key={q.id} value={q.id}>
+                            {q.quotationNumber} · {q.status} · {fmt(Number(q.totalAmount))}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {form.quotationId
+                          ? 'The order will be created at this value and linked to this quote.'
+                          : 'Pick the quote the customer accepted — its value becomes the order.'}
+                      </p>
+                    </>
+                  ) : (
+                    // No quotations on this lead at all — fall back to the
+                    // original free-text reference rather than blocking the close.
+                    <>
+                      <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
+                        placeholder="e.g. QT-2026-00123"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <p className="text-xs text-amber-600 mt-1">No quotations on this lead — enter the reference manually.</p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO Number <span className="text-red-400">*</span></label>
@@ -1446,10 +1527,15 @@ function ClosureModal({
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value (₹) <span className="text-red-400">*</span></label>
-                      <input type="number" value={form.finalDealValue} onChange={e => set('finalDealValue', e.target.value)}
-                        placeholder="Final agreed value"
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value <span className="text-red-400">*</span></label>
+                      <NumberField prefix="₹" value={form.finalDealValue} onChange={v => set('finalDealValue', v)}
+                        placeholder="Final agreed value" min="0" step="0.01" />
+                      {form.quotationId && (
+                        <p className="text-xs text-green-700 mt-1 inline-flex items-center gap-1">
+                          <CheckGlyph className="w-3.5 h-3.5" />
+                          Filled from {form.quoteRef} — override only if the final figure differs.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contract Signed Date <span className="text-red-400">*</span></label>
@@ -1735,6 +1821,67 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
     amcPeriod: '', deliveryEstimate: '', qNotes: '',
   });
 
+  // Same document import the Quotations section offers, wired to this modal's
+  // state. Worth having here because Negotiation is where a supplier's quote
+  // usually lands, and re-keying its line items by hand is the slowest step in
+  // the stage.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [importMeta, setImportMeta] = useState<{ refNumber?: string; customerName?: string } | null>(null);
+
+  const handleImportFile = async (file: File) => {
+    setImportError('');
+    setImportWarnings([]);
+    setImportMeta(null);
+    setImporting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/quotations/extract', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) { setImportError(data.message || 'Could not read that file.'); return; }
+
+      setItems(
+        (data.items || []).map((i: any) => ({
+          productName: i.productName || '',
+          description: i.description || '',
+          quantity: i.quantity || 1,
+          unitPrice: i.unitPrice || 0,
+          taxRate: 0,
+        }))
+      );
+      // This modal splits the parsed terms across two pieces of state: the
+      // quotation terms live in `terms`, while Payment Terms is a required
+      // Negotiation field and lives in `meta`. Only fill blanks, so an import
+      // never wipes something already typed.
+      setTerms(t => ({
+        ...t,
+        priceValidity: data.terms?.priceValidity || t.priceValidity,
+        taxDetails: data.terms?.taxDetails || t.taxDetails,
+        warranty: data.terms?.warranty || t.warranty,
+        amcPeriod: data.terms?.amcPeriod || t.amcPeriod,
+        deliveryEstimate: data.terms?.deliveryEstimate || t.deliveryEstimate,
+        qNotes: data.terms?.notes || t.qNotes,
+      }));
+      if (data.terms?.paymentTerms) {
+        setMeta(m => ({ ...m, paymentTerms: m.paymentTerms || data.terms.paymentTerms }));
+      }
+      setImportWarnings(data.warnings || []);
+      setImportMeta(data.meta || null);
+    } catch {
+      setImportError('An error occurred while importing the file.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const fetchNegProducts = async (q: string) => {
     const token = localStorage.getItem('token');
     const url = q.trim()
@@ -1795,10 +1942,47 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-800">
-            Add line items to auto-calculate quote value. Quote number is generated automatically. Payment Terms is required.
+        <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-5">
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <span>
+              Add line items to auto-calculate quote value. Quote number is generated automatically. Payment Terms is required.
+            </span>
+            {/* Import sits with the instruction it replaces: rather than keying
+                the supplier's quote in by hand, drop the file and correct it. */}
+            <div className="flex-shrink-0">
+              <input ref={importInputRef} type="file"
+                accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
+              <button type="button" onClick={() => importInputRef.current?.click()} disabled={importing}
+                className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs px-3 py-1.5 min-h-[32px] bg-white border border-orange-300 text-orange-800 rounded-lg font-semibold hover:bg-orange-100 disabled:opacity-50 transition-colors">
+                {importing ? 'Reading…' : (<><UploadIcon className="w-4 h-4 flex-shrink-0" /> Import PDF / Word</>)}
+              </button>
+            </div>
           </div>
+
+          {importError && (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2.5">{importError}</p>
+          )}
+          {importMeta && (importMeta.customerName || importMeta.refNumber) && (
+            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-start gap-1.5">
+              <SuccessIcon className="w-4 h-4 shrink-0 mt-px" />
+              <span>
+                Imported{importMeta.customerName ? ` — ${importMeta.customerName}` : ''}
+                {importMeta.refNumber ? ` (Ref: ${importMeta.refNumber})` : ''}. Check every figure before saving.
+              </span>
+            </div>
+          )}
+          {importWarnings.length > 0 && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-1">
+              <p className="font-semibold inline-flex items-center gap-1.5">
+                <WarningIcon className="w-3.5 h-3.5" /> The parser was unsure about:
+              </p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
 
           {/* ── Line Items ── */}
           <div>
@@ -2578,6 +2762,9 @@ export default function LeadDetailPage() {
           outcome: form.outcome,
           reason: form.reason,
           quoteRef: form.quoteRef,
+          // Lets the server take the order's value from the accepted quote and
+          // link the two, instead of re-deriving it from a typed number.
+          quotationId: form.quotationId || undefined,
           poNumber: form.poNumber,
           reasonOfWin: form.reasonOfWin,
           whatWentWell: form.whatWentWell,

@@ -7,7 +7,22 @@ import TimeField from '@/components/TimeField';
 import { FollowUpIcon } from '@/components/icons';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
+import NumberField from '@/components/NumberField';
 import { InlineLoader } from '@/components/BrandedLoader';
+
+const TYPE_LABEL: Record<string, string> = {
+  CALL: 'Call', EMAIL: 'Email', MEETING: 'Meeting',
+  WHATSAPP: 'WhatsApp', SITE_VISIT: 'Site Visit',
+};
+
+const fmtDateTime = (s: string) =>
+  new Date(s).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+
+const fmtDuration = (mins: number) =>
+  mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 ? `${mins % 60}m` : ''}`.trim() : `${mins}m`;
 
 interface FollowUp {
   id: string;
@@ -141,14 +156,43 @@ export default function FollowUpDetailPage() {
   if (loading) return <InlineLoader message="Loading follow-up…" />;
   if (!followUp) return <div className="p-6 text-center">Follow-up not found</div>;
 
+  const canManage = !!(currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id));
+  const done = !!followUp.actualDate;
+  const overdue = !done && new Date(followUp.scheduledDate) < new Date();
+
   return (
-    <div className="p-3 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-6">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 min-w-0">
-          <FollowUpIcon type={followUp.type} className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
-          <span className="truncate">{followUp.type} Follow-up</span>
-        </h1>
-        <Link href="/followups" className={buttonClasses({ variant: 'secondary', className: 'w-full sm:w-auto' })}>Back to Follow-ups</Link>
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
+      {/* Header card, matching the shape every other list/detail page uses:
+          identity and status on the left, actions on the right. */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 sm:p-4 flex items-start sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 min-w-0">
+              <FollowUpIcon type={followUp.type} className="w-5 h-5 sm:w-7 sm:h-7 flex-shrink-0" />
+              <span className="truncate">{TYPE_LABEL[followUp.type] || followUp.type}</span>
+            </h1>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${
+              done ? 'bg-green-50 text-green-700 border-green-200'
+                : overdue ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+            }`}>
+              {done ? 'Completed' : overdue ? 'Overdue' : 'Scheduled'}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">
+            {followUp.deal?.customer?.companyName || followUp.deal?.dealName || 'Follow-up'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!editing && canManage && (
+            <button onClick={() => setEditing(true)} className={buttonClasses({ size: 'sm' })}>
+              Edit
+            </button>
+          )}
+          <Link href="/followups" className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'whitespace-nowrap' })}>
+            <span className="hidden xs:inline">Back to </span>Follow-ups
+          </Link>
+        </div>
       </div>
 
       {/* Single column until `lg` — see products/[id]; the sidebar is unusable
@@ -157,15 +201,6 @@ export default function FollowUpDetailPage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
-            {!editing && currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 mb-4"
-              >
-                Update Follow-up
-              </button>
-            )}
-
             {editing ? (
               <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                 <div>
@@ -205,12 +240,12 @@ export default function FollowUpDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Duration (minutes)</label>
-                  <input
-                    type="number"
+                  <label className="block text-sm font-medium mb-1">Duration</label>
+                  <NumberField
+                    suffix="min"
                     value={formData.durationMinutes}
-                    onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
-                    className="w-full"
+                    onChange={(v) => setFormData({ ...formData, durationMinutes: v })}
+                    min="0"
                   />
                 </div>
 
@@ -243,66 +278,73 @@ export default function FollowUpDetailPage() {
                   />
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+                    disabled={saving}
+                    className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className={buttonClasses({ size: 'lg', className: 'w-full sm:w-auto' })}
+                  >
+                    {saving ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
+                {/* Scheduled vs actual side by side — the whole point of a
+                    follow-up record is whether it happened when it was meant
+                    to, and that comparison was previously two unrelated rows
+                    stacked far apart. */}
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Scheduled Date & Time</p>
-                  <p className="text-lg font-medium">
-                    {new Date(followUp.scheduledDate).toLocaleDateString()} at {new Date(followUp.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  </p>
+                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-2">Timing</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Scheduled</p>
+                      <p className="text-base font-bold text-gray-800 mt-1 tabular-nums">{fmtDateTime(followUp.scheduledDate)}</p>
+                    </div>
+                    <div className={`rounded-xl border p-3 ${done ? 'border-green-200 bg-green-50' : 'border-dashed border-gray-200 bg-white'}`}>
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${done ? 'text-green-600' : 'text-gray-400'}`}>
+                        Actually happened
+                      </p>
+                      {done ? (
+                        <p className="text-base font-bold text-green-700 mt-1 tabular-nums">{fmtDateTime(followUp.actualDate!)}</p>
+                      ) : (
+                        <p className="text-sm text-gray-400 mt-1.5 italic">Not logged yet</p>
+                      )}
+                    </div>
+                  </div>
+                  {followUp.durationMinutes ? (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Lasted <span className="font-semibold text-gray-700">{fmtDuration(followUp.durationMinutes)}</span>
+                    </p>
+                  ) : null}
                 </div>
 
-                {followUp.actualDate && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Actual Date & Time</p>
-                    <p className="text-lg font-medium text-green-600">
-                      {new Date(followUp.actualDate).toLocaleDateString()} at {new Date(followUp.actualDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {/* Free-text blocks share one treatment instead of three
+                    slightly different ones. */}
+                {[
+                  { label: 'Notes', value: followUp.notes },
+                  { label: 'Outcome', value: followUp.outcome },
+                  { label: 'Next Action', value: followUp.nextAction },
+                ].filter(f => f.value).map(f => (
+                  <div key={f.label} className="border-t border-gray-100 pt-4">
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1.5">{f.label}</p>
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">{f.value}</p>
+                  </div>
+                ))}
+
+                {!followUp.notes && !followUp.outcome && !followUp.nextAction && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-sm text-gray-400 italic">
+                      No notes, outcome or next action recorded{canManage ? ' — use Edit to add them.' : '.'}
                     </p>
-                  </div>
-                )}
-
-                {followUp.durationMinutes && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Duration</p>
-                    <p className="text-lg font-medium">{followUp.durationMinutes} minutes</p>
-                  </div>
-                )}
-
-                {followUp.notes && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Notes</p>
-                    <p className="text-gray-700">{followUp.notes}</p>
-                  </div>
-                )}
-
-                {followUp.outcome && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Outcome</p>
-                    <p className="text-gray-700">{followUp.outcome}</p>
-                  </div>
-                )}
-
-                {followUp.nextAction && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Next Action</p>
-                    <p className="text-gray-700">{followUp.nextAction}</p>
                   </div>
                 )}
               </div>
@@ -311,38 +353,51 @@ export default function FollowUpDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Deal Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
-            <h3 className="text-lg font-semibold mb-3">Related Deal</h3>
-            <p className="text-sm font-medium">{followUp.deal.dealName}</p>
-            <p className="text-sm text-gray-600 mt-1">{followUp.deal.customer?.companyName}</p>
+        <div className="space-y-3 sm:space-y-4">
+          {/* Related Deal — now links through, which it never did. */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-5">
+            <h3 className="text-sm font-semibold text-gray-600 mb-3">Related Deal</h3>
+            {followUp.deal ? (
+              <>
+                <p className="text-sm font-semibold text-gray-900 break-words">{followUp.deal.dealName}</p>
+                {followUp.deal.customer?.companyName && (
+                  <p className="text-sm text-gray-500 mt-0.5 break-words">{followUp.deal.customer.companyName}</p>
+                )}
+                {followUp.lead?.id && (
+                  <Link href={`/leads/${followUp.lead.id}`}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline mt-2.5">
+                    Open lead →
+                  </Link>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No deal linked</p>
+            )}
           </div>
 
-          {/* Meta */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
-            <h3 className="text-sm font-semibold text-gray-600 mb-3">Details</h3>
-            <div className="space-y-2 text-xs text-gray-600">
-              <p>
-                <span className="font-medium">Created:</span>
-                <br />
-                {new Date(followUp.createdAt).toLocaleDateString()}
-              </p>
-              <p>
-                <span className="font-medium">By:</span>
-                <br />
-                {followUp.createdBy.firstName} {followUp.createdBy.lastName}
-              </p>
+          {/* Logged By — an avatar chip, matching the People panel on a lead. */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-5">
+            <h3 className="text-sm font-semibold text-gray-600 mb-3">Logged By</h3>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {followUp.createdBy.firstName.charAt(0)}{followUp.createdBy.lastName.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">
+                  {followUp.createdBy.firstName} {followUp.createdBy.lastName}
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  {new Date(followUp.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Actions */}
-          {currentUser && (['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role) || followUp.createdBy.id === currentUser.id) && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
-              <button
-                onClick={handleDelete}
-                className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700"
-              >
+          {canManage && (
+            <div className="bg-white rounded-xl border border-red-100 shadow-sm p-3.5 sm:p-5">
+              <h3 className="text-sm font-semibold text-gray-600 mb-1">Danger Zone</h3>
+              <p className="text-xs text-gray-400 mb-3">This cannot be undone.</p>
+              <button onClick={handleDelete} className={buttonClasses({ variant: 'danger', size: 'lg', fullWidth: true })}>
                 Delete Follow-up
               </button>
             </div>

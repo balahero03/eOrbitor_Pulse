@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { InlineLoader } from '@/components/BrandedLoader';
+import { buttonClasses } from '@/components/Button';
 
 interface Quotation {
   id: string;
@@ -44,6 +45,7 @@ export default function QuotationDetailPage() {
   const confirm = useConfirm();
   const isAdminUser = !!currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
   const [quotation, setQuotation] = useState<Quotation | null>(null);
+  const [converting, setConverting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -162,6 +164,31 @@ export default function QuotationDetailPage() {
     }
   };
 
+  // Everything the order needs already lives on the quotation, so this is one
+  // click rather than a re-keyed form. The API refuses anything that isn't
+  // ACCEPTED, and refuses a second conversion of the same quote.
+  const existingOrder = quotation?.orders?.[0] ?? null;
+
+  const convertToOrder = async () => {
+    if (!quotation) return;
+    setConverting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quotations/${quotation.id}/convert-to-order`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not convert this quotation');
+      toast.success(`Order ${data.orderNumber} created.`);
+      router.push(`/orders/${data.id}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Could not convert this quotation.');
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'DRAFT':    return 'bg-gray-100 text-gray-700 border-gray-300';
@@ -232,12 +259,27 @@ export default function QuotationDetailPage() {
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{quotation.customer?.companyName ?? '—'}</p>
         </div>
-        <Link
-          href="/quotations"
-          className="self-start sm:self-auto px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap"
-        >
-          ← Back to Quotations
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {quotation.status === 'ACCEPTED' && (
+            existingOrder ? (
+              <Link href={`/orders/${existingOrder.id}`}
+                className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'whitespace-nowrap' })}>
+                View order {existingOrder.orderNumber}
+              </Link>
+            ) : (
+              <button onClick={convertToOrder} disabled={converting}
+                className={buttonClasses({ size: 'sm', className: 'whitespace-nowrap' })}>
+                {converting ? 'Creating…' : 'Convert to Order →'}
+              </button>
+            )
+          )}
+          <Link
+            href="/quotations"
+            className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'whitespace-nowrap' })}
+          >
+            ← Back
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">

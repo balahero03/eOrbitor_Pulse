@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AttachmentIcon, QuotationIcon, CloseIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
 import { buttonClasses } from '@/components/Button';
+import NumberField from '@/components/NumberField';
 
 interface WonLead {
   id: string;
@@ -275,17 +276,15 @@ export default function NewOrderPage() {
           <div>
             <h3 className="text-lg font-semibold mb-4 border-b pb-2">Order Amount</h3>
             <div>
-              <label className="block text-sm font-medium mb-1">Total Order Amount (₹) *</label>
-              <input
-                type="number"
-                name="totalAmount"
+              <label className="block text-sm font-medium mb-1">Total Order Amount *</label>
+              <NumberField
+                prefix="₹"
                 value={formData.totalAmount}
-                onChange={handleChange}
+                onChange={v => setFormData(prev => ({ ...prev, totalAmount: v }))}
                 placeholder="0"
                 min="0"
                 step="0.01"
                 required
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
               {formData.totalAmount && (
                 <p className="text-sm font-semibold text-gray-700 mt-1">{fmt(formData.totalAmount)}</p>
@@ -300,16 +299,14 @@ export default function NewOrderPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Amount Paid (₹)</label>
-                  <input
-                    type="number"
-                    name="amountPaid"
+                  <label className="block text-sm font-medium mb-1">Amount Paid</label>
+                  <NumberField
+                    prefix="₹"
                     value={formData.amountPaid}
-                    onChange={handleChange}
+                    onChange={v => setFormData(prev => ({ ...prev, amountPaid: v }))}
                     placeholder="0"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>

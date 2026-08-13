@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { saveBase64Files } from '@/lib/storage';
+import { parseMoneyInput } from '@/lib/money';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -52,7 +54,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!(await inScope(user, existing.deal?.assignedToId))) throw new ForbiddenError();
 
   const body = await req.json();
-  const { status, paymentStatus, amountPaid, totalAmount, deliveryDate, poNumber, poDate, paymentMode, paymentRemarks, paymentProofUrl } = body;
+  const { status, paymentStatus, totalAmount, deliveryDate, poNumber, poDate, invoiceNumber, invoiceFile, paymentMode, paymentRemarks, paymentProofUrl } = body;
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
 
@@ -74,19 +76,49 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     if (!isAdmin) throw new ForbiddenError('Payment status is set automatically from the amount paid.');
     updateData.paymentStatus = paymentStatus;
   }
-  if (amountPaid !== undefined) {
-    const paid = parseFloat(amountPaid);
-    const total = totalAmount !== undefined ? parseFloat(totalAmount) : parseFloat(existing.totalAmount.toString());
-    if (!Number.isFinite(paid) || paid < 0) throw new ValidationError('amountPaid must be a non-negative number');
-    if (Number.isFinite(total) && paid > total) {
-      throw new ValidationError('amountPaid cannot exceed the order total');
+  // `amountPaid` is deliberately NOT accepted here. It is a cached sum of the
+  // OrderPayment ledger, so letting this route set it absolutely produced an
+  // order showing money that no payment row justified — and the next recorded
+  // payment then silently overwrote the typed figure. Money in goes through
+  // POST /api/orders/[id]/payments, which is the only writer.
+
+  if (totalAmount !== undefined) {
+    const total = parseMoneyInput(totalAmount);
+    if (!Number.isFinite(total) || total < 0) {
+      throw new ValidationError('Order value must be a non-negative number.');
     }
-    updateData.amountPaid = paid.toString();
-    if (Number.isFinite(total)) {
-      updateData.paymentStatus = paid >= total && paid > 0 ? 'COMPLETED' : paid > 0 ? 'PARTIAL' : 'PENDING';
+    // Changing what the order is worth changes whether it counts as paid, so
+    // re-derive the status from the ledger rather than leaving a fully-paid
+    // order marked COMPLETED after its value is raised.
+    const agg = await prisma.orderPayment.aggregate({
+      where: { orderId: id },
+      _sum: { amount: true },
+    });
+    const paid = Number(agg._sum.amount ?? 0);
+    if (total > 0 && paid > total + 0.001) {
+      throw new ValidationError(
+        `This order already has ${paid.toLocaleString('en-IN')} recorded against it. Remove a payment before lowering the value below that.`
+      );
+    }
+    updateData.totalAmount = total.toString();
+    updateData.paymentStatus = paid <= 0 ? 'PENDING' : paid >= total && total > 0 ? 'COMPLETED' : 'PARTIAL';
+  }
+
+  if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber || null;
+  if (invoiceFile !== undefined) {
+    // Same disk-backed treatment as a payment receipt: only the descriptor is
+    // stored, never the bytes.
+    if (invoiceFile?.dataBase64 && invoiceFile?.filename) {
+      const [stored] = saveBase64Files(`orders/${id}`, [{
+        filename: invoiceFile.filename,
+        contentType: invoiceFile.contentType,
+        dataBase64: invoiceFile.dataBase64,
+      }]);
+      updateData.invoiceFile = stored ?? null;
+    } else if (invoiceFile === null) {
+      updateData.invoiceFile = null;
     }
   }
-  if (totalAmount !== undefined) updateData.totalAmount = parseFloat(totalAmount).toString();
   if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
   if (poNumber !== undefined) updateData.poNumber = poNumber || null;
   if (poDate !== undefined) updateData.poDate = poDate ? new Date(poDate) : null;
@@ -94,9 +126,18 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (paymentRemarks !== undefined) updateData.paymentRemarks = paymentRemarks || null;
   if (paymentProofUrl !== undefined) updateData.paymentProofUrl = paymentProofUrl || null;
 
+  // Must mirror the GET's shape. The detail page does `setOrder(updated)` with
+  // whatever this returns, so an order without its `customer` relation replaces
+  // a good one in state and the next render throws on `order.customer.companyName`.
+  // The confirm/fulfill/payment routes already include it; this one did not.
   const order = await prisma.order.update({
     where: { id },
     data: updateData,
+    include: {
+      customer: true,
+      quotation: true,
+      deal: true,
+    },
   });
 
   return NextResponse.json(order);

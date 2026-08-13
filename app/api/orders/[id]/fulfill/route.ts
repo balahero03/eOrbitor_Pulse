@@ -43,7 +43,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       deliveryDate: deliveryDate ? new Date(deliveryDate) : new Date(),
     },
     include: {
-      customer: { select: { companyName: true } },
+      customer: true,
+      quotation: true,
+      deal: true,
     },
   });
 
