@@ -1,12 +1,16 @@
 import { prisma } from '@/lib/prisma';
 
+// A subset of Prisma's NotificationType — the values the app actually sends.
+// Widen it as new notifications are added rather than casting at call sites,
+// so the compiler keeps catching typos in enum names.
 type NotifType =
   | 'APPROVAL_REQUESTED'
   | 'APPROVAL_APPROVED'
   | 'APPROVAL_REJECTED'
   | 'TASK_ASSIGNED'
   | 'USER_INACTIVE'
-  | 'QUOTATION_APPROVED';
+  | 'QUOTATION_APPROVED'
+  | 'LEAD_ASSIGNED';
 
 export async function createNotification(
   userId: string,

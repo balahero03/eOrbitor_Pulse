@@ -45,6 +45,12 @@ module.exports = {
         },
         'toast-progress': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } },
         shimmer: { from: { backgroundPosition: '-200% 0' }, to: { backgroundPosition: '200% 0' } },
+        // Meshed-gear loader. Two directions are needed because adjacent gears
+        // in a real train counter-rotate; spinning them all the same way is the
+        // detail that makes a gear animation look wrong without anyone being
+        // able to say why.
+        'gear-cw': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
+        'gear-ccw': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(-360deg)' } },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out',
@@ -54,6 +60,10 @@ module.exports = {
         'slide-up': 'slide-up 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         'toast-progress': 'toast-progress linear forwards',
         shimmer: 'shimmer 1.8s ease-in-out infinite',
+        // Durations are overridden per gear so each one's *rim* speed matches
+        // its neighbours (period proportional to tooth count).
+        'gear-cw': 'gear-cw 3s linear infinite',
+        'gear-ccw': 'gear-ccw 3s linear infinite',
       },
     },
   },

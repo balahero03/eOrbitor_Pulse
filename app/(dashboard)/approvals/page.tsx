@@ -8,6 +8,7 @@ import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightReq
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
 import PageContainer from '@/components/PageContainer';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'record' | 'access';
@@ -25,6 +26,8 @@ interface RecordRequest {
   updatedAt: string;
   requestedByUser: { id: string; firstName: string; lastName: string; email: string };
   approvedByUser?: { id: string; firstName: string; lastName: string };
+  /** Only LEAD_TRANSFER carries this — the person the lead would move to. */
+  targetUser?: { id: string; firstName: string; lastName: string };
   lead?: { id: string; name: string; company: string; status: string };
 }
 
@@ -52,6 +55,7 @@ const TYPE_LABEL: Record<string, string> = {
   LEAD_REOPEN: 'Reopen Lead',
   ORDER_DELETE: 'Delete Order',
   CUSTOMER_DELETE: 'Delete Customer',
+  LEAD_TRANSFER: 'Transfer Lead',
 };
 
 const PAGE_SIZE = 15;
@@ -154,9 +158,8 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
           <button
             key={it.key}
             onClick={() => onChange(it.key)}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-              active ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-            }`}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+              }`}
           >
             <Icon className="w-4 h-4" />
             {it.label}
@@ -183,9 +186,8 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-              active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+              }`}
           >
             {t.label}
             {count !== null && (
@@ -217,9 +219,7 @@ function EmptyState({ tab }: { tab: Status }) {
 
 function Spinner() {
   return (
-    <div className="flex items-center justify-center py-16">
-      <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-    </div>
+    <InlineLoader />
   );
 }
 
@@ -318,6 +318,12 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                       Requested by <span className="font-medium text-gray-700">{req.requestedByUser.firstName} {req.requestedByUser.lastName}</span>
                       <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
                     </p>
+                    {req.targetUser && (
+                      <p className="flex items-center gap-1.5">
+                        <UserSingleIcon className="w-3.5 h-3.5" />
+                        Transfer to <span className="font-medium text-blue-700">{req.targetUser.firstName} {req.targetUser.lastName}</span>
+                      </p>
+                    )}
                     {req.reason && <p><span className="font-medium text-gray-600">Reason:</span> {req.reason}</p>}
                     {req.status === 'APPROVED' && req.approvedByUser && (
                       <p className="flex items-center gap-1.5 text-green-700">

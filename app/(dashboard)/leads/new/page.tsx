@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buttonClasses } from '@/components/Button';
+import CustomerAutocomplete, { primaryContact, type CustomerSuggestion } from '@/components/CustomerAutocomplete';
+import { CheckGlyph } from '@/components/icons';
 
 interface User {
   id: string;
@@ -18,6 +20,7 @@ export default function NewLeadPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [users, setUsers] = useState<User[]>([]);
+  const [autofilled, setAutofilled] = useState<{ filled: string[]; missingPhone: boolean } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     company: '',
@@ -41,6 +44,35 @@ export default function NewLeadPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Picking an existing customer fills the contact details we already hold for
+  // them. Only *blank* fields are written: if someone has already typed an
+  // email or mobile for this lead, that is the more specific information and
+  // silently overwriting it would lose their work. The lead's own Name field
+  // fills from the primary contact on the same terms.
+  //
+  // `Contact.phone` is nullable in the schema while `email` is not, so "picked a
+  // customer" does not imply "got a mobile number". The note below reports what
+  // was actually written rather than assuming, because a blank Mobile field
+  // beside a cheerful "details filled" message just looks broken.
+  const applyCustomer = (c: CustomerSuggestion) => {
+    const p = primaryContact(c);
+    // Read the live form state directly rather than from inside the updater —
+    // a state updater must stay pure, and React invokes it twice under
+    // StrictMode. In an event handler `formData` is already the current value.
+    const filled: string[] = [];
+    if (!formData.email && p.email) filled.push('email');
+    if (!formData.phone && p.phone) filled.push('mobile');
+
+    setFormData(prev => ({
+      ...prev,
+      company: c.companyName,
+      name: prev.name || p.name || '',
+      email: prev.email || p.email || '',
+      phone: prev.phone || p.phone || '',
+    }));
+    setAutofilled({ filled, missingPhone: !p.phone });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,15 +150,30 @@ export default function NewLeadPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Company / Organization *</label>
-                <input
-                  type="text"
+                <CustomerAutocomplete
                   name="company"
                   value={formData.company}
-                  onChange={handleChange}
+                  onChange={v => setFormData(prev => ({ ...prev, company: v }))}
+                  onSelectCustomer={applyCustomer}
                   placeholder="e.g. ABC Industries"
                   required
-                  className="w-full border rounded px-3 py-2"
+                  inputClassName="border rounded px-3 py-2"
                 />
+                {autofilled && (autofilled.filled.length > 0 ? (
+                  <p className="text-xs text-green-700 mt-1 flex items-start gap-1">
+                    <CheckGlyph className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                    <span>
+                      Filled {autofilled.filled.join(' and ')} from this customer&apos;s primary contact — edit if this lead has a different contact.
+                      {autofilled.missingPhone && ' No mobile number is on file for them.'}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {autofilled.missingPhone
+                      ? 'No mobile number on file for this customer — enter it below.'
+                      : 'Kept the contact details you already entered.'}
+                  </p>
+                ))}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Source</label>

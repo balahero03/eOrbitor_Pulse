@@ -7,6 +7,7 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import FilterPanel from '@/components/FilterPanel';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Product {
   id: string;
@@ -146,8 +147,8 @@ function ProductModal({
                     <button key={rate} type="button"
                       onClick={() => set('tax', String(rate))}
                       className={`flex-1 py-2 text-xs rounded-lg border font-medium transition-colors ${String(form.tax) === String(rate)
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-200 text-gray-600 hover:border-blue-300'
                         }`}>
                       {rate}%
                     </button>
@@ -426,50 +427,48 @@ export default function ProductsPage() {
         onClear={() => { setSearch(''); setCategoryFilter(''); setPage(1); }}
       >
         <div className="flex flex-wrap gap-3 items-end max-w-full">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-          <LiveSearchDropdown<Product>
-            value={search}
-            onChange={setSearch}
-            onSearch={() => { setPage(1); fetchProducts(); }}
-            fetchSuggestions={fetchProductSuggestions}
-            getKey={(p) => p.id}
-            getHref={(p) => `/products/${p.id}`}
-            renderItem={renderProductSuggestion}
-            placeholder="Product name or SKU…"
-            ariaLabel="Search products"
-            cacheKeyPrefix="products"
-          />
-        </div>
-        {categories.length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-              <option value="">All Categories</option>
-              {categories.map(c => <option key={c}>{c}</option>)}
-            </select>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
+            <LiveSearchDropdown<Product>
+              value={search}
+              onChange={setSearch}
+              onSearch={() => { setPage(1); fetchProducts(); }}
+              fetchSuggestions={fetchProductSuggestions}
+              getKey={(p) => p.id}
+              getHref={(p) => `/products/${p.id}`}
+              renderItem={renderProductSuggestion}
+              placeholder="Product name or SKU…"
+              ariaLabel="Search products"
+              cacheKeyPrefix="products"
+            />
           </div>
-        )}
-        <button onClick={() => { setPage(1); fetchProducts(); }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-          Search
-        </button>
-        {(search || categoryFilter) && (
-          <button onClick={() => { setSearch(''); setCategoryFilter(''); }}
-            className="px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
-            Clear
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+              <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <option value="">All Categories</option>
+                {categories.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+          <button onClick={() => { setPage(1); fetchProducts(); }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            Search
           </button>
-        )}
+          {(search || categoryFilter) && (
+            <button onClick={() => { setSearch(''); setCategoryFilter(''); }}
+              className="px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
+              Clear
+            </button>
+          )}
         </div>
       </FilterPanel>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <InlineLoader />
         ) : products.length === 0 ? (
           <div className="text-center py-16">
             <ProductIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
@@ -505,10 +504,10 @@ export default function ProductsPage() {
                       </div>
                       {p.inventory && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${stock === 0
-                            ? 'bg-red-100 text-red-600 border-red-200'
-                            : lowStock
-                              ? 'bg-amber-100 text-amber-700 border-amber-200'
-                              : 'bg-green-100 text-green-700 border-green-200'
+                          ? 'bg-red-100 text-red-600 border-red-200'
+                          : lowStock
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : 'bg-green-100 text-green-700 border-green-200'
                           }`}>
                           {stock === 0 ? 'Out of stock' : `${stock} in stock`}
                         </span>
@@ -609,10 +608,10 @@ export default function ProductsPage() {
                         <td className="px-4 py-3.5 text-center">
                           {p.inventory ? (
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${stock === 0
-                                ? 'bg-red-100 text-red-600 border-red-200'
-                                : lowStock
-                                  ? 'bg-amber-100 text-amber-700 border-amber-200'
-                                  : 'bg-green-100 text-green-700 border-green-200'
+                              ? 'bg-red-100 text-red-600 border-red-200'
+                              : lowStock
+                                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                : 'bg-green-100 text-green-700 border-green-200'
                               }`}>
                               {stock === 0 ? 'Out' : `${stock}`}
                             </span>

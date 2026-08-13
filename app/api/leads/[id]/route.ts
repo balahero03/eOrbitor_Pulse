@@ -33,6 +33,16 @@ export const GET = withAuth(async (_req: NextRequest, user: AuthUser) => {
       broughtBy: { select: { id: true, firstName: true, lastName: true } },
       linkedCustomer: { select: { id: true, companyName: true } },
       followUps: { select: { id: true, type: true, scheduledDate: true, outcome: true, notes: true }, take: 10, orderBy: { createdAt: 'desc' } },
+      // Ownership history for the People panel, newest first.
+      transfers: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          fromUser: { select: { id: true, firstName: true, lastName: true } },
+          toUser: { select: { id: true, firstName: true, lastName: true } },
+          actedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
     },
   });
 
@@ -47,7 +57,21 @@ export const GET = withAuth(async (_req: NextRequest, user: AuthUser) => {
     });
   }
 
-  return NextResponse.json({ ...lead, presalesUsers });
+  // A transfer awaiting a decision, so the panel can show who it is waiting on
+  // and offer Accept/Decline to the person being handed the lead.
+  const pendingTransfer = await prisma.approvalRequest.findFirst({
+    where: { leadId: id, type: 'LEAD_TRANSFER', status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      reason: true,
+      createdAt: true,
+      requestedByUser: { select: { id: true, firstName: true, lastName: true } },
+      targetUser: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  return NextResponse.json({ ...lead, presalesUsers, pendingTransfer });
 });
 
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {

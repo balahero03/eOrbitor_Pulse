@@ -10,12 +10,36 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import SectionHeader from '@/components/SectionHeader';
 import { buttonClasses } from '@/components/Button';
+import CustomerAutocomplete, { primaryContact } from '@/components/CustomerAutocomplete';
 import { InlineLoader } from '@/components/BrandedLoader';
 import {
   StageIcon, StatusIcon, QuotationIcon, UploadIcon, SuccessIcon, WarningIcon, LockIcon,
   CalendarIcon, ClipboardIcon, TrophyIcon2, ErrorIcon, BlockedIcon, IdeaIcon, AttachmentIcon,
   AnnouncementIcon, CheckGlyph, BackIcon, CloseIcon, TargetIcon, ThumbUpIcon,
 } from '@/components/icons';
+
+interface PersonRef { id: string; firstName: string; lastName: string }
+
+/** One completed ownership change, newest first on the lead's People panel. */
+interface LeadTransferRecord {
+  id: string;
+  fromUser?: PersonRef | null;
+  toUser: PersonRef;
+  actedBy: PersonRef;
+  reason?: string | null;
+  /** Set when the change went through a request rather than being applied directly. */
+  viaApprovalId?: string | null;
+  createdAt: string;
+}
+
+/** A transfer awaiting the recipient's (or an admin's) decision. */
+interface PendingTransfer {
+  id: string;
+  reason?: string | null;
+  createdAt: string;
+  requestedByUser: PersonRef;
+  targetUser?: PersonRef | null;
+}
 
 interface LeadDetail {
   id: string;
@@ -44,6 +68,8 @@ interface LeadDetail {
   presalesUsers?: Array<{ id: string; firstName: string; lastName: string }>;
   assignedTo: { id: string; firstName: string; lastName: string };
   broughtBy?: { id: string; firstName: string; lastName: string };
+  transfers?: LeadTransferRecord[];
+  pendingTransfer?: PendingTransfer | null;
   linkedCustomerId?: string;
   linkedCustomer?: { id: string; companyName: string };
   followUps?: Array<{ id: string; type: string; scheduledDate: string; outcome?: string; notes?: string }>;
@@ -466,11 +492,10 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                 title={quotaRestrictionsDisabled
                   ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
                   : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] sm:min-h-0 rounded-lg font-medium border transition-colors disabled:opacity-50 ${
-                  quotaRestrictionsDisabled
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] sm:min-h-0 rounded-lg font-medium border transition-colors disabled:opacity-50 ${quotaRestrictionsDisabled
                     ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
                     : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${quotaRestrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
                 {togglingQuotaPolicy ? 'Updating…' : (
@@ -528,7 +553,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded p-2 flex items-start gap-1.5">
               <SuccessIcon className="w-4 h-4 shrink-0 mt-px" />
               <span>Imported{importMeta.customerName ? ` — ${importMeta.customerName}` : ''}{importMeta.refNumber ? ` (Ref: ${importMeta.refNumber})` : ''}.
-              <span className="text-emerald-700"> Review every figure below before saving.</span></span>
+                <span className="text-emerald-700"> Review every figure below before saving.</span></span>
             </div>
           )}
 
@@ -746,167 +771,168 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
             // status accordingly rather than implying it already went out.
             const isPendingApproval = q.status === 'SENT' && !['SUPER_ADMIN', 'ADMIN'].includes(q.createdBy.role);
             return (
-            <div key={q.id} id={`quotation-${q.id}`}
-              className={`border rounded-xl overflow-hidden ${highlightRingClass(flashId === q.id)}`}>
-              {/* Row header */}
-              {/* Five inline items do not fit a phone. Squeezed into one row,
+              <div key={q.id} id={`quotation-${q.id}`}
+                className={`border rounded-xl overflow-hidden ${highlightRingClass(flashId === q.id)}`}>
+                {/* Row header */}
+                {/* Five inline items do not fit a phone. Squeezed into one row,
                   the quotation number was the only shrinkable item and broke at
                   its hyphens into four lines. On mobile it becomes two rows:
                   identity on top, money and date below. */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono text-xs font-bold text-gray-700 whitespace-nowrap truncate">{q.quotationNumber}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap flex-shrink-0 ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : (statusColor[q.status] || statusColor.DRAFT)}`}>
-                    {isPendingApproval ? 'Pending Approval' : q.status}
-                  </span>
-                  <span className="text-gray-400 text-xs ml-auto sm:hidden flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
-                </div>
-                <span className="sm:ml-auto text-sm font-bold text-green-700 whitespace-nowrap">{fmt(parseFloat(q.totalAmount))}</span>
-                <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
-                <span className="hidden sm:inline text-gray-400 text-xs flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
-              </div>
-
-              {/* Expanded detail */}
-              {expandedId === q.id && (
-                <div className="px-4 pb-4 pt-3 space-y-4 border-t border-gray-100">
-                  {/* Items table */}
-                  {q.items && q.items.length > 0 && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-gray-50 border-b">
-                            <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Product</th>
-                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
-                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Unit Price</th>
-                            <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {q.items.map((item: any, idx: number) => (
-                            <tr key={idx}>
-                              <td className="px-2 py-1.5 text-gray-800">{item.productName || item.productId || '—'}</td>
-                              <td className="px-2 py-1.5 text-right text-gray-600">{item.quantity}</td>
-                              <td className="px-2 py-1.5 text-right text-gray-600">{fmt(item.unitPrice)}</td>
-                              <td className="px-2 py-1.5 text-right font-medium text-gray-800">
-                                {fmt(item.quantity * item.unitPrice)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {/* Totals summary */}
-                  <div className="flex justify-end">
-                    <div className="w-56 space-y-1 text-xs">
-                      <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(parseFloat(q.subtotal))}</span></div>
-                      {parseFloat(q.discountAmount) > 0 && (
-                        <div className="flex justify-between text-gray-500"><span>Discount</span><span>-{fmt(parseFloat(q.discountAmount))}</span></div>
-                      )}
-                      <div className="flex justify-between border-t pt-1 text-sm font-bold text-gray-900"><span>Total</span><span className="text-green-700">{fmt(parseFloat(q.totalAmount))}</span></div>
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-xs font-bold text-gray-700 whitespace-nowrap truncate">{q.quotationNumber}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap flex-shrink-0 ${isPendingApproval ? 'bg-amber-100 text-amber-800 border-amber-300' : (statusColor[q.status] || statusColor.DRAFT)}`}>
+                      {isPendingApproval ? 'Pending Approval' : q.status}
+                    </span>
+                    <span className="text-gray-400 text-xs ml-auto sm:hidden flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
                   </div>
+                  <span className="sm:ml-auto text-sm font-bold text-green-700 whitespace-nowrap">{fmt(parseFloat(q.totalAmount))}</span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
+                  <span className="hidden sm:inline text-gray-400 text-xs flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
+                </div>
 
-                  {/* Terms */}
-                  {[
-                    { l: 'Price Validity', v: q.priceValidity },
-                    { l: 'Taxes', v: q.taxDetails },
-                    { l: 'Warranty', v: q.warranty },
-                    { l: 'AMC Period', v: q.amcPeriod },
-                    { l: 'Delivery Estimate', v: q.deliveryEstimate },
-                    { l: 'Payment Terms', v: q.paymentTerms },
-                  ].filter(f => f.v).length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                        {[
-                          { l: 'Price Validity', v: q.priceValidity },
-                          { l: 'Taxes', v: q.taxDetails },
-                          { l: 'Warranty', v: q.warranty },
-                          { l: 'AMC Period', v: q.amcPeriod },
-                          { l: 'Delivery Estimate', v: q.deliveryEstimate },
-                          { l: 'Payment Terms', v: q.paymentTerms },
-                        ].filter(f => f.v).map(f => (
-                          <div key={f.l}>
-                            <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">{f.l}</p>
-                            <p className="text-xs text-gray-700">{f.v}</p>
-                          </div>
-                        ))}
+                {/* Expanded detail */}
+                {expandedId === q.id && (
+                  <div className="px-4 pb-4 pt-3 space-y-4 border-t border-gray-100">
+                    {/* Items table */}
+                    {q.items && q.items.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="text-left px-2 py-1.5 text-gray-500 uppercase font-semibold">Product</th>
+                              <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-14">Qty</th>
+                              <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Unit Price</th>
+                              <th className="text-right px-2 py-1.5 text-gray-500 uppercase font-semibold w-28">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {q.items.map((item: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="px-2 py-1.5 text-gray-800">{item.productName || item.productId || '—'}</td>
+                                <td className="px-2 py-1.5 text-right text-gray-600">{item.quantity}</td>
+                                <td className="px-2 py-1.5 text-right text-gray-600">{fmt(item.unitPrice)}</td>
+                                <td className="px-2 py-1.5 text-right font-medium text-gray-800">
+                                  {fmt(item.quantity * item.unitPrice)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
 
-                  {q.notes && (
-                    <div className="pt-2 border-t">
-                      <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Notes</p>
-                      <p className="text-xs text-gray-700">{q.notes}</p>
+                    {/* Totals summary */}
+                    <div className="flex justify-end">
+                      <div className="w-56 space-y-1 text-xs">
+                        <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(parseFloat(q.subtotal))}</span></div>
+                        {parseFloat(q.discountAmount) > 0 && (
+                          <div className="flex justify-between text-gray-500"><span>Discount</span><span>-{fmt(parseFloat(q.discountAmount))}</span></div>
+                        )}
+                        <div className="flex justify-between border-t pt-1 text-sm font-bold text-gray-900"><span>Total</span><span className="text-green-700">{fmt(parseFloat(q.totalAmount))}</span></div>
+                      </div>
                     </div>
-                  )}
 
-                  {q.rejectionReason && (
-                    <div className="pt-2 border-t">
-                      <p className="text-[10px] text-red-500 uppercase font-semibold mb-0.5">Rejection Reason</p>
-                      <p className="text-xs text-red-700 font-medium bg-red-50 p-2 rounded-lg border border-red-100">{q.rejectionReason}</p>
-                    </div>
-                  )}
+                    {/* Terms */}
+                    {[
+                      { l: 'Price Validity', v: q.priceValidity },
+                      { l: 'Taxes', v: q.taxDetails },
+                      { l: 'Warranty', v: q.warranty },
+                      { l: 'AMC Period', v: q.amcPeriod },
+                      { l: 'Delivery Estimate', v: q.deliveryEstimate },
+                      { l: 'Payment Terms', v: q.paymentTerms },
+                    ].filter(f => f.v).length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                          {[
+                            { l: 'Price Validity', v: q.priceValidity },
+                            { l: 'Taxes', v: q.taxDetails },
+                            { l: 'Warranty', v: q.warranty },
+                            { l: 'AMC Period', v: q.amcPeriod },
+                            { l: 'Delivery Estimate', v: q.deliveryEstimate },
+                            { l: 'Payment Terms', v: q.paymentTerms },
+                          ].filter(f => f.v).map(f => (
+                            <div key={f.l}>
+                              <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">{f.l}</p>
+                              <p className="text-xs text-gray-700">{f.v}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
-                  {/* Actions */}
-                  {(canSendOrReject || canApprove || canDeleteQ) && (
-                    <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
-                      {q.status === 'DRAFT' && canSendOrReject && (
-                        <>
-                          <button onClick={() => startEdit(q)}
-                            disabled={actionId === q.id}
-                            className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50">
-                            Edit
-                          </button>
-                          <button onClick={() => handleAction(q.id, 'send')}
-                            disabled={actionId === q.id}
-                            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                            {actionId === q.id ? '…' : (isAdminUser ? 'Send' : 'Request Approval')}
-                          </button>
-                        </>
-                      )}
-                      {q.status === 'SENT' && (
-                        <>
-                          {canApprove && (
-                            <button onClick={() => handleAction(q.id, 'approve')}
+                    {q.notes && (
+                      <div className="pt-2 border-t">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Notes</p>
+                        <p className="text-xs text-gray-700">{q.notes}</p>
+                      </div>
+                    )}
+
+                    {q.rejectionReason && (
+                      <div className="pt-2 border-t">
+                        <p className="text-[10px] text-red-500 uppercase font-semibold mb-0.5">Rejection Reason</p>
+                        <p className="text-xs text-red-700 font-medium bg-red-50 p-2 rounded-lg border border-red-100">{q.rejectionReason}</p>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    {(canSendOrReject || canApprove || canDeleteQ) && (
+                      <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
+                        {q.status === 'DRAFT' && canSendOrReject && (
+                          <>
+                            <button onClick={() => startEdit(q)}
                               disabled={actionId === q.id}
-                              className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                              {actionId === q.id ? '…' : 'Accept'}
+                              className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                              Edit
                             </button>
-                          )}
-                          {canSendOrReject && (
-                            <button onClick={() => openRejectModal(q.id)}
+                            <button onClick={() => handleAction(q.id, 'send')}
                               disabled={actionId === q.id}
-                              className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
-                              Reject
+                              className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                              {actionId === q.id ? '…' : (isAdminUser ? 'Send' : 'Request Approval')}
                             </button>
-                          )}
-                          {isCreator && !canApprove && (
-                            <span className="text-[10px] text-gray-400 italic">
-                              Awaiting a manager/admin to accept — you can't approve your own quote
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {canDeleteQ && (
-                        <button onClick={() => handleAction(q.id, 'delete')}
-                          disabled={actionId === q.id}
-                          className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
-                          {actionId === q.id ? '…' : 'Delete'}
-                        </button>
-                      )}
-                      <span className="ml-auto text-[10px] text-gray-400 self-center">
-                        By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
-                        {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
-                        {q.approvedAt && ` · Accepted ${new Date(q.approvedAt).toLocaleDateString('en-IN')}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );})}
+                          </>
+                        )}
+                        {q.status === 'SENT' && (
+                          <>
+                            {canApprove && (
+                              <button onClick={() => handleAction(q.id, 'approve')}
+                                disabled={actionId === q.id}
+                                className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                                {actionId === q.id ? '…' : 'Accept'}
+                              </button>
+                            )}
+                            {canSendOrReject && (
+                              <button onClick={() => openRejectModal(q.id)}
+                                disabled={actionId === q.id}
+                                className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                                Reject
+                              </button>
+                            )}
+                            {isCreator && !canApprove && (
+                              <span className="text-[10px] text-gray-400 italic">
+                                Awaiting a manager/admin to accept — you can't approve your own quote
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {canDeleteQ && (
+                          <button onClick={() => handleAction(q.id, 'delete')}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                            {actionId === q.id ? '…' : 'Delete'}
+                          </button>
+                        )}
+                        <span className="ml-auto text-[10px] text-gray-400 self-center">
+                          By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
+                          {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
+                          {q.approvedAt && ` · Accepted ${new Date(q.approvedAt).toLocaleDateString('en-IN')}`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1122,13 +1148,12 @@ function SpancoKanban({
                       is behind us, so the green run ends at the active node. */}
                   <span className={`h-0.5 flex-1 ${idx === 0 ? 'bg-transparent' : activeIdx >= idx ? 'bg-green-500' : 'bg-gray-200'}`} />
                   <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 flex-shrink-0 transition-colors ${
-                      isPast
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 flex-shrink-0 transition-colors ${isPast
                         ? 'bg-green-500 border-green-500 text-white'
                         : isActive
                           ? `${stage.headerBg} border-transparent text-white ring-2 ring-offset-1 ring-gray-300`
                           : 'bg-white border-gray-300 text-gray-400'
-                    }`}
+                      }`}
                   >
                     {isPast ? <CheckGlyph className="w-3.5 h-3.5 text-white" /> : stage.abbr}
                   </span>
@@ -2082,6 +2107,12 @@ export default function LeadDetailPage() {
   const [oemSearch, setOemSearch] = useState('');
   const [teamSearch, setTeamSearch] = useState('');
 
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  const [decidingTransfer, setDecidingTransfer] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
@@ -2143,6 +2174,63 @@ export default function LeadDetailPage() {
 
   // SPANCO stage order for reversal checks
   const STAGE_ORDER = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
+
+  // Hand the lead to someone else. The API decides whether that happens now
+  // (admins) or becomes a request the recipient answers — the UI just reports
+  // back whichever it did, so the two paths need no branching here.
+  const handleTransfer = async () => {
+    if (!transferTo) {
+      toast.warning('Choose who should take this lead.');
+      return;
+    }
+    setTransferring(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/leads/${id}/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ toUserId: transferTo, reason: transferReason.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || 'Transfer failed');
+
+      toast.success(
+        data.status === 'TRANSFERRED'
+          ? 'Lead transferred.'
+          : 'Transfer requested — waiting for them to accept.'
+      );
+      setShowTransferModal(false);
+      setTransferTo('');
+      setTransferReason('');
+      await fetchLead();
+    } catch (err: any) {
+      toast.error(err.message || 'Could not transfer this lead.');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const decidePendingTransfer = async (approve: boolean) => {
+    if (!lead?.pendingTransfer) return;
+    if (!approve && !(await confirm('The lead stays with its current owner.', { title: 'Decline this transfer?' }))) return;
+    setDecidingTransfer(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/approval-requests/${lead.pendingTransfer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: approve ? 'APPROVED' : 'REJECTED' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || 'Could not record your decision');
+      toast.success(approve ? 'Transfer accepted — the lead is yours.' : 'Transfer declined.');
+      await fetchLead();
+    } catch (err: any) {
+      toast.error(err.message || 'Could not record your decision.');
+    } finally {
+      setDecidingTransfer(false);
+    }
+  };
 
   const handleStageChange = async (newStatus: string) => {
     if (!lead || stageChanging) return;
@@ -2693,10 +2781,7 @@ export default function LeadDetailPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
-      <div className="text-center space-y-3">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-sm text-gray-500">Loading lead…</p>
-      </div>
+      <InlineLoader message="Loading lead…" />
     </div>
   );
   if (!lead) return <div className="p-6 text-center text-gray-500">Lead not found</div>;
@@ -2805,8 +2890,8 @@ export default function LeadDetailPage() {
             {/* Closed banner */}
             {isClosed && (
               <div className={`rounded-xl border p-4 ${lead.status === 'ORDER' ? 'bg-green-50 border-green-200' :
-                  lead.status === 'LOST' ? 'bg-red-50 border-red-200' :
-                    'bg-gray-50 border-gray-200'
+                lead.status === 'LOST' ? 'bg-red-50 border-red-200' :
+                  'bg-gray-50 border-gray-200'
                 }`}>
                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                   <StatusIcon status={lead.status} className="w-4 h-4" /> This lead is closed — {CLOSED_STATUSES[lead.status]?.label}
@@ -2887,9 +2972,24 @@ export default function LeadDetailPage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1">Company *</label>
-                          <input type="text" value={editData.company}
-                            onChange={e => setEditData({ ...editData, company: e.target.value })}
-                            required className="w-full border rounded-lg px-3 py-2 text-sm" />
+                          <CustomerAutocomplete
+                            value={editData.company}
+                            onChange={v => setEditData(d => ({ ...d, company: v }))}
+                            onSelectCustomer={c => {
+                              // Same rule as the create form: fill only what is
+                              // still blank, so an edit already in progress is
+                              // never silently overwritten.
+                              const p = primaryContact(c);
+                              setEditData(d => ({
+                                ...d,
+                                company: c.companyName,
+                                email: d.email || p.email || '',
+                                phone: d.phone || p.phone || '',
+                              }));
+                            }}
+                            required
+                            inputClassName="border rounded-lg px-3 py-2 text-sm"
+                          />
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2993,14 +3093,28 @@ export default function LeadDetailPage() {
           <div className="space-y-4">
 
             {/* People */}
-            <div className="bg-white rounded-xl border p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3">People</h3>
+            <div className="bg-white rounded-xl border p-3.5 sm:p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-semibold text-gray-600">People</h3>
+                {/* Transfer is offered to anyone who can act on the lead. What
+                    the button *does* differs by role, so the label says which
+                    outcome to expect rather than implying instant reassignment
+                    for everyone. */}
+                {canEdit && !isClosed && !lead.pendingTransfer && (
+                  <button
+                    onClick={() => { setTransferTo(''); setTransferReason(''); setShowTransferModal(true); }}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline whitespace-nowrap"
+                  >
+                    {isAdminUser ? 'Transfer' : 'Request transfer'}
+                  </button>
+                )}
+              </div>
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-400 uppercase mb-1">Assigned To</p>
                   {lead.assignedTo ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                         {lead.assignedTo.firstName.charAt(0)}{lead.assignedTo.lastName.charAt(0)}
                       </div>
                       <span className="text-sm font-medium">{lead.assignedTo.firstName} {lead.assignedTo.lastName}</span>
@@ -3009,16 +3123,106 @@ export default function LeadDetailPage() {
                     <span className="text-sm text-gray-400 italic">Unassigned</span>
                   )}
                 </div>
+
+                {/* Pending transfer — the recipient gets the decision inline
+                    here, which is why no separate inbox screen was needed. */}
+                {lead.pendingTransfer && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                      Transfer pending
+                    </p>
+                    <p className="text-xs text-amber-900 mt-1 leading-snug">
+                      <span className="font-medium">
+                        {lead.pendingTransfer.requestedByUser.firstName} {lead.pendingTransfer.requestedByUser.lastName}
+                      </span>{' '}
+                      asked to hand this lead to{' '}
+                      <span className="font-medium">
+                        {lead.pendingTransfer.targetUser
+                          ? `${lead.pendingTransfer.targetUser.firstName} ${lead.pendingTransfer.targetUser.lastName}`
+                          : 'someone'}
+                      </span>.
+                    </p>
+                    {lead.pendingTransfer.reason && (
+                      <p className="text-xs text-amber-700 mt-1 italic">“{lead.pendingTransfer.reason}”</p>
+                    )}
+                    {(currentUser?.id === lead.pendingTransfer.targetUser?.id || isAdminUser) &&
+                     currentUser?.id !== lead.pendingTransfer.requestedByUser.id ? (
+                      <div className="flex gap-2 mt-2.5">
+                        <button
+                          onClick={() => decidePendingTransfer(true)}
+                          disabled={decidingTransfer}
+                          className="flex-1 py-1.5 min-h-[32px] rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                        >
+                          {decidingTransfer ? '…' : 'Accept'}
+                        </button>
+                        <button
+                          onClick={() => decidePendingTransfer(false)}
+                          disabled={decidingTransfer}
+                          className="flex-1 py-1.5 min-h-[32px] rounded-lg border border-amber-300 bg-white text-amber-800 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-amber-600 mt-2">
+                        Waiting for{' '}
+                        {lead.pendingTransfer.targetUser
+                          ? `${lead.pendingTransfer.targetUser.firstName}`
+                          : 'the recipient'}{' '}
+                        to accept.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {lead.broughtBy && (
                   <div>
                     <p className="text-xs text-gray-400 uppercase mb-1">Sourced By</p>
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      <div className="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                         {lead.broughtBy.firstName.charAt(0)}{lead.broughtBy.lastName.charAt(0)}
                       </div>
                       <span className="text-sm font-medium">{lead.broughtBy.firstName} {lead.broughtBy.lastName}</span>
                     </div>
                   </div>
+                )}
+
+                {/* Ownership history. Collapsed behind a <details> because it
+                    is reference material, not something you read on every
+                    visit — and on a phone an always-open list of past owners
+                    would push the panels below it off the screen. */}
+                {lead.transfers && lead.transfers.length > 0 && (
+                  <details className="group border-t border-gray-100 pt-3">
+                    <summary className="flex items-center justify-between gap-2 cursor-pointer list-none text-xs text-gray-400 uppercase hover:text-gray-600 transition-colors">
+                      <span>Transfer history ({lead.transfers.length})</span>
+                      <span className="transition-transform group-open:rotate-180 text-gray-400">▾</span>
+                    </summary>
+                    <ol className="mt-2.5 space-y-2.5 border-l-2 border-gray-100 pl-3">
+                      {lead.transfers.map(t => (
+                        <li key={t.id} className="relative">
+                          <span className="absolute -left-[19px] top-1.5 w-2 h-2 rounded-full bg-blue-400 ring-2 ring-white" />
+                          <p className="text-xs text-gray-800 leading-snug">
+                            <span className="font-medium">
+                              {t.fromUser ? `${t.fromUser.firstName} ${t.fromUser.lastName}` : 'Unassigned'}
+                            </span>
+                            <span className="text-gray-400"> → </span>
+                            <span className="font-medium">{t.toUser.firstName} {t.toUser.lastName}</span>
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {' · '}
+                            {/* "by" is who applied it: the admin who transferred
+                                directly, or whoever accepted the request. */}
+                            by {t.actedBy.firstName} {t.actedBy.lastName}
+                            {t.viaApprovalId && ' · via request'}
+                          </p>
+                          {t.reason && (
+                            <p className="text-[11px] text-gray-500 italic mt-0.5 break-words">“{t.reason}”</p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 )}
               </div>
             </div>
@@ -3357,7 +3561,7 @@ export default function LeadDetailPage() {
             {/* Actions */}
             <div className="space-y-2">
 
-            {canEdit && !isClosed && (
+              {canEdit && !isClosed && (
                 <button onClick={async () => {
                   if (isAdminUser) {
                     // Admins delete immediately — no approval modal needed
@@ -3765,6 +3969,75 @@ export default function LeadDetailPage() {
                   {converting ? 'Converting…' : 'Convert to Prospect'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl p-4 sm:p-6 w-full max-w-md shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+            <h2 className="text-lg font-bold mb-1">
+              {isAdminUser ? 'Transfer this lead' : 'Request a transfer'}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {isAdminUser
+                ? 'Ownership moves immediately, and both people are notified.'
+                : 'They will be asked to accept before ownership moves.'}
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Transfer to *</label>
+                <select
+                  value={transferTo}
+                  onChange={e => setTransferTo(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Select a person…</option>
+                  {/* The current owner is filtered out — "transfer to whoever
+                      already has it" is not a real option, and the API rejects
+                      it anyway. */}
+                  {users
+                    .filter(u => u.id !== lead.assignedTo?.id)
+                    .map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}{u.role ? ` · ${u.role.replace(/_/g, ' ')}` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Reason {isAdminUser ? <span className="text-gray-400 font-normal">(optional)</span> : ''}
+                </label>
+                <textarea
+                  value={transferReason}
+                  onChange={e => setTransferReason(e.target.value)}
+                  rows={3}
+                  placeholder="Why is this moving? e.g. territory change, workload, leaving the team…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-400 mt-1">Shown in this lead&apos;s transfer history.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-5">
+              <button
+                onClick={() => setShowTransferModal(false)}
+                disabled={transferring}
+                className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTransfer}
+                disabled={transferring || !transferTo}
+                className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+              >
+                {transferring ? 'Working…' : isAdminUser ? 'Transfer lead' : 'Send request'}
+              </button>
             </div>
           </div>
         </div>

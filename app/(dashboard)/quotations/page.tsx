@@ -8,6 +8,7 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import { useToast } from '@/components/Toast';
 import PageContainer from '@/components/PageContainer';
 import FilterPanel from '@/components/FilterPanel';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Quotation {
   id: string;
@@ -25,11 +26,11 @@ interface Quotation {
 }
 
 const STATUS_META: Record<string, { label: string; style: string }> = {
-  DRAFT:    { label: 'Draft',    style: 'bg-gray-100 text-gray-700 border-gray-200' },
-  SENT:     { label: 'Sent',     style: 'bg-blue-100 text-blue-700 border-blue-200' },
+  DRAFT: { label: 'Draft', style: 'bg-gray-100 text-gray-700 border-gray-200' },
+  SENT: { label: 'Sent', style: 'bg-blue-100 text-blue-700 border-blue-200' },
   ACCEPTED: { label: 'Accepted', style: 'bg-green-100 text-green-700 border-green-200' },
   REJECTED: { label: 'Rejected', style: 'bg-red-100 text-red-700 border-red-200' },
-  EXPIRED:  { label: 'Expired',  style: 'bg-orange-100 text-orange-700 border-orange-200' },
+  EXPIRED: { label: 'Expired', style: 'bg-orange-100 text-orange-700 border-orange-200' },
 };
 
 const fmt = (v: string) =>
@@ -161,11 +162,10 @@ export default function QuotationsPage() {
               title={restrictionsDisabled
                 ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
                 : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors disabled:opacity-50 ${
-                restrictionsDisabled
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors disabled:opacity-50 ${restrictionsDisabled
                   ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <span className={`w-2 h-2 rounded-full ${restrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
               {togglingPolicy
@@ -189,52 +189,50 @@ export default function QuotationsPage() {
         onClear={() => { setSearch(''); setStatus(''); setPage(1); }}
       >
         <form onSubmit={handleSearch} className="max-w-full">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-          <div className="flex-1 min-w-0">
-            <LiveSearchDropdown<Quotation>
-              value={search}
-              onChange={setSearch}
-              onSearch={() => { setPage(1); fetchQuotations(); }}
-              fetchSuggestions={fetchQuotationSuggestions}
-              getKey={(q) => q.id}
-              getHref={(q) => `/quotations/${q.id}`}
-              renderItem={renderQuotationSuggestion}
-              placeholder="Quotation number or company…"
-              ariaLabel="Search quotations"
-              cacheKeyPrefix="quotations"
-              className="w-full"
-            />
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex-1 sm:w-40">
-              <select
-                value={status}
-                onChange={e => { setStatus(e.target.value); setPage(1); }}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">All Status</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="ACCEPTED">Accepted</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="EXPIRED">Expired</option>
-              </select>
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div className="flex-1 min-w-0">
+              <LiveSearchDropdown<Quotation>
+                value={search}
+                onChange={setSearch}
+                onSearch={() => { setPage(1); fetchQuotations(); }}
+                fetchSuggestions={fetchQuotationSuggestions}
+                getKey={(q) => q.id}
+                getHref={(q) => `/quotations/${q.id}`}
+                renderItem={renderQuotationSuggestion}
+                placeholder="Quotation number or company…"
+                ariaLabel="Search quotations"
+                cacheKeyPrefix="quotations"
+                className="w-full"
+              />
             </div>
-            <button type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors flex-shrink-0">
-              Search
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex-1 sm:w-40">
+                <select
+                  value={status}
+                  onChange={e => { setStatus(e.target.value); setPage(1); }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">All Status</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="SENT">Sent</option>
+                  <option value="ACCEPTED">Accepted</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="EXPIRED">Expired</option>
+                </select>
+              </div>
+              <button type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors flex-shrink-0">
+                Search
+              </button>
+            </div>
           </div>
-        </div>
         </form>
       </FilterPanel>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <InlineLoader />
         ) : quotations.length === 0 ? (
           <div className="text-center py-16">
             <QuotationIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />

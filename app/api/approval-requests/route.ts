@@ -32,6 +32,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       include: {
         requestedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
         approvedByUser: { select: { id: true, firstName: true, lastName: true } },
+        targetUser: { select: { id: true, firstName: true, lastName: true } },
         lead: { select: { id: true, name: true, company: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -81,6 +82,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     LEAD_REOPEN: 'Lead Reopen',
     ORDER_DELETE: 'Order Deletion',
     CUSTOMER_DELETE: 'Customer Deletion',
+    LEAD_TRANSFER: 'Lead Transfer',
   };
   const label = typeLabel[type] || type;
 

@@ -41,6 +41,10 @@ model User {
   announcements      Announcement[]
   approvalsApproved  ApprovalRequest[] @relation("ApprovalApprovedBy")
   approvalsRequested ApprovalRequest[] @relation("ApprovalRequestedBy")
+  approvalsTargeted  ApprovalRequest[] @relation("ApprovalTargetUser")
+  transfersFrom      LeadTransfer[]    @relation("LeadTransferFrom")
+  transfersTo        LeadTransfer[]    @relation("LeadTransferTo")
+  transfersActed     LeadTransfer[]    @relation("LeadTransferActedBy")
   dailyActivities    DailyActivity[]
   deals              Deal[]
   followUps          FollowUp[]
@@ -157,6 +161,7 @@ model Lead {
   presalesIds        String[]
   activityLogs       ActivityLog[]
   approvalRequests   ApprovalRequest[]
+  transfers          LeadTransfer[]
   deals              Deal[]
   followUps          FollowUp[]
   assignedTo         User              @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
@@ -471,6 +476,9 @@ model ApprovalRequest {
   leadId          String?
   requestedBy     String
   approvedBy      String?
+  /// Proposed new owner. Only LEAD_TRANSFER sets this; every other approval
+  /// type acts on the entity alone and leaves it null.
+  targetUserId    String?
   status          ApprovalStatus @default(PENDING)
   reason          String?
   rejectionReason String?
@@ -479,11 +487,45 @@ model ApprovalRequest {
   approvedByUser  User?          @relation("ApprovalApprovedBy", fields: [approvedBy], references: [id])
   lead            Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
   requestedByUser User           @relation("ApprovalRequestedBy", fields: [requestedBy], references: [id])
+  targetUser      User?          @relation("ApprovalTargetUser", fields: [targetUserId], references: [id])
 
   @@index([status])
   @@index([entityType])
   @@index([requestedBy])
   @@index([approvedBy])
+  @@index([targetUserId])
+}
+
+/// Audit trail of lead ownership changes, powering the transfer history shown
+/// on the lead's People panel.
+///
+/// Deliberately its own table rather than a read of ActivityLog: that table
+/// records every field edit with the delta in a JSON `changes` blob, so
+/// rendering a clean "A → B, by C, because D" timeline would mean scanning and
+/// parsing unrelated rows. Ownership is also the one change people ask about
+/// months later, which earns it a first-class, indexed record.
+model LeadTransfer {
+  id            String   @id @default(cuid())
+  leadId        String
+  /// Null when the lead had no prior owner.
+  fromUserId    String?
+  toUserId      String
+  /// Who actually performed it: the admin who transferred directly, or
+  /// whoever accepted the request.
+  actedById     String
+  /// Set when the transfer came from a request, so history can show it went
+  /// through review rather than being applied directly.
+  viaApprovalId String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  lead     Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromUser User? @relation("LeadTransferFrom", fields: [fromUserId], references: [id])
+  toUser   User  @relation("LeadTransferTo", fields: [toUserId], references: [id])
+  actedBy  User  @relation("LeadTransferActedBy", fields: [actedById], references: [id])
+
+  @@index([leadId])
+  @@index([createdAt])
 }
 
 model DailyActivity {
@@ -721,6 +763,9 @@ enum ApprovalType {
   LEAD_REOPEN
   ORDER_DELETE
   CUSTOMER_DELETE
+  // Handover of a lead's ownership. Unlike the delete/reopen types, this one
+  // needs to say *who to* — see ApprovalRequest.targetUserId.
+  LEAD_TRANSFER
 }
 
 enum ApprovalStatus {

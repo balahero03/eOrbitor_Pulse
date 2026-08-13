@@ -7,6 +7,7 @@ import {
   CheckCircleIcon, ExclamationTriangleIcon, EnvelopeIcon,
   ShieldCheckIcon, UserCircleIcon, ArrowPathIcon, ClipboardIcon, KeyIcon,
 } from '@heroicons/react/24/outline';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface ProfileData {
   id: string;
@@ -222,9 +223,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full p-10">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <InlineLoader message="Loading profile…" />
     );
   }
   if (!profile) return null;
@@ -255,15 +254,12 @@ export default function ProfilePage() {
       </div>
 
       {/* Account recovery status — the one thing that actually needs action */}
-      <div className={`rounded-xl border shadow-sm overflow-hidden ${
-        isVerified ? 'bg-white border-gray-200' : 'bg-white border-amber-200'
-      }`}>
-        <div className={`px-5 sm:px-6 py-4 border-b flex items-center gap-3 ${
-          isVerified ? 'bg-green-50/60 border-green-100' : 'bg-amber-50/60 border-amber-100'
+      <div className={`rounded-xl border shadow-sm overflow-hidden ${isVerified ? 'bg-white border-gray-200' : 'bg-white border-amber-200'
         }`}>
-          <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-            isVerified ? 'bg-green-100' : 'bg-amber-100'
+        <div className={`px-5 sm:px-6 py-4 border-b flex items-center gap-3 ${isVerified ? 'bg-green-50/60 border-green-100' : 'bg-amber-50/60 border-amber-100'
           }`}>
+          <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isVerified ? 'bg-green-100' : 'bg-amber-100'
+            }`}>
             <ShieldCheckIcon className={`w-5 h-5 ${isVerified ? 'text-green-600' : 'text-amber-600'}`} />
           </span>
           <div className="min-w-0">
@@ -274,14 +270,13 @@ export default function ProfilePage() {
                 : 'Verify an email so you can reset your own password if you get locked out.'}
             </p>
           </div>
-          <span className={`ml-auto inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
-            isVerified ? 'bg-green-100 text-green-700'
+          <span className={`ml-auto inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${isVerified ? 'bg-green-100 text-green-700'
               : profile.personalEmail ? 'bg-amber-100 text-amber-800'
-              : 'bg-red-100 text-red-700'
-          }`}>
+                : 'bg-red-100 text-red-700'
+            }`}>
             {isVerified ? <><CheckCircleIcon className="w-3.5 h-3.5" /> Verified</>
               : profile.personalEmail ? <><EnvelopeIcon className="w-3.5 h-3.5" /> Awaiting confirmation</>
-              : <><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Not set up</>}
+                : <><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Not set up</>}
           </span>
         </div>
 

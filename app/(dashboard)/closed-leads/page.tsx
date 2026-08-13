@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { InboxIcon } from '@heroicons/react/24/outline';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 const TABS = [
   { key: '', label: 'All Closed' },
@@ -128,8 +129,8 @@ export default function ClosedLeadsPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors border-b-2 -mb-px ${tab === t.key
-                  ? 'border-blue-600 text-blue-700 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'border-blue-600 text-blue-700 bg-blue-50'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
             >
               {t.label}
@@ -182,9 +183,7 @@ export default function ClosedLeadsPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <InlineLoader />
         ) : leads.length === 0 ? (
           <div className="text-center py-16">
             <InboxIcon className="w-10 h-10 text-gray-400 mx-auto mb-3" aria-hidden="true" />

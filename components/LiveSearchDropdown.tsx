@@ -228,9 +228,8 @@ export default function LiveSearchDropdown<T>({
                   aria-selected={activeIndex === idx}
                   onMouseEnter={() => setActiveIndex(idx)}
                   onMouseDown={(e) => { e.preventDefault(); selectItem(item); }}
-                  className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors ${
-                    activeIndex === idx ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
+                  className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors ${activeIndex === idx ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
                 >
                   {renderItem(item, value)}
                 </div>
@@ -242,9 +241,8 @@ export default function LiveSearchDropdown<T>({
                   aria-selected={activeIndex === suggestions.length}
                   onMouseEnter={() => setActiveIndex(suggestions.length)}
                   onMouseDown={(e) => { e.preventDefault(); runFullSearch(); }}
-                  className={`px-4 py-2.5 text-sm font-medium text-blue-600 text-center cursor-pointer transition-colors border-t border-gray-100 ${
-                    activeIndex === suggestions.length ? 'bg-blue-50' : 'bg-gray-50/60 hover:bg-blue-50'
-                  }`}
+                  className={`px-4 py-2.5 text-sm font-medium text-blue-600 text-center cursor-pointer transition-colors border-t border-gray-100 ${activeIndex === suggestions.length ? 'bg-blue-50' : 'bg-gray-50/60 hover:bg-blue-50'
+                    }`}
                 >
                   View all results for &ldquo;{value.trim()}&rdquo; →
                 </div>

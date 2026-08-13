@@ -7,10 +7,6 @@ import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
 
-  if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
-    throw new ForbiddenError();
-  }
-
   const { status, rejectionReason } = await req.json();
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
@@ -20,10 +16,21 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // First, fetch the original request to get its type
   const originalRequest = await prisma.approvalRequest.findUnique({
     where: { id },
-    select: { type: true, entityId: true, leadId: true, requestedBy: true, status: true },
+    select: { type: true, entityId: true, leadId: true, requestedBy: true, status: true, targetUserId: true },
   });
 
   if (!originalRequest) throw new NotFoundError('Request');
+
+  // A lead transfer is also decidable by the person being handed the lead —
+  // they are the one agreeing to take the work on. Every other request type
+  // stays admin/manager-only, and admins can still decide transfers from the
+  // Approvals hub.
+  const isTransferTarget =
+    originalRequest.type === 'LEAD_TRANSFER' && originalRequest.targetUserId === user.id;
+
+  if (!isTransferTarget && !['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
+    throw new ForbiddenError();
+  }
 
   // A request can only be decided once — otherwise re-PATCHing an already
   // approved request would re-run its action (e.g. delete the lead again).
@@ -39,7 +46,11 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // A Backend Team manager may only decide requests filed by themselves or
   // their own reports — mirrors the GET list route's team scoping, which
   // this PATCH previously ignored entirely.
-  if (user.role === 'BACKEND_TEAM') {
+  //
+  // Skipped when they are the transfer's recipient: a lead may be handed
+  // across teams, and the person being given it must be able to answer
+  // regardless of which team the sender belongs to.
+  if (user.role === 'BACKEND_TEAM' && !isTransferTarget) {
     const subordinates = await prisma.user.findMany({ where: { managerId: user.id }, select: { id: true } });
     const teamIds = [user.id, ...subordinates.map((u) => u.id)];
     if (!teamIds.includes(originalRequest.requestedBy)) throw new ForbiddenError();
@@ -55,6 +66,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     },
     include: {
       requestedByUser: { select: { id: true, firstName: true, lastName: true } },
+      targetUser: { select: { id: true, firstName: true, lastName: true } },
       lead: { select: { id: true, name: true, company: true } },
       approvedByUser: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -79,6 +91,66 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
         where: { id: originalRequest.entityId },
         data: { deletedAt: new Date() },
       });
+    } else if (originalRequest.type === 'LEAD_TRANSFER' && originalRequest.leadId && originalRequest.targetUserId) {
+      // Re-read the owner inside the decision rather than trusting the value
+      // captured when the request was filed — an admin may have reassigned the
+      // lead in the meantime, and the history must record who actually lost it.
+      const current = await prisma.lead.findUnique({
+        where: { id: originalRequest.leadId },
+        select: { assignedToId: true },
+      });
+      if (current && current.assignedToId !== originalRequest.targetUserId) {
+        await prisma.$transaction([
+          prisma.lead.update({
+            where: { id: originalRequest.leadId },
+            data: { assignedToId: originalRequest.targetUserId },
+          }),
+          prisma.leadTransfer.create({
+            data: {
+              leadId: originalRequest.leadId,
+              fromUserId: current.assignedToId,
+              toUserId: originalRequest.targetUserId,
+              actedById: user.id,
+              viaApprovalId: id,
+              reason: approvalRequest.reason || null,
+            },
+          }),
+          prisma.activityLog.create({
+            data: {
+              userId: user.id,
+              action: 'UPDATE',
+              entityType: 'LEAD',
+              entityId: originalRequest.leadId,
+              leadId: originalRequest.leadId,
+              changes: {
+                assignedToId: { from: current.assignedToId, to: originalRequest.targetUserId },
+                viaApprovalId: id,
+              },
+            },
+          }),
+        ]);
+
+        // The new owner is told even when they accepted it themselves — the
+        // notification doubles as the audit trail entry they can search later.
+        await createNotification(
+          originalRequest.targetUserId,
+          'LEAD_ASSIGNED',
+          'Lead transferred to you',
+          `You now own "${approvalRequest.lead?.name ?? 'a lead'}".`,
+          'LEAD',
+          originalRequest.leadId,
+        );
+        if (current.assignedToId && current.assignedToId !== user.id) {
+          await createNotification(
+            current.assignedToId,
+            'LEAD_ASSIGNED',
+            'Lead reassigned',
+            `"${approvalRequest.lead?.name ?? 'A lead'}" was transferred to another owner.`,
+            'LEAD',
+            originalRequest.leadId,
+          );
+        }
+      }
     }
   }
 
@@ -90,6 +162,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     LEAD_REOPEN: 'lead reopen',
     ORDER_DELETE: 'order deletion',
     CUSTOMER_DELETE: 'customer deletion',
+    LEAD_TRANSFER: 'lead transfer',
   };
   const label = typeLabel[originalRequest.type] || originalRequest.type.toLowerCase();
   const notifyEntityType = originalRequest.type.startsWith('ORDER')

@@ -6,6 +6,7 @@ import AdminDashboard from './components/AdminDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
 import SalesExecDashboard from './components/SalesExecDashboard';
 import SupportDashboard from './components/SupportDashboard';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -29,10 +30,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">Loading dashboard...</p>
-        </div>
+        <InlineLoader message="Loading dashboard…" />
       </div>
     );
   }

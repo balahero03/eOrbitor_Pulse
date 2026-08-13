@@ -9,6 +9,7 @@ import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import PageHeader from '@/components/PageHeader';
 import FilterPanel from '@/components/FilterPanel';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 interface FollowUp {
   id: string;
@@ -346,9 +347,7 @@ export default function FollowUpsPage() {
       {viewMode === 'list' && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <InlineLoader />
           ) : followUps.length === 0 ? (
             <div className="text-center py-16">
               <ClipboardIcon className="w-9 h-9 mx-auto mb-2 text-gray-300" />

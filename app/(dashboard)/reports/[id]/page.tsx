@@ -10,6 +10,7 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { InlineLoader } from '@/components/BrandedLoader';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -316,11 +317,10 @@ function PersonalView({ report }: { report: PersonalReport }) {
                       <td className="py-2.5 px-3 text-right text-gray-600">{data.total}</td>
                       <td className="py-2.5 px-3 text-right text-green-700 font-medium">{data.won}</td>
                       <td className="py-2.5 px-3 text-right">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          data.rate >= 70 ? 'bg-green-100 text-green-700' :
-                          data.rate >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${data.rate >= 70 ? 'bg-green-100 text-green-700' :
+                            data.rate >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                          }`}>
                           {data.rate.toFixed(1)}%
                         </span>
                       </td>
@@ -422,33 +422,33 @@ function PersonalView({ report }: { report: PersonalReport }) {
           {/* Four money columns cannot fit a phone; scroll rather than let the
               card overflow the page (the other tables here already do this). */}
           <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[420px]">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Deals</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Weighted</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.pipeline!.stages.map(s => (
-                <tr key={s.stage} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-2.5 px-3">
-                    <span
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
-                      style={{ background: `${STAGE_COLORS[s.stage] ?? '#6b7280'}20`, color: STAGE_COLORS[s.stage] ?? '#6b7280' }}
-                    >
-                      {s.stage}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-gray-700">{s.dealCount}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-800 font-medium">{inr(s.totalValue)}</td>
-                  <td className="py-2.5 px-3 text-right text-green-700">{inr(s.weightedValue)}</td>
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Stage</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Deals</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Weighted</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {metrics.pipeline!.stages.map(s => (
+                  <tr key={s.stage} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 px-3">
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{ background: `${STAGE_COLORS[s.stage] ?? '#6b7280'}20`, color: STAGE_COLORS[s.stage] ?? '#6b7280' }}
+                      >
+                        {s.stage}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-gray-700">{s.dealCount}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-800 font-medium">{inr(s.totalValue)}</td>
+                    <td className="py-2.5 px-3 text-right text-green-700">{inr(s.weightedValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </SectionCard>
       )}
@@ -500,24 +500,24 @@ function PersonalView({ report }: { report: PersonalReport }) {
             </div>
           </div>
           <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[360px]">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Count</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.lossAnalysis.byReason.map(r => (
-                <tr key={r.reason} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-2.5 px-3 text-gray-700">{r.reason}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{r.count}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-800">{inr(r.lostValue)}</td>
+            <table className="w-full text-sm min-w-[360px]">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">Reason</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Count</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500">Value</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {metrics.lossAnalysis.byReason.map(r => (
+                  <tr key={r.reason} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 px-3 text-gray-700">{r.reason}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-600">{r.count}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-800">{inr(r.lostValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </SectionCard>
       )}
@@ -586,12 +586,11 @@ function TeamView({ report }: { report: TeamReport }) {
                   return (
                     <tr key={m.userId} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                          m.rank === 1 ? 'bg-yellow-100 text-yellow-700' :
-                          m.rank === 2 ? 'bg-gray-200 text-gray-700' :
-                          m.rank === 3 ? 'bg-orange-100 text-orange-700' :
-                          'bg-gray-100 text-gray-500'
-                        }`}>
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${m.rank === 1 ? 'bg-yellow-100 text-yellow-700' :
+                            m.rank === 2 ? 'bg-gray-200 text-gray-700' :
+                              m.rank === 3 ? 'bg-orange-100 text-orange-700' :
+                                'bg-gray-100 text-gray-500'
+                          }`}>
                           {m.rank}
                         </span>
                       </td>
@@ -603,11 +602,10 @@ function TeamView({ report }: { report: TeamReport }) {
                       <td className="py-3 px-3 text-right text-gray-600">{m.leads}</td>
                       <td className="py-3 px-3 text-right text-gray-600">{m.converted}</td>
                       <td className="py-3 px-3 text-right">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          m.winRate >= 70 ? 'bg-green-100 text-green-700' :
-                          m.winRate >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.winRate >= 70 ? 'bg-green-100 text-green-700' :
+                            m.winRate >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                          }`}>
                           {m.winRate.toFixed(1)}%
                         </span>
                       </td>
@@ -863,10 +861,7 @@ export default function ReportViewPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">Loading report…</p>
-        </div>
+        <InlineLoader message="Loading report…" />
       </div>
     );
   }
