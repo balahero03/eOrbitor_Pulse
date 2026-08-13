@@ -422,8 +422,8 @@ function AccessPolicySection() {
               </div>
               {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
                 <p className={`text-xs rounded-lg px-3 py-2 mt-2 border ${longWindowWarning
-                    ? 'bg-amber-50 border-amber-200 text-amber-800'
-                    : 'bg-blue-50 border-blue-100 text-blue-700'
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-blue-50 border-blue-100 text-blue-700'
                   }`}>
                   {longWindowWarning && <strong className="inline-flex items-center gap-1"><WarningIcon className="w-3.5 h-3.5" /> Double-check the time window — </strong>}
                   {describeWindow(policy.windowStart, policy.windowEnd)}

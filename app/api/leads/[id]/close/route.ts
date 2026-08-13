@@ -187,9 +187,9 @@ export async function POST(
 
       const leadValue = lead.quoteValue ? Number(lead.quoteValue) : 0;
       const quoteValue = accepted ? Number(accepted.totalAmount) : 0;
-      // An explicitly chosen quote outranks lead.quoteValue, which is often a
-      // stale early estimate. Without a choice, keep the previous precedence.
-      const orderTotal = chosen ? quoteValue : leadValue > 0 ? leadValue : quoteValue;
+      // An accepted quotation total ALWAYS takes priority as the authoritative order value.
+      // Falls back to lead.quoteValue only if no quotation exists.
+      const orderTotal = quoteValue > 0 ? quoteValue : leadValue;
 
       await prisma.order.create({
         data: {

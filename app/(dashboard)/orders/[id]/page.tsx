@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon } from '@/components/icons';
+import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon, LockIcon, WarningIcon, UploadIcon, OrderIcon } from '@/components/icons';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
 import { useToast } from '@/components/Toast';
@@ -11,6 +11,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
 import { InlineLoader } from '@/components/BrandedLoader';
 import NumberField from '@/components/NumberField';
+import Modal, { ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 /** One row of the order's payment ledger. */
 interface OrderPaymentRow {
@@ -33,7 +34,7 @@ interface Order {
   status: string;
   paymentStatus: string;
   customer: { id: string; companyName: string };
-  quotation?: { id: string; quotationNumber: string };
+  quotation?: { id: string; quotationNumber: string; totalAmount?: string };
   deal?: { id: string; dealName: string };
   totalAmount: string;
   amountPaid: string;
@@ -46,6 +47,38 @@ interface Order {
   invoiceNumber?: string;
   invoiceFile?: { filename?: string; contentType?: string; size?: number } | null;
   createdAt: string;
+}
+
+// ─── Shared form styling ──────────────────────────────────────────────────────
+// The two modals on this page had drifted into slightly different input class
+// strings. Naming them once keeps every field the same height, radius and
+// focus treatment, and makes the focus ring strong enough to actually see.
+const FIELD =
+  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 ' +
+  'transition-shadow focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20';
+
+const LABEL = 'block text-sm font-medium text-gray-700 mb-1.5';
+
+/** Section heading inside a modal: small caps label with a hairline rule. */
+function FieldGroup({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">{title}</h3>
+        <span className="h-px bg-gray-100 flex-1" />
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'FULFILLED', 'INVOICED', 'COMPLETED'];
@@ -147,7 +180,11 @@ export default function OrderDetailPage() {
 
   const openPayment = () => {
     if (!order) return;
-    const outstanding = Math.max(parseFloat(order.totalAmount) - parseFloat(order.amountPaid), 0);
+    const currentTotal = (order.totalAmount && Number(order.totalAmount) > 0)
+      ? Number(order.totalAmount)
+      : Number(order.quotation?.totalAmount || 0);
+
+    const outstanding = Math.max(currentTotal - parseFloat(order.amountPaid || '0'), 0);
     setPaymentForm({
       // Pre-filled with the outstanding balance — the overwhelmingly common
       // case is "they paid the rest", and it is still fully editable for a
@@ -225,12 +262,16 @@ export default function OrderDetailPage() {
 
   const openEdit = () => {
     if (!order) return;
+    const initialTotal = (order.totalAmount && Number(order.totalAmount) > 0)
+      ? order.totalAmount
+      : (order.quotation?.totalAmount || '0');
+
     setEditData({
       poNumber: order.poNumber || '',
       poDate: order.poDate ? order.poDate.split('T')[0] : '',
-      // Pre-filled from the order, so the value only needs touching when it is
+      // Pre-filled from the order or quotation, so the value only needs touching when it is
       // genuinely wrong — never retyped from scratch.
-      totalAmount: order.totalAmount,
+      totalAmount: initialTotal,
       deliveryDate: order.deliveryDate ? order.deliveryDate.split('T')[0] : '',
       invoiceNumber: order.invoiceNumber || '',
       status: order.status,
@@ -347,6 +388,22 @@ export default function OrderDetailPage() {
   const total = parseFloat(order.totalAmount);
   const paid = parseFloat(order.amountPaid);
   const balance = total - paid;
+  // Balance implied by whatever is currently typed in the Edit modal, which is
+  // not the same as the saved order's balance while the value is being edited.
+  const editBalance = (parseFloat(editData.totalAmount || '0') || 0) - paid;
+
+  // Nothing to save until something actually changed — an always-enabled Save
+  // invites a pointless round trip and makes it unclear whether an edit
+  // registered at all.
+  const editDirty = !!order && (
+    (editData.poNumber || '') !== (order.poNumber || '') ||
+    editData.poDate !== (order.poDate ? order.poDate.split('T')[0] : '') ||
+    String(editData.totalAmount) !== String(order.totalAmount) ||
+    editData.deliveryDate !== (order.deliveryDate ? order.deliveryDate.split('T')[0] : '') ||
+    (editData.invoiceNumber || '') !== (order.invoiceNumber || '') ||
+    editData.status !== order.status ||
+    !!invoiceUpload
+  );
   const paidPct = Math.min((paid / total) * 100, 100);
 
   return (
@@ -637,18 +694,12 @@ export default function OrderDetailPage() {
       </div>
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
-      {showPayment && order && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
-            <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Record Payment</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{order.orderNumber}</p>
-              </div>
-              <button onClick={() => setShowPayment(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-            </div>
+      <Modal open={showPayment && !!order} onClose={() => setShowPayment(false)} size="lg">
+        {order && (
+          <>
+            <ModalHeader title="Record Payment" subtitle={order.orderNumber} onClose={() => setShowPayment(false)} />
 
-            <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+            <ModalBody className="space-y-4">
               {/* The three figures you need before deciding what to type, shown
                   where you are typing it — rather than behind the modal. These
                   recalculate from the ledger after every instalment, so the
@@ -679,49 +730,74 @@ export default function OrderDetailPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Amount received *</label>
+                  <label className={LABEL}>Amount received *</label>
                   <NumberField prefix="₹" value={paymentForm.amount}
                     onChange={v => setPaymentForm(p => ({ ...p, amount: v }))}
                     min="0" step="0.01" placeholder="0" />
-                  {/* Quick way back to the full balance if it was edited down. */}
-                  {balance > 0 && String(balance) !== paymentForm.amount && (
-                    <button type="button"
-                      onClick={() => setPaymentForm(p => ({ ...p, amount: String(balance) }))}
-                      className="text-xs text-blue-600 hover:underline mt-1">
-                      Use full balance ({fmt(balance)})
-                    </button>
+                  {Number.isFinite(parseFloat(paymentForm.amount)) && paymentForm.amount !== '' && (
+                    <p className="text-xs font-semibold text-gray-600 tabular-nums mt-1.5">{fmt(paymentForm.amount)}</p>
                   )}
+                  {/* Quick Preset Buttons for Phase Payments (50%, 25%, Full Balance) */}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {total > 0 && (
+                      <>
+                        <button type="button"
+                          onClick={() => setPaymentForm(p => ({ ...p, amount: (total * 0.5).toFixed(2) }))}
+                          className="text-[11px] px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold transition-colors">
+                          50% Phase ({fmt(total * 0.5)})
+                        </button>
+                        <button type="button"
+                          onClick={() => setPaymentForm(p => ({ ...p, amount: (total * 0.25).toFixed(2) }))}
+                          className="text-[11px] px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold transition-colors">
+                          25% Phase ({fmt(total * 0.25)})
+                        </button>
+                      </>
+                    )}
+                    {parseFloat(paymentForm.amount || '0') > balance && balance > 0 && (
+                      <p className="text-xs text-red-600 mt-1.5 inline-flex items-start gap-1 animate-slide-up">
+                        <WarningIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                        <span>More than the {fmt(balance)} outstanding — the server will reject this.</span>
+                      </p>
+                    )}
+                    {balance > 0 && String(balance) !== paymentForm.amount && (
+                      <button type="button"
+                        onClick={() => setPaymentForm(p => ({ ...p, amount: String(balance) }))}
+                        className="text-[11px] px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-md font-semibold transition-colors">
+                        Full Balance ({fmt(balance)})
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Date received *</label>
+                  <label className={LABEL}>Date received *</label>
                   <input type="date" value={paymentForm.paidAt}
                     onChange={e => setPaymentForm(p => ({ ...p, paidAt: e.target.value }))}
                     max={new Date().toISOString().split('T')[0]}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    className={FIELD} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Mode</label>
+                  <label className={LABEL}>Mode</label>
                   <select value={paymentForm.mode}
                     onChange={e => setPaymentForm(p => ({ ...p, mode: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    className={FIELD}>
                     {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Reference</label>
+                  <label className={LABEL}>Reference</label>
                   <input type="text" value={paymentForm.reference}
                     onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))}
                     placeholder="UTR / UPI ref / cheque no."
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    className={FIELD} />
                   <p className="text-xs text-gray-400 mt-1">What you&apos;ll match against the bank statement.</p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Receipt / proof</label>
+                <label className={LABEL}>Receipt / proof</label>
                 <div onClick={() => paymentFileRef.current?.click()}
                   className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                   {paymentProof ? (
@@ -744,154 +820,185 @@ export default function OrderDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Remarks</label>
+                <label className={LABEL}>Remarks</label>
                 <textarea rows={2} value={paymentForm.remarks}
                   onChange={e => setPaymentForm(p => ({ ...p, remarks: e.target.value }))}
                   placeholder="Anything worth noting about this payment…"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  className={FIELD} />
               </div>
-            </div>
+            </ModalBody>
 
-            <div className="border-t px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 flex-shrink-0">
+            <ModalFooter hint={balance > 0 ? `${fmt(balance)} outstanding` : 'Fully paid'}>
               <button onClick={() => setShowPayment(false)} disabled={savingPayment}
                 className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>
                 Cancel
               </button>
-              <button onClick={submitPayment} disabled={savingPayment || !paymentForm.amount}
+              {/* Mirrors the server's overpayment rule so the failure is visible
+                  before submitting rather than as an error toast after. */}
+              <button onClick={submitPayment}
+                disabled={savingPayment || !paymentForm.amount || parseFloat(paymentForm.amount || '0') <= 0 || (balance > 0 && parseFloat(paymentForm.amount || '0') > balance)}
                 className={buttonClasses({ size: 'lg', className: 'w-full sm:w-auto' })}>
                 {savingPayment ? 'Recording…' : 'Record Payment'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </ModalFooter>
+          </>
+        )}
+      </Modal>
 
       {showEdit && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
-            <div className="border-b px-6 py-4 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-lg font-bold text-gray-900">Edit Order</h2>
-              <button onClick={() => setShowEdit(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-start justify-between gap-3 flex-shrink-0">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-gray-900">Edit Order</h2>
+                <p className="text-xs text-gray-500 mt-0.5 font-mono truncate">{order.orderNumber}</p>
+              </div>
+              <button onClick={() => setShowEdit(false)} aria-label="Close"
+                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl leading-none -mt-1 flex-shrink-0">×</button>
             </div>
-            <div className="overflow-y-auto flex-1 p-6 space-y-5">
+            <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-5 space-y-6">
 
-              {/* PO */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">PO Details</p>
+              <FieldGroup title="PO Details">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">PO Number</label>
-                    <input type="text" value={editData.poNumber} onChange={e => setEditData(p => ({ ...p, poNumber: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    <label className={LABEL}>PO Number</label>
+                    <input type="text" value={editData.poNumber}
+                      onChange={e => setEditData(p => ({ ...p, poNumber: e.target.value }))}
+                      placeholder="Customer PO #" className={FIELD} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">PO Date</label>
-                    <input type="date" value={editData.poDate} onChange={e => setEditData(p => ({ ...p, poDate: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    <label className={LABEL}>PO Date</label>
+                    <input type="date" value={editData.poDate}
+                      onChange={e => setEditData(p => ({ ...p, poDate: e.target.value }))}
+                      className={FIELD} />
                   </div>
                 </div>
-              </div>
+              </FieldGroup>
 
-              {/* Order value */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Order Value</p>
+              <FieldGroup
+                title="Order Value"
+                aside={order.quotation?.quotationNumber ? (
+                  <Link href={`/quotations/${order.quotation.id}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors whitespace-nowrap">
+                    <LockIcon className="w-3 h-3" /> {order.quotation.quotationNumber}
+                  </Link>
+                ) : undefined}
+              >
                 <div>
-                  <label className="block text-sm font-medium mb-1">Total Amount</label>
+                  <label className={LABEL}>Total Amount</label>
                   <NumberField prefix="₹" value={editData.totalAmount}
                     onChange={v => setEditData(p => ({ ...p, totalAmount: v }))}
                     min="0" step="0.01" placeholder="0" />
-                  {order.quotation?.quotationNumber && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Came from quotation{' '}
-                      <span className="font-mono font-medium text-gray-600">{order.quotation.quotationNumber}</span>.
+                  {/* A seven-digit number is unreadable as raw digits, so the
+                      grouped value is echoed under the field as you type. */}
+                  <div className="flex items-start justify-between gap-2 mt-1.5">
+                    <p className="text-xs text-gray-400">
+                      {order.quotation?.quotationNumber
+                        ? <>From accepted quotation <span className="font-mono text-gray-600">{order.quotation.quotationNumber}</span>.</>
+                        : 'No quotation linked — value entered manually.'}
                     </p>
-                  )}
+                    {Number.isFinite(parseFloat(editData.totalAmount)) && editData.totalAmount !== '' && (
+                      <span className="text-xs font-semibold text-gray-600 tabular-nums whitespace-nowrap">
+                        {fmt(editData.totalAmount)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {/* Paid is shown, not edited — it is the sum of the payment
-                    ledger below. Balance updates as you change the value. */}
+
                 {editData.totalAmount && (
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="bg-gray-50 rounded p-2 text-center">
-                      <p className="text-gray-400 uppercase">Total</p>
-                      <p className="font-bold text-gray-900">{fmt(editData.totalAmount)}</p>
+                  <div className="animate-slide-up">
+                    <div className="grid grid-cols-3 rounded-xl border border-gray-200 overflow-hidden divide-x divide-gray-200">
+                      <div className="bg-gray-50 p-2.5 text-center">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5 tabular-nums">{fmt(editData.totalAmount)}</p>
+                      </div>
+                      <div className="bg-green-50 p-2.5 text-center">
+                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Paid</p>
+                        <p className="text-sm font-bold text-green-700 mt-0.5 tabular-nums">{fmt(paid)}</p>
+                      </div>
+                      {/* transition-colors so the red↔green flip when the value
+                          crosses the paid amount reads as a change, not a jump */}
+                      <div className={`p-2.5 text-center transition-colors duration-300 ${editBalance > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                        <p className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${editBalance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                          Balance
+                        </p>
+                        <p className={`text-sm font-bold mt-0.5 tabular-nums transition-colors ${editBalance > 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                          {fmt(editBalance)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-green-50 rounded p-2 text-center">
-                      <p className="text-gray-400 uppercase">Paid</p>
-                      <p className="font-bold text-green-700">{fmt(paid)}</p>
-                    </div>
-                    <div className={`rounded p-2 text-center ${(parseFloat(editData.totalAmount || '0') - paid) > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                      <p className="text-gray-400 uppercase">Balance</p>
-                      <p className={`font-bold ${(parseFloat(editData.totalAmount || '0') - paid) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {fmt(parseFloat(editData.totalAmount || '0') - paid)}
-                      </p>
-                    </div>
+
+                    {editBalance > 0 && (
+                      <button type="button"
+                        onClick={() => { setShowEdit(false); openPayment(); }}
+                        className="w-full mt-2.5 py-2.5 px-3 bg-green-600 hover:bg-green-700 active:scale-[0.99] text-white rounded-lg text-xs font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-all">
+                        <OrderIcon className="w-4 h-4 text-white" /> 💳 Record Payment for this Order
+                      </button>
+                    )}
                   </div>
                 )}
-              </div>
+              </FieldGroup>
 
-              {/* Delivery & invoice */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Delivery &amp; Invoice</p>
+              <FieldGroup title="Delivery & Invoice">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Delivery Date</label>
+                    <label className={LABEL}>Delivery Date</label>
                     <input type="date" value={editData.deliveryDate}
                       onChange={e => setEditData(p => ({ ...p, deliveryDate: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                      className={FIELD} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Invoice Number</label>
+                    <label className={LABEL}>Invoice Number</label>
                     <input type="text" value={editData.invoiceNumber}
                       onChange={e => setEditData(p => ({ ...p, invoiceNumber: e.target.value }))}
-                      placeholder="e.g. INV-2026-0042"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                      placeholder="e.g. INV-2026-0042" className={FIELD} />
                   </div>
                 </div>
-                <div className="mt-3">
-                  <label className="block text-sm font-medium mb-1">Invoice File</label>
+                <div>
+                  <label className={LABEL}>Invoice File</label>
                   <div onClick={() => fileRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-3.5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/60 transition-colors">
                     {invoiceUpload ? (
                       <div className="flex items-center justify-center gap-2 text-sm text-green-700">
-                        <AttachmentIcon className="w-4 h-4" />
-                        <span className="font-medium truncate max-w-[220px]">{invoiceUpload.name}</span>
+                        <AttachmentIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="font-medium truncate max-w-[200px]">{invoiceUpload.name}</span>
                         <button type="button"
                           onClick={e => { e.stopPropagation(); setInvoiceUpload(null); if (fileRef.current) fileRef.current.value = ''; }}
-                          className="ml-1 text-red-500 hover:text-red-700"><CloseIcon className="w-4 h-4" /></button>
+                          className="ml-1 text-gray-400 hover:text-red-600 transition-colors"><CloseIcon className="w-4 h-4" /></button>
                       </div>
                     ) : order.invoiceFile ? (
-                      <div className="flex items-center justify-center gap-2 text-sm">
+                      <div className="flex items-center justify-center gap-2 text-sm flex-wrap">
                         <AttachmentIcon className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">{(order.invoiceFile as any).filename || 'Invoice on file'}</span>
+                        <span className="text-gray-700 font-medium">{(order.invoiceFile as any).filename || 'Invoice on file'}</span>
                         <span className="text-xs text-gray-400">— click to replace</span>
                       </div>
                     ) : (
-                      <div className="text-gray-500 text-sm flex flex-col items-center">
-                        <p className="flex items-center gap-1.5"><QuotationIcon className="w-4 h-4" color="text-gray-400" /> Click to attach the invoice</p>
-                        <p className="text-xs text-gray-400 mt-0.5">PDF or image — stored on the server</p>
+                      <div className="text-gray-500 text-sm flex flex-col items-center gap-0.5">
+                        <p className="flex items-center gap-1.5"><UploadIcon className="w-4 h-4" /> Click to attach the invoice</p>
+                        <p className="text-xs text-gray-400">PDF or image — stored on the server</p>
                       </div>
                     )}
                   </div>
                   <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" />
                 </div>
-              </div>
+              </FieldGroup>
 
-              {/* Status override — the confirm/fulfil actions enforce the normal
-                  PENDING → CONFIRMED → FULFILLED path; this is the admin-only
-                  escape hatch for fixing a wrong transition, and the API
-                  rejects it for everyone else. */}
               {isAdminUser && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Order Status</p>
-                  <select value={editData.status}
-                    onChange={e => setEditData(p => ({ ...p, status: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    {ORDER_STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
-                  </select>
-                  <p className="text-xs text-amber-600 mt-1">
-                    Admin override — skips the Confirm / Fulfil checks.
-                  </p>
-                </div>
+                <FieldGroup title="Order Status">
+                  <div>
+                    <select value={editData.status}
+                      onChange={e => setEditData(p => ({ ...p, status: e.target.value }))}
+                      className={FIELD}>
+                      {ORDER_STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                    {editData.status !== order.status && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 inline-flex items-start gap-1.5 animate-slide-up">
+                        <WarningIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                        <span>Admin override — skips the Confirm / Fulfil checks.</span>
+                      </p>
+                    )}
+                  </div>
+                </FieldGroup>
               )}
 
               {/* Payment entry deliberately lives in Record Payment, not here.
@@ -904,15 +1011,20 @@ export default function OrderDetailPage() {
                 each payment is kept as its own entry with its date, reference and receipt.
               </p>
             </div>
-            <div className="border-t px-6 py-4 flex gap-3 flex-shrink-0">
-              <button onClick={handleSaveEdit} disabled={saving}
-                className={buttonClasses({ size: 'lg', className: 'flex-1' })}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button onClick={() => setShowEdit(false)}
-                className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-                Cancel
-              </button>
+            <div className="border-t bg-gray-50/60 px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 flex-shrink-0">
+              <p className="text-xs text-gray-400 text-center sm:text-left">
+                {editDirty ? 'Unsaved changes' : 'No changes yet'}
+              </p>
+              <div className="flex flex-col-reverse sm:flex-row gap-2">
+                <button onClick={() => setShowEdit(false)} disabled={saving}
+                  className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} disabled={saving || !editDirty}
+                  className={buttonClasses({ size: 'lg', className: 'w-full sm:w-auto' })}>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

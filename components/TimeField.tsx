@@ -93,11 +93,10 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
           inside a single field rather than between two controls. 40px min
           height keeps it a comfortable tap target on a phone. */}
       <div
-        className={`flex items-center gap-0.5 border rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-0 text-sm transition-colors ${
-          disabled
+        className={`flex items-center gap-0.5 border rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-0 text-sm transition-colors ${disabled
             ? 'bg-gray-50 border-gray-200 text-gray-400'
             : `bg-white ${open ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200'}`
-        }`}
+          }`}
       >
         <input
           ref={hourRef}
@@ -160,9 +159,8 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
           onClick={() => setOpen(o => !o)}
           aria-label="Open time picker"
           aria-expanded={open}
-          className={`ml-auto flex-shrink-0 -mr-1 p-1 rounded-md transition-colors ${
-            disabled ? 'text-gray-300' : open ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-          }`}
+          className={`ml-auto flex-shrink-0 -mr-1 p-1 rounded-md transition-colors ${disabled ? 'text-gray-300' : open ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+            }`}
         >
           <ClockIcon className="w-4 h-4" />
         </button>
@@ -187,9 +185,8 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
                   type="button"
                   ref={hh === h ? selectedHourRef : undefined}
                   onClick={() => pick(hh, m || '00')}
-                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${
-                    hh === h ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
-                  }`}
+                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${hh === h ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
+                    }`}
                 >
                   {hh}
                 </button>
@@ -202,9 +199,8 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
                   type="button"
                   ref={mm === m ? selectedMinuteRef : undefined}
                   onClick={() => { pick(h || '00', mm); setOpen(false); }}
-                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${
-                    mm === m ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
-                  }`}
+                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${mm === m ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
+                    }`}
                 >
                   {mm}
                 </button>

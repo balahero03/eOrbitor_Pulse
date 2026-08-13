@@ -494,8 +494,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                   ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
                   : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] sm:min-h-0 rounded-lg font-medium border transition-colors disabled:opacity-50 ${quotaRestrictionsDisabled
-                    ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
-                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${quotaRestrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
@@ -1150,10 +1150,10 @@ function SpancoKanban({
                   <span className={`h-0.5 flex-1 ${idx === 0 ? 'bg-transparent' : activeIdx >= idx ? 'bg-green-500' : 'bg-gray-200'}`} />
                   <span
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 flex-shrink-0 transition-colors ${isPast
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : isActive
-                          ? `${stage.headerBg} border-transparent text-white ring-2 ring-offset-1 ring-gray-300`
-                          : 'bg-white border-gray-300 text-gray-400'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : isActive
+                        ? `${stage.headerBg} border-transparent text-white ring-2 ring-offset-1 ring-gray-300`
+                        : 'bg-white border-gray-300 text-gray-400'
                       }`}
                   >
                     {isPast ? <CheckGlyph className="w-3.5 h-3.5 text-white" /> : stage.abbr}
@@ -3334,7 +3334,7 @@ export default function LeadDetailPage() {
                       <p className="text-xs text-amber-700 mt-1 italic">“{lead.pendingTransfer.reason}”</p>
                     )}
                     {(currentUser?.id === lead.pendingTransfer.targetUser?.id || isAdminUser) &&
-                     currentUser?.id !== lead.pendingTransfer.requestedByUser.id ? (
+                      currentUser?.id !== lead.pendingTransfer.requestedByUser.id ? (
                       <div className="flex gap-2 mt-2.5">
                         <button
                           onClick={() => decidePendingTransfer(true)}

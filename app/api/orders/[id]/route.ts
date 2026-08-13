@@ -28,7 +28,7 @@ async function inScope(user: AuthUser, dealAssignedToId: string | null | undefin
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
 
-  const order = await prisma.order.findUnique({
+  let order = await prisma.order.findUnique({
     where: { id },
     include: {
       customer: true,
@@ -39,6 +39,19 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   if (!order) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
+
+  // If order total is 0 or missing, but has a linked quotation with a valid amount, auto-heal the order's total amount
+  if ((!order.totalAmount || Number(order.totalAmount) === 0) && order.quotation?.totalAmount && Number(order.quotation.totalAmount) > 0) {
+    order = await prisma.order.update({
+      where: { id },
+      data: { totalAmount: order.quotation.totalAmount },
+      include: {
+        customer: true,
+        quotation: true,
+        deal: true,
+      },
+    });
+  }
 
   return NextResponse.json(order);
 });
