@@ -18,7 +18,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * identical to a real button.
  */
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon';
 
 const BASE =
@@ -41,6 +41,10 @@ const VARIANTS: Record<ButtonVariant, string> = {
   secondary:
     'bg-white border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 focus-visible:ring-gray-400',
   danger: 'bg-red-600 text-white font-semibold shadow-sm hover:bg-red-700 focus-visible:ring-red-500',
+  // Money-in and confirm actions (Record Payment, Confirm Order) were already
+  // green everywhere by convention; naming it here stops each one re-inventing
+  // its own shade.
+  success: 'bg-green-600 text-white font-semibold shadow-sm hover:bg-green-700 focus-visible:ring-green-500',
 };
 
 // `min-h-*` is the mobile tap target, and it is the only thing these sizes add

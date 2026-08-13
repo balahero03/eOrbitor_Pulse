@@ -870,7 +870,7 @@ export default function ReportViewPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <ReportIcon className="w-12 h-12 mx-auto text-gray-300" />
+          <ReportIcon className="w-12 h-12 mx-auto" color="text-gray-300" />
           <p className="text-gray-700 font-semibold">Report not found</p>
           <p className="text-sm text-gray-400">This report may have been deleted or you don't have access.</p>
           <button onClick={() => router.push('/reports')} className="px-3.5 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">

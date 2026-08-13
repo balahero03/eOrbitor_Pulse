@@ -31,3 +31,15 @@ export function parseMoneyInput(value: unknown): number {
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : NaN;
 }
+
+/**
+ * Coerce anything to a finite number for display, defaulting to 0.
+ *
+ * `Intl.NumberFormat.format(NaN)` renders the literal string "₹NaN", and
+ * `parseFloat(undefined)` / `parseFloat('')` both produce NaN — so any list
+ * row with a missing amount printed "₹NaN" straight into the UI.
+ */
+export function toFiniteNumber(value: unknown): number {
+  const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+  return Number.isFinite(n) ? n : 0;
+}

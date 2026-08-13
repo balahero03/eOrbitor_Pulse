@@ -398,7 +398,7 @@ function DailyActivityContent() {
           }`}>
           <div>
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              <LockIcon className="w-4 h-4 flex-shrink-0 text-amber-600" /> This date is locked
+              <LockIcon className="w-4 h-4 flex-shrink-0" color="text-amber-600" /> This date is locked
               <span className="ml-1 text-xs font-normal text-gray-500 hidden xs:inline">(free edit window: today &amp; yesterday)</span>
             </p>
             {unlockRequest?.status === 'PENDING' && <p className="text-xs text-amber-700 mt-0.5 flex items-center gap-1"><PendingIcon className="w-3.5 h-3.5" /> Unlock request pending admin/support review</p>}
@@ -556,7 +556,7 @@ function DailyActivityContent() {
           </>
         ) : entries.length === 0 ? (
           <div className="text-center py-14 bg-white rounded-xl border border-gray-100 shadow-sm">
-            <ClipboardIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <ClipboardIcon className="w-10 h-10 mx-auto mb-3" color="text-gray-300" />
             <p className="text-gray-700 font-semibold">No activities logged</p>
             <p className="text-sm text-gray-400 mt-1 mb-4">
               {isEditable ? 'Start logging your meetings, calls, and tasks for today.' : 'No records logged for this date.'}

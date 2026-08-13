@@ -350,7 +350,7 @@ export default function FollowUpsPage() {
             <InlineLoader />
           ) : followUps.length === 0 ? (
             <div className="text-center py-16">
-              <ClipboardIcon className="w-9 h-9 mx-auto mb-2 text-gray-300" />
+              <ClipboardIcon className="w-9 h-9 mx-auto mb-2" color="text-gray-300" />
               <p className="text-gray-500 font-medium">No follow-ups found</p>
               {hasFilters && <button onClick={clearFilters} className="mt-3 text-blue-600 text-sm hover:underline">Clear filters</button>}
             </div>

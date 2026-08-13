@@ -6,8 +6,9 @@ import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import TimeField from '@/components/TimeField';
 import PageContainer from '@/components/PageContainer';
 import PageHeader from '@/components/PageHeader';
-import { ActivityIcon, LockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2 } from '@/components/icons';
+import { ActivityIcon, LockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2, CheckGlyph } from '@/components/icons';
 import { InlineLoader } from '@/components/BrandedLoader';
+import { buttonClasses } from '@/components/Button';
 
 const ACTIVITY_MODES: Record<string, { label: string }> = {
   MEETING: { label: 'Meeting' },
@@ -51,6 +52,15 @@ function describeWindow(start: string, end: string): string {
     ? `Restricted from ${fmt24(start)} tonight through ${fmt24(end)} the next day — ${dur} blocked, access allowed only from ${fmt24(end)} to ${fmt24(start)}.`
     : `Restricted from ${fmt24(start)} to ${fmt24(end)} — ${dur} blocked, access allowed the rest of the day.`;
 }
+
+// Native checkboxes render differently in every browser and read as dated
+// next to the rest of the app's controls; `accent-color` restyles the tick
+// without giving up the real input's keyboard and a11y behaviour.
+const CHECKBOX =
+  'w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30';
+
+const SECTION_LABEL = 'text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2';
 
 const WINDOW_PRESETS = [
   { label: '21:00 – 06:00', start: '21:00', end: '06:00' },
@@ -360,95 +370,123 @@ function AccessPolicySection() {
       </button>
 
       {expanded && policy && (
-        <div className="border-t px-4 py-4 space-y-6">
+        <div className="border-t border-gray-100 px-4 sm:px-5 py-4 sm:py-5 space-y-5 animate-slide-up">
           {/* Policy settings */}
-          <div className="space-y-3">
+          <div className="space-y-5">
             {statusStrip}
 
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <label className="flex items-center gap-2.5 text-sm font-medium text-gray-800 cursor-pointer select-none">
               <input type="checkbox" checked={policy.enabled}
-                onChange={e => updatePolicy({ enabled: e.target.checked })} />
+                onChange={e => updatePolicy({ enabled: e.target.checked })}
+                className={CHECKBOX} />
               Restrict CRM access outside allowed hours
             </label>
 
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Restricted roles</p>
-              <div className="flex flex-wrap gap-3">
-                {RESTRICTABLE_ROLES.map(r => (
-                  <label key={r.value} className="flex items-center gap-1.5 text-sm text-gray-700">
-                    <input type="checkbox" checked={policy.restrictedRoles.includes(r.value)}
-                      onChange={() => toggleRole(r.value)} />
-                    {r.label}
-                  </label>
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1">Super Admin and Admin can never be restricted.</p>
-            </div>
-
-            <div>
-              {/* The label sat inline with the chips, so on a narrow column it
-                  pushed the first preset onto its own line and the row read as
-                  three ragged rows. It gets its own line now. */}
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Quick presets</p>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {WINDOW_PRESETS.map(p => (
-                  <button key={p.label} type="button" onClick={() => applyPreset(p.start, p.end)}
-                    className="text-xs px-3 py-1.5 min-h-[32px] sm:min-h-0 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors whitespace-nowrap">
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              {/* A two-column grid rather than a wrapping flex row: "Restriction
-                  starts at" is long enough to wrap to two lines on a phone, and
-                  in a flex row that made the two fields sit at different
-                  heights. The grid keeps them aligned however the labels wrap. */}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 items-end">
-                <div className="min-w-0">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 leading-tight">
-                    Starts<span className="hidden sm:inline"> at</span>
-                  </label>
-                  <TimeField value={policy.windowStart}
-                    onChange={v => updatePolicy({ windowStart: v })}
-                    className="w-full sm:w-36" />
+            {/* Everything below only matters when the policy is on. Dimming it
+                says so without hiding it, so the current configuration stays
+                readable while it is switched off. */}
+            <div className={`space-y-5 transition-opacity duration-200 ${policy.enabled ? '' : 'opacity-50'}`}>
+              <div>
+                <p className={SECTION_LABEL}>Restricted roles</p>
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {RESTRICTABLE_ROLES.map(r => (
+                    <label key={r.value} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                      <input type="checkbox" checked={policy.restrictedRoles.includes(r.value)}
+                        onChange={() => toggleRole(r.value)}
+                        className={CHECKBOX} />
+                      {r.label}
+                    </label>
+                  ))}
                 </div>
-                <div className="min-w-0">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 leading-tight">
-                    Ends<span className="hidden sm:inline"> at</span>
-                  </label>
-                  <TimeField value={policy.windowEnd}
-                    onChange={v => updatePolicy({ windowEnd: v })}
-                    className="w-full sm:w-36" />
-                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5">Super Admin and Admin can never be restricted.</p>
               </div>
-              {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
-                <p className={`text-xs rounded-lg px-3 py-2 mt-2 border ${longWindowWarning
-                  ? 'bg-amber-50 border-amber-200 text-amber-800'
-                  : 'bg-blue-50 border-blue-100 text-blue-700'
-                  }`}>
-                  {longWindowWarning && <strong className="inline-flex items-center gap-1"><WarningIcon className="w-3.5 h-3.5" /> Double-check the time window — </strong>}
-                  {describeWindow(policy.windowStart, policy.windowEnd)}
-                </p>
-              )}
-            </div>
 
-            <label className="flex items-start gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={policy.forceCutoff} className="mt-0.5"
-                onChange={e => updatePolicy({ forceCutoff: e.target.checked })} />
-              <span>
-                Also cut off already-logged-in sessions at the cutoff
-                <span className="block text-[11px] text-gray-400">Off: anyone already working when the window starts can keep going. On: everyone in a restricted role is gated the moment the window starts, no matter when they logged in.</span>
-              </span>
-            </label>
+              <div>
+                <p className={SECTION_LABEL}>Restricted window</p>
+                {/* The two fields and the presets share one row and stop at a
+                    sensible width. As a full-width two-column grid they were
+                    flung to opposite edges of the card on a desktop, so the
+                    pair read as two unrelated controls. */}
+                <div className="flex flex-wrap items-end gap-3 sm:gap-4">
+                  <div className="min-w-0">
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1 tracking-wide">Starts at</label>
+                    <TimeField value={policy.windowStart}
+                      onChange={v => updatePolicy({ windowStart: v })}
+                      className="w-32" />
+                  </div>
+                  <span className="text-gray-300 pb-2.5 hidden sm:block">→</span>
+                  <div className="min-w-0">
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1 tracking-wide">Ends at</label>
+                    <TimeField value={policy.windowEnd}
+                      onChange={v => updatePolicy({ windowEnd: v })}
+                      className="w-32" />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
+                    {WINDOW_PRESETS.map(pr => {
+                      const active = policy.windowStart === pr.start && policy.windowEnd === pr.end;
+                      return (
+                        <button key={pr.label} type="button" onClick={() => applyPreset(pr.start, pr.end)}
+                          className={`text-xs px-3 py-1.5 min-h-[32px] sm:min-h-0 rounded-full border font-medium transition-colors whitespace-nowrap ${
+                            active
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400'
+                          }`}>
+                          {pr.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {policy.windowStart && policy.windowEnd && policy.windowStart !== policy.windowEnd && (
+                  <p className={`text-xs rounded-lg px-3 py-2 mt-3 border animate-slide-up ${longWindowWarning
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-blue-50 border-blue-100 text-blue-700'
+                    }`}>
+                    {longWindowWarning && <strong className="inline-flex items-center gap-1"><WarningIcon className="w-3.5 h-3.5" /> Double-check the time window — </strong>}
+                    {describeWindow(policy.windowStart, policy.windowEnd)}
+                  </p>
+                )}
+              </div>
 
-            <div className="flex items-center gap-3">
-              <button onClick={savePolicy} disabled={saving || !dirty}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-                {saving ? 'Saving…' : dirty ? 'Save Policy' : 'Saved'}
-              </button>
-              {saveMessage && (
-                <span className={`text-sm font-medium ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                  {saveMessage.text}
+              <label className="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer select-none">
+                <input type="checkbox" checked={policy.forceCutoff}
+                  onChange={e => updatePolicy({ forceCutoff: e.target.checked })}
+                  className={`${CHECKBOX} mt-0.5`} />
+                <span>
+                  Also cut off already-logged-in sessions at the cutoff
+                  <span className="block text-[11px] text-gray-400 mt-0.5 leading-relaxed">Off: anyone already working when the window starts can keep going. On: everyone in a restricted role is gated the moment the window starts, no matter when they logged in.</span>
                 </span>
+              </label>
+            </div>
+
+            {/* Save sits on its own rule so it reads as committing the whole
+                panel rather than belonging to the last checkbox above it. */}
+            {/* With nothing to save the button used to sit there greyed-out
+                reading "Saved", which looks like a broken control rather than a
+                state. Settled shows a quiet confirmation line instead, and the
+                button only appears when there is actually something to commit. */}
+            <div className="flex items-center gap-3 flex-wrap pt-4 border-t border-gray-100 min-h-[52px]">
+              {dirty || saving ? (
+                <>
+                  <button onClick={savePolicy} disabled={saving}
+                    className={buttonClasses({ size: 'md' })}>
+                    {saving ? 'Saving…' : 'Save Policy'}
+                  </button>
+                  <button onClick={() => { setPolicy(savedPolicy); setSaveMessage(null); }} disabled={saving}
+                    className={buttonClasses({ variant: 'secondary', size: 'md' })}>
+                    Discard
+                  </button>
+                  {!saving && (
+                    <span className="text-xs text-amber-600 font-medium animate-fade-in">Unsaved changes</span>
+                  )}
+                </>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium animate-fade-in">
+                  <CheckGlyph className="w-4 h-4" /> All changes saved
+                </span>
+              )}
+              {saveMessage && saveMessage.type === 'error' && (
+                <span className="text-sm font-medium text-red-600 animate-fade-in">{saveMessage.text}</span>
               )}
             </div>
           </div>
@@ -689,7 +727,7 @@ export default function AttendancePage() {
 
               {selectedDayRecords.length === 0 ? (
                 <div className="text-center py-6">
-                  <BriefcaseIcon2 className="w-9 h-9 mx-auto mb-2 text-gray-300" />
+                  <BriefcaseIcon2 className="w-9 h-9 mx-auto mb-2" color="text-gray-300" />
                   <p className="text-gray-500 text-sm">No login recorded</p>
                 </div>
               ) : (
@@ -781,7 +819,7 @@ export default function AttendancePage() {
             </>
           ) : (
             <div className="text-center py-10">
-              <CalendarIcon className="w-9 h-9 mx-auto mb-3 text-gray-300" />
+              <CalendarIcon className="w-9 h-9 mx-auto mb-3" color="text-gray-300" />
               <p className="text-gray-500 text-sm">Click a date to see details</p>
             </div>
           )}

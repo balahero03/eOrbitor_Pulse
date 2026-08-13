@@ -9,6 +9,7 @@ import { requestHighlight } from '@/lib/notificationHighlight';
 import { ToastProvider } from '@/components/Toast';
 import { ConfirmProvider, useConfirm } from '@/components/ConfirmDialog';
 import { BrandedLoader, InlineLoader } from '@/components/BrandedLoader';
+import { installSessionExpiryInterceptor } from '@/lib/authFetch';
 import {
   HomeIcon,
   FunnelIcon,
@@ -319,6 +320,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Initialise sidebar state from window width after mount (avoids SSR mismatch)
+  // A 401 from any API call means the JWT has expired. Without this the page
+  // silently stops loading data with no explanation; installed on the shell so
+  // every page inherits it rather than each one re-checking.
+  useEffect(() => installSessionExpiryInterceptor(), []);
+
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;

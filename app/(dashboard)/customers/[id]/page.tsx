@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { EditIcon, SuccessIcon } from '@/components/icons';
@@ -41,7 +42,7 @@ interface Order {
 }
 
 const fmt = (v: number | string | undefined) =>
-  v ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v)) : '—';
+  v ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(toFiniteNumber(v)) : '—';
 
 const fmtDate = (d: string | undefined) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';

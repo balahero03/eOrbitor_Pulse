@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { createWithOrderNumber } from '@/lib/orderNumber';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -64,35 +65,56 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'customerId and totalAmount are required' }, { status: 400 });
   }
 
-  const count = await prisma.order.count();
-  const orderNumber = `ORD-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
-
   const paidAmt = parseFloat(amountPaid) || 0;
   const totalAmt = parseFloat(totalAmount);
   const paymentStatus = paidAmt >= totalAmt && paidAmt > 0 ? 'COMPLETED' : paidAmt > 0 ? 'PARTIAL' : 'PENDING';
 
-  const order = await prisma.order.create({
-    data: {
-      orderNumber,
-      quotationId: quotationId || null,
-      customerId,
-      dealId: dealId || null,
-      poNumber: poNumber || null,
-      poDate: poDate ? new Date(poDate) : null,
-      status: 'PENDING',
-      paymentStatus,
-      totalAmount: totalAmt.toString(),
-      amountPaid: paidAmt.toString(),
-      paymentMode: paymentMode || null,
-      paymentRemarks: paymentRemarks || null,
-      paymentProofUrl: paymentProofUrl || null,
-    },
-    include: {
-      customer: { select: { companyName: true } },
-      quotation: { select: { quotationNumber: true } },
-      deal: { select: { dealName: true } },
-    },
-  });
+  const order = await createWithOrderNumber((orderNumber) =>
+    prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          quotationId: quotationId || null,
+          customerId,
+          dealId: dealId || null,
+          poNumber: poNumber || null,
+          poDate: poDate ? new Date(poDate) : null,
+          status: 'PENDING',
+          paymentStatus,
+          totalAmount: totalAmt.toString(),
+          amountPaid: paidAmt.toString(),
+          paymentMode: paymentMode || null,
+          paymentRemarks: paymentRemarks || null,
+          paymentProofUrl: paymentProofUrl || null,
+        },
+        include: {
+          customer: { select: { companyName: true } },
+          quotation: { select: { quotationNumber: true } },
+          deal: { select: { dealName: true } },
+        },
+      });
+
+      // Money taken at creation has to enter the ledger too. `Order.amountPaid`
+      // is a cached sum of OrderPayment rows, recomputed from scratch on every
+      // payment — so an opening amount recorded only on the Order was erased
+      // the moment a second payment was recorded, because the recompute could
+      // only see the rows it knew about.
+      if (paidAmt > 0) {
+        await tx.orderPayment.create({
+          data: {
+            orderId: created.id,
+            amount: paidAmt.toString(),
+            paidAt: poDate ? new Date(poDate) : new Date(),
+            mode: paymentMode || null,
+            remarks: paymentRemarks || 'Recorded when the order was created.',
+            recordedById: user.id,
+          },
+        });
+      }
+
+      return created;
+    })
+  );
 
   return NextResponse.json(order, { status: 201 });
 });

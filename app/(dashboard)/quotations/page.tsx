@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
 import { QuotationIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -34,7 +35,7 @@ const STATUS_META: Record<string, { label: string; style: string }> = {
 };
 
 const fmt = (v: string) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(parseFloat(v));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(toFiniteNumber(v));
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -235,7 +236,7 @@ export default function QuotationsPage() {
           <InlineLoader />
         ) : quotations.length === 0 ? (
           <div className="text-center py-16">
-            <QuotationIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <QuotationIcon className="w-10 h-10 mx-auto mb-3" color="text-gray-300" />
             <p className="text-gray-500 font-medium">No quotations yet</p>
             <p className="text-sm text-gray-400 mt-1">
               <Link href="/quotations/new" className="text-blue-600 hover:underline">Create your first quotation →</Link>

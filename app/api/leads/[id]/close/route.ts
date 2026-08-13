@@ -4,6 +4,7 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
 import { sendMail, buildWonEmail, buildLostEmail, MailAttachment } from '@/lib/mail';
 import { saveBase64Files } from '@/lib/storage';
+import { createWithOrderNumber } from '@/lib/orderNumber';
 
 export async function POST(
   req: NextRequest,
@@ -129,14 +130,29 @@ export async function POST(
             gstNumber: `PENDING-${Date.now()}`,
             website: '',
             industry: '',
+            // The lead already carries the person we've been dealing with, so
+            // carry them over as the primary contact. Without this the new
+            // customer had a company name and nothing else — no one to call —
+            // and the Customers list showed a row of dashes even though the
+            // details were sitting on the lead that created it.
+            ...(lead.email || lead.phone || lead.name
+              ? {
+                  contacts: {
+                    create: {
+                      name: lead.name || lead.company,
+                      email: lead.email || '',
+                      phone: lead.phone || null,
+                      isPrimary: true,
+                    },
+                  },
+                }
+              : {}),
           },
         });
         customerId = newCustomer.id;
       }
 
       // Auto-create an Order record from the won lead
-      const orderCount = await prisma.order.count();
-      const orderNumber = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(5, '0')}`;
 
       // The order's value comes from the quotation the customer actually
       // accepted, falling back to the lead's own quote figure. Previously only
@@ -191,7 +207,8 @@ export async function POST(
       // Falls back to lead.quoteValue only if no quotation exists.
       const orderTotal = quoteValue > 0 ? quoteValue : leadValue;
 
-      await prisma.order.create({
+      await createWithOrderNumber((orderNumber) =>
+        prisma.order.create({
         data: {
           orderNumber,
           customerId,
@@ -206,7 +223,8 @@ export async function POST(
           status: 'PENDING',
           paymentStatus: 'PENDING',
         },
-      });
+        })
+      );
 
       const updated = await prisma.lead.update({
         where: { id },

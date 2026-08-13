@@ -211,7 +211,7 @@ function StatusPill({ status }: { status: Status }) {
 function EmptyState({ tab }: { tab: Status }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
-      <ClipboardIcon className="w-9 h-9 mx-auto mb-2 text-gray-300" />
+      <ClipboardIcon className="w-9 h-9 mx-auto mb-2" color="text-gray-300" />
       <p className="text-gray-500">No {tab.toLowerCase()} requests</p>
     </div>
   );

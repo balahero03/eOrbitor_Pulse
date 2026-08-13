@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 import { notifyAdminsAndManagers } from '@/lib/notify';
+import { createWithOrderNumber } from '@/lib/orderNumber';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -86,10 +87,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       })
     : null;
 
-  const orderCount = await prisma.order.count();
-  const orderNumber = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(5, '0')}`;
-
-  const order = await prisma.order.create({
+  const order = await createWithOrderNumber((orderNumber) =>
+    prisma.order.create({
     data: {
       orderNumber,
       customerId: quotation.customerId,
@@ -101,7 +100,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       paymentStatus: 'PENDING',
     },
     include: { customer: true, quotation: true, deal: true },
-  });
+    })
+  );
 
   await prisma.activityLog.create({
     data: {
@@ -116,7 +116,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   await notifyAdminsAndManagers(
     'ORDER_CONFIRMED',
     'Order created from quotation',
-    `${orderNumber} was created from ${quotation.quotationNumber} for ${quotation.customer.companyName}.`,
+    `${order.orderNumber} was created from ${quotation.quotationNumber} for ${quotation.customer.companyName}.`,
     'ORDER',
     order.id,
     user.id,

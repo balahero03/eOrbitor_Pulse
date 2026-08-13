@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -129,7 +130,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0,
-    }).format(parseFloat(value.toString()));
+    }).format(toFiniteNumber(value));
   };
 
   if (loading) return <InlineLoader message="Loading product…" />;

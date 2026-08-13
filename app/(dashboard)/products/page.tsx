@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 import { ProductIcon } from '@/components/icons';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
@@ -46,7 +47,7 @@ const emptyForm = (): ProductForm => ({
 });
 
 const fmt = (v: string | number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(v));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(toFiniteNumber(v));
 
 // ─── Product Form Modal ───────────────────────────────────────────────────────
 function ProductModal({
@@ -469,7 +470,7 @@ export default function ProductsPage() {
           <InlineLoader />
         ) : products.length === 0 ? (
           <div className="text-center py-16">
-            <ProductIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <ProductIcon className="w-10 h-10 mx-auto mb-3" color="text-gray-300" />
             <p className="text-gray-500 font-medium">No products found</p>
             {canManage && (
               <button onClick={openAdd} className="mt-3 text-sm text-blue-600 hover:underline">

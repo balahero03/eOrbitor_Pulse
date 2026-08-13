@@ -139,22 +139,64 @@ export default function Modal({
   );
 }
 
-/** Sticky modal header: title, optional subtitle, and a close affordance. */
+/**
+ * Sticky modal header: title, optional subtitle, close, and an optional back
+ * affordance.
+ *
+ * `onBack` matters when one dialog opens another — without it the second panel
+ * is a dead end and the only way out is Cancel, which throws away the first
+ * one's context. `accent` tints the icon strip so two dialogs opened from the
+ * same page don't read as the same dialog.
+ */
 export function ModalHeader({
   title,
   subtitle,
   onClose,
+  onBack,
+  backLabel = 'Back',
+  icon,
+  accent = 'neutral',
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   onClose: () => void;
+  onBack?: () => void;
+  backLabel?: string;
+  icon?: ReactNode;
+  accent?: 'neutral' | 'success' | 'danger';
 }) {
+  const tint = {
+    neutral: 'bg-gray-100 text-gray-500',
+    success: 'bg-green-50 text-green-600',
+    danger: 'bg-red-50 text-red-600',
+  }[accent];
+
   return (
-    <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-start justify-between gap-3 flex-shrink-0">
-      <div className="min-w-0">
-        <h2 className="text-lg font-bold text-gray-900 truncate">{title}</h2>
-        {subtitle && <div className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</div>}
-      </div>
+    <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors mb-2 -ml-1 px-1 py-0.5 rounded"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 15l-5-5 5-5" />
+          </svg>
+          {backLabel}
+        </button>
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          {icon && (
+            <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tint}`}>
+              {icon}
+            </span>
+          )}
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 truncate">{title}</h2>
+            {subtitle && <div className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</div>}
+          </div>
+        </div>
       <button
         type="button"
         onClick={onClose}
@@ -165,6 +207,7 @@ export function ModalHeader({
           <path d="M5 5l10 10M15 5L5 15" />
         </svg>
       </button>
+      </div>
     </div>
   );
 }

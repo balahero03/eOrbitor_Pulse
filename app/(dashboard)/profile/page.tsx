@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { buttonClasses } from '@/components/Button';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import {
@@ -452,7 +453,18 @@ export default function ProfilePage() {
               <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              <p className="text-xs text-gray-400 mt-1.5">At least 8 characters.</p>
+              {/* A mismatch used to surface only after submitting; saying it
+                  as you type saves the round trip and the re-entry. */}
+              <p className={`text-xs mt-1.5 transition-colors ${
+                confirmPassword && newPassword !== confirmPassword ? 'text-red-600'
+                  : newPassword && newPassword.length < 8 ? 'text-amber-600' : 'text-gray-400'
+              }`}>
+                {confirmPassword && newPassword !== confirmPassword
+                  ? 'The two passwords do not match.'
+                  : newPassword && newPassword.length < 8
+                    ? `At least 8 characters — ${8 - newPassword.length} more to go.`
+                    : 'At least 8 characters.'}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>
@@ -464,8 +476,10 @@ export default function ProfilePage() {
         </div>
 
         <div className="px-5 sm:px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex justify-end">
-          <button type="submit" disabled={changingPassword || !currentPassword || !newPassword}
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
+          {/* Was the only near-black button in the app; every other primary
+              action is the brand blue. */}
+          <button type="submit" disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+            className={buttonClasses({ size: 'lg' })}>
             {changingPassword && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
             {changingPassword ? 'Changing…' : 'Change Password'}
           </button>

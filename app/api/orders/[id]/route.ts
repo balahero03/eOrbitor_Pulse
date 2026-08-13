@@ -40,8 +40,19 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!order) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
 
-  // If order total is 0 or missing, but has a linked quotation with a valid amount, auto-heal the order's total amount
-  if ((!order.totalAmount || Number(order.totalAmount) === 0) && order.quotation?.totalAmount && Number(order.quotation.totalAmount) > 0) {
+  // Back-fill a total that was never set, from the linked quotation.
+  //
+  // Only when the order has *no* payment history. A ₹0 order can be deliberate
+  // — a free replacement or a sample — and healing it on every read silently
+  // overwrote that. Once money has been recorded the figure is real regardless,
+  // and must not be rewritten underneath the ledger.
+  const hasLedger = await prisma.orderPayment.count({ where: { orderId: id } });
+  if (
+    !hasLedger &&
+    (order.totalAmount === null || order.totalAmount === undefined || Number(order.totalAmount) === 0) &&
+    order.quotation?.totalAmount &&
+    Number(order.quotation.totalAmount) > 0
+  ) {
     order = await prisma.order.update({
       where: { id },
       data: { totalAmount: order.quotation.totalAmount },

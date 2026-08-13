@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon, LockIcon, WarningIcon, UploadIcon, OrderIcon } from '@/components/icons';
+import { EditIcon, DownloadIcon, CheckGlyph, AttachmentIcon, QuotationIcon, CloseIcon, SuccessIcon, LockIcon, WarningIcon, UploadIcon, PaymentIcon } from '@/components/icons';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
 import { highlightRingClass } from '@/lib/notificationHighlight';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
 import { InlineLoader } from '@/components/BrandedLoader';
-import NumberField from '@/components/NumberField';
 import Modal, { ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
+import NumberField from '@/components/NumberField';
 
 /** One row of the order's payment ledger. */
 interface OrderPaymentRow {
@@ -86,7 +87,7 @@ const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'FULFILLED', 'INVOICED', 'COMPLE
 const PAYMENT_MODES = ['Bank Transfer', 'Cheque', 'Cash', 'UPI', 'NEFT', 'RTGS', 'DD', 'Credit Card', 'Other'];
 
 const fmt = (v: string | number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(toFiniteNumber(v));
 
 const fmtDate = (d: string | undefined) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -130,6 +131,9 @@ export default function OrderDetailPage() {
   // Payment ledger
   const [payments, setPayments] = useState<OrderPaymentRow[]>([]);
   const [showPayment, setShowPayment] = useState(false);
+  // Record Payment can be reached from the page or from inside Edit Order.
+  // Knowing which lets the dialog offer a way back instead of being a dead end.
+  const [paymentFromEdit, setPaymentFromEdit] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount: '', paidAt: '', mode: 'UPI', reference: '', remarks: '',
@@ -197,6 +201,22 @@ export default function OrderDetailPage() {
     });
     setPaymentProof(null);
     setShowPayment(true);
+  };
+
+  // Edit → Record Payment used to swap both modals in the same tick, so the
+  // first vanished as the second appeared and the two read as one flicker.
+  // Closing first and opening after the exit animation makes it a hand-off:
+  // one panel leaves, the next arrives.
+  const handleEditToPayment = () => {
+    setPaymentFromEdit(true);
+    setShowEdit(false);
+    setTimeout(openPayment, 190); // just past the 180ms exit in tailwind.config
+  };
+
+  /** Reverse of the hand-off: close Payment, reopen Edit once it has left. */
+  const handlePaymentBackToEdit = () => {
+    setShowPayment(false);
+    setTimeout(() => { setPaymentFromEdit(false); openEdit(); }, 190);
   };
 
   const handlePaymentFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -644,13 +664,13 @@ export default function OrderDetailPage() {
             <div className="space-y-2">
               {order.status === 'PENDING' && (
                 <button onClick={handleConfirm} disabled={saving}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                  className={buttonClasses({ fullWidth: true })}>
                   {saving ? 'Processing...' : 'Confirm Order'}
                 </button>
               )}
               {order.status === 'CONFIRMED' && (
                 <button onClick={handleFulfill} disabled={saving}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+                  className={buttonClasses({ variant: 'success', fullWidth: true })}>
                   {saving ? 'Processing...' : 'Mark as Fulfilled'}
                 </button>
               )}
@@ -673,18 +693,18 @@ export default function OrderDetailPage() {
             <h3 className="text-sm font-semibold text-gray-600 mb-4">Order Timeline</h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2">
-                <CheckGlyph className="w-4 h-4 text-blue-600 mt-0.5" />
+                <CheckGlyph className="w-4 h-4 mt-0.5" color="text-blue-600" />
                 <div><p className="font-medium text-gray-900">Order Created</p><p className="text-gray-400">{fmtDate(order.createdAt)}</p></div>
               </div>
               {order.status !== 'PENDING' && (
                 <div className="flex items-start gap-2">
-                  <CheckGlyph className="w-4 h-4 text-blue-600 mt-0.5" />
+                  <CheckGlyph className="w-4 h-4 mt-0.5" color="text-blue-600" />
                   <div><p className="font-medium text-gray-900">Confirmed</p><p className="text-gray-400">—</p></div>
                 </div>
               )}
               {order.status === 'FULFILLED' && (
                 <div className="flex items-start gap-2">
-                  <CheckGlyph className="w-4 h-4 text-green-600 mt-0.5" />
+                  <CheckGlyph className="w-4 h-4 mt-0.5" color="text-green-600" />
                   <div><p className="font-medium text-gray-900">Fulfilled</p><p className="text-gray-400">{fmtDate(order.deliveryDate)}</p></div>
                 </div>
               )}
@@ -697,7 +717,15 @@ export default function OrderDetailPage() {
       <Modal open={showPayment && !!order} onClose={() => setShowPayment(false)} size="lg">
         {order && (
           <>
-            <ModalHeader title="Record Payment" subtitle={order.orderNumber} onClose={() => setShowPayment(false)} />
+            <ModalHeader
+              title="Record Payment"
+              subtitle={order.orderNumber}
+              onClose={() => setShowPayment(false)}
+              onBack={paymentFromEdit ? handlePaymentBackToEdit : undefined}
+              backLabel="Back to Edit Order"
+              accent="success"
+              icon={<PaymentIcon className="w-5 h-5" color="text-green-600" />}
+            />
 
             <ModalBody className="space-y-4">
               {/* The three figures you need before deciding what to type, shown
@@ -762,7 +790,7 @@ export default function OrderDetailPage() {
                     {balance > 0 && String(balance) !== paymentForm.amount && (
                       <button type="button"
                         onClick={() => setPaymentForm(p => ({ ...p, amount: String(balance) }))}
-                        className="text-[11px] px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-md font-semibold transition-colors">
+                        className={buttonClasses({ variant: 'success', size: 'xs' })}>
                         Full Balance ({fmt(balance)})
                       </button>
                     )}
@@ -845,18 +873,14 @@ export default function OrderDetailPage() {
         )}
       </Modal>
 
-      {showEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-scale-in">
-            <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-start justify-between gap-3 flex-shrink-0">
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold text-gray-900">Edit Order</h2>
-                <p className="text-xs text-gray-500 mt-0.5 font-mono truncate">{order.orderNumber}</p>
-              </div>
-              <button onClick={() => setShowEdit(false)} aria-label="Close"
-                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl leading-none -mt-1 flex-shrink-0">×</button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-5 space-y-6">
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} size="lg">
+        <ModalHeader
+          title="Edit Order"
+          subtitle={<span className="font-mono">{order.orderNumber}</span>}
+          onClose={() => setShowEdit(false)}
+          icon={<EditIcon className="w-[18px] h-[18px]" color="text-gray-500" />}
+        />
+        <ModalBody className="space-y-6">
 
               <FieldGroup title="PO Details">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -930,9 +954,9 @@ export default function OrderDetailPage() {
 
                     {editBalance > 0 && (
                       <button type="button"
-                        onClick={() => { setShowEdit(false); openPayment(); }}
-                        className="w-full mt-2.5 py-2.5 px-3 bg-green-600 hover:bg-green-700 active:scale-[0.99] text-white rounded-lg text-xs font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-all">
-                        <OrderIcon className="w-4 h-4 text-white" /> 💳 Record Payment for this Order
+                        onClick={handleEditToPayment}
+                        className={buttonClasses({ variant: 'success', size: 'lg', fullWidth: true, className: 'mt-2.5' })}>
+                        <PaymentIcon className="w-4 h-4" color="text-white" /> Record Payment for this Order
                       </button>
                     )}
                   </div>
@@ -968,7 +992,7 @@ export default function OrderDetailPage() {
                       </div>
                     ) : order.invoiceFile ? (
                       <div className="flex items-center justify-center gap-2 text-sm flex-wrap">
-                        <AttachmentIcon className="w-4 h-4 text-gray-400" />
+                        <AttachmentIcon className="w-4 h-4" color="text-gray-400" />
                         <span className="text-gray-700 font-medium">{(order.invoiceFile as any).filename || 'Invoice on file'}</span>
                         <span className="text-xs text-gray-400">— click to replace</span>
                       </div>
@@ -1010,25 +1034,18 @@ export default function OrderDetailPage() {
                 To record money received, close this and use <span className="font-semibold text-gray-700">Record Payment</span> —
                 each payment is kept as its own entry with its date, reference and receipt.
               </p>
-            </div>
-            <div className="border-t bg-gray-50/60 px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 flex-shrink-0">
-              <p className="text-xs text-gray-400 text-center sm:text-left">
-                {editDirty ? 'Unsaved changes' : 'No changes yet'}
-              </p>
-              <div className="flex flex-col-reverse sm:flex-row gap-2">
-                <button onClick={() => setShowEdit(false)} disabled={saving}
-                  className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>
-                  Cancel
-                </button>
-                <button onClick={handleSaveEdit} disabled={saving || !editDirty}
-                  className={buttonClasses({ size: 'lg', className: 'w-full sm:w-auto' })}>
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        </ModalBody>
+        <ModalFooter hint={editDirty ? 'Unsaved changes' : 'No changes yet'}>
+          <button onClick={() => setShowEdit(false)} disabled={saving}
+            className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>
+            Cancel
+          </button>
+          <button onClick={handleSaveEdit} disabled={saving || !editDirty}
+            className={buttonClasses({ size: 'lg', className: 'w-full sm:w-auto' })}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </ModalFooter>
+      </Modal>
 
       {/* ── Delete Modal ──────────────────────────────────── */}
       {showDeleteModal && (
@@ -1054,7 +1071,7 @@ export default function OrderDetailPage() {
                       : 'An admin will review and approve the deletion.'}
                   </p>
                   <button onClick={() => router.push('/orders')}
-                    className="mt-5 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                    className={buttonClasses({ className: 'mt-5' })}>
                     Back to Orders
                   </button>
                 </div>
@@ -1073,7 +1090,7 @@ export default function OrderDetailPage() {
                       {requesting ? 'Deleting...' : 'Delete Order'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}
-                      className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                      className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'flex-1' })}>
                       Cancel
                     </button>
                   </div>
@@ -1099,7 +1116,7 @@ export default function OrderDetailPage() {
                       {requesting ? 'Submitting...' : 'Submit Request'}
                     </button>
                     <button onClick={() => setShowDeleteModal(false)}
-                      className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                      className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'flex-1' })}>
                       Cancel
                     </button>
                   </div>

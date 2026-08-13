@@ -1,5 +1,13 @@
 'use client';
 
+// A line item cannot be worth a negative amount, and paise beyond two
+// decimals silently skew every total downstream. parseFloat did neither.
+function clampMoney(raw: string): number {
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +17,7 @@ import { highlightRingClass } from '@/lib/notificationHighlight';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import SectionHeader from '@/components/SectionHeader';
+import Modal, { ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import { buttonClasses } from '@/components/Button';
 import NumberField from '@/components/NumberField';
 import CustomerAutocomplete, { primaryContact } from '@/components/CustomerAutocomplete';
@@ -673,7 +682,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                               onFocus={e => e.target.select()}
                               onChange={e => {
                                 const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
-                                updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                                updateItem(idx, 'unitPrice', clampMoney(cleaned));
                               }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-blue-400 bg-transparent py-0.5" />
                           </td>
@@ -1080,7 +1089,7 @@ function SpancoKanban({
 
               {/* Column body */}
               <div className={`flex-1 flex flex-col items-center p-2 gap-1 ${isPast ? 'bg-green-50' : ''}`}>
-                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5 inline-flex items-center gap-1 justify-center">{isPast && <CheckGlyph className="w-3 h-3 text-green-600" />}{stage.desc}</p>
+                <p className="text-[10px] text-gray-400 text-center leading-tight mt-0.5 inline-flex items-center gap-1 justify-center">{isPast && <CheckGlyph className="w-3 h-3" color="text-green-600" />}{stage.desc}</p>
 
                 {/* Lead card in active column */}
                 {isActive && (
@@ -1244,7 +1253,7 @@ function SpancoKanban({
           {lead.status === 'SUSPECT' && (
             <button onClick={() => onShowConvertModal?.()} disabled={changing}
               className="hidden md:inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg border bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 active:scale-95 disabled:opacity-40 font-semibold shadow-sm transition-all">
-              <ClipboardIcon className="w-3.5 h-3.5 text-cyan-600" /> Convert to Prospect
+              <ClipboardIcon className="w-3.5 h-3.5" color="text-cyan-600" /> Convert to Prospect
             </button>
           )}
           {lead.status !== 'ON_HOLD' && lead.status !== 'SUSPECT' && (
@@ -1295,6 +1304,14 @@ function SpancoKanban({
     </div>
   );
 }
+
+// Shared field styling for this page's modals. These had drifted into a dozen
+// near-identical class strings with three different focus ring colours, which
+// is what made the closure form read as assembled rather than designed.
+const F_FIELD =
+  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 ' +
+  'transition-shadow focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20';
+const F_LABEL = 'block text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5';
 
 // ─── Closure Outcome Modal ────────────────────────────────────────────────────
 interface ClosureFormData {
@@ -1421,24 +1438,33 @@ function ClosureModal({
 
   const cfg = outcomeConfig[form.outcome];
 
+  // The confirm button used to be disabled by a long inline boolean with no
+  // indication of *what* was missing, so a half-filled form just looked broken.
+  const missing: string[] = form.outcome === 'WON'
+    ? [
+        !form.quoteRef.trim() && 'final quote',
+        !form.poNumber.trim() && 'PO number',
+        !form.reasonOfWin.trim() && 'reason of win',
+        !form.whatWentWell.trim() && 'what went well',
+        !form.finalDealValue && 'final deal value',
+        !form.contractSignedDate && 'contract signed date',
+      ].filter(Boolean) as string[]
+    : [
+        !form.reason.trim() && 'reason',
+        !form.whatToImprove.trim() && 'what to improve',
+        form.outcome === 'LOST' && !form.competitor.trim() && 'competitor',
+      ].filter(Boolean) as string[];
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
-
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Close this Deal</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              <strong>{lead.name}</strong> · {lead.company}
-              {lead.quoteValue ? ` · ${fmt(lead.quoteValue)}` : ''}
-            </p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+    <Modal open onClose={onClose} size="lg">
+      <ModalHeader
+        title="Close this Deal"
+        subtitle={<><strong>{lead.name}</strong> · {lead.company}{lead.quoteValue ? ` · ${fmt(lead.quoteValue)}` : ''}</>}
+        onClose={onClose}
+        accent={form.outcome === 'WON' ? 'success' : 'danger'}
+        icon={<StatusIcon status={form.outcome} className="w-5 h-5" />}
+      />
+      <ModalBody className="space-y-5">
 
           {/* Outcome selector */}
           <div>
@@ -1449,7 +1475,7 @@ function ClosureModal({
                 return (
                   <button key={o} onClick={() => set('outcome', o)}
                     className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-medium text-sm transition-all
-                      ${form.outcome === o ? c.border + ' scale-[1.03] shadow-md' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                      ${form.outcome === o ? c.border + ' shadow-sm ring-2 ring-offset-1 ring-gray-200' : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:bg-gray-50'}`}>
                     <StatusIcon status={o} className="w-6 h-6" />
                     <span>{c.label}</span>
                   </button>
@@ -1466,7 +1492,7 @@ function ClosureModal({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                  <label className={F_LABEL}>
                     Final Quote <span className="text-red-400">*</span>
                   </label>
                   {quotesLoading ? (
@@ -1474,7 +1500,7 @@ function ClosureModal({
                   ) : quotes.length > 0 ? (
                     <>
                       <select value={form.quotationId} onChange={e => pickQuote(e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200">
+                        className={F_FIELD}>
                         <option value="">— Not from a quotation —</option>
                         {quotes.map(q => (
                           <option key={q.id} value={q.id}>
@@ -1494,16 +1520,16 @@ function ClosureModal({
                     <>
                       <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
                         placeholder="e.g. QT-2026-00123"
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                        className={F_FIELD} />
                       <p className="text-xs text-amber-600 mt-1">No quotations on this lead — enter the reference manually.</p>
                     </>
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO Number <span className="text-red-400">*</span></label>
+                  <label className={F_LABEL}>PO Number <span className="text-red-400">*</span></label>
                   <input type="text" value={form.poNumber} onChange={e => set('poNumber', e.target.value)}
                     placeholder="Customer PO #"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    className={F_FIELD} />
                 </div>
               </div>
               <div>
@@ -1512,13 +1538,13 @@ function ClosureModal({
                 </label>
                 <textarea value={form.reasonOfWin} onChange={e => set('reasonOfWin', e.target.value)}
                   rows={3} placeholder="Why did we win? e.g. Best price, quick delivery, strong relationship…"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  className={F_FIELD} />
               </div>
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><ThumbUpIcon className="w-4 h-4" /> What Went Well <span className="text-red-400">*</span></label>
                 <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
                   rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                  className={F_FIELD} />
               </div>
 
               {/* ── CLOSURE STAGE DETAILS ── */}
@@ -1527,7 +1553,7 @@ function ClosureModal({
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Deal Value <span className="text-red-400">*</span></label>
+                      <label className={F_LABEL}>Final Deal Value <span className="text-red-400">*</span></label>
                       <NumberField prefix="₹" value={form.finalDealValue} onChange={v => set('finalDealValue', v)}
                         placeholder="Final agreed value" min="0" step="0.01" />
                       {form.quotationId && (
@@ -1538,41 +1564,41 @@ function ClosureModal({
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contract Signed Date <span className="text-red-400">*</span></label>
+                      <label className={F_LABEL}>Contract Signed Date <span className="text-red-400">*</span></label>
                       <input type="date" value={form.contractSignedDate} onChange={e => set('contractSignedDate', e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                        className={F_FIELD} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">PO / Contract Details</label>
+                    <label className={F_LABEL}>PO / Contract Details</label>
                     <input type="text" value={form.contractDetails} onChange={e => set('contractDetails', e.target.value)}
                       placeholder="PO number, contract reference…"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      className={F_FIELD} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Terms (Final)</label>
+                      <label className={F_LABEL}>Payment Terms (Final)</label>
                       <input type="text" value={form.paymentTermsFinal} onChange={e => set('paymentTermsFinal', e.target.value)}
                         placeholder="e.g. 50% advance, 50% on delivery"
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                        className={F_FIELD} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Delivery Date (Final)</label>
+                      <label className={F_LABEL}>Delivery Date (Final)</label>
                       <input type="date" value={form.deliveryDateFinal} onChange={e => set('deliveryDateFinal', e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                        className={F_FIELD} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Final Terms Agreed</label>
+                    <label className={F_LABEL}>Final Terms Agreed</label>
                     <textarea value={form.finalTerms} onChange={e => set('finalTerms', e.target.value)}
                       rows={2} placeholder="Summary of final agreed terms…"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      className={F_FIELD} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Special Conditions / Clauses</label>
+                    <label className={F_LABEL}>Special Conditions / Clauses</label>
                     <textarea value={form.specialConditions} onChange={e => set('specialConditions', e.target.value)}
                       rows={2} placeholder="Any special conditions, warranty clauses, SLA terms…"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      className={F_FIELD} />
                   </div>
                 </div>
               </div>
@@ -1595,21 +1621,21 @@ function ClosureModal({
                       ? 'e.g. Competitor offered 15% lower price, customer chose domestic vendor…'
                       : 'e.g. Customer paused procurement for 6 months due to budget freeze…'
                   }
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  className={F_FIELD} />
               </div>
               {form.outcome === 'LOST' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Competitor <span className="text-red-400">*</span></label>
+                  <label className={F_LABEL}>Competitor <span className="text-red-400">*</span></label>
                   <input type="text" value={form.competitor} onChange={e => set('competitor', e.target.value)}
                     placeholder="e.g. HP India, local vendor…"
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                    className={F_FIELD} />
                 </div>
               )}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><IdeaIcon className="w-4 h-4" /> What to Improve <span className="text-red-400">*</span></label>
                 <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
                   rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  className={F_FIELD} />
               </div>
             </div>
           )}
@@ -1651,24 +1677,28 @@ function ClosureModal({
             </div>
           </div>
 
-        </div>
+      </ModalBody>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
-          <button onClick={onClose} disabled={closing}
-            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-            Cancel
-          </button>
-          <button
-            onClick={() => onSubmit(form)}
-            disabled={closing || (form.outcome === 'WON' ? (!form.quoteRef.trim() || !form.poNumber.trim() || !form.reasonOfWin.trim() || !form.whatWentWell.trim() || !form.finalDealValue || !form.contractSignedDate) : (!form.reason.trim() || !form.whatToImprove.trim() || (form.outcome === 'LOST' && !form.competitor.trim())))}
-            className={`flex-1 py-2.5 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-1.5 ${cfg.btnColor}`}
-          >
-            {closing ? 'Closing…' : <><span>Confirm</span><StatusIcon status={form.outcome} className="w-4 h-4" /><span>{cfg.label}</span></>}
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter hint={missing.length > 0 ? `${missing.length} required field${missing.length > 1 ? 's' : ''} left` : 'Ready to close'}>
+        <button onClick={onClose} disabled={closing}
+          className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>
+          Cancel
+        </button>
+        <button
+          onClick={() => onSubmit(form)}
+          disabled={closing || missing.length > 0}
+          // Won is a success action, Lost/Dropped are not — the confirm button
+          // takes the colour of the outcome being committed.
+          className={buttonClasses({
+            variant: form.outcome === 'WON' ? 'success' : 'danger',
+            size: 'lg',
+            className: 'w-full sm:w-auto',
+          })}
+        >
+          {closing ? 'Closing…' : <><span>Confirm</span><StatusIcon status={form.outcome} className="w-4 h-4" /><span>{cfg.label}</span></>}
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }
 
@@ -2084,7 +2114,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                               onFocus={e => e.target.select()}
                               onChange={e => {
                                 const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
-                                updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                                updateItem(idx, 'unitPrice', clampMoney(cleaned));
                               }}
                               className="w-full text-right border-b border-gray-200 text-xs focus:outline-none focus:border-orange-400 bg-transparent py-0.5" />
                           </td>
@@ -2209,7 +2239,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                 className="w-full sm:w-auto px-4 py-2.5 border border-amber-300 text-amber-800 bg-amber-50 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors whitespace-nowrap"
                 title="Skip negotiation phase and advance straight to Closure"
               >
-                Skip Negotiation ➔
+                Skip Negotiation →
               </button>
             )}
             <button onClick={() => onSubmit({
@@ -2730,16 +2760,27 @@ export default function LeadDetailPage() {
     try {
       const token = localStorage.getItem('token');
 
-      // Convert files to base64 for JSON transport
+      // Convert files to base64 for JSON transport.
+      //
+      // Done by FileReader rather than accumulating `String.fromCharCode` per
+      // byte: that loop allocated a new immutable string on every one of the
+      // file's bytes, so a 5MB attachment meant ~5 million allocations. It
+      // blocked the main thread for tens of seconds and could exhaust the JS
+      // heap outright on a phone. FileReader encodes natively, off-thread.
       const attachments: { filename: string; contentType: string; dataBase64: string }[] = [];
       for (const file of form.files) {
         if (!file) continue;
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        // Safe base64 encoding (avoids stack overflow on large files)
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-        attachments.push({ filename: file.name, contentType: file.type || 'application/octet-stream', dataBase64: btoa(binary) });
+        const dataBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result);
+            // strip the "data:<mime>;base64," prefix — the API wants raw payload
+            resolve(result.slice(result.indexOf(',') + 1));
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        attachments.push({ filename: file.name, contentType: file.type || 'application/octet-stream', dataBase64 });
       }
 
       // Build closure stage details to merge into closureDetails
@@ -3665,7 +3706,7 @@ export default function LeadDetailPage() {
             {/* Closure Stage Details (shown after deal is closed WON) */}
             {lead.closureDetails && (lead.closureDetails as any).closure && (
               <div className="bg-white rounded-xl border border-green-100 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-1.5"><LockIcon className="w-4 h-4 text-green-600" /> Closure Details</h3>
+                <h3 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-1.5"><LockIcon className="w-4 h-4" color="text-green-600" /> Closure Details</h3>
                 <div className="space-y-2">
                   {(lead.closureDetails as any).closure.finalDealValue && (
                     <div>

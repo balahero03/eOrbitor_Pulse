@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AttachmentIcon, QuotationIcon, CloseIcon } from '@/components/icons';
@@ -163,7 +164,7 @@ export default function NewOrderPage() {
 
   const fmt = (v: string | number | undefined) =>
     v !== undefined && v !== ''
-      ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
+      ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(toFiniteNumber(v))
       : '';
 
   const statusColor: Record<string, string> = {

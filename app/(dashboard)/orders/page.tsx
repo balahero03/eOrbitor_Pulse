@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -148,7 +149,7 @@ export default function OrdersPage() {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0,
-    }).format(parseFloat(value));
+    }).format(toFiniteNumber(value));
   };
 
   return (
@@ -237,7 +238,7 @@ export default function OrdersPage() {
 
           <button
             type="submit"
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            className={buttonClasses({ className: 'w-full sm:w-auto' })}
           >
             Search
           </button>
@@ -300,9 +301,12 @@ export default function OrdersPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-40">Order #</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Customer</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Total</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Paid</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Payment</th>
+                    {/* The old Total | Paid | Payment trio said the same thing
+                        three times: the badge was just Paid-vs-Total restated as
+                        a word, and its PENDING/COMPLETED collided with the
+                        fulfilment Status beside it. One money column now carries
+                        the figures and how far along they are. */}
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-44">Payment</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">PO Date</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24">Actions</th>
@@ -313,16 +317,29 @@ export default function OrdersPage() {
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3.5 font-mono text-sm font-medium text-gray-900">{order.orderNumber}</td>
                       <td className="px-4 py-3.5 text-sm text-gray-700 font-medium">{order.customer.companyName}</td>
-                      <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 text-right">{formatCurrency(order.totalAmount)}</td>
-                      <td className="px-4 py-3.5 text-sm text-right">
-                        <span className={parseFloat(order.amountPaid) > 0 ? 'text-green-700 font-semibold' : 'text-gray-400'}>
-                          {parseFloat(order.amountPaid) > 0 ? formatCurrency(order.amountPaid) : '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium whitespace-nowrap ${getPaymentBadgeColor(order.paymentStatus)}`}>
-                          {order.paymentStatus}
-                        </span>
+                      <td className="px-4 py-3.5 text-right">
+                        {(() => {
+                          const t = parseFloat(order.totalAmount) || 0;
+                          const pd = parseFloat(order.amountPaid) || 0;
+                          const pct = t > 0 ? Math.min(100, Math.round((pd / t) * 100)) : 0;
+                          const done = t > 0 && pd >= t;
+                          return (
+                            <div className="inline-block w-full max-w-[150px]">
+                              <div className="flex items-baseline justify-end gap-1.5 tabular-nums">
+                                <span className={`text-sm font-semibold ${done ? 'text-green-700' : pd > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                                  {pd > 0 ? formatCurrency(order.amountPaid) : '—'}
+                                </span>
+                                <span className="text-xs text-gray-400">/ {formatCurrency(order.totalAmount)}</span>
+                              </div>
+                              {/* The bar is the payment status: empty, part-full,
+                                  or complete — read at a glance, no word needed. */}
+                              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1.5">
+                                <div className={`h-full rounded-full transition-all ${done ? 'bg-green-500' : pd > 0 ? 'bg-amber-400' : 'bg-gray-200'}`}
+                                  style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-medium whitespace-nowrap ${getStatusBadgeColor(order.status)}`}>

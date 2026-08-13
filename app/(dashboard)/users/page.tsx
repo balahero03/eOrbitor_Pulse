@@ -254,7 +254,7 @@ function UserActionMenu({
               onClick={() => { onPassword(); onOpenToggle(false); }}
               className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
             >
-              <KeyIcon2 className="w-3.5 h-3.5 text-gray-400" />
+              <KeyIcon2 className="w-3.5 h-3.5" color="text-gray-400" />
               Change Password
             </button>
           )}
@@ -1385,7 +1385,7 @@ export default function UsersPage() {
                     {/* Impact banner */}
                     <div className={`rounded-xl p-4 border ${isDemotion ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
                       <p className={`text-xs font-semibold mb-2 ${isDemotion ? 'text-amber-800' : 'text-blue-800'}`}>
-                        {isDemotion ? '⚠ Demotion — review assignments below' : '↑ Promotion to Backend Team'}
+                        {isDemotion ? 'Demotion — review assignments below' : 'Promotion to Backend Team'}
                       </p>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {[

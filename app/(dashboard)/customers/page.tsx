@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import PageContainer from '@/components/PageContainer';
+import { PhoneGlyph, MailGlyph } from '@/components/icons';
 import { buttonClasses } from '@/components/Button';
 
 interface Customer {
@@ -17,8 +18,16 @@ interface Customer {
   quoteValue?: number;
   closedAt?: string;
   linkedCustomerId?: string;
+  customerCategory?: string;
   source: 'lead' | 'manual';
 }
+
+const CATEGORY_STYLE: Record<string, string> = {
+  PROSPECT: 'bg-blue-50 text-blue-700 border-blue-200',
+  ACTIVE: 'bg-green-50 text-green-700 border-green-200',
+  INACTIVE: 'bg-gray-100 text-gray-600 border-gray-200',
+  LOST: 'bg-red-50 text-red-700 border-red-200',
+};
 
 const fmt = (v: number | undefined) =>
   v ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v) : '—';
@@ -128,6 +137,7 @@ export default function CustomersPage() {
               phone: primary?.phone || undefined,
               address: c.billingAddress?.street || undefined,
               gstNumber: c.gstNumber,
+              customerCategory: c.customerCategory,
               quoteValue: undefined,
               closedAt: c.createdAt,
               source: 'manual' as const,
@@ -213,8 +223,17 @@ export default function CustomersPage() {
 
                   {(customer.phone || customer.email) && (
                     <div className="text-[11px] text-gray-500 flex flex-wrap gap-2 pt-0.5">
-                      {customer.phone && <span>📞 {customer.phone}</span>}
-                      {customer.email && <span className="truncate">✉ {customer.email}</span>}
+                      {customer.phone && (
+                        <span className="inline-flex items-center gap-1">
+                          <PhoneGlyph className="w-3 h-3" color="text-gray-400" />{customer.phone}
+                        </span>
+                      )}
+                      {customer.email && (
+                        <span className="inline-flex items-center gap-1 truncate min-w-0">
+                          <MailGlyph className="w-3 h-3 flex-shrink-0" color="text-gray-400" />
+                          <span className="truncate">{customer.email}</span>
+                        </span>
+                      )}
                     </div>
                   )}
                 </Link>
@@ -226,49 +245,35 @@ export default function CustomersPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Contact Name</th>
+                    {/* Company leads, because it is what these records are keyed
+                        on and what you search by. GST, address, won value and
+                        source moved to the detail page — they were columns of
+                        mostly-empty cells and placeholder GST strings. */}
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Company</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">GST Number</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Address</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Won Value</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Source</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Added / Won Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {customers.map(customer => (
                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-3 font-medium text-gray-900">{customer.name}</td>
-                      <td className="px-6 py-3 text-gray-600">{customer.company}</td>
-                      <td className="px-6 py-3 text-gray-600 text-sm">{customer.email}</td>
-                      <td className="px-6 py-3 text-gray-600 text-sm">{customer.phone || '—'}</td>
-                      <td className="px-6 py-3 text-gray-600 text-sm">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                          {customer.gstNumber || 'Not provided'}
+                      <td className="px-6 py-3 font-medium text-gray-900">{customer.company}</td>
+                      <td className="px-6 py-3 text-gray-600 text-sm">{customer.name && customer.name !== '—' ? customer.name : <span className="text-gray-300">—</span>}</td>
+                      <td className="px-6 py-3 text-gray-600 text-sm whitespace-nowrap">{customer.phone || <span className="text-gray-300">—</span>}</td>
+                      <td className="px-6 py-3 text-gray-600 text-sm">{customer.email && customer.email !== '—' ? customer.email : <span className="text-gray-300">—</span>}</td>
+                      <td className="px-6 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${CATEGORY_STYLE[customer.customerCategory || (customer.source === 'lead' ? 'ACTIVE' : 'PROSPECT')] || CATEGORY_STYLE.PROSPECT}`}>
+                          {customer.customerCategory || (customer.source === 'lead' ? 'ACTIVE' : 'PROSPECT')}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-gray-600 text-sm">{customer.address || '—'}</td>
-                      <td className="px-6 py-3 text-right font-semibold text-gray-800">{fmt(customer.quoteValue)}</td>
-                      <td className="px-6 py-3 text-sm">
-                        {customer.source === 'manual' ? (
-                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">Existing</span>
-                        ) : (
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Won Lead</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-3 text-gray-600 text-sm">{fmtDate(customer.closedAt)}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/customers/${customer.id}`}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                          >
-                            View Customer
-                          </Link>
-                        </div>
+                      <td className="px-6 py-3 text-right">
+                        <Link href={`/customers/${customer.id}`}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline whitespace-nowrap">
+                          View →
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -287,14 +292,14 @@ export default function CustomersPage() {
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
+className={buttonClasses({ variant: 'secondary' })}
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setPage(page + 1)}
                     disabled={page >= pagination.pages}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
+className={buttonClasses({ variant: 'secondary' })}
                   >
                     Next
                   </button>

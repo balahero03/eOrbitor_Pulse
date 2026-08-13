@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toFiniteNumber } from '@/lib/money';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -205,7 +206,7 @@ export default function QuotationDetailPage() {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 2,
-    }).format(parseFloat(value));
+    }).format(toFiniteNumber(value));
   };
 
   if (loading) return (

@@ -1,5 +1,13 @@
 'use client';
 
+// A line item cannot be worth a negative amount, and paise beyond two
+// decimals silently skew every total downstream. parseFloat did neither.
+function clampMoney(raw: string): number {
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -401,7 +409,7 @@ export default function NewQuotationPage() {
                           onFocus={e => e.target.select()}
                           onChange={e => {
                             const cleaned = e.target.value.replace(/^0+(?=\d)/, '');
-                            updateItem(idx, 'unitPrice', parseFloat(cleaned) || 0);
+                            updateItem(idx, 'unitPrice', clampMoney(cleaned));
                           }}
                           step="0.01"
                           min="0"

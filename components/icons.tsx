@@ -55,6 +55,8 @@ import {
   MegaphoneIcon as MegaphoneOutline,
   ViewfinderCircleIcon,
   HandThumbUpIcon,
+  BanknotesIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 type IconType = React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -164,6 +166,13 @@ export const BellIconC = mk(BellIcon, 'text-gray-500');
 export const StarIconC = mk(StarIcon, 'text-amber-500');
 
 // Neutral UI glyphs (inherit color by default so they blend with their button/text).
+// Money received. Distinct from OrderIcon (a shopping bag) — a bag is the
+// metaphor for the order itself, not for a payment against it, and using one
+// for both made the two dialogs read as the same action.
+export const PaymentIcon = mk(BanknotesIcon, 'text-green-600');
+export const PhoneGlyph = mk(PhoneIcon, 'text-gray-500');
+export const MailGlyph = mk(EnvelopeIcon, 'text-gray-500');
+export const CardIcon = mk(CreditCardIcon, 'text-gray-500');
 export const EditIcon = mk(PencilSquareIcon, 'text-current');
 export const CloseIcon = mk(XMarkIcon, 'text-current');
 export const BackIcon = mk(ArrowLeftIcon, 'text-current');

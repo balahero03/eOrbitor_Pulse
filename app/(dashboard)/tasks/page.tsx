@@ -399,7 +399,7 @@ export default function TasksPage() {
                       <td className="px-4 py-3">
                         {task.dueDate ? (
                           <span className={`inline-flex items-center gap-1 ${isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                            {isOverdue(task) && <WarningIcon className="w-3.5 h-3.5 text-red-500" />}
+                            {isOverdue(task) && <WarningIcon className="w-3.5 h-3.5" color="text-red-500" />}
                             {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </span>
                         ) : (
