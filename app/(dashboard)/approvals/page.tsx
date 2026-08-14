@@ -234,6 +234,48 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
   );
 }
 
+/**
+ * The action being requested, as a chip.
+ *
+ * This used to be the card's `<h3>`, which put "Reopen Lead" above the name of
+ * the lead in question — the request type shouted while the thing it applied to
+ * was smaller underneath. Reviewing a queue means scanning for *what record*
+ * first, so the type is a label now and the subject is the heading.
+ */
+function TypeChip({ label, danger }: { label: string; danger?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border whitespace-nowrap ${
+        danger
+          ? 'bg-red-50 text-red-700 border-red-200'
+          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Why the request was raised.
+ *
+ * Previously one more line of 12px grey among the timestamps, despite being the
+ * only thing on the card that informs the decision. Given its own quoted block
+ * so it reads as the requester's words.
+ */
+function ReasonBlock({ label, text, tone = 'neutral' }: { label: string; text: string; tone?: 'neutral' | 'danger' }) {
+  const styles =
+    tone === 'danger'
+      ? 'bg-red-50 border-red-200 text-red-800'
+      : 'bg-gray-50 border-gray-200 text-gray-700';
+  return (
+    <div className={`mt-2.5 rounded-lg border px-3 py-2 ${styles}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">{label}</p>
+      <p className="text-sm mt-0.5 break-words">{text}</p>
+    </div>
+  );
+}
+
 function StatusPill({ status }: { status: Status }) {
   if (status === 'PENDING')
     return <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><PendingIcon className="w-3 h-3" /> Pending</span>;
@@ -331,64 +373,85 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
         <div className="space-y-3">
           {requests.map((req) => (
             <div key={req.id} id={`approval-${req.entityId}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.entityId)}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                    <h3 className="font-semibold text-gray-900">{TYPE_LABEL[req.type] || 'Approval Request'}</h3>
-                    <StatusPill status={req.status} />
-                  </div>
-                  {req.lead ? (
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">{req.lead.name}</span>
-                      <span className="text-gray-400"> · {req.lead.company}</span>
-                      <span className="text-gray-400"> · {req.lead.status}</span>
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-500">{req.entityType} · {req.entityId.slice(0, 10)}…</p>
-                  )}
-                  <div className="mt-2 space-y-1 text-xs text-gray-500">
-                    <p className="flex items-center gap-1.5">
-                      <UserSingleIcon className="w-3.5 h-3.5" />
-                      Requested by <span className="font-medium text-gray-700">{req.requestedByUser.firstName} {req.requestedByUser.lastName}</span>
-                      <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
-                    </p>
-                    {req.targetUser && (
-                      <p className="flex items-center gap-1.5">
-                        <UserSingleIcon className="w-3.5 h-3.5" />
-                        Transfer to <span className="font-medium text-blue-700">{req.targetUser.firstName} {req.targetUser.lastName}</span>
-                      </p>
-                    )}
-                    {req.reason && <p><span className="font-medium text-gray-600">Reason:</span> {req.reason}</p>}
-                    {req.status === 'APPROVED' && req.approvedByUser && (
-                      <p className="flex items-center gap-1.5 text-green-700">
-                        <CheckGlyph className="w-3.5 h-3.5" />
-                        Approved by <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
-                        <span className="text-green-600/70">· {fmtDateTime(req.updatedAt)}</span>
-                      </p>
-                    )}
-                    {req.status === 'REJECTED' && (
-                      <>
-                        {req.approvedByUser && (
-                          <p className="flex items-center gap-1.5 text-red-600">
-                            <CloseIcon className="w-3.5 h-3.5" />
-                            Rejected by <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
-                            <span className="text-red-500/70">· {fmtDateTime(req.updatedAt)}</span>
-                          </p>
-                        )}
-                        {req.rejectionReason && <p className="text-red-600"><span className="font-medium">Rejection reason:</span> {req.rejectionReason}</p>}
-                      </>
-                    )}
-                  </div>
+              {/* Content first, actions after — on a phone the buttons used to
+                  sit in a flex-shrink-0 column beside the text, squeezing a
+                  long company name into a two-character column. */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <TypeChip
+                  label={TYPE_LABEL[req.type] || 'Approval Request'}
+                  danger={/DELETE/i.test(req.type)}
+                />
+                <StatusPill status={req.status} />
+              </div>
+
+              {req.lead ? (
+                <div className="mt-2 min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-[15px] break-words">{req.lead.name}</h3>
+                  <p className="text-sm text-gray-500 break-words">
+                    {req.lead.company}
+                    <span className="text-gray-300"> · </span>
+                    <span className="font-medium text-gray-600">{req.lead.status}</span>
+                  </p>
                 </div>
+              ) : (
+                <p className="mt-2 text-sm text-gray-500 break-all">
+                  {req.entityType} · {req.entityId.slice(0, 10)}…
+                </p>
+              )}
+
+              {req.targetUser && (
+                <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
+                  <UserSingleIcon className="w-3.5 h-3.5" />
+                  Transfer to
+                  <span className="font-semibold text-blue-700">
+                    {req.targetUser.firstName} {req.targetUser.lastName}
+                  </span>
+                </p>
+              )}
+
+              {req.reason && <ReasonBlock label="Reason" text={req.reason} />}
+              {req.status === 'REJECTED' && req.rejectionReason && (
+                <ReasonBlock label="Rejection reason" text={req.rejectionReason} tone="danger" />
+              )}
+
+              {/* Footer: who asked, and what you can do about it. Stacks on a
+                  phone with the two actions splitting the width evenly. */}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                <div className="text-xs text-gray-500 min-w-0 space-y-1">
+                  <p className="flex items-center gap-1.5 flex-wrap">
+                    <UserSingleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="font-medium text-gray-700 break-words">
+                      {req.requestedByUser.firstName} {req.requestedByUser.lastName}
+                    </span>
+                    <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
+                  </p>
+                  {req.status === 'APPROVED' && req.approvedByUser && (
+                    <p className="flex items-center gap-1.5 text-green-700 flex-wrap">
+                      <CheckGlyph className="w-3.5 h-3.5 flex-shrink-0" />
+                      Approved by
+                      <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
+                      <span className="text-green-600/70">· {fmtDateTime(req.updatedAt)}</span>
+                    </p>
+                  )}
+                  {req.status === 'REJECTED' && req.approvedByUser && (
+                    <p className="flex items-center gap-1.5 text-red-600 flex-wrap">
+                      <CloseIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                      Rejected by
+                      <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
+                      <span className="text-red-500/70">· {fmtDateTime(req.updatedAt)}</span>
+                    </p>
+                  )}
+                </div>
+
                 {req.status === 'PENDING' && (
                   <div className="flex gap-2 flex-shrink-0">
                     <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
-                      className={buttonClasses({ variant: 'success', size: 'xs' })}>
-                      <CheckGlyph className="w-3.5 h-3.5" /> {processingId === req.id ? '…' : 'Approve'}
+                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                      <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
                     </button>
                     <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className={buttonClasses({ variant: 'secondary', size: 'xs', className: 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
-                      <CloseIcon className="w-3.5 h-3.5" /> Reject
+                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                      <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
                     </button>
                   </div>
                 )}
@@ -509,52 +572,64 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 
             return (
               <div key={req.id} id={`access-${req.id}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.id)}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      {isActivityUnlock ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" /> Daily Activity Unlock
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                          <LockIcon className="w-3.5 h-3.5" color="text-amber-600" /> After-Hours Access
-                        </span>
-                      )}
-                      <StatusPill status={req.status} />
-                    </div>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">{who}</span>
-                      {req.user && <span className="text-gray-400"> · {req.user.role}</span>}
-                      <span className="text-gray-400"> · for <strong className="text-gray-800">{fmtDate(req.date)}</strong></span>
+                {/* Same shape as a record request, so the two categories read
+                    as one queue rather than two designs. */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isActivityUnlock ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 whitespace-nowrap">
+                      <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" /> Activity Unlock
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap">
+                      <LockIcon className="w-3.5 h-3.5" color="text-amber-600" /> After-Hours
+                    </span>
+                  )}
+                  <StatusPill status={req.status} />
+                </div>
+
+                <div className="mt-2 min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-[15px] break-words">{who}</h3>
+                  <p className="text-sm text-gray-500 break-words">
+                    {req.user?.role && <>{req.user.role}<span className="text-gray-300"> · </span></>}
+                    for <span className="font-medium text-gray-600">{fmtDate(req.date)}</span>
+                  </p>
+                </div>
+
+                {req.reason && <ReasonBlock label="Reason" text={req.reason} />}
+                {req.status === 'REJECTED' && req.rejectionReason && (
+                  <ReasonBlock label="Rejection reason" text={req.rejectionReason} tone="danger" />
+                )}
+
+                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="text-xs text-gray-500 min-w-0 space-y-1">
+                    <p className="flex items-center gap-1.5 flex-wrap">
+                      <UserSingleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                      Requested <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
+                      {req.user?.email && <span className="text-gray-400 break-all">· {req.user.email}</span>}
                     </p>
-                    <div className="mt-2 space-y-1 text-xs text-gray-500">
-                      <p className="flex items-center gap-1.5">
-                        <UserSingleIcon className="w-3.5 h-3.5" />
-                        Requested <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
-                        {req.user?.email && <span className="text-gray-400">· {req.user.email}</span>}
+                    {req.status === 'APPROVED' && req.reviewedAt && (
+                      <p className="flex items-center gap-1.5 text-green-700 flex-wrap">
+                        <CheckGlyph className="w-3.5 h-3.5 flex-shrink-0" /> Approved
+                        <span className="text-green-600/70">· {fmtDateTime(req.reviewedAt)}</span>
                       </p>
-                      {req.reason && <p><span className="font-medium text-gray-600">Reason:</span> {req.reason}</p>}
-                      {req.status === 'APPROVED' && req.reviewedAt && (
-                        <p className="flex items-center gap-1.5 text-green-700"><CheckGlyph className="w-3.5 h-3.5" /> Approved <span className="text-green-600/70">· {fmtDateTime(req.reviewedAt)}</span></p>
-                      )}
-                      {req.status === 'REJECTED' && (
-                        <>
-                          {req.reviewedAt && <p className="flex items-center gap-1.5 text-red-600"><CloseIcon className="w-3.5 h-3.5" /> Rejected <span className="text-red-500/70">· {fmtDateTime(req.reviewedAt)}</span></p>}
-                          {req.rejectionReason && <p className="text-red-600"><span className="font-medium">Rejection reason:</span> {req.rejectionReason}</p>}
-                        </>
-                      )}
-                    </div>
+                    )}
+                    {req.status === 'REJECTED' && req.reviewedAt && (
+                      <p className="flex items-center gap-1.5 text-red-600 flex-wrap">
+                        <CloseIcon className="w-3.5 h-3.5 flex-shrink-0" /> Rejected
+                        <span className="text-red-500/70">· {fmtDateTime(req.reviewedAt)}</span>
+                      </p>
+                    )}
                   </div>
+
                   {req.status === 'PENDING' && (
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => decide(req.id, 'APPROVE')} disabled={processingId === req.id}
-                        className={buttonClasses({ variant: 'success', size: 'xs' })}>
-                        <CheckGlyph className="w-3.5 h-3.5" /> {processingId === req.id ? '…' : 'Approve'}
+                        className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                        <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
                       </button>
                       <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                        className={buttonClasses({ variant: 'secondary', size: 'xs', className: 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
-                        <CloseIcon className="w-3.5 h-3.5" /> Reject
+                        className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                        <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
                       </button>
                     </div>
                   )}
