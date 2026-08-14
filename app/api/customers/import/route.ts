@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
-import { ValidationError } from '@/lib/errors';
+import { ValidationError, ForbiddenError } from '@/lib/errors';
 
 const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 
@@ -16,7 +16,15 @@ type RowResult = {
 
 // Bulk-create customers from parsed CSV rows.
 // Body: { rows: Array<{ companyName, gstNumber, contactName, contactEmail, ... }> }
-export const POST = withAuth(async (req: NextRequest, _user: AuthUser) => {
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  // Bulk import writes up to 1000 rows into the shared customer master in one
+  // call, so it is an administrative action rather than day-to-day data entry.
+  // Creating a single customer stays open to everyone; this did too, purely
+  // because the role was never checked.
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+    throw new ForbiddenError('Only admins can bulk-import customers');
+  }
+
   const body = await req.json();
   const rows: RowInput[] = Array.isArray(body?.rows) ? body.rows : [];
 
