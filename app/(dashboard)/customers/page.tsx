@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import PageContainer from '@/components/PageContainer';
@@ -42,6 +43,11 @@ export default function CustomersPage() {
   // only the first paint, `refreshing` covers every later fetch so the list
   // dims instead of disappearing when the page or search changes.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
@@ -200,7 +206,7 @@ export default function CustomersPage() {
         ) : customers.length === 0 ? (
           <div className="p-6 text-center text-gray-500">No customers found</div>
         ) : (
-          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {customers.map((customer) => (

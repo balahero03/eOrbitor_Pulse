@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { InboxIcon } from '@heroicons/react/24/outline';
@@ -38,6 +39,11 @@ export default function ClosedLeadsPage() {
   // fetch so a tab/search/date filter change dims the current rows instead
   // of replacing them with a spinner.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -196,7 +202,7 @@ export default function ClosedLeadsPage() {
             <p className="text-sm text-gray-400 mt-1">Closed leads appear here after a deal is closed from the CLOSURE stage</p>
           </div>
         ) : (
-          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block lg:hidden divide-y divide-gray-200">
               {leads.map(lead => {

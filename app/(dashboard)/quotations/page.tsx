@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
 import { QuotationIcon } from '@/components/icons';
@@ -52,6 +53,11 @@ export default function QuotationsPage() {
   // fetch so a status filter change dims the current rows instead of
   // replacing them with a spinner.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -248,7 +254,7 @@ export default function QuotationsPage() {
             </p>
           </div>
         ) : (
-          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {quotations.map(q => {

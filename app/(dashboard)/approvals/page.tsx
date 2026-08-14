@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import type { ReactNode } from 'react';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -391,6 +392,11 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   // while the new one loads, so switching tabs never flashes back to a
   // spinner or an empty state.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -452,7 +458,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     <div className="space-y-4">
       <StatusTabs tab={tab} setTab={setTab} counts={counts} />
       {loading ? <Spinner /> : requests.length === 0 ? <EmptyState tab={tab} /> : (
-        <div className={`space-y-3 transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+        <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
           {requests.map((req) => (
             <div key={req.id} id={`approval-${req.entityId}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.entityId)}`}>
               {/* Content first, actions after — on a phone the buttons used to
@@ -562,6 +568,11 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   // treatment so the Pending/Approved/Rejected tabs cross-fade instead of
   // flashing to a spinner.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState<string | null>(null);
@@ -650,7 +661,7 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       </div>
 
       {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
-        <div className={`space-y-3 transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+        <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
           {filteredRequests.map((req) => {
             const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
             const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';

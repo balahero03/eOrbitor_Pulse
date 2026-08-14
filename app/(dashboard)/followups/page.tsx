@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
@@ -53,6 +54,11 @@ export default function FollowUpsPage() {
   // fetch so a type/status/date filter change dims the current rows instead
   // of replacing them with a spinner.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [page, setPage] = useState(1);
   // Global counts for the tab badges — fetched independently of the active
   // filter so "Today" and "Overdue" always show the true totals (previously
@@ -359,7 +365,7 @@ export default function FollowUpsPage() {
               {hasFilters && <button onClick={clearFilters} className="mt-3 text-blue-600 text-sm hover:underline">Clear filters</button>}
             </div>
           ) : (
-            <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+            <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
               {/* Mobile Card View (< 640px) — a 7-column table is unusable on a
                   phone, so follow-ups get the same card treatment as the other
                   list pages (leads, tasks, orders, quotations). */}

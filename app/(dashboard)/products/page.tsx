@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
@@ -259,6 +260,11 @@ export default function ProductsPage() {
   // fetch so a category filter change dims the current rows instead of
   // replacing them with a spinner.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -496,7 +502,7 @@ export default function ProductsPage() {
             )}
           </div>
         ) : (
-          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {products.map((p) => {

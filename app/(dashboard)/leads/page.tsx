@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { useRouter } from 'next/navigation';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import { useToast } from '@/components/Toast';
@@ -164,6 +165,11 @@ export default function LeadsPage() {
   // screen (dimmed, not replaced) rather than the list vanishing behind a
   // spinner on every click.
   const [refreshing, setRefreshing] = useState(false);
+  // Only actually dims the list once the fetch has been running for 150ms —
+  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
+  // reverses the opacity transition before it ever finishes animating, which
+  // reads as a one-frame flicker rather than a fade.
+  const showRefreshing = useDelayedFlag(refreshing);
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<User[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -596,7 +602,7 @@ export default function LeadsPage() {
             )}
           </div>
         ) : (
-          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Card list (< 1024px). Eleven columns cannot be read on a tablet;
                 below lg the cards carry the same fields legibly. */}
             <div className="block lg:hidden divide-y divide-gray-200">
