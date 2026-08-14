@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
 import { ProductIcon } from '@/components/icons';
@@ -51,13 +52,18 @@ const fmt = (v: string | number) =>
 
 // ─── Product Form Modal ───────────────────────────────────────────────────────
 function ProductModal({
-  initial, onSave, onClose, saving, error,
+  initial, onSave, onClose, saving, error, leaving,
 }: {
   initial: ProductForm;
   onSave: (form: ProductForm) => void;
   onClose: () => void;
   saving: boolean;
   error: string;
+  /** True during the close animation. The parent keeps this component mounted
+      until the animation finishes, then unmounts it for real — which is what
+      lets a later "Edit" open with fresh state instead of reusing whatever
+      this instance's form state was left at. */
+  leaving: boolean;
 }) {
   const [form, setForm] = useState<ProductForm>(initial);
   const set = (k: keyof ProductForm, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -70,8 +76,8 @@ function ProductModal({
     setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) }));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] sm:max-h-[90vh] flex flex-col">
+    <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${leaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+      <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] sm:max-h-[90vh] flex flex-col ${leaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
         {/* Header */}
         <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
@@ -260,11 +266,18 @@ export default function ProductsPage() {
   const [userRole, setUserRole] = useState('');
 
   const [showModal, setShowModal] = useState(false);
+  // ProductModal is a separate component that fully remounts on reopen (its
+  // form state resets from `initial` only on mount), so the exit hook lives
+  // here and is threaded in as a `leaving` prop rather than used inside the
+  // modal itself — that keeps the "fresh form every open" behaviour intact
+  // while still animating the close.
+  const { mounted: addEditModalMounted, leaving: addEditModalLeaving } = useMountTransition(showModal);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { mounted: deleteModalMounted, leaving: deleteModalLeaving } = useMountTransition(!!deleteId);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -655,20 +668,21 @@ export default function ProductsPage() {
       </div>
 
       {/* Add / Edit Modal */}
-      {showModal && (
+      {addEditModalMounted && (
         <ProductModal
           initial={editProduct ? formFromProduct(editProduct) : emptyForm()}
           onSave={handleSave}
           onClose={() => setShowModal(false)}
           saving={saving}
           error={modalError}
+          leaving={addEditModalLeaving}
         />
       )}
 
       {/* Delete Confirm */}
-      {deleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {deleteModalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${deleteModalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto ${deleteModalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <h2 className="text-lg font-bold text-red-600 mb-2">Deactivate Product?</h2>
             <p className="text-sm text-gray-600 mb-5">
               This product will be marked inactive and hidden from the catalog. Existing quotations are unaffected.

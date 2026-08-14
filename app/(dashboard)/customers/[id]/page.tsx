@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -60,6 +61,7 @@ export default function CustomerDetailPage() {
 
   // Delete-approval request state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { mounted: deleteModalMounted, leaving: deleteModalLeaving } = useMountTransition(showDeleteModal);
   const [deleteReason, setDeleteReason] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
@@ -79,6 +81,7 @@ export default function CustomerDetailPage() {
 
   // Edit state
   const [showEditModal, setShowEditModal] = useState(false);
+  const { mounted: editModalMounted, leaving: editModalLeaving } = useMountTransition(showEditModal);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const [editForm, setEditForm] = useState({
@@ -481,9 +484,9 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* ── Edit Modal ─────────────────────────────────────────────── */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {editModalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${editModalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto ${editModalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <div className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
               <h2 className="text-lg font-bold text-gray-900">Edit Customer</h2>
               <button onClick={() => setShowEditModal(false)}
@@ -602,9 +605,9 @@ export default function CustomerDetailPage() {
       )}
 
       {/* ── Delete Modal ──────────────────────────────────── */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {deleteModalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${deleteModalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto ${deleteModalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">
                 {isAdminUser ? 'Delete Customer' : 'Request Customer Deletion'}

@@ -1055,17 +1055,16 @@ export default function OrderDetailPage() {
       </Modal>
 
       {/* ── Delete Modal ──────────────────────────────────── */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
-            <div className="border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                {isAdminUser ? 'Delete Order' : 'Request Order Deletion'}
-              </h2>
-              <button onClick={() => { setShowDeleteModal(false); setDeleteReason(''); setDeleteSuccess(false); }}
-                className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-            </div>
-            <div className="p-6 space-y-4">
+      <Modal
+        open={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeleteReason(''); setDeleteSuccess(false); }}
+        size="md"
+      >
+        <ModalHeader
+          title={isAdminUser ? 'Delete Order' : 'Request Order Deletion'}
+          onClose={() => { setShowDeleteModal(false); setDeleteReason(''); setDeleteSuccess(false); }}
+        />
+        <ModalBody className="space-y-4">
               {deleteSuccess ? (
                 <div className="text-center py-6">
                   <SuccessIcon className="w-12 h-12 mx-auto mb-3" />
@@ -1129,10 +1128,8 @@ export default function OrderDetailPage() {
                   </div>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+        </ModalBody>
+      </Modal>
     </div>
   );
 }

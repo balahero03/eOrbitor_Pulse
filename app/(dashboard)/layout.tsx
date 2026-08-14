@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/Toast';
 import { ConfirmProvider, useConfirm } from '@/components/ConfirmDialog';
 import { BrandedLoader, InlineLoader } from '@/components/BrandedLoader';
 import { installSessionExpiryInterceptor } from '@/lib/authFetch';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import {
   HomeIcon,
   FunnelIcon,
@@ -316,6 +317,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const confirm = useConfirm();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // The <aside> drawer itself stays mounted and slides via `translate-x` with
+  // a CSS transition, so closing it already looks fine. Only this backdrop
+  // was a mount/unmount div with no exit — it vanished a beat before the
+  // drawer finished sliding out, which read as the backdrop "snapping off"
+  // while the panel was still moving.
+  const { mounted: sidebarBackdropMounted, leaving: sidebarBackdropLeaving } = useMountTransition(sidebarOpen);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -345,6 +352,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  // The bell dropdown animated open but vanished instantly on close — same
+  // "jump cut" the order modals had before components/Modal.tsx existed.
+  // This is the one popover every user opens every session, so it is worth
+  // fixing directly rather than waiting for a full rebuild onto that shell.
+  const { mounted: notifMounted, leaving: notifLeaving } = useMountTransition(notifOpen);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   // Ids currently mid-delete-animation — kept separate from `notifications`
   // so the row can play its collapse/fade before actually leaving the list.
@@ -831,9 +843,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-gray-50 overflow-x-hidden max-w-full">
       {/* Mobile overlay backdrop */}
-      {sidebarOpen && (
+      {sidebarBackdropMounted && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden animate-fade-in"
+          className={`fixed inset-0 z-20 bg-black/40 md:hidden ${sidebarBackdropLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -875,13 +887,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 )}
               </button>
 
-              {notifOpen && (
+              {notifMounted && (
                 <>
                   {/* Scrim (mobile only). Without it the panel reads as part of
                       the page rather than a floating overlay, and there is no
                       large target to dismiss it by tapping away. */}
                   <div
-                    className="fixed inset-0 bg-black/30 z-[90] sm:hidden animate-fade-in"
+                    className={`fixed inset-0 bg-black/30 z-[90] sm:hidden ${notifLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}
                     onClick={() => setNotifOpen(false)}
                     aria-hidden="true"
                   />
@@ -889,7 +901,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       (3.5rem) and the mobile bottom nav (3.5rem + safe area)
                       together need ~9rem — so the panel ran underneath the nav and
                       swallowed the screen. Reserve 10rem and it floats clear of both. */}
-                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem] animate-scale-in origin-top-right">
+                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem] origin-top-right ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-2.5 sm:py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                     <div>

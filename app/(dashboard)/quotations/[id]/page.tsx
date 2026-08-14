@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -50,6 +51,11 @@ export default function QuotationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  // Vanished instantly on close before this — same jump-cut every raw modal
+  // had prior to components/Modal.tsx. Kept as a light hook here rather than
+  // a full rebuild onto that shell, since this one dialog needs nothing else
+  // from it.
+  const { mounted: rejectModalMounted, leaving: rejectModalLeaving } = useMountTransition(showRejectModal);
   const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
@@ -493,9 +499,9 @@ export default function QuotationDetailPage() {
         </div>
       </div>
 
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {rejectModalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${rejectModalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl max-h-[92vh] overflow-y-auto ${rejectModalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <h2 className="text-lg font-bold text-red-600 mb-1">Reject Quotation</h2>
             <p className="text-sm text-gray-500 mb-4">Let the team know why this quotation is being rejected.</p>
             <textarea

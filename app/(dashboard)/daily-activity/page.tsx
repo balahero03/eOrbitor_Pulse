@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { useSearchParams } from 'next/navigation';
 import TimeField from '@/components/TimeField';
 import { ActivityIcon, ActivityChip, LockIcon, ClipboardIcon, PendingIcon, ErrorIcon, EditIcon, QuotationIcon, OrderIcon, CheckGlyph } from '@/components/icons';
@@ -242,6 +243,10 @@ function DailyActivityContent() {
   // Ticks once a minute so the "still working" counter below moves live.
   const [now, setNow] = useState(() => new Date());
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  // Same jump-cut every raw modal had before components/Modal.tsx — kept as
+  // a light hook rather than a full rebuild since this dialog needs nothing
+  // else from that shell.
+  const { mounted: unlockModalMounted, leaving: unlockModalLeaving } = useMountTransition(showUnlockModal);
   const [unlockReason, setUnlockReason] = useState('');
   const [requestingUnlock, setRequestingUnlock] = useState(false);
 
@@ -582,9 +587,9 @@ function DailyActivityContent() {
       </div>
 
       {/* Unlock Request Modal */}
-      {showUnlockModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-sm p-4 sm:p-6 max-h-[92vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {unlockModalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${unlockModalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-sm p-4 sm:p-6 max-h-[92vh] overflow-y-auto ${unlockModalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <h2 className="text-lg font-bold text-amber-600 mb-1">Request Date Unlock</h2>
             <p className="text-sm text-gray-500 mb-1"><strong>{dateLabel}</strong></p>
             <p className="text-xs text-gray-400 mb-4">Explain why you need to update this date — admin/support will review and unlock if approved.</p>

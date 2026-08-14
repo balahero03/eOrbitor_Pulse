@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
@@ -37,6 +38,10 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  // Same jump-cut every raw modal had before components/Modal.tsx — kept as
+  // a light hook rather than a full rebuild since this dialog needs nothing
+  // else from that shell.
+  const { mounted: modalMounted, leaving: modalLeaving } = useMountTransition(showModal);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -330,9 +335,9 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-in">
+      {modalMounted && (
+        <div className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${modalLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg shadow-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto ${modalLeaving ? 'animate-slide-down sm:animate-scale-out' : 'animate-slide-up sm:animate-scale-in'}`}>
             <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg font-bold">
                 {editingId ? 'Edit Announcement' : 'Create Announcement'}
