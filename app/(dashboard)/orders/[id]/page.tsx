@@ -435,11 +435,18 @@ export default function OrderDetailPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 font-mono truncate">{order.orderNumber}</h1>
+            {/* Two unlabelled badges reading "PENDING" and "PARTIAL" looked
+                contradictory — nothing said one meant fulfilment and the other
+                money. The first is labelled, and the second states the
+                outstanding amount instead of repeating a status word that
+                collides with it (and that the sidebar already shows). */}
             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${statusColor[order.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-              {order.status}
+              <span className="opacity-60 font-medium">Order</span> {order.status}
             </span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${paymentColor[order.paymentStatus] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-              {order.paymentStatus}
+            <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${
+              balance > 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-green-50 text-green-800 border-green-200'
+            }`}>
+              {balance > 0 ? <>{fmt(balance)} <span className="opacity-70 font-medium">due</span></> : 'Paid in full'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{order.customer?.companyName ?? '—'}</p>
