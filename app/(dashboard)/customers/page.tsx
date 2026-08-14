@@ -280,13 +280,9 @@ export default function CustomersPage() {
 
             {/* Desktop / Tablet Table View (>= 640px) */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {/* Company leads, because it is what these records are keyed
-                        on and what you search by. GST, address, won value and
-                        source moved to the detail page — they were columns of
-                        mostly-empty cells and placeholder GST strings. */}
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Company</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Phone</th>
@@ -301,7 +297,7 @@ export default function CustomersPage() {
                       onClick={() => router.push(`/customers/${customer.id}`)}
                       className="cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40"
                     >
-                      <td className="px-6 py-3 font-semibold text-gray-900">{customer.company}</td>
+                      <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{customer.company}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.name && customer.name !== '—' ? customer.name : <span className="text-gray-300">—</span>}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm whitespace-nowrap">{customer.phone || <span className="text-gray-300">—</span>}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.email && customer.email !== '—' ? customer.email : <span className="text-gray-300">—</span>}</td>
