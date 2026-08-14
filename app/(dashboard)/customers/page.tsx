@@ -203,7 +203,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Quick Filter Pills */}
-      <div className="flex gap-2 overflow-x-auto pt-2 pb-2 px-1 -mx-1 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+      <div className="flex gap-2 overflow-x-auto pt-2 pb-2 px-1 -mx-1 whitespace-nowrap mb-4 no-scrollbar max-w-full">
         {[
           { value: '', label: 'All Customers' },
           { value: 'lead', label: 'Won Lead Customers' },

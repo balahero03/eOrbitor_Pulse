@@ -66,6 +66,15 @@ textarea {
   scrollbar-color: rgba(203, 213, 225, 0.7) transparent;
 }
 
+/* Hide scrollbar utility for clean horizontal touch-scrolling filter bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Touch-friendly active states for mobile buttons */
 @media (max-width: 639px) {
   button, a {

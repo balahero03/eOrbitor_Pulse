@@ -509,8 +509,8 @@ export default function LeadsPage() {
         )}
       </div>
 
-      {/* Status quick-filter chips — horizontal scroll on mobile */}
-      <div className="flex gap-2 overflow-x-auto pt-2 pb-2 px-1 -mx-1 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+      {/* Status filter pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2 px-1 -mx-1 whitespace-nowrap mb-3 no-scrollbar max-w-full">
         <button
           onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
           className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${!applied.status
