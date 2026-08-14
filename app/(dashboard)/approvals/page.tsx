@@ -236,19 +236,51 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
 }
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
+/**
+ * Status filter: rounded pills, the selected one filled.
+ *
+ * Deliberately *not* the segmented track used by the access-type filter beside
+ * it. These two do different jobs: the track switches which set of requests you
+ * are looking at, while these narrow the set you are already in. Giving the
+ * narrowing filter its own filled-pill treatment keeps the distinction, and the
+ * filled state reads as "this is what you are seeing" more strongly than a
+ * raised white segment does.
+ */
 function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) => void; counts: Record<Status, number | null> }) {
   return (
-    <Segmented>
+    <div className="flex flex-wrap items-center gap-2">
       {STATUS_TABS.map((t) => {
         const active = tab === t.key;
         const count = counts[t.key];
         return (
-          <Segment key={t.key} active={active} onClick={() => setTab(t.key)} count={count}>
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] sm:min-h-0 rounded-full border text-xs sm:text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+              active
+                ? 'bg-blue-600 text-white border-blue-600 font-semibold shadow-sm'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+            }`}
+          >
             {t.label}
-          </Segment>
+            {count !== null && count !== undefined && (
+              <span
+                className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+                  active
+                    ? 'bg-white/25 text-white'
+                    : count > 0
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {count}
+              </span>
+            )}
+          </button>
         );
       })}
-    </Segmented>
+    </div>
   );
 }
 
