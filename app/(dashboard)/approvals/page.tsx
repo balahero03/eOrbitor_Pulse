@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
@@ -8,6 +9,8 @@ import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightReq
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
 import PageContainer from '@/components/PageContainer';
+import PageHeader from '@/components/PageHeader';
+import { buttonClasses } from '@/components/Button';
 import { InlineLoader } from '@/components/BrandedLoader';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -104,15 +107,13 @@ export default function ApprovalsPage() {
 
   return (
     <PageContainer>
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Approvals</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Review and manage pending approval requests</p>
-        </div>
-        {canReviewAccess && (
+      <PageHeader
+        title="Approvals"
+        subtitle="Review and manage pending approval requests"
+        actions={canReviewAccess ? (
           <CategoryBar category={activeCategory} onChange={(c) => { setCategory(c); setTab('PENDING'); }} />
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Status sub-tabs live inside each category so counts stay accurate. */}
       {activeCategory === 'record' ? (
@@ -121,6 +122,52 @@ export default function ApprovalsPage() {
         <AccessApprovals tab={tab} setTab={setTab} flashId={flashAccessId} />
       )}
     </PageContainer>
+  );
+}
+
+/**
+ * The page's one tab-pill style.
+ *
+ * The category bar and the status tabs had grown two near-identical copies of
+ * this markup that had already drifted apart — different padding, different
+ * count-badge colours, different hover. Defining it once is what keeps them
+ * looking like the same control.
+ */
+function Pill({
+  active,
+  onClick,
+  count,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  count?: number | null;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-lg text-xs sm:text-sm font-semibold border transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+        active
+          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+      }`}
+    >
+      {icon}
+      {children}
+      {count !== null && count !== undefined && (
+        <span
+          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+            active ? 'bg-white/25 text-white' : count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -155,20 +202,15 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
         const active = category === it.key;
         const Icon = it.icon;
         return (
-          <button
+          <Pill
             key={it.key}
+            active={active}
             onClick={() => onChange(it.key)}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-              }`}
+            count={it.count}
+            icon={<Icon className="w-4 h-4" color={active ? 'text-white' : undefined} />}
           >
-            <Icon className="w-4 h-4" />
             {it.label}
-            {it.count !== null && it.count > 0 && (
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-white text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                {it.count}
-              </span>
-            )}
-          </button>
+          </Pill>
         );
       })}
     </div>
@@ -183,17 +225,9 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
         const active = tab === t.key;
         const count = counts[t.key];
         return (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-              }`}
-          >
+          <Pill key={t.key} active={active} onClick={() => setTab(t.key)} count={count}>
             {t.label}
-            {count !== null && (
-              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
-            )}
-          </button>
+          </Pill>
         );
       })}
     </div>
@@ -349,11 +383,11 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                 {req.status === 'PENDING' && (
                   <div className="flex gap-2 flex-shrink-0">
                     <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 disabled:opacity-50">
+                      className={buttonClasses({ variant: 'success', size: 'xs' })}>
                       <CheckGlyph className="w-3.5 h-3.5" /> {processingId === req.id ? '…' : 'Approve'}
                     </button>
                     <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
+                      className={buttonClasses({ variant: 'secondary', size: 'xs', className: 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
                       <CloseIcon className="w-3.5 h-3.5" /> Reject
                     </button>
                   </div>
@@ -515,11 +549,11 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                   {req.status === 'PENDING' && (
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => decide(req.id, 'APPROVE')} disabled={processingId === req.id}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 disabled:opacity-50">
+                        className={buttonClasses({ variant: 'success', size: 'xs' })}>
                         <CheckGlyph className="w-3.5 h-3.5" /> {processingId === req.id ? '…' : 'Approve'}
                       </button>
                       <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
+                        className={buttonClasses({ variant: 'secondary', size: 'xs', className: 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
                         <CloseIcon className="w-3.5 h-3.5" /> Reject
                       </button>
                     </div>
@@ -548,10 +582,10 @@ function RejectForm({ value, onChange, processing, onConfirm, onCancel }: {
         className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200" />
       <div className="flex gap-2 flex-wrap">
         <button onClick={onConfirm} disabled={processing}
-          className="min-h-[36px] sm:min-h-0 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50 inline-flex items-center justify-center whitespace-nowrap">
+          className={buttonClasses({ variant: 'danger', size: 'xs' })}>
           {processing ? 'Processing…' : 'Confirm Rejection'}
         </button>
-        <button onClick={onCancel} className="min-h-[36px] sm:min-h-0 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 inline-flex items-center justify-center whitespace-nowrap">Cancel</button>
+        <button onClick={onCancel} className={buttonClasses({ variant: 'secondary', size: 'xs' })}>Cancel</button>
       </div>
     </div>
   );
@@ -561,10 +595,10 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
   return (
     <div className="flex items-center justify-center gap-3 pt-3">
       <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-        className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">Previous</button>
+        className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Previous</button>
       <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
       <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-        className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">Next</button>
+        className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Next</button>
     </div>
   );
 }
