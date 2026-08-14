@@ -64,7 +64,57 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     });
   }
 
-  return NextResponse.json(order);
+  let leadInfo: { id: string; dealName: string } | null = null;
+
+  if (order.deal) {
+    leadInfo = { id: order.deal.id, dealName: (order.deal as any).dealName || (order.deal as any).name || (order.deal as any).company };
+  }
+
+  const targetId = order.dealId || (order.quotation as any)?.dealId || (order.quotation as any)?.leadId;
+  if (!leadInfo && targetId) {
+    const l = await prisma.lead.findFirst({
+      where: { id: targetId, deletedAt: null },
+      select: { id: true, name: true, company: true },
+    });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    } else {
+      const d = await prisma.deal.findUnique({ where: { id: targetId } });
+      if (d) {
+        leadInfo = { id: d.id, dealName: d.dealName };
+      }
+    }
+  }
+
+  if (!leadInfo && order.customerId) {
+    const l = await prisma.lead.findFirst({
+      where: { linkedCustomerId: order.customerId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, company: true },
+    });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    }
+  }
+
+  if (!leadInfo && order.customer?.companyName) {
+    const l = await prisma.lead.findFirst({
+      where: {
+        company: { equals: order.customer.companyName, mode: 'insensitive' },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, company: true },
+    });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    }
+  }
+
+  return NextResponse.json({
+    ...order,
+    deal: leadInfo,
+  });
 });
 
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {

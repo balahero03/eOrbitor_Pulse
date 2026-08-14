@@ -35,22 +35,56 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!quotation) throw new NotFoundError('Quotation');
   if (!(await inScope(user, quotation.createdById))) throw new ForbiddenError();
 
-  let deal = quotation.deal;
-  if (!deal && (quotation.dealId || quotation.leadId)) {
-    const targetId = quotation.dealId || quotation.leadId;
-    deal = await prisma.deal.findUnique({ where: { id: targetId! } });
+  let leadInfo: { id: string; dealName: string } | null = null;
+
+  if (quotation.deal) {
+    leadInfo = { id: quotation.deal.id, dealName: (quotation.deal as any).dealName || (quotation.deal as any).name || (quotation.deal as any).company };
   }
 
-  if (!deal && quotation.customerId) {
-    deal = await prisma.deal.findFirst({
-      where: { customerId: quotation.customerId },
-      orderBy: { createdAt: 'desc' },
+  if (!leadInfo && (quotation.dealId || quotation.leadId)) {
+    const targetId = quotation.dealId || quotation.leadId;
+    const l = await prisma.lead.findFirst({
+      where: { id: targetId!, deletedAt: null },
+      select: { id: true, name: true, company: true },
     });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    } else {
+      const d = await prisma.deal.findUnique({ where: { id: targetId! } });
+      if (d) {
+        leadInfo = { id: d.id, dealName: d.dealName };
+      }
+    }
+  }
+
+  if (!leadInfo && quotation.customerId) {
+    const l = await prisma.lead.findFirst({
+      where: { linkedCustomerId: quotation.customerId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, company: true },
+    });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    }
+  }
+
+  if (!leadInfo && quotation.customer?.companyName) {
+    const l = await prisma.lead.findFirst({
+      where: {
+        company: { equals: quotation.customer.companyName, mode: 'insensitive' },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, company: true },
+    });
+    if (l) {
+      leadInfo = { id: l.id, dealName: l.name ? `${l.name} (${l.company})` : l.company };
+    }
   }
 
   return NextResponse.json({
     ...quotation,
-    deal: deal ? { id: deal.id, dealName: (deal as any).dealName || (deal as any).name || (deal as any).company } : null,
+    deal: leadInfo,
   });
 });
 
