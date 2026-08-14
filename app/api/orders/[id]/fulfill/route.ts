@@ -22,8 +22,11 @@ async function inScope(user: AuthUser, dealAssignedToId: string | null | undefin
 export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/fulfill')[0].split('/').pop()!;
 
-  const body = await req.json();
-  const { deliveryDate } = body;
+  // deliveryDate is optional, so the request legitimately has no body — and
+  // `req.json()` throws on an empty one, which surfaced as a 500 rather than a
+  // successful fulfilment. The sibling confirm route reads no body at all.
+  const body = await req.json().catch(() => ({} as any));
+  const { deliveryDate } = body ?? {};
 
   const order = await prisma.order.findUnique({
     where: { id },
