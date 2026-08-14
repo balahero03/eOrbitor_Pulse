@@ -87,6 +87,9 @@ interface RawItem {
   quantity: number;
   unitPrice: number;
   printedTotal: number;
+  /** Set when cells came from positional extraction, bypassing the split. */
+  exactName?: string;
+  exactDescription?: string;
 }
 
 // Pulls the product rows out of the table region (between the column header
@@ -241,7 +244,12 @@ function finalizeQuotation(rawItems: RawItem[], rawText: string): ParsedQuotatio
 
   const warnings: string[] = [];
   const items: ParsedLineItem[] = rawItems.map((ri, idx) => {
-    const { productName, description } = splitNameAndDescription(ri.nameLines);
+    // Positional extraction supplies real cells; only flattened text needs the
+    // heuristic split.
+    const { productName, description } =
+      ri.exactName !== undefined
+        ? { productName: ri.exactName, description: ri.exactDescription ?? '' }
+        : splitNameAndDescription(ri.nameLines);
     const computed = ri.quantity * ri.unitPrice;
     // Flag a row where qty × unit price disagrees with the printed total by
     // more than a rounding-sized margin — that's the person's cue to verify.
@@ -307,6 +315,53 @@ function finalizeQuotation(rawItems: RawItem[], rawText: string): ParsedQuotatio
 
 // PDF path: text is extracted line-by-line, so line items are recovered with
 // the value-row heuristic (see extractRawItems).
+/**
+ * Build a quotation from positionally-reconstructed table rows.
+ *
+ * The rows already carry real per-column cells, so the name/description guess
+ * that `splitNameAndDescription` has to make from flattened text is skipped
+ * entirely. Terms and header metadata still come from the raw text, which the
+ * table geometry says nothing about.
+ */
+export function parseQuotationFromRows(
+  rows: {
+    category?: string;
+    productName?: string;
+    description?: string;
+    quantity: number;
+    unitPrice: number;
+    printedTotal: number;
+  }[],
+  rawText: string
+): ParsedQuotation {
+  const rawItems: RawItem[] = rows.map((r) => {
+    // A layout with no separate description column keeps "Model : spec" in one
+    // cell; reuse the existing colon split for exactly that case.
+    let productName = (r.productName ?? '').trim();
+    let description = (r.description ?? '').trim();
+    if (!description && productName.includes(':')) {
+      const i = productName.indexOf(':');
+      description = productName.slice(i + 1).trim();
+      productName = productName.slice(0, i).trim();
+    }
+    // The category is context, not identity — kept in front of the description
+    // rather than in the name, so the name stays the thing you'd search for.
+    if (r.category) description = description ? `${r.category} — ${description}` : r.category;
+
+    return {
+      nameLines: [productName, description].filter(Boolean),
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      printedTotal: r.printedTotal,
+      // Pre-split cells; finalize must not re-derive these from nameLines.
+      exactName: productName,
+      exactDescription: description,
+    } as RawItem;
+  });
+
+  return finalizeQuotation(rawItems, rawText);
+}
+
 export function parseQuotationText(rawText: string): ParsedQuotation {
   const compact = rawText.split(/\r?\n/).map((l) => l.replace(/ /g, ' ').trim());
   return finalizeQuotation(extractRawItems(compact), rawText);

@@ -3,7 +3,8 @@ import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ValidationError } from '@/lib/errors';
-import { parseQuotationText, parseQuotationHtml, ParsedQuotation } from '@/lib/quotation-parser';
+import { parseQuotationText, parseQuotationHtml, parseQuotationFromRows, ParsedQuotation } from '@/lib/quotation-parser';
+import { extractQuotationTable } from '@/lib/pdf-table';
 
 const EMPTY: ParsedQuotation = {
   items: [],
@@ -13,6 +14,11 @@ const EMPTY: ParsedQuotation = {
 };
 
 async function extractFromPdf(bytes: Uint8Array): Promise<ParsedQuotation> {
+  // pdf-parse transfers the buffer to its worker and leaves the caller's view
+  // detached (byteLength 0), so anything that reads the same bytes afterwards
+  // gets an empty array. The positional pass below needs its own copy.
+  const positionalBytes = new Uint8Array(bytes);
+
   let text = '';
   const parser = new PDFParse({ data: bytes });
   try {
@@ -31,6 +37,19 @@ async function extractFromPdf(bytes: Uint8Array): Promise<ParsedQuotation> {
       ...EMPTY,
       warnings: ['No readable text was found — this looks like a scanned or image-only PDF. Please enter the quotation manually.'],
     };
+  }
+  // Prefer geometry over flattened text.
+  //
+  // The text layout collapses a table row across its columns, so a serial
+  // number and a category run together into what looks like the product name
+  // ("1 Conference"). Reading the columns back from the glyph positions gets
+  // the real cells. It self-checks (qty × unit price must equal the printed
+  // total) and returns null on any layout it cannot read confidently, so this
+  // is a strict improvement: when it declines, the text parser runs exactly as
+  // before.
+  const positional = await extractQuotationTable(positionalBytes);
+  if (positional) {
+    return parseQuotationFromRows(positional, text);
   }
   return parseQuotationText(text);
 }

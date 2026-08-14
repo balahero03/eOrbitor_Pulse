@@ -54,3 +54,4 @@ deployserverlog*.md
 # Misc archives
 *.tar.gz
 *.zip
+.parser-build/
