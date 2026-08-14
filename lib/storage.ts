@@ -50,6 +50,46 @@ export interface IncomingFile {
  * Persist base64-encoded uploads to disk under a per-entity subfolder.
  * Returns metadata to store in the DB (JSON). Throws on validation failure.
  */
+/**
+ * Leading bytes that identify a file's real format.
+ *
+ * The allow-list above checks the *name*, which the uploader chooses freely —
+ * renaming shell.php to invoice.pdf defeated it entirely. Comparing the actual
+ * header means the extension has to be telling the truth.
+ *
+ * Several formats share a container, so the mapping is many-to-one: every
+ * modern Office document is a ZIP, and the legacy ones are all OLE2.
+ */
+const ZIP = [
+  [0x50, 0x4b, 0x03, 0x04], // normal archive
+  [0x50, 0x4b, 0x05, 0x06], // empty archive
+  [0x50, 0x4b, 0x07, 0x08], // spanned archive
+];
+const OLE2 = [[0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]];
+
+const MAGIC: Record<string, number[][]> = {
+  pdf: [[0x25, 0x50, 0x44, 0x46]],                 // %PDF
+  png: [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+  jpg: [[0xff, 0xd8, 0xff]],
+  jpeg: [[0xff, 0xd8, 0xff]],
+  gif: [[0x47, 0x49, 0x46, 0x38]],                 // GIF8
+  zip: ZIP,
+  docx: ZIP,
+  xlsx: ZIP,
+  pptx: ZIP,
+  doc: OLE2,
+  xls: OLE2,
+  ppt: OLE2,
+};
+
+function looksLike(buffer: Buffer, ext: string): boolean {
+  const signatures = MAGIC[ext];
+  // No signature on record (a plain-text format, say) — the extension
+  // allow-list is all we can reasonably enforce.
+  if (!signatures) return true;
+  return signatures.some((sig) => sig.every((byte, i) => buffer[i] === byte));
+}
+
 export function saveBase64Files(
   entityFolder: string,      // e.g. `leads/<leadId>`
   files: IncomingFile[],
@@ -79,6 +119,17 @@ export function saveBase64Files(
     }
 
     const buffer = Buffer.from(f.dataBase64, 'base64');
+
+    // The extension said what this is; the bytes have to agree. Without this a
+    // renamed executable or script was stored and later served back under a
+    // trusted-looking name.
+    if (!looksLike(buffer, ext)) {
+      throw Object.assign(
+        new Error(`"${f.filename}" is not a valid .${ext} file — its contents do not match its extension.`),
+        { status: 400 },
+      );
+    }
+
     if (buffer.length > MAX_FILE_SIZE) {
       throw Object.assign(
         new Error(`File "${f.filename}" exceeds the ${Math.round(MAX_FILE_SIZE / 1048576)}MB limit`),

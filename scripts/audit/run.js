@@ -202,15 +202,26 @@ async function uploadRules() {
   // Exercised directly: the shared helper is what every upload route funnels
   // through, so proving it here covers all of them at once.
   const { saveBase64Files } = require('../../.audit-build/storage.js');
+  const b64 = (bytes) => Buffer.from(bytes).toString('base64');
+  const PDF = b64([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
+  const PNG = b64([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+  const PHP = Buffer.from('<?php system($_GET[0]); ?>').toString('base64');
+  const ELF = b64([0x7f, 0x45, 0x4c, 0x46, 0, 0]);
+
   const cases = [
-    ['doc.pdf', true], ['photo.PNG', true],
-    ['shell.php', false], ['run.exe', false],
-    ['payload', false], ['.htaccess', false],
+    // name allowed AND contents match
+    ['doc.pdf', PDF, true], ['photo.PNG', PNG, true],
+    // name not allowed
+    ['shell.php', PHP, false], ['run.exe', ELF, false],
+    // no extension at all, so the type cannot be checked
+    ['payload', PHP, false], ['.htaccess', PHP, false],
+    // name allowed but the bytes disagree — the rename attack
+    ['invoice.pdf', PHP, false], ['image.png', ELF, false],
   ];
-  for (const [filename, shouldPass] of cases) {
+  for (const [filename, data, shouldPass] of cases) {
     let accepted = true;
     try {
-      saveBase64Files('audit-tmp', [{ filename, contentType: 'application/octet-stream', dataBase64: 'AAAA' }]);
+      saveBase64Files('audit-tmp', [{ filename, contentType: 'application/octet-stream', dataBase64: data }]);
     } catch {
       accepted = false;
     }
