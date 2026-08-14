@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeRichText } from '@/lib/sanitizeHtml';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createNotification } from '@/lib/notify';
@@ -102,7 +103,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const task = await prisma.task.create({
     data: {
       title,
-      description: description || null,
+      // Rendered later with dangerouslySetInnerHTML — see lib/sanitizeHtml.ts.
+      description: sanitizeRichText(description) || null,
       status: status || 'TODO',
       priority: priority || 'MEDIUM',
       dueDate: dueDate ? new Date(dueDate) : null,

@@ -24,6 +24,7 @@ async function main() {
   await idorProbes(A);
   await passwordReset(admin);
   await uploadRules();
+  await storedXssRules(A);
   if (MUTATE) {
     await orderFlow(A, admin);
     await quotationFlow(admin);
@@ -234,6 +235,61 @@ async function uploadRules() {
     const root = process.env.FILE_UPLOAD_DIR || require('path').join(process.cwd(), 'uploads');
     fsx.rmSync(require('path').join(root, 'audit-tmp'), { recursive: true, force: true });
   } catch { /* nothing written */ }
+}
+
+// ── 5c. stored XSS in rich-text fields ──────────────────────────────────────
+async function storedXssRules(A) {
+  console.log('\n── stored XSS (rich text) ──');
+  const author = A.ON_FIELD_TEAM || A.SUPER_ADMIN || A.ADMIN;
+  if (!author) return;
+
+  // Task descriptions are rendered with dangerouslySetInnerHTML on the task
+  // detail page. Before lib/sanitizeHtml.ts an ON_FIELD_TEAM user could store
+  // script here and it executed in the browser of whoever opened the task —
+  // confirmed against a SUPER_ADMIN session. Since the JWT lives in
+  // localStorage, that was a path from the lowest-privilege role to account
+  // takeover, so it is worth a standing regression test.
+  const payloads = [
+    ['script tag', '<script>window.__x=1</script>'],
+    ['img onerror', '<img src=x onerror="window.__x=1">'],
+    ['javascript: href', '<a href="javascript:window.__x=1">go</a>'],
+    ['iframe', '<iframe src="https://evil.test"></iframe>'],
+    ['inline handler', '<p onclick="window.__x=1">t</p>'],
+  ];
+
+  const madeIds = [];
+  for (const [label, payload] of payloads) {
+    const r = await call(author.token, 'POST', '/api/tasks', {
+      title: `audit xss ${label}`,
+      description: payload,
+      assignedToId: author.user.id,
+    });
+    if (!r.body?.id) {
+      record('xss', `task create for "${label}"`, false, `got ${r.status}`);
+      continue;
+    }
+    madeIds.push(r.body.id);
+    const row = await prisma.task.findUnique({ where: { id: r.body.id }, select: { description: true } });
+    const stored = row?.description || '';
+    const dangerous = /<script|onerror=|onload=|onclick=|javascript:|<iframe/i.test(stored);
+    record('xss', `${label} is stripped before storage`, !dangerous, `stored: ${stored.slice(0, 60)}`);
+  }
+
+  // Formatting the editor legitimately produces must survive, or the fix has
+  // just broken rich text instead of securing it.
+  const legit = await call(author.token, 'POST', '/api/tasks', {
+    title: 'audit xss legitimate formatting',
+    description: '<h2>Heading</h2><p><strong>bold</strong> <em>italic</em></p><ul><li>item</li></ul>',
+    assignedToId: author.user.id,
+  });
+  if (legit.body?.id) {
+    madeIds.push(legit.body.id);
+    const row = await prisma.task.findUnique({ where: { id: legit.body.id }, select: { description: true } });
+    const kept = /<h2>/.test(row?.description || '') && /<strong>/.test(row?.description || '') && /<li>/.test(row?.description || '');
+    record('xss', 'legitimate rich-text formatting survives', kept, `stored: ${(row?.description || '').slice(0, 70)}`);
+  }
+
+  if (madeIds.length) await prisma.task.deleteMany({ where: { id: { in: madeIds } } });
 }
 
 // ── 6. order + payment flow ─────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeRichText } from '@/lib/sanitizeHtml';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError } from '@/lib/errors';
@@ -90,7 +91,8 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     where: { id },
     data: {
       ...(title !== undefined && { title }),
-      ...(description !== undefined && { description }),
+      // Rendered later with dangerouslySetInnerHTML — see lib/sanitizeHtml.ts.
+      ...(description !== undefined && { description: sanitizeRichText(description) }),
       ...(status !== undefined && { status }),
       ...(priority !== undefined && { priority }),
       ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
