@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, clearRateLimit, clientIp } from '@/lib/rateLimit';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/jwt';
@@ -7,12 +8,42 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+// Generous enough that a person fumbling their password is unaffected, tight
+// enough that guessing is impractical: 8 tries per 15 minutes, then a 15-minute
+// lockout for that address-and-IP pair.
+const LOGIN_MAX_ATTEMPTS = 8;
+const LOGIN_WINDOW_MINUTES = 15;
+const LOGIN_BLOCK_MINUTES = 15;
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
+    }
+
+    // Throttle before doing any work. Sign-in was previously unlimited — ten
+    // wrong passwords went through in under a second — so an attacker could
+    // guess at the full speed of the server against a known address.
+    //
+    // Keyed on the submitted address *and* the caller's IP together, so
+    // hammering someone else's email from one machine cannot lock that person
+    // out of their own account from theirs.
+    const throttleKey = `login:${String(email).trim().toLowerCase()}:${clientIp(req)}`;
+    const verdict = rateLimit(throttleKey, {
+      max: LOGIN_MAX_ATTEMPTS,
+      windowMs: LOGIN_WINDOW_MINUTES * 60_000,
+      blockMs: LOGIN_BLOCK_MINUTES * 60_000,
+    });
+    if (!verdict.allowed) {
+      return NextResponse.json(
+        {
+          message: `Too many sign-in attempts. Try again in ${Math.ceil((verdict.retryAfterSeconds ?? 60) / 60)} minute(s).`,
+          retryAfterSeconds: verdict.retryAfterSeconds,
+        },
+        { status: 429, headers: { 'Retry-After': String(verdict.retryAfterSeconds ?? 60) } }
+      );
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -24,6 +55,10 @@ export async function POST(req: NextRequest) {
     if (!user.isActive) {
       return NextResponse.json({ message: 'User account is inactive' }, { status: 403 });
     }
+
+    // Correct password — the attempts were legitimate, so don't hold them
+    // against a user who simply mistyped a few times before getting it right.
+    clearRateLimit(throttleKey);
 
     const now = new Date();
     const dateStr = todayStr();
