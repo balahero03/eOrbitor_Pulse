@@ -237,6 +237,23 @@ textarea {
   transform-origin: top;
 }
 
+@keyframes search-dropdown-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.search-dropdown-exit {
+  animation: search-dropdown-out 0.12s ease-in forwards;
+  transform-origin: top;
+}
+
 /* ── Tiptap Editor & Formatted Content Styles ──────────────────────────────── */
 .ProseMirror {
   min-height: 120px;

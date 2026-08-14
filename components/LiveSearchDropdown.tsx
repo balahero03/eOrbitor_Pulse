@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useId, KeyboardEvent, ReactNode } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { useRouter } from 'next/navigation';
 import { SearchIcon } from '@/components/icons';
 
@@ -68,6 +69,12 @@ export default function LiveSearchDropdown<T>({
   const router = useRouter();
   const listboxId = useId();
   const [open, setOpen] = useState(false);
+  // The suggestion list animated in but popped out instantly on close/select
+  // — jarring in a control this frequently opened and closed (every
+  // keystroke can toggle it). 120ms is deliberately shorter than the entry's
+  // 160ms: a search dropdown is dismissed far more often than it's opened,
+  // so the closing motion should never feel like it's making you wait.
+  const { mounted: dropdownMounted, leaving: dropdownLeaving } = useMountTransition(open, 120);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<T[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -201,12 +208,12 @@ export default function LiveSearchDropdown<T>({
         )}
       </div>
 
-      {open && (
+      {dropdownMounted && (
         <div
           id={listboxId}
           role="listbox"
           aria-label={`${ariaLabel} suggestions`}
-          className="search-dropdown-enter absolute z-40 left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl ring-1 ring-black/5 overflow-hidden max-h-96 overflow-y-auto"
+          className={`${dropdownLeaving ? 'search-dropdown-exit' : 'search-dropdown-enter'} absolute z-40 left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl ring-1 ring-black/5 overflow-hidden max-h-96 overflow-y-auto`}
         >
           {loading && suggestions.length === 0 ? (
             <div className="px-4 py-6 text-sm text-gray-400 text-center flex items-center justify-center gap-2" aria-live="polite">

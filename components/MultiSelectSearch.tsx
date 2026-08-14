@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useMountTransition } from '@/lib/hooks/useMountTransition';
 
 interface Option {
   id?: string;
@@ -28,6 +29,12 @@ export default function MultiSelectSearch({
 }: MultiSelectSearchProps) {
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  // This dropdown had no transition at all, in either direction — it just
+  // popped in and out of existence, in the one component per CLAUDE.md every
+  // solution-area/OEM/presales picker in the app is built from. Reusing the
+  // same enter/exit pair LiveSearchDropdown uses so every dropdown in the
+  // app moves the same way.
+  const { mounted: dropdownMounted, leaving: dropdownLeaving } = useMountTransition(isOpen, 120);
   const [customInput, setCustomInput] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -113,8 +120,8 @@ export default function MultiSelectSearch({
         />
 
         {/* Dropdown menu */}
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+        {dropdownMounted && (
+          <div className={`${dropdownLeaving ? 'search-dropdown-exit' : 'search-dropdown-enter'} absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto`}>
             {filteredOptions.length > 0 ? (
               filteredOptions.map(option => (
                 <label
