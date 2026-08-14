@@ -72,6 +72,10 @@ export default function TasksPage() {
   const [myTasksOnly, setMyTasksOnly] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a status/priority filter change dims the current rows instead
+  // of replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -84,7 +88,7 @@ export default function TasksPage() {
   const [applied, setApplied] = useState({ status: '', priority: '', search: '' });
 
   const fetchTasks = useCallback(async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
@@ -104,6 +108,7 @@ export default function TasksPage() {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [page, applied, myTasksOnly, currentUser]);
 
@@ -298,7 +303,7 @@ export default function TasksPage() {
         ) : tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No tasks found.</div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {tasks.map(task => {
@@ -415,7 +420,7 @@ export default function TasksPage() {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
 
         {totalPages > 1 && (

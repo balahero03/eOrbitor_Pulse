@@ -49,6 +49,10 @@ export default function FollowUpsPage() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a type/status/date filter change dims the current rows instead
+  // of replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   // Global counts for the tab badges — fetched independently of the active
   // filter so "Today" and "Overdue" always show the true totals (previously
@@ -121,7 +125,7 @@ export default function FollowUpsPage() {
   };
 
   const fetchFollowUps = useCallback(async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({ page: page.toString(), limit: '50' });
@@ -138,7 +142,7 @@ export default function FollowUpsPage() {
       const data = await res.json();
       setFollowUps(data.followUps);
       setPagination(data.pagination);
-    } catch { } finally { setLoading(false); }
+    } catch { } finally { setLoading(false); setRefreshing(false); }
   }, [page, type, status, fromDate, toDate, search]);
 
   useEffect(() => { fetchFollowUps(); }, [fetchFollowUps]);
@@ -355,7 +359,7 @@ export default function FollowUpsPage() {
               {hasFilters && <button onClick={clearFilters} className="mt-3 text-blue-600 text-sm hover:underline">Clear filters</button>}
             </div>
           ) : (
-            <>
+            <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
               {/* Mobile Card View (< 640px) — a 7-column table is unusable on a
                   phone, so follow-ups get the same card treatment as the other
                   list pages (leads, tasks, orders, quotations). */}
@@ -500,7 +504,7 @@ export default function FollowUpsPage() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}

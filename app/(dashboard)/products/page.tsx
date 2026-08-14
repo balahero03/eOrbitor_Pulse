@@ -249,6 +249,10 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a category filter change dims the current rows instead of
+  // replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -273,7 +277,7 @@ export default function ProductsPage() {
   useEffect(() => { fetchProducts(); }, [page, categoryFilter]);
 
   const fetchProducts = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
@@ -287,7 +291,7 @@ export default function ProductsPage() {
       setProducts(data.products);
       setPagination(data.pagination);
     } catch { /* silent */ }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   const fetchProductSuggestions = useCallback(async (query: string): Promise<Product[]> => {
@@ -479,7 +483,7 @@ export default function ProductsPage() {
             )}
           </div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {products.map((p) => {
@@ -646,7 +650,7 @@ export default function ProductsPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

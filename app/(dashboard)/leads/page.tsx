@@ -159,6 +159,11 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the very first paint. Every later fetch — a filter
+  // change, a page click — sets this instead, so the current rows stay on
+  // screen (dimmed, not replaced) rather than the list vanishing behind a
+  // spinner on every click.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<User[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -189,7 +194,7 @@ export default function LeadsPage() {
   useEffect(() => { fetchLeads(); }, [page, applied]);
 
   const fetchLeads = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({ page: page.toString(), limit: '25' });
@@ -207,6 +212,7 @@ export default function LeadsPage() {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -590,7 +596,7 @@ export default function LeadsPage() {
             )}
           </div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Card list (< 1024px). Eleven columns cannot be read on a tablet;
                 below lg the cards carry the same fields legibly. */}
             <div className="block lg:hidden divide-y divide-gray-200">
@@ -771,7 +777,7 @@ export default function LeadsPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

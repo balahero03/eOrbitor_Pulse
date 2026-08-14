@@ -38,6 +38,10 @@ const fmtDate = (d: string | undefined) =>
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  // See leads/page.tsx — same keep-previous-data treatment: `loading` gates
+  // only the first paint, `refreshing` covers every later fetch so the list
+  // dims instead of disappearing when the page or search changes.
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
@@ -92,7 +96,7 @@ export default function CustomersPage() {
   );
 
   const fetchCustomers = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -151,6 +155,7 @@ export default function CustomersPage() {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -195,7 +200,7 @@ export default function CustomersPage() {
         ) : customers.length === 0 ? (
           <div className="p-6 text-center text-gray-500">No customers found</div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {customers.map((customer) => (
@@ -306,7 +311,7 @@ className={buttonClasses({ variant: 'secondary' })}
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </PageContainer>

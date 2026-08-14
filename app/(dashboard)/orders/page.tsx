@@ -37,6 +37,10 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a status/payment filter change dims the current rows instead of
+  // replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -47,7 +51,7 @@ export default function OrdersPage() {
   }, [page, status, paymentStatus]);
 
   const fetchOrders = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
@@ -71,6 +75,7 @@ export default function OrdersPage() {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -252,7 +257,7 @@ export default function OrdersPage() {
         ) : orders.length === 0 ? (
           <div className="p-10 text-center text-gray-500">No orders found</div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px)
                 Two fixes to how records read as separate things. The row
                 divider was `gray-100` while each row drew its *own* `gray-50`
@@ -390,7 +395,7 @@ export default function OrdersPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </PageContainer>

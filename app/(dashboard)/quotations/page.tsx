@@ -48,6 +48,10 @@ export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a status filter change dims the current rows instead of
+  // replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -95,7 +99,7 @@ export default function QuotationsPage() {
   useEffect(() => { fetchQuotations(); }, [page, status]);
 
   const fetchQuotations = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
@@ -115,6 +119,7 @@ export default function QuotationsPage() {
       // silent
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -243,7 +248,7 @@ export default function QuotationsPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
               {quotations.map(q => {
@@ -336,7 +341,7 @@ export default function QuotationsPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </PageContainer>

@@ -34,6 +34,10 @@ export default function ClosedLeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // `loading` gates only the first paint; `refreshing` covers every later
+  // fetch so a tab/search/date filter change dims the current rows instead
+  // of replacing them with a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -45,7 +49,7 @@ export default function ClosedLeadsPage() {
   useEffect(() => { fetchLeads(); }, [tab, search, from, to, page]);
 
   const fetchLeads = async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
@@ -68,6 +72,7 @@ export default function ClosedLeadsPage() {
       // silent
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -191,7 +196,7 @@ export default function ClosedLeadsPage() {
             <p className="text-sm text-gray-400 mt-1">Closed leads appear here after a deal is closed from the CLOSURE stage</p>
           </div>
         ) : (
-          <>
+          <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block lg:hidden divide-y divide-gray-200">
               {leads.map(lead => {
@@ -304,7 +309,7 @@ export default function ClosedLeadsPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </PageContainer>
