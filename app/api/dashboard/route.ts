@@ -221,8 +221,20 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     prisma.deal.groupBy({ by: ['stage'], where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } }, _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
     prisma.activityLog.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: { id: true, action: true, entityType: true, entityId: true, createdAt: true },
+      take: 12,
+      select: {
+        id: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        leadId: true,
+        quotationId: true,
+        dealId: true,
+        customerId: true,
+        createdAt: true,
+        changes: true,
+        user: { select: { firstName: true, lastName: true, role: true } },
+      },
     }),
   ]);
 
@@ -253,7 +265,17 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
     })),
     recentActivity: recentActivity.map((a) => ({
-      id: a.id, action: a.action, entity: a.entityType, entityId: a.entityId, createdAt: a.createdAt.toISOString(),
+      id: a.id,
+      action: a.action,
+      entity: a.entityType,
+      entityId: a.entityId,
+      leadId: a.leadId,
+      quotationId: a.quotationId,
+      dealId: a.dealId,
+      customerId: a.customerId,
+      userName: a.user ? `${a.user.firstName} ${a.user.lastName}`.trim() : null,
+      changes: a.changes,
+      createdAt: a.createdAt.toISOString(),
     })),
     announcements,
   });

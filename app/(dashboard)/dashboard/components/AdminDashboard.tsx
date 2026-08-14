@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { AnnouncementIcon, CalendarIcon, ReportIcon } from '@/components/icons';
+import { requestHighlight } from '@/lib/notificationHighlight';
 import {
   FunnelIcon, BriefcaseIcon, ChartBarIcon, CurrencyRupeeIcon, ClockIcon,
   ShieldCheckIcon, UsersIcon, BuildingOfficeIcon,
   ArrowTrendingUpIcon, ArrowTrendingDownIcon,
   PlusCircleIcon, PencilSquareIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, EnvelopeIcon, TagIcon,
+  DocumentTextIcon, ShoppingBagIcon, CheckCircleIcon, MegaphoneIcon, ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 
 const fmtNum = (v: number | string) =>
@@ -15,9 +17,6 @@ const fmtNum = (v: number | string) =>
 // Trims a decimal to at most 2 places without a trailing ".00"/".0".
 const trimNum = (n: number) => n.toFixed(2).replace(/\.?0+$/, '');
 
-// Compact ₹ notation (lakh/crore) for the big KPI tiles — a full
-// `toLocaleString` currency value ("₹25,20,000") doesn't fit a fixed-width
-// tile at the display font size and was getting clipped to "₹25,2…".
 const fmtCompact = (v: number | string) => {
   const n = Number(v) || 0;
   const abs = Math.abs(n);
@@ -27,6 +26,153 @@ const fmtCompact = (v: number | string) => {
   if (abs >= 1e3) return `${sign}₹${trimNum(abs / 1e3)}K`;
   return `${sign}₹${abs.toLocaleString('en-IN')}`;
 };
+
+function getActivityMeta(entityType: string, action: string) {
+  const entity = (entityType || '').toUpperCase();
+  const act = (action || '').toUpperCase();
+
+  switch (entity) {
+    case 'ORDER':
+    case 'ORDER_PAYMENT':
+      return {
+        icon: act.includes('PAYMENT') || entity === 'ORDER_PAYMENT' ? CurrencyRupeeIcon : ShoppingBagIcon,
+        tint: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        badge: act.includes('PAYMENT') ? 'Payment' : 'Order',
+      };
+    case 'QUOTATION':
+      return {
+        icon: DocumentTextIcon,
+        tint: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        badge: 'Quotation',
+      };
+    case 'LEAD':
+    case 'DEAL':
+      return {
+        icon: FunnelIcon,
+        tint: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+        badge: 'Lead',
+      };
+    case 'CUSTOMER':
+      return {
+        icon: BuildingOfficeIcon,
+        tint: 'bg-purple-50 text-purple-700 border-purple-200',
+        badge: 'Customer',
+      };
+    case 'TASK':
+      return {
+        icon: CheckCircleIcon,
+        tint: 'bg-amber-50 text-amber-700 border-amber-200',
+        badge: 'Task',
+      };
+    case 'USER':
+      return {
+        icon: UsersIcon,
+        tint: 'bg-slate-100 text-slate-700 border-slate-200',
+        badge: 'User',
+      };
+    case 'APPROVAL':
+    case 'APPROVAL_REQUEST':
+      return {
+        icon: ShieldCheckIcon,
+        tint: 'bg-violet-50 text-violet-700 border-violet-200',
+        badge: 'Approval',
+      };
+    case 'ANNOUNCEMENT':
+      return {
+        icon: MegaphoneIcon,
+        tint: 'bg-rose-50 text-rose-700 border-rose-200',
+        badge: 'Announcement',
+      };
+    default:
+      return {
+        icon: TagIcon,
+        tint: 'bg-gray-100 text-gray-700 border-gray-200',
+        badge: 'System',
+      };
+  }
+}
+
+function formatActivityText(a: any) {
+  const entity = (a.entity || a.entityType || '').toUpperCase();
+  const action = (a.action || '').toUpperCase();
+  const user = a.userName ? ` by ${a.userName}` : '';
+
+  if (entity === 'ORDER_PAYMENT') {
+    return {
+      title: 'Payment Recorded',
+      desc: `Payment recorded for order${user}`,
+    };
+  }
+
+  if (entity === 'ORDER') {
+    if (action === 'CREATE') return { title: 'New Order Created', desc: `Order created in CRM${user}` };
+    if (action === 'UPDATE') return { title: 'Order Updated', desc: `Order details updated${user}` };
+    if (action === 'CONFIRM') return { title: 'Order Confirmed', desc: `Order confirmed${user}` };
+    if (action === 'FULFILL') return { title: 'Order Fulfilled', desc: `Order fulfilled successfully${user}` };
+  }
+
+  if (entity === 'QUOTATION') {
+    if (action === 'CREATE') return { title: 'New Quotation Generated', desc: `Quotation created${user}` };
+    if (action === 'APPROVE') return { title: 'Quotation Approved', desc: `Quotation approved by manager${user}` };
+    if (action === 'REJECT') return { title: 'Quotation Rejected', desc: `Quotation rejected${user}` };
+    if (action === 'SEND') return { title: 'Quotation Sent', desc: `Quotation dispatched${user}` };
+    if (action === 'CONVERT') return { title: 'Quotation Converted', desc: `Converted to Order${user}` };
+  }
+
+  if (entity === 'LEAD' || entity === 'DEAL') {
+    if (action === 'CREATE') return { title: 'New Lead Added', desc: `Lead added to pipeline${user}` };
+    if (action === 'UPDATE') return { title: 'Lead Updated', desc: `Lead details updated${user}` };
+    if (action === 'STAGE_CHANGE') return { title: 'Lead Pipeline Stage Moved', desc: `Lead moved to new stage${user}` };
+  }
+
+  if (entity === 'CUSTOMER') {
+    if (action === 'CREATE') return { title: 'New Customer Registered', desc: `Customer profile created${user}` };
+    if (action === 'UPDATE') return { title: 'Customer Profile Updated', desc: `Customer details updated${user}` };
+  }
+
+  if (entity === 'TASK') {
+    if (action === 'CREATE') return { title: 'New Task Created', desc: `Task assigned${user}` };
+    if (action === 'COMPLETE') return { title: 'Task Completed', desc: `Task completed${user}` };
+  }
+
+  const cleanAction = action.replace(/_/g, ' ').toLowerCase();
+  const cleanEntity = entity.replace(/_/g, ' ').toLowerCase();
+  return {
+    title: `${cleanAction.charAt(0).toUpperCase() + cleanAction.slice(1)} ${cleanEntity}`,
+    desc: `System event on ${cleanEntity}${user}`,
+  };
+}
+
+function getActivityHref(a: any): string | null {
+  const entity = (a.entity || a.entityType || '').toUpperCase();
+  const targetId = a.entityId || a.orderId || a.quotationId || a.leadId || a.customerId;
+
+  if (!targetId) return null;
+
+  switch (entity) {
+    case 'ORDER':
+    case 'ORDER_PAYMENT':
+      return `/orders/${a.orderId || targetId}`;
+    case 'QUOTATION':
+      return `/quotations/${a.quotationId || targetId}`;
+    case 'LEAD':
+    case 'DEAL':
+      return `/leads/${a.leadId || targetId}`;
+    case 'CUSTOMER':
+      return `/customers/${a.customerId || targetId}`;
+    case 'PRODUCT':
+      return `/products/${targetId}`;
+    case 'USER':
+      return `/users`;
+    case 'TASK':
+      return `/tasks`;
+    case 'APPROVAL':
+    case 'APPROVAL_REQUEST':
+      return `/approvals`;
+    default:
+      return null;
+  }
+}
 
 // Same flat white-card-with-icon-chip language used across the other
 // dashboards (and the "module tile" chips in components/icons.tsx) — no
@@ -247,37 +393,72 @@ export default function AdminDashboard({ data }: { data: any }) {
 
       {/* Recent Activity Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6">
-        <div className="mb-4">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Recent Activity</h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Latest system events and changes</p>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Recent Activity</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Latest system events, transactions, and pipeline updates</p>
+          </div>
+          <Link
+            href="/daily-activity"
+            className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1 transition-colors flex-shrink-0"
+          >
+            <span>View All</span>
+            <span>→</span>
+          </Link>
         </div>
         {(!recentActivity || recentActivity.length === 0) ? (
           <div className="text-center py-8">
             <p className="text-sm text-gray-400">No recent activity</p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {recentActivity.slice(0, 5).map((a: any) => {
-              const meta = ACTION_META[a.action] || ACTION_FALLBACK;
-              const href = activityHref(a.entity, a.entityId);
-              const row = (
-                <div className="flex items-center gap-3 p-2.5 rounded-lg">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tint}`}>
-                    <meta.icon className={`w-4 h-4 ${meta.color}`} />
+          <div className="divide-y divide-gray-100">
+            {recentActivity.slice(0, 6).map((a: any) => {
+              const meta = getActivityMeta(a.entity, a.action);
+              const text = formatActivityText(a);
+              const href = getActivityHref(a);
+              const Icon = meta.icon;
+
+              const handleClick = () => {
+                const targetId = a.entityId || a.orderId || a.quotationId || a.leadId || a.customerId;
+                const entity = (a.entity || '').toLowerCase();
+                if (targetId && entity) {
+                  requestHighlight(entity, targetId);
+                }
+              };
+
+              const content = (
+                <div className="flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-blue-50/50 transition-colors cursor-pointer group">
+                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border ${meta.tint}`}>
+                    <Icon className="w-5 h-5" />
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{a.action.replace('_', ' ')}</p>
-                    <p className="text-xs text-gray-500">{a.entity}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                        {text.title}
+                      </p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${meta.tint}`}>
+                        {meta.badge}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{text.desc}</p>
                   </div>
-                  <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                    {new Date(a.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0 text-right">
+                    <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap">
+                      {new Date(a.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </span>
+                    {href && (
+                      <ArrowRightIcon className="w-4 h-4 text-gray-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                    )}
+                  </div>
                 </div>
               );
+
               return href ? (
-                <Link key={a.id} href={href} className="block hover:bg-gray-50 rounded-lg transition-colors">{row}</Link>
+                <Link key={a.id} href={href} onClick={handleClick} className="block">
+                  {content}
+                </Link>
               ) : (
-                <div key={a.id}>{row}</div>
+                <div key={a.id}>{content}</div>
               );
             })}
           </div>
