@@ -61,9 +61,21 @@ export function saveBase64Files(
   for (const f of files) {
     if (!f?.dataBase64 || !f?.filename) continue;
 
+    // `path.extname` returns '' for a name with no dot ("payload") and for a
+    // dotfile (".htaccess"). The old guard was `if (ext && ...)`, so both of
+    // those skipped the allow-list entirely — the one shape of filename an
+    // attacker controls completely. An extension is now required, and must be
+    // on the list.
     const ext = path.extname(f.filename).slice(1).toLowerCase();
-    if (ext && ALLOWED_EXTENSIONS.length && !ALLOWED_EXTENSIONS.includes(ext)) {
-      throw Object.assign(new Error(`File type ".${ext}" is not allowed`), { status: 400 });
+    if (ALLOWED_EXTENSIONS.length && !ALLOWED_EXTENSIONS.includes(ext)) {
+      throw Object.assign(
+        new Error(
+          ext
+            ? `File type ".${ext}" is not allowed`
+            : `"${f.filename}" has no file extension, so its type cannot be checked`
+        ),
+        { status: 400 }
+      );
     }
 
     const buffer = Buffer.from(f.dataBase64, 'base64');
