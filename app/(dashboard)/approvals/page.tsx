@@ -257,16 +257,16 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] sm:min-h-0 rounded-full border text-xs sm:text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+            className={`flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
               active
-                ? 'bg-blue-600 text-white border-blue-600 font-semibold shadow-sm'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
             }`}
           >
             {t.label}
             {count !== null && count !== undefined && (
               <span
-                className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+                className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
                   active
                     ? 'bg-white/25 text-white'
                     : count > 0
