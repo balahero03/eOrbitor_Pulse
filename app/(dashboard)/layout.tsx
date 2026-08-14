@@ -790,10 +790,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     title={!showLabels ? item.label : undefined}
-                    className={`relative flex items-center gap-3 mx-2 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-out active:scale-95 ${
+                    className={`relative flex items-center gap-3 mx-2 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
                       active
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm scale-[1.01]'
-                        : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+                        ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/25 scale-[1.01]'
+                        : 'text-gray-600 hover:bg-blue-50/70 hover:text-blue-700'
                     }`}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />

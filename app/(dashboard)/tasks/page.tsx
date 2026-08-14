@@ -207,7 +207,7 @@ export default function TasksPage() {
       )}
 
       {/* Quick Status Filter Pills */}
-      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+      <div className="flex gap-2 overflow-x-auto pt-2 pb-2 px-1 -mx-1 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         {[
           { value: '', label: 'All Statuses' },
           { value: 'TODO', label: 'To Do' },
@@ -224,7 +224,7 @@ export default function TasksPage() {
               setPage(1);
             }}
             className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${applied.status === s.value
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
               }`}
           >

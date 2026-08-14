@@ -228,7 +228,7 @@ export default function FollowUpsPage() {
       />
 
       {/* Quick filter chips */}
-      <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap scrollbar-none">
+      <div className="flex gap-2 overflow-x-auto pt-2 pb-2 px-1 -mx-1 whitespace-nowrap scrollbar-none">
         {[
           { key: '', label: 'All' },
           { key: 'today', label: 'Today' },
@@ -239,8 +239,8 @@ export default function FollowUpsPage() {
           <button key={q.key} onClick={() => applyQuick(q.key)}
             className={`filter-pill px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ease-out ${quickFilter === q.key
               ? q.key === 'overdue'
-                ? 'bg-red-600 text-white border-red-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-red-400/30'
-                : 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                ? 'bg-red-600 text-white border-red-600 shadow-sm scale-[1.02] ring-2 ring-red-400/40'
+                : 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
               }`}>
             {q.label}

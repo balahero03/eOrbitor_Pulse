@@ -267,7 +267,7 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
  */
 function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) => void; counts: Record<Status, number | null> }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 pt-2 pb-2 px-1 -mx-1">
       {STATUS_TABS.map((t) => {
         const active = tab === t.key;
         const count = counts[t.key];
@@ -278,7 +278,7 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
             onClick={() => setTab(t.key)}
             className={`filter-pill flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ease-out active:scale-95 ${
               active
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
             }`}
           >
