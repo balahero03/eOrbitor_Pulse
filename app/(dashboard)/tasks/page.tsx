@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import { WarningIcon } from '@/components/icons';
@@ -59,6 +60,7 @@ function stripHtml(html?: string): string {
 }
 
 export default function TasksPage() {
+  const router = useRouter();
   const { user: currentUser } = useCurrentUser();
   // Deep-linked from a task-assigned notification — rings the matching row.
   const flashTaskId = useNotificationHighlight('task');
@@ -258,27 +260,7 @@ export default function TasksPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap flex-shrink-0">
-            {/* Status lives in the chip row below, which is always visible and
-                one tap. Repeating it as a select here meant two controls
-                driving one value — and on a phone, two rows for it. Kept on
-                desktop, where the chips and the filter card sit side by side
-                and the extra row costs nothing. */}
-            <div className="hidden sm:block sm:w-36">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">All Statuses</option>
-                <option value="TODO">To Do</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-
-            <div className="flex-1 sm:w-36">
+            <div className="flex-1 sm:w-44">
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Priority</label>
               <select
                 value={filters.priority}
@@ -310,25 +292,6 @@ export default function TasksPage() {
           </div>
         </div>
       </FilterPanel>
-
-      {/* Status quick filters. One scrolling line on a phone instead of
-          wrapping to two rows — the same trick every mobile app uses for
-          category chips, and it keeps the list itself above the fold. */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:flex-wrap sm:overflow-visible">
-        {['', 'TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map(s => (
-          <button
-            key={s}
-            onClick={() => { setApplied(a => ({ ...a, status: s })); setPage(1); }}
-            className={`flex-shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
-              applied.status === s
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-            }`}
-          >
-            {s === '' ? 'All' : s.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
@@ -398,12 +361,12 @@ export default function TasksPage() {
                   {tasks.map(task => {
                     const badge = currentUser ? originBadge(task, currentUser.id) : null;
                     return (
-                    <tr key={task.id} id={`task-${task.id}`} className={`hover:bg-gray-50 ${highlightRowClass(flashTaskId === task.id)}`}>
+                    <tr key={task.id} id={`task-${task.id}`} onClick={() => router.push(`/tasks/${task.id}`)} className={`cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40 ${highlightRowClass(flashTaskId === task.id)}`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Link href={`/tasks/${task.id}`} className="font-medium text-blue-700 hover:underline">
+                          <span className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
                             {task.title}
-                          </Link>
+                          </span>
                           {badge && (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
                               {badge.label}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
@@ -42,6 +43,7 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function QuotationsPage() {
+  const router = useRouter();
   const toast = useToast();
   const { user: currentUser } = useCurrentUser();
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
@@ -325,7 +327,6 @@ export default function QuotationsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Issued</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created By</th>
-                    <th className="px-4 py-3 w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -335,9 +336,13 @@ export default function QuotationsPage() {
                       ? { label: 'Pending Approval', style: 'bg-amber-100 text-amber-700 border-amber-200' }
                       : STATUS_META[q.status] ?? { label: q.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                     return (
-                      <tr key={q.id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={q.id}
+                        onClick={() => router.push(`/quotations/${q.id}`)}
+                        className="cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40"
+                      >
                         <td className="px-5 py-3.5 font-mono text-sm font-semibold text-gray-800">{q.quotationNumber}</td>
-                        <td className="px-4 py-3.5 text-gray-700 font-medium">{q.customer.companyName}</td>
+                        <td className="px-4 py-3.5 text-gray-700 font-semibold">{q.customer.companyName}</td>
                         <td className="px-4 py-3.5 text-right font-semibold text-gray-900">{fmt(q.totalAmount)}</td>
                         <td className="px-4 py-3.5">
                           <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${meta.style}`}>
@@ -347,12 +352,6 @@ export default function QuotationsPage() {
                         <td className="px-4 py-3.5 text-gray-500">{fmtDate(q.issueDate)}</td>
                         <td className="px-4 py-3.5 text-gray-500">
                           {q.createdBy.firstName} {q.createdBy.lastName}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <Link href={`/quotations/${q.id}`}
-                            className="text-xs text-blue-600 hover:underline font-medium">
-                            View
-                          </Link>
                         </td>
                       </tr>
                     );

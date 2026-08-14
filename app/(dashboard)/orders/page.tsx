@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
@@ -34,6 +35,7 @@ interface PaginationInfo {
 }
 
 export default function OrdersPage() {
+  const router = useRouter();
   const confirm = useConfirm();
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
@@ -352,9 +354,13 @@ export default function OrdersPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={order.id}
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                      className="cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40"
+                    >
                       <td className="px-4 py-3.5 font-mono text-sm font-medium text-gray-900">{order.orderNumber}</td>
-                      <td className="px-4 py-3.5 text-sm text-gray-700 font-medium">{order.customer.companyName}</td>
+                      <td className="px-4 py-3.5 text-sm text-gray-700 font-semibold">{order.customer.companyName}</td>
                       <td className="px-4 py-3.5 text-right">
                         {(() => {
                           const t = parseFloat(order.totalAmount) || 0;
@@ -387,15 +393,13 @@ export default function OrdersPage() {
                       <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">
                         {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-sm">
-                        <div className="flex items-center gap-3">
-                          <Link href={`/orders/${order.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                            View
-                          </Link>
-                          <button onClick={() => handleDelete(order.id)} className="text-red-500 hover:text-red-700 font-medium">
-                            Delete
-                          </button>
-                        </div>
+                      <td className="px-4 py-3.5 text-right text-sm">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(order.id); }}
+                          className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 px-2.5 py-1 rounded-md transition-colors"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
@@ -253,6 +254,7 @@ function ProductModal({
 
 // ─── Main Products Page ───────────────────────────────────────────────────────
 export default function ProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -613,13 +615,17 @@ export default function ProductsPage() {
                     const lowStock = !!(p.inventory?.reorderLevel && stock <= p.inventory.reorderLevel);
 
                     return (
-                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={p.id}
+                        onClick={() => router.push(`/products/${p.id}`)}
+                        className="cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40"
+                      >
                         <td className="px-4 py-3.5 text-center text-gray-400 text-xs font-medium">
                           {(page - 1) * 25 + idx + 1}
                         </td>
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{p.sku}</td>
                         <td className="px-4 py-3.5 max-w-xs">
-                          <p className="font-semibold text-gray-900">{p.name}</p>
+                          <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{p.name}</p>
                           {p.description && (
                             <p className="text-xs text-gray-400 mt-0.5 truncate">{p.description}</p>
                           )}
@@ -671,12 +677,12 @@ export default function ProductsPage() {
                           ) : <span className="text-gray-300 text-xs">—</span>}
                         </td>
                         {canManage && (
-                          <td className="px-4 py-3.5">
-                            <div className="flex gap-3 justify-end">
+                          <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex gap-2 justify-end">
                               <button onClick={() => openEdit(p)}
-                                className="text-xs text-blue-600 hover:underline font-medium">Edit</button>
+                                className="text-xs text-blue-600 hover:text-blue-800 font-semibold px-2 py-0.5 rounded hover:bg-blue-50 transition-colors">Edit</button>
                               <button onClick={() => setDeleteId(p.id)}
-                                className="text-xs text-red-500 hover:underline font-medium">Delete</button>
+                                className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-0.5 rounded hover:bg-red-50 transition-colors">Delete</button>
                             </div>
                           </td>
                         )}

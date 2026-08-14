@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
@@ -37,6 +38,7 @@ const fmtDate = (d: string | undefined) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   // See leads/page.tsx — same keep-previous-data treatment: `loading` gates
@@ -290,13 +292,16 @@ export default function CustomersPage() {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Phone</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {customers.filter(c => !categoryFilter || c.source === categoryFilter).map(customer => (
-                    <tr key={customer.id} className="table-row-interactive transition-all duration-150 ease-in-out">
-                      <td className="px-6 py-3 font-medium text-gray-900">{customer.company}</td>
+                    <tr
+                      key={customer.id}
+                      onClick={() => router.push(`/customers/${customer.id}`)}
+                      className="cursor-pointer table-row-interactive transition-all duration-150 ease-in-out hover:bg-blue-50/40"
+                    >
+                      <td className="px-6 py-3 font-semibold text-gray-900">{customer.company}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.name && customer.name !== '—' ? customer.name : <span className="text-gray-300">—</span>}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm whitespace-nowrap">{customer.phone || <span className="text-gray-300">—</span>}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.email && customer.email !== '—' ? customer.email : <span className="text-gray-300">—</span>}</td>
@@ -304,12 +309,6 @@ export default function CustomersPage() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${CATEGORY_STYLE[customer.customerCategory || (customer.source === 'lead' ? 'ACTIVE' : 'PROSPECT')] || CATEGORY_STYLE.PROSPECT}`}>
                           {customer.customerCategory || (customer.source === 'lead' ? 'ACTIVE' : 'PROSPECT')}
                         </span>
-                      </td>
-                      <td className="px-6 py-3 text-right">
-                        <Link href={`/customers/${customer.id}`}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline whitespace-nowrap">
-                          View →
-                        </Link>
                       </td>
                     </tr>
                   ))}
