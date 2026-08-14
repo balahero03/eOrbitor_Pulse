@@ -81,10 +81,20 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!type || !scheduledDate) {
     return NextResponse.json({ message: 'type and scheduledDate are required' }, { status: 400 });
   }
+  // FollowUp.dealId is non-nullable, so `dealId || null` handed Prisma a null
+  // for a required relation and the request died as an unhandled 500. The form
+  // already marks the deal mandatory; this makes the API agree with it and say
+  // so, instead of failing as a server error for any other caller.
+  if (!dealId) {
+    return NextResponse.json(
+      { message: 'A follow-up must be linked to a deal. Pass dealId (leadId alone is not enough).' },
+      { status: 400 }
+    );
+  }
 
   const followUp = await prisma.followUp.create({
     data: {
-      dealId: dealId || null,
+      dealId,
       leadId: leadId || null,
       type,
       scheduledDate: new Date(scheduledDate),
