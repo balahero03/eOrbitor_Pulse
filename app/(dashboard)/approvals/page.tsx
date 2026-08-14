@@ -235,44 +235,34 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
 }
 
 /**
- * The action being requested, as a chip.
+ * What is being asked for, as a quiet inline label.
  *
- * This used to be the card's `<h3>`, which put "Reopen Lead" above the name of
- * the lead in question — the request type shouted while the thing it applied to
- * was smaller underneath. Reviewing a queue means scanning for *what record*
- * first, so the type is a label now and the subject is the heading.
+ * This was an uppercase filled chip, which put it in direct competition with
+ * the status badge and the reason heading — three shouty micro-labels on a card
+ * whose actual content is two lines long. The action matters, but it is context
+ * for the record name, not a headline of its own.
  */
-function TypeChip({ label, danger }: { label: string; danger?: boolean }) {
+function ActionLabel({ label, danger }: { label: string; danger?: boolean }) {
   return (
-    <span
-      className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border whitespace-nowrap ${
-        danger
-          ? 'bg-red-50 text-red-700 border-red-200'
-          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-      }`}
-    >
-      {label}
-    </span>
+    <span className={`font-semibold ${danger ? 'text-red-600' : 'text-gray-700'}`}>{label}</span>
   );
 }
 
 /**
- * Why the request was raised.
+ * The requester's words.
  *
- * Previously one more line of 12px grey among the timestamps, despite being the
- * only thing on the card that informs the decision. Given its own quoted block
- * so it reads as the requester's words.
+ * Was a bordered grey panel with an uppercase "REASON" heading — a lot of
+ * furniture around one short sentence. A left rule and quotation marks say the
+ * same thing without the box, and read as something a person wrote.
  */
-function ReasonBlock({ label, text, tone = 'neutral' }: { label: string; text: string; tone?: 'neutral' | 'danger' }) {
-  const styles =
-    tone === 'danger'
-      ? 'bg-red-50 border-red-200 text-red-800'
-      : 'bg-gray-50 border-gray-200 text-gray-700';
+function ReasonBlock({ text, tone = 'neutral' }: { text: string; tone?: 'neutral' | 'danger' }) {
+  const rule = tone === 'danger' ? 'border-red-300' : 'border-gray-200';
+  const body = tone === 'danger' ? 'text-red-700' : 'text-gray-600';
   return (
-    <div className={`mt-2.5 rounded-lg border px-3 py-2 ${styles}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">{label}</p>
-      <p className="text-sm mt-0.5 break-words">{text}</p>
-    </div>
+    <blockquote className={`mt-2.5 border-l-2 ${rule} pl-3 text-sm ${body} break-words`}>
+      {tone === 'danger' && <span className="font-medium">Rejected: </span>}
+      &ldquo;{text}&rdquo;
+    </blockquote>
   );
 }
 
@@ -376,28 +366,29 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
               {/* Content first, actions after — on a phone the buttons used to
                   sit in a flex-shrink-0 column beside the text, squeezing a
                   long company name into a two-character column. */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <TypeChip
-                  label={TYPE_LABEL[req.type] || 'Approval Request'}
-                  danger={/DELETE/i.test(req.type)}
-                />
-                <StatusPill status={req.status} />
-              </div>
-
-              {req.lead ? (
-                <div className="mt-2 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-[15px] break-words">{req.lead.name}</h3>
-                  <p className="text-sm text-gray-500 break-words">
-                    {req.lead.company}
-                    <span className="text-gray-300"> · </span>
-                    <span className="font-medium text-gray-600">{req.lead.status}</span>
+              {/* Name first, then what is being asked of it — the status badge
+                  is pushed right so it lines up down the list instead of
+                  crowding the title. */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-[15px] break-words leading-snug">
+                    {req.lead ? req.lead.name : `${req.entityType} ${req.entityId.slice(0, 8)}…`}
+                  </h3>
+                  <p className="text-sm text-gray-500 break-words mt-0.5">
+                    <ActionLabel
+                      label={TYPE_LABEL[req.type] || 'Approval request'}
+                      danger={/DELETE/i.test(req.type)}
+                    />
+                    {req.lead && (
+                      <>
+                        <span className="text-gray-300"> · </span>{req.lead.company}
+                        <span className="text-gray-300"> · </span>{req.lead.status}
+                      </>
+                    )}
                   </p>
                 </div>
-              ) : (
-                <p className="mt-2 text-sm text-gray-500 break-all">
-                  {req.entityType} · {req.entityId.slice(0, 10)}…
-                </p>
-              )}
+                <div className="flex-shrink-0"><StatusPill status={req.status} /></div>
+              </div>
 
               {req.targetUser && (
                 <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
@@ -409,9 +400,9 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                 </p>
               )}
 
-              {req.reason && <ReasonBlock label="Reason" text={req.reason} />}
+              {req.reason && <ReasonBlock text={req.reason} />}
               {req.status === 'REJECTED' && req.rejectionReason && (
-                <ReasonBlock label="Rejection reason" text={req.rejectionReason} tone="danger" />
+                <ReasonBlock text={req.rejectionReason} tone="danger" />
               )}
 
               {/* Footer: who asked, and what you can do about it. Stacks on a
@@ -574,30 +565,24 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
               <div key={req.id} id={`access-${req.id}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.id)}`}>
                 {/* Same shape as a record request, so the two categories read
                     as one queue rather than two designs. */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {isActivityUnlock ? (
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 whitespace-nowrap">
-                      <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" /> Activity Unlock
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap">
-                      <LockIcon className="w-3.5 h-3.5" color="text-amber-600" /> After-Hours
-                    </span>
-                  )}
-                  <StatusPill status={req.status} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-[15px] break-words leading-snug">{who}</h3>
+                    <p className="text-sm text-gray-500 break-words mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
+                      {isActivityUnlock
+                        ? <UnlockIcon className="w-3.5 h-3.5" color="text-gray-400" />
+                        : <LockIcon className="w-3.5 h-3.5" color="text-gray-400" />}
+                      <ActionLabel label={isActivityUnlock ? 'Activity unlock' : 'After-hours access'} />
+                      {req.user?.role && <><span className="text-gray-300">·</span>{req.user.role}</>}
+                      <span className="text-gray-300">·</span>{fmtDate(req.date)}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0"><StatusPill status={req.status} /></div>
                 </div>
 
-                <div className="mt-2 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-[15px] break-words">{who}</h3>
-                  <p className="text-sm text-gray-500 break-words">
-                    {req.user?.role && <>{req.user.role}<span className="text-gray-300"> · </span></>}
-                    for <span className="font-medium text-gray-600">{fmtDate(req.date)}</span>
-                  </p>
-                </div>
-
-                {req.reason && <ReasonBlock label="Reason" text={req.reason} />}
+                {req.reason && <ReasonBlock text={req.reason} />}
                 {req.status === 'REJECTED' && req.rejectionReason && (
-                  <ReasonBlock label="Rejection reason" text={req.rejectionReason} tone="danger" />
+                  <ReasonBlock text={req.rejectionReason} tone="danger" />
                 )}
 
                 <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
