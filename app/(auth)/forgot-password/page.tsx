@@ -210,7 +210,7 @@ export default function ForgotPasswordPage() {
                 Enter the email you sign in with. We&apos;ll send a six-digit code to the recovery email on your account.
               </p>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Login Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Your email</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@eorbitor.com" required autoComplete="username" autoFocus className={inputCls} />
               </div>

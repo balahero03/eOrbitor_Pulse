@@ -41,13 +41,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: loginEmail },
-    select: {
-      id: true, firstName: true, isActive: true, deletedAt: true,
-      personalEmail: true, personalEmailVerifiedAt: true,
-    },
-  });
+  // Accept either the sign-in address or the verified recovery address.
+  //
+  // People type the mailbox they expect the code to arrive in, which is the
+  // recovery address — and matching only on the login email meant that entirely
+  // reasonable input found no account. Combined with the deliberately generic
+  // reply below, the request then looked successful, advanced to the code
+  // screen, and no mail was ever sent. There was no way to tell that apart from
+  // a working request.
+  //
+  // This grants nothing extra: the code is still delivered only to the verified
+  // recovery mailbox, so the set of people who can complete a reset is
+  // unchanged. Recovery matches must be verified, otherwise an unverified
+  // address someone else typed in could be used to find an account.
+  const SELECT = {
+    id: true, firstName: true, isActive: true, deletedAt: true,
+    personalEmail: true, personalEmailVerifiedAt: true,
+  } as const;
+
+  const user =
+    (await prisma.user.findUnique({ where: { email: loginEmail }, select: SELECT })) ??
+    (await prisma.user.findFirst({
+      where: {
+        personalEmail: loginEmail,
+        personalEmailVerifiedAt: { not: null },
+        isActive: true,
+        deletedAt: null,
+      },
+      select: SELECT,
+    }));
 
   const eligible = !!user && user.isActive && !user.deletedAt
     && !!user.personalEmail && !!user.personalEmailVerifiedAt;
