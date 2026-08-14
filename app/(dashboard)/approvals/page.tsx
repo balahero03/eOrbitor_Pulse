@@ -115,12 +115,30 @@ export default function ApprovalsPage() {
         ) : undefined}
       />
 
-      {/* Status sub-tabs live inside each category so counts stay accurate. */}
-      {activeCategory === 'record' ? (
-        <RecordApprovals tab={tab} setTab={setTab} flashId={flashRecordId} />
-      ) : (
-        <AccessApprovals tab={tab} setTab={setTab} flashId={flashAccessId} />
-      )}
+      {/* Both categories stay mounted once eligible, rather than one unmounting
+          the other. Switching used to dump the whole page back to a spinner —
+          Record's list vanished, Access's had to fetch from nothing, and there
+          was no transition between the two states at all. Stacking them in the
+          same grid cell and swapping opacity makes it an instant crossfade
+          instead, and a category you've already looked at doesn't re-fetch. */}
+      <div className="grid">
+        <div
+          className={`[grid-area:1/1] transition-opacity duration-200 ${
+            activeCategory === 'record' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <RecordApprovals tab={tab} setTab={setTab} flashId={flashRecordId} />
+        </div>
+        {canReviewAccess && (
+          <div
+            className={`[grid-area:1/1] transition-opacity duration-200 ${
+              activeCategory === 'access' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            <AccessApprovals tab={tab} setTab={setTab} flashId={flashAccessId} />
+          </div>
+        )}
+      </div>
     </PageContainer>
   );
 }
@@ -367,6 +385,12 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   const [requests, setRequests] = useState<RecordRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [loading, setLoading] = useState(true);
+  // Separate from `loading`: true on every fetch, including a tab switch.
+  // `loading` only gates the very first render (nothing to show yet); after
+  // that, the previous tab's list stays on screen — dimmed, not replaced —
+  // while the new one loads, so switching tabs never flashes back to a
+  // spinner or an empty state.
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -387,7 +411,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   }, []);
 
   const fetchRequests = useCallback(async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const res = await fetch(`/api/approval-requests?status=${tab}&page=${page}&limit=${PAGE_SIZE}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
@@ -395,7 +419,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       setRequests(data.requests);
       setTotalPages(data.pagination?.pages || 1);
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   }, [tab, page]);
 
   useEffect(() => { setPage(1); }, [tab]);
@@ -428,7 +452,7 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     <div className="space-y-4">
       <StatusTabs tab={tab} setTab={setTab} counts={counts} />
       {loading ? <Spinner /> : requests.length === 0 ? <EmptyState tab={tab} /> : (
-        <div className="space-y-3">
+        <div className={`space-y-3 transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
           {requests.map((req) => (
             <div key={req.id} id={`approval-${req.entityId}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.entityId)}`}>
               {/* Content first, actions after — on a phone the buttons used to
@@ -534,6 +558,10 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'AFTER_HOURS' | 'ACTIVITY_UNLOCK'>('ALL');
   const [loading, setLoading] = useState(true);
+  // See the matching comment in RecordApprovals — same keep-previous-data
+  // treatment so the Pending/Approved/Rejected tabs cross-fade instead of
+  // flashing to a spinner.
+  const [refreshing, setRefreshing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState<string | null>(null);
@@ -552,14 +580,14 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
   }, []);
 
   const fetchRequests = useCallback(async () => {
-    setLoading(true);
+    setRefreshing(true);
     try {
       const res = await fetch(`/api/access-requests?status=${tab}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setRequests(data.requests || []);
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   }, [tab]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
@@ -622,7 +650,7 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       </div>
 
       {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
-        <div className="space-y-3">
+        <div className={`space-y-3 transition-opacity duration-200 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
           {filteredRequests.map((req) => {
             const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
             const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';
