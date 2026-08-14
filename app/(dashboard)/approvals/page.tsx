@@ -133,27 +133,45 @@ export default function ApprovalsPage() {
  * count-badge colours, different hover. Defining it once is what keeps them
  * looking like the same control.
  */
-function Pill({
+/**
+ * Segmented control — one recessed track, the active option raised out of it.
+ *
+ * The page previously had two treatments side by side: filled blue pills for
+ * the status and category filters, and this recessed track for the access-type
+ * filter. Two controls doing the same job should not look like different kinds
+ * of control, so the recessed one wins — it reads as "pick one of these",
+ * whereas a row of filled pills reads as a row of buttons.
+ */
+function Segmented({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function Segment({
   active,
   onClick,
   count,
   icon,
+  activeColor = 'text-gray-800',
   children,
 }: {
   active: boolean;
   onClick: () => void;
   count?: number | null;
   icon?: ReactNode;
+  /** Lets a segment keep its own identity colour when selected. */
+  activeColor?: string;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-lg text-xs sm:text-sm font-semibold border transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
-        active
-          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[34px] sm:min-h-0 rounded-lg text-xs sm:text-sm transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+        active ? `bg-white ${activeColor} shadow-sm font-semibold` : 'text-gray-600 font-medium hover:text-gray-900'
       }`}
     >
       {icon}
@@ -161,7 +179,7 @@ function Pill({
       {count !== null && count !== undefined && (
         <span
           className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
-            active ? 'bg-white/25 text-white' : count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-200/70 text-gray-500'
           }`}
         >
           {count}
@@ -197,40 +215,40 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <Segmented className="max-w-full overflow-x-auto">
       {items.map((it) => {
         const active = category === it.key;
         const Icon = it.icon;
         return (
-          <Pill
+          <Segment
             key={it.key}
             active={active}
             onClick={() => onChange(it.key)}
             count={it.count}
-            icon={<Icon className="w-4 h-4" color={active ? 'text-white' : undefined} />}
+            icon={<Icon className="w-4 h-4" />}
           >
             {it.label}
-          </Pill>
+          </Segment>
         );
       })}
-    </div>
+    </Segmented>
   );
 }
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
 function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) => void; counts: Record<Status, number | null> }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <Segmented>
       {STATUS_TABS.map((t) => {
         const active = tab === t.key;
         const count = counts[t.key];
         return (
-          <Pill key={t.key} active={active} onClick={() => setTab(t.key)} count={count}>
+          <Segment key={t.key} active={active} onClick={() => setTab(t.key)} count={count}>
             {t.label}
-          </Pill>
+          </Segment>
         );
       })}
-    </div>
+    </Segmented>
   );
 }
 
@@ -242,6 +260,24 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
  * whose actual content is two lines long. The action matters, but it is context
  * for the record name, not a headline of its own.
  */
+/**
+ * One labelled fact on a request card.
+ *
+ * The metadata used to run together on one line — "Requested · 11 Aug 2026 at
+ * 15:06 · sales@eorbitor.com" — where every value looked alike and none was
+ * named. As a labelled cell each fact says what it is, and the row wraps
+ * instead of overflowing on a phone.
+ */
+function Fact({ label, value, tone = 'default' }: { label: string; value: ReactNode; tone?: 'default' | 'good' | 'bad' }) {
+  const valueTone = tone === 'good' ? 'text-green-700' : tone === 'bad' ? 'text-red-600' : 'text-gray-800';
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</dt>
+      <dd className={`text-[13px] font-medium mt-0.5 break-words ${valueTone}`}>{value}</dd>
+    </div>
+  );
+}
+
 function ActionLabel({ label, danger }: { label: string; danger?: boolean }) {
   return (
     <span className={`font-semibold ${danger ? 'text-red-600' : 'text-gray-700'}`}>{label}</span>
@@ -405,48 +441,47 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                 <ReasonBlock text={req.rejectionReason} tone="danger" />
               )}
 
-              {/* Footer: who asked, and what you can do about it. Stacks on a
-                  phone with the two actions splitting the width evenly. */}
-              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                <div className="text-xs text-gray-500 min-w-0 space-y-1">
-                  <p className="flex items-center gap-1.5 flex-wrap">
-                    <UserSingleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="font-medium text-gray-700 break-words">
-                      {req.requestedByUser.firstName} {req.requestedByUser.lastName}
-                    </span>
-                    <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
-                  </p>
-                  {req.status === 'APPROVED' && req.approvedByUser && (
-                    <p className="flex items-center gap-1.5 text-green-700 flex-wrap">
-                      <CheckGlyph className="w-3.5 h-3.5 flex-shrink-0" />
-                      Approved by
-                      <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
-                      <span className="text-green-600/70">· {fmtDateTime(req.updatedAt)}</span>
-                    </p>
-                  )}
-                  {req.status === 'REJECTED' && req.approvedByUser && (
-                    <p className="flex items-center gap-1.5 text-red-600 flex-wrap">
-                      <CloseIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                      Rejected by
-                      <span className="font-medium">{req.approvedByUser.firstName} {req.approvedByUser.lastName}</span>
-                      <span className="text-red-500/70">· {fmtDateTime(req.updatedAt)}</span>
-                    </p>
-                  )}
-                </div>
-
-                {req.status === 'PENDING' && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
-                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
-                      <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
-                    </button>
-                    <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
-                      <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
-                    </button>
-                  </div>
+              {/* The facts of the request, each one named. */}
+              <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+                <Fact
+                  label="Requested by"
+                  value={`${req.requestedByUser.firstName} ${req.requestedByUser.lastName}`}
+                />
+                <Fact label="Requested" value={fmtDateTime(req.createdAt)} />
+                {req.targetUser && (
+                  <Fact
+                    label="Transfer to"
+                    value={<span className="text-blue-700">{req.targetUser.firstName} {req.targetUser.lastName}</span>}
+                  />
                 )}
-              </div>
+                {req.status === 'APPROVED' && req.approvedByUser && (
+                  <Fact
+                    label="Approved by"
+                    tone="good"
+                    value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
+                  />
+                )}
+                {req.status === 'REJECTED' && req.approvedByUser && (
+                  <Fact
+                    label="Rejected by"
+                    tone="bad"
+                    value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
+                  />
+                )}
+              </dl>
+
+              {req.status === 'PENDING' && (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                  <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
+                    className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                    <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
+                  </button>
+                  <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
+                    className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                    <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
+                  </button>
+                </div>
+              )}
               {showRejectForm === req.id && (
                 <RejectForm value={rejectionReason} onChange={setRejectionReason} processing={processingId === req.id}
                   onConfirm={() => decide(req.id, 'REJECTED')} onCancel={() => { setShowRejectForm(null); setRejectionReason(''); }} />
@@ -530,29 +565,28 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <StatusTabs tab={tab} setTab={setTab} counts={counts} />
-        {/* Sub-type filter pills */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-medium">
-          <button
-            onClick={() => setTypeFilter('ALL')}
-            className={`px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'ALL' ? 'bg-white text-gray-800 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
-          >
+        {/* Sub-type filter — same control as the status tabs above it. */}
+        <Segmented className="max-w-full overflow-x-auto">
+          <Segment active={typeFilter === 'ALL'} onClick={() => setTypeFilter('ALL')}>
             All Access Requests
-          </button>
-          <button
+          </Segment>
+          <Segment
+            active={typeFilter === 'AFTER_HOURS'}
             onClick={() => setTypeFilter('AFTER_HOURS')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'AFTER_HOURS' ? 'bg-white text-amber-700 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+            activeColor="text-amber-700"
+            icon={<LockIcon className="w-3.5 h-3.5" color="text-amber-600" />}
           >
-            <LockIcon className="w-3.5 h-3.5" color="text-amber-600" />
             After-Hours Access
-          </button>
-          <button
+          </Segment>
+          <Segment
+            active={typeFilter === 'ACTIVITY_UNLOCK'}
             onClick={() => setTypeFilter('ACTIVITY_UNLOCK')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${typeFilter === 'ACTIVITY_UNLOCK' ? 'bg-white text-indigo-700 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+            activeColor="text-indigo-700"
+            icon={<UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" />}
           >
-            <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" />
             Activity Date Unlock
-          </button>
-        </div>
+          </Segment>
+        </Segmented>
       </div>
 
       {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
@@ -563,62 +597,54 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 
             return (
               <div key={req.id} id={`access-${req.id}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.id)}`}>
-                {/* Same shape as a record request, so the two categories read
-                    as one queue rather than two designs. */}
+                {/* Identity at the top, the facts of the request in a labelled
+                    row beneath, then the requester's words. Same shape as a
+                    record request so the two categories read as one queue. */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-gray-900 text-[15px] break-words leading-snug">{who}</h3>
                     <p className="text-sm text-gray-500 break-words mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
                       {isActivityUnlock
-                        ? <UnlockIcon className="w-3.5 h-3.5" color="text-gray-400" />
-                        : <LockIcon className="w-3.5 h-3.5" color="text-gray-400" />}
+                        ? <UnlockIcon className="w-3.5 h-3.5" color="text-indigo-500" />
+                        : <LockIcon className="w-3.5 h-3.5" color="text-amber-500" />}
                       <ActionLabel label={isActivityUnlock ? 'Activity unlock' : 'After-hours access'} />
                       {req.user?.role && <><span className="text-gray-300">·</span>{req.user.role}</>}
-                      <span className="text-gray-300">·</span>{fmtDate(req.date)}
                     </p>
                   </div>
                   <div className="flex-shrink-0"><StatusPill status={req.status} /></div>
                 </div>
+
+                <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+                  <Fact label={isActivityUnlock ? 'Unlock date' : 'Access date'} value={fmtDate(req.date)} />
+                  <Fact label="Requested" value={fmtDateTime(req.createdAt)} />
+                  {req.status === 'APPROVED' && req.reviewedAt && (
+                    <Fact label="Approved" value={fmtDateTime(req.reviewedAt)} tone="good" />
+                  )}
+                  {req.status === 'REJECTED' && req.reviewedAt && (
+                    <Fact label="Rejected" value={fmtDateTime(req.reviewedAt)} tone="bad" />
+                  )}
+                  {req.user?.email && (
+                    <Fact label="Email" value={<span className="break-all">{req.user.email}</span>} />
+                  )}
+                </dl>
 
                 {req.reason && <ReasonBlock text={req.reason} />}
                 {req.status === 'REJECTED' && req.rejectionReason && (
                   <ReasonBlock text={req.rejectionReason} tone="danger" />
                 )}
 
-                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                  <div className="text-xs text-gray-500 min-w-0 space-y-1">
-                    <p className="flex items-center gap-1.5 flex-wrap">
-                      <UserSingleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                      Requested <span className="text-gray-400">· {fmtDateTime(req.createdAt)}</span>
-                      {req.user?.email && <span className="text-gray-400 break-all">· {req.user.email}</span>}
-                    </p>
-                    {req.status === 'APPROVED' && req.reviewedAt && (
-                      <p className="flex items-center gap-1.5 text-green-700 flex-wrap">
-                        <CheckGlyph className="w-3.5 h-3.5 flex-shrink-0" /> Approved
-                        <span className="text-green-600/70">· {fmtDateTime(req.reviewedAt)}</span>
-                      </p>
-                    )}
-                    {req.status === 'REJECTED' && req.reviewedAt && (
-                      <p className="flex items-center gap-1.5 text-red-600 flex-wrap">
-                        <CloseIcon className="w-3.5 h-3.5 flex-shrink-0" /> Rejected
-                        <span className="text-red-500/70">· {fmtDateTime(req.reviewedAt)}</span>
-                      </p>
-                    )}
+                {req.status === 'PENDING' && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
+                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                      <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
+                    </button>
+                    <button onClick={() => decide(req.id, 'APPROVE')} disabled={processingId === req.id}
+                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                      <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
+                    </button>
                   </div>
-
-                  {req.status === 'PENDING' && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => decide(req.id, 'APPROVE')} disabled={processingId === req.id}
-                        className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
-                        <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
-                      </button>
-                      <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                        className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
-                        <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
+                )}
                 {showRejectForm === req.id && (
                   <RejectForm value={rejectionReason} onChange={setRejectionReason} processing={processingId === req.id}
                     onConfirm={() => decide(req.id, 'REJECT')} onCancel={() => { setShowRejectForm(null); setRejectionReason(''); }} />
