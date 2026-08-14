@@ -1,34 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getJwtSecret } from '@/lib/jwt';
-import jwt from 'jsonwebtoken';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { NotFoundError } from '@/lib/errors';
 
-async function verifyAuth(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) throw new Error('Unauthorized');
+/**
+ * Mark one of *your own* notifications read.
+ *
+ * This route previously verified the token by hand and then ran
+ * `notification.update({ where: { id } })` with no owner check, so any signed-in
+ * user could mark any other user's notification read just by knowing its id.
+ * Every sibling route (`/api/notifications`, `.../read-all`) already scopes by
+ * `userId`; this one had drifted.
+ *
+ * `updateMany` with both keys does the ownership check inside the write, so
+ * there is no read-then-write gap: a row that is not yours simply matches
+ * nothing and reports as not found — the same answer as an id that does not
+ * exist, which also avoids confirming that someone else's notification is real.
+ */
+export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
+  const id = req.nextUrl.pathname.split('/read')[0].split('/').pop()!;
 
-  // Resolved per-request rather than once at module load, so the secret is
-  // validated against the running environment (see lib/jwt.ts).
-  const secret = getJwtSecret();
-  try {
-    return jwt.verify(token, secret) as { id: string; role: string };
-  } catch {
-    throw new Error('Invalid token');
-  }
-}
+  const result = await prisma.notification.updateMany({
+    where: { id, userId: user.id },
+    data: { isRead: true, readAt: new Date() },
+  });
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    await verifyAuth(req);
+  // Previously every failure — including an invalid token — came back as a 500
+  // "Failed to mark notification as read", which made a permissions problem
+  // look like a server fault.
+  if (result.count === 0) throw new NotFoundError('Notification');
 
-    const notification = await prisma.notification.update({
-      where: { id: id },
-      data: { isRead: true, readAt: new Date() },
-    });
-
-    return NextResponse.json(notification);
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 });
-  }
-}
+  const notification = await prisma.notification.findUnique({ where: { id } });
+  return NextResponse.json(notification);
+});
