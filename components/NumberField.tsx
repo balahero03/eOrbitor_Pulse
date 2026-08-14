@@ -24,10 +24,14 @@ import { forwardRef, type InputHTMLAttributes } from 'react';
  *      the caret beside the zero rather than selecting it, so the first
  *      keystroke extends the old value instead of replacing it.
  *
- * `type="number"` is kept deliberately: it gives phones the numeric keypad, and
- * unlike `type="text"` it is *not* caught by the blanket `input[type="text"]`
- * rule in globals.css — whose element+attribute selector outranks Tailwind's
- * utility classes and would fight this component's styling.
+ * `type="number"` is kept deliberately: it gives phones the numeric keypad.
+ *
+ * It *is* caught by the blanket input rule in globals.css, though — that
+ * selector list includes `input[type="number"]` explicitly. Being an
+ * element+attribute selector it scores 0,1,1 and outranks a Tailwind utility
+ * class at 0,1,0, so it silently won the padding for the prefix/suffix and
+ * every `₹`/`%` sat directly on top of the first digit. Hence the `!` markers
+ * on the padding below — the same fix TimeField needed against the same rule.
  */
 
 export interface NumberFieldProps
@@ -92,8 +96,10 @@ const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(function Numb
         }}
         className={clsx(
           'w-full border rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400',
-          prefix ? 'pl-7' : 'pl-3',
-          suffix ? 'pr-8' : 'pr-3',
+          // `!` because globals.css's `input[type="number"]` rule sets px-3 at
+          // a higher specificity; without it the value renders under the affix.
+          prefix ? '!pl-7' : '!pl-3',
+          suffix ? '!pr-8' : '!pr-3',
           className
         )}
         {...rest}
