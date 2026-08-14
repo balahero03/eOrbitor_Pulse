@@ -952,13 +952,17 @@ export default function UsersPage() {
     { label: 'On Field Team', Icon: UsersMultiIcon, role: 'ON_FIELD_TEAM' },
   ];
 
+  const [roleFilter, setRoleFilter] = useState('');
+
   // "View all results" / bare Enter on the search box narrows the tables
   // below to matching users — everything's already loaded client-side, so
   // this is a plain filter rather than a re-fetch.
   const displayUsers = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(u =>
+    let res = users;
+    if (roleFilter) res = res.filter(u => u.role === roleFilter);
+    if (!q) return res;
+    return res.filter(u =>
       `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     );
   })();
@@ -1005,6 +1009,28 @@ export default function UsersPage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Quick Role Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+        {[
+          { value: '', label: 'All Users' },
+          { value: 'SUPER_ADMIN', label: 'Super Admins' },
+          { value: 'ADMIN', label: 'Admins' },
+          { value: 'BACKEND_TEAM', label: 'Backend Team' },
+          { value: 'ON_FIELD_TEAM', label: 'On Field Team' },
+        ].map(r => (
+          <button
+            key={r.value}
+            onClick={() => setRoleFilter(r.value)}
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${roleFilter === r.value
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
+              }`}
+          >
+            {r.label}
+          </button>
+        ))}
       </div>
 
       {/* Search */}

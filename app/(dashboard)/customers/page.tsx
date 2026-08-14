@@ -49,6 +49,7 @@ export default function CustomersPage() {
   // reads as a one-frame flicker rather than a fade.
   const showRefreshing = useDelayedFlag(refreshing);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
 
@@ -199,17 +200,41 @@ export default function CustomersPage() {
         />
       </div>
 
+      {/* Quick Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+        {[
+          { value: '', label: 'All Customers' },
+          { value: 'lead', label: 'Won Lead Customers' },
+          { value: 'manual', label: 'Existing Customers' },
+        ].map(s => (
+          <button
+            key={s.value}
+            onClick={() => {
+              const next = categoryFilter === s.value ? '' : s.value;
+              setCategoryFilter(next);
+              setPage(1);
+            }}
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${categoryFilter === s.value
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
+              }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       {/* Customers Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-6 text-center text-gray-500">Loading customers...</div>
-        ) : customers.length === 0 ? (
+        ) : customers.filter(c => !categoryFilter || c.source === categoryFilter).length === 0 ? (
           <div className="p-6 text-center text-gray-500">No customers found</div>
         ) : (
           <div className={`transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
             {/* Mobile Card List (< 640px) */}
             <div className="block sm:hidden divide-y divide-gray-200">
-              {customers.map((customer) => (
+              {customers.filter(c => !categoryFilter || c.source === categoryFilter).map((customer) => (
                 <Link
                   key={customer.id}
                   href={`/customers/${customer.id}`}
@@ -269,8 +294,8 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {customers.map(customer => (
-                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
+                  {customers.filter(c => !categoryFilter || c.source === categoryFilter).map(customer => (
+                    <tr key={customer.id} className="table-row-interactive transition-all duration-150 ease-in-out">
                       <td className="px-6 py-3 font-medium text-gray-900">{customer.company}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm">{customer.name && customer.name !== '—' ? customer.name : <span className="text-gray-300">—</span>}</td>
                       <td className="px-6 py-3 text-gray-600 text-sm whitespace-nowrap">{customer.phone || <span className="text-gray-300">—</span>}</td>

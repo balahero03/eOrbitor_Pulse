@@ -189,15 +189,15 @@ function Segment({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[34px] sm:min-h-0 rounded-lg text-xs sm:text-sm transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
-        active ? `bg-white ${activeColor} shadow-sm font-semibold` : 'text-gray-600 font-medium hover:text-gray-900'
+      className={`tab-button inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] sm:min-h-0 rounded-lg text-xs sm:text-sm transition-all duration-200 ease-out active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+        active ? `bg-white ${activeColor} shadow-sm font-semibold scale-[1.01]` : 'text-gray-600 font-medium hover:text-gray-900 hover:bg-gray-200/50'
       }`}
     >
       {icon}
       {children}
       {count !== null && count !== undefined && (
         <span
-          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors ${
             count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-200/70 text-gray-500'
           }`}
         >
@@ -276,10 +276,10 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+            className={`filter-pill flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ease-out active:scale-95 ${
               active
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
             }`}
           >
             {t.label}
