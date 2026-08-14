@@ -242,7 +242,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
         data: {
           quotationNumber,
           customerId: resolvedCustomerId!,
-          ...(leadId && { leadId }),
+          ...(leadId && { leadId, dealId: leadId }),
           status: 'DRAFT',
           items,
           subtotal: subtotal.toString(),

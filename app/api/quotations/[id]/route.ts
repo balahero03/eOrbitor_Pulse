@@ -35,7 +35,23 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!quotation) throw new NotFoundError('Quotation');
   if (!(await inScope(user, quotation.createdById))) throw new ForbiddenError();
 
-  return NextResponse.json(quotation);
+  let deal = quotation.deal;
+  if (!deal && (quotation.dealId || quotation.leadId)) {
+    const targetId = quotation.dealId || quotation.leadId;
+    deal = await prisma.deal.findUnique({ where: { id: targetId! } });
+  }
+
+  if (!deal && quotation.customerId) {
+    deal = await prisma.deal.findFirst({
+      where: { customerId: quotation.customerId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  return NextResponse.json({
+    ...quotation,
+    deal: deal ? { id: deal.id, dealName: (deal as any).dealName || (deal as any).name || (deal as any).company } : null,
+  });
 });
 
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {

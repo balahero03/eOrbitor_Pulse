@@ -376,16 +376,33 @@ export default function QuotationDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {quotation.items.map((item: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">{item.productId}</td>
-                      <td className="px-4 py-3 text-right text-gray-700">{item.quantity}</td>
-                      <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(item.unitPrice.toString())}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                        {formatCurrency((item.quantity * item.unitPrice).toString())}
-                      </td>
-                    </tr>
-                  ))}
+                  {quotation.items.map((item: any, idx: number) => {
+                    const productName =
+                      item.productName ||
+                      item.name ||
+                      item.title ||
+                      item.product?.name ||
+                      item.description ||
+                      (item.productId ? `Product (${item.productId})` : `Item #${idx + 1}`);
+                    const description = item.description && item.description !== productName ? item.description : null;
+                    const qty = parseFloat(item.quantity || item.qty || 1);
+                    const unitPrice = parseFloat(item.unitPrice || 0);
+                    const total = item.printedTotal ? parseFloat(item.printedTotal) : qty * unitPrice;
+
+                    return (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">
+                          <p className="font-semibold text-gray-900">{productName}</p>
+                          {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700 font-medium">{qty}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(unitPrice.toString())}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                          {formatCurrency(total.toString())}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
