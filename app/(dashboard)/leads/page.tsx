@@ -510,10 +510,12 @@ export default function LeadsPage() {
       </div>
 
       {/* Status quick-filter chips — horizontal scroll on mobile */}
-      <div className="flex gap-2 overflow-x-auto pb-2 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         <button
           onClick={() => { setFilters(f => ({ ...f, status: '' })); setApplied(f => ({ ...f, status: '' })); setPage(1); }}
-          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${!applied.status ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+          className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${!applied.status
+              ? 'bg-gray-900 text-white border-gray-900 shadow-sm scale-[1.02]'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
             }`}
         >
           All
@@ -527,9 +529,9 @@ export default function LeadsPage() {
               setApplied(f => ({ ...f, status: next }));
               setPage(1);
             }}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${applied.status === s.value
-                ? getStatusColor(s.value)
-                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${applied.status === s.value
+                ? `${getStatusColor(s.value)} shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30`
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
               }`}
           >
             {s.label}
