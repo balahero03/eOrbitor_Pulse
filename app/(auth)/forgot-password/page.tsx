@@ -252,13 +252,13 @@ export default function ForgotPasswordPage() {
               <p className="text-center text-gray-500 text-sm -mt-1">Choose a new password.</p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
-                <div className="relative">
+                <div className="relative flex items-center">
                   <input type={showPassword ? 'text' : 'password'} value={password}
                     onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required
-                    autoComplete="new-password" autoFocus className={`${inputCls} pr-10`} />
+                    autoComplete="new-password" autoFocus className={`${inputCls} pr-12`} />
                   <button type="button" onClick={() => setShowPassword((v) => !v)} tabIndex={-1}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 transition-colors">
+                    className="absolute right-1.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none">
                     {showPassword ? <EyeSlashIcon className="w-[18px] h-[18px]" /> : <EyeIcon className="w-[18px] h-[18px]" />}
                   </button>
                 </div>
@@ -273,9 +273,16 @@ export default function ForgotPasswordPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>
-                <input type={showPassword ? 'text' : 'password'} value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" required
-                  autoComplete="new-password" className={inputCls} />
+                <div className="relative flex items-center">
+                  <input type={showPassword ? 'text' : 'password'} value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" required
+                    autoComplete="new-password" className={`${inputCls} pr-12`} />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-1.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none">
+                    {showPassword ? <EyeSlashIcon className="w-[18px] h-[18px]" /> : <EyeIcon className="w-[18px] h-[18px]" />}
+                  </button>
+                </div>
               </div>
               <button type="submit" disabled={loading} className={btnCls}>
                 {loading && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
