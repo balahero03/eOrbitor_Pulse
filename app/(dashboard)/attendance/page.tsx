@@ -9,6 +9,7 @@ import PageHeader from '@/components/PageHeader';
 import { ActivityIcon, LockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2, CheckGlyph } from '@/components/icons';
 import { InlineLoader } from '@/components/BrandedLoader';
 import { buttonClasses } from '@/components/Button';
+import SearchableSelect from '@/components/SearchableSelect';
 
 const ACTIVITY_MODES: Record<string, { label: string }> = {
   MEETING: { label: 'Meeting' },
@@ -597,18 +598,12 @@ export default function AttendancePage() {
         <div className="flex flex-wrap gap-3 sm:gap-4 items-end">
           <div className="min-w-0 flex-1 basis-40">
             <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Employee</label>
-            <select
-              value={selectedUserId}
-              onChange={e => { setSelectedUserId(e.target.value); setSelectedDay(null); }}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="all">All Employees</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.firstName} {u.lastName} ({u.role})
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={selectedUserId === 'all' ? '' : selectedUserId}
+              onChange={v => { setSelectedUserId(v || 'all'); setSelectedDay(null); }}
+              emptyOptionLabel="All Employees"
+              options={users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}`, sublabel: u.role }))}
+            />
           </div>
           <div className="w-full sm:w-auto flex-shrink-0">
             <label className="hidden sm:block text-xs font-semibold text-gray-500 mb-1 uppercase">Month</label>

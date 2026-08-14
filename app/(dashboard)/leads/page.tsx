@@ -10,6 +10,7 @@ import { DropdownPortal } from '@/components/DropdownPortal';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import { InlineLoader } from '@/components/BrandedLoader';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface Lead {
   id: string;
@@ -405,16 +406,12 @@ export default function LeadsPage() {
               {/* Account Manager */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Account Manager</label>
-                <select
+                <SearchableSelect
                   value={filters.assignedToId}
-                  onChange={(e) => setF('assignedToId', e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Managers</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setF('assignedToId', v)}
+                  emptyOptionLabel="All Managers"
+                  options={users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))}
+                />
               </div>
 
               {/* Follow-up status */}

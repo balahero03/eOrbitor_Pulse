@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { buttonClasses } from '@/components/Button';
 import CustomerAutocomplete, { primaryContact, type CustomerSuggestion } from '@/components/CustomerAutocomplete';
 import { CheckGlyph } from '@/components/icons';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface User {
   id: string;
@@ -258,17 +259,12 @@ export default function NewLeadPage() {
             <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Assignment</h3>
             <div>
               <label className="block text-sm font-medium mb-1">Account Manager</label>
-              <select
-                name="assignedToId"
+              <SearchableSelect
                 value={formData.assignedToId}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">— Current User —</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                ))}
-              </select>
+                onChange={(v) => setFormData(prev => ({ ...prev, assignedToId: v }))}
+                emptyOptionLabel="— Current User —"
+                options={users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))}
+              />
             </div>
           </div>
 

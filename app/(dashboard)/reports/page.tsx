@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { UserIcon, UsersIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface RecentReport {
   id: string;
@@ -208,17 +209,12 @@ export default function ReportsPage() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                     {reportType === 'team' ? 'Viewing as Manager' : 'Select User'}
                   </p>
-                  <select
+                  <SearchableSelect
                     value={selectedUserId}
-                    onChange={e => setSelectedUserId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName} · {u.role}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedUserId}
+                    placeholder="Select a user…"
+                    options={users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}`, sublabel: u.role }))}
+                  />
                 </div>
               )}
 
