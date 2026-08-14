@@ -267,6 +267,24 @@ export default function QuotationDetailPage() {
           <p className="text-sm text-gray-500 mt-0.5">{quotation.customer?.companyName ?? '—'}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {(quotation.deal?.id || (quotation as any).dealId) && (
+            <Link
+              href={`/leads/${quotation.deal?.id || (quotation as any).dealId}`}
+              className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold border border-blue-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>View Lead ({quotation.deal?.dealName || 'Corresponding Lead'})</span>
+              <span className="text-xs">↗</span>
+            </Link>
+          )}
+          {quotation.customer?.id && (
+            <Link
+              href={`/customers/${quotation.customer.id}`}
+              className="px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-xs font-semibold border border-purple-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>View Customer</span>
+              <span className="text-xs">↗</span>
+            </Link>
+          )}
           {quotation.status === 'ACCEPTED' && (
             existingOrder ? (
               <Link href={`/orders/${existingOrder.id}`}
@@ -297,11 +315,39 @@ export default function QuotationDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
-                <p className="text-base font-semibold text-gray-900">{quotation.customer?.companyName ?? '—'}</p>
+                {quotation.customer ? (
+                  <Link
+                    href={`/customers/${quotation.customer.id}`}
+                    className="text-base font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>{quotation.customer.companyName}</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (
+                  <p className="text-base font-semibold text-gray-900">—</p>
+                )}
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Deal</p>
-                <p className="text-base font-semibold text-gray-900">{quotation.deal?.dealName ?? '—'}</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Corresponding Lead / Deal</p>
+                {quotation.deal ? (
+                  <Link
+                    href={`/leads/${quotation.deal.id}`}
+                    className="text-base font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>{quotation.deal.dealName}</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (quotation as any).dealId ? (
+                  <Link
+                    href={`/leads/${(quotation as any).dealId}`}
+                    className="text-base font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>View Corresponding Lead</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (
+                  <p className="text-base font-semibold text-gray-400">—</p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Issue Date</p>

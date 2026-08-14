@@ -451,7 +451,34 @@ export default function OrderDetailPage() {
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{order.customer?.companyName ?? '—'}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          {(order.deal?.id || (order as any).dealId) && (
+            <Link
+              href={`/leads/${order.deal?.id || (order as any).dealId}`}
+              className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold border border-blue-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>View Lead ({order.deal?.dealName || 'Corresponding Lead'})</span>
+              <span className="text-xs">↗</span>
+            </Link>
+          )}
+          {order.quotation?.id && (
+            <Link
+              href={`/quotations/${order.quotation.id}`}
+              className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold border border-indigo-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>Quotation ({order.quotation.quotationNumber})</span>
+              <span className="text-xs">↗</span>
+            </Link>
+          )}
+          {order.customer?.id && (
+            <Link
+              href={`/customers/${order.customer.id}`}
+              className="px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-xs font-semibold border border-purple-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>View Customer</span>
+              <span className="text-xs">↗</span>
+            </Link>
+          )}
           <button onClick={openEdit} className={buttonClasses({ size: 'sm' })}>
             <EditIcon className="w-4 h-4" /> Edit
           </button>
@@ -472,19 +499,37 @@ export default function OrderDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Customer</p>
-                <p className="text-sm font-semibold text-gray-900 break-words">{order.customer?.companyName ?? '—'}</p>
+                {order.customer ? (
+                  <Link href={`/customers/${order.customer.id}`} className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors">
+                    <span>{order.customer.companyName}</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-900 break-words">—</p>
+                )}
               </div>
-              {order.deal && (
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Deal</p>
-                  <p className="text-sm font-medium text-gray-800 break-words">{order.deal.dealName}</p>
-                </div>
-              )}
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Corresponding Lead / Deal</p>
+                {order.deal ? (
+                  <Link href={`/leads/${order.deal.id}`} className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors">
+                    <span>{order.deal.dealName}</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (order as any).dealId ? (
+                  <Link href={`/leads/${(order as any).dealId}`} className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 transition-colors">
+                    <span>View Corresponding Lead</span>
+                    <span className="text-xs">↗</span>
+                  </Link>
+                ) : (
+                  <p className="text-sm text-gray-400">—</p>
+                )}
+              </div>
               {order.quotation && (
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1">Quotation</p>
-                  <Link href={`/quotations/${order.quotation?.id}`} className="text-blue-600 hover:underline font-medium text-sm">
-                    {order.quotation?.quotationNumber}
+                  <Link href={`/quotations/${order.quotation?.id}`} className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-sm inline-flex items-center gap-1 transition-colors">
+                    <span>{order.quotation?.quotationNumber}</span>
+                    <span className="text-xs">↗</span>
                   </Link>
                 </div>
               )}
