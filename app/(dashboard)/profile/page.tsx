@@ -55,6 +55,9 @@ export default function ProfilePage() {
   // completed without a mail server instead of dead-ending.
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [mailBroken, setMailBroken] = useState(false);
+  // Only ever populated for an admin caller — the API withholds it from
+  // everyone else since it can name internal infrastructure (SMTP_HOST).
+  const [mailDiagnosis, setMailDiagnosis] = useState('');
 
   const [phone, setPhone] = useState('');
   const [jobTitle, setJobTitle] = useState('');
@@ -109,6 +112,7 @@ export default function ProfilePage() {
           setProfile(data);
           setFallbackUrl('');
           setMailBroken(false);
+          setMailDiagnosis('');
           toast.success('Email verified — your account recovery is now set up.');
         }
       } catch {
@@ -130,6 +134,7 @@ export default function ProfilePage() {
     setSaving(true);
     setFallbackUrl('');
     setMailBroken(false);
+    setMailDiagnosis('');
     try {
       const res = await fetch('/api/profile', {
         method: 'PATCH',
@@ -150,6 +155,7 @@ export default function ProfilePage() {
       } else if (data.emailSent === false) {
         setMailBroken(true);
         if (data.verifyUrl) setFallbackUrl(data.verifyUrl);
+        if (data.mailDiagnosis) setMailDiagnosis(data.mailDiagnosis);
         toast.warning("Saved, but the verification email couldn't be sent.");
       } else {
         toast.success('Profile updated.');
@@ -166,6 +172,7 @@ export default function ProfilePage() {
     setResending(true);
     setFallbackUrl('');
     setMailBroken(false);
+    setMailDiagnosis('');
     try {
       const res = await fetch('/api/profile/send-verification', {
         method: 'POST',
@@ -181,6 +188,7 @@ export default function ProfilePage() {
       } else {
         setMailBroken(true);
         if (data.verifyUrl) setFallbackUrl(data.verifyUrl);
+        if (data.mailDiagnosis) setMailDiagnosis(data.mailDiagnosis);
         toast.warning("The verification email couldn't be sent.");
       }
     } catch (err) {
@@ -327,6 +335,16 @@ export default function ProfilePage() {
                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
                 The mail server is unreachable, so no email was sent.
               </p>
+              {/* Admin-only: the API withholds this from anyone else. Turns
+                  "unreachable" into the actual cause — DNS, a blocked port,
+                  rejected credentials — which on a self-hosted deployment is
+                  usually the difference between "check the firewall" and
+                  "check the password" as the next step. */}
+              {mailDiagnosis && (
+                <p className="text-xs text-red-700 mt-1.5 font-mono bg-white/60 rounded border border-red-100 px-2 py-1.5">
+                  {mailDiagnosis}
+                </p>
+              )}
               {fallbackUrl ? (
                 <>
                   <p className="text-xs text-red-700 mt-2">

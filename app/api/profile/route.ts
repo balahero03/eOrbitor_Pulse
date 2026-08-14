@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { issueEmailVerification, mayExposeVerifyUrl } from '@/lib/emailVerification';
+import { isAdmin } from '@/lib/roles';
 import { sendMailAfterResponse, buildRecoveryEmailChangedEmail, maskEmail } from '@/lib/mail';
 
 // Deliberately separate from the admin-only /api/users/[id] route rather than
@@ -88,6 +89,11 @@ export const PATCH = withAuth(async (req: NextRequest, auth: AuthUser) => {
       ...updated,
       emailSent: delivery.ok,
       mailProblem: delivery.ok ? undefined : delivery.reason,
+      // The specific reason (DNS failure vs. blocked port vs. rejected
+      // credentials) is only useful to someone who can act on it, and it can
+      // name internal infrastructure (SMTP_HOST) — restricted to admins
+      // rather than shown to every user who adds a recovery email.
+      mailDiagnosis: !delivery.ok && isAdmin(auth.role) ? delivery.diagnosis : undefined,
       // Dev-only escape hatch so the flow is completable without a mail
       // server — see the note on IssueResult.verifyUrl.
       verifyUrl: !delivery.ok && mayExposeVerifyUrl() ? verifyUrl : undefined,

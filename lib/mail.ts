@@ -38,10 +38,56 @@ export interface MailAttachment {
 // thrown — mail stays best-effort — they're just now reportable.
 export type MailResult =
   | { ok: true }
-  | { ok: false; reason: 'not_configured' | 'send_failed'; error?: string };
+  | { ok: false; reason: 'not_configured' | 'send_failed'; error?: string; code?: string; diagnosis?: string };
 
 export function isMailConfigured(): boolean {
   return !!process.env.SMTP_HOST;
+}
+
+/**
+ * Turn a raw connection/SMTP error into a sentence an administrator can act
+ * on, instead of a Node error code they have to go look up.
+ *
+ * This exists because "the mail server is unreachable" was the *entire*
+ * diagnostic available on a production failure — one sentence, no way to
+ * tell a DNS problem from a firewalled port from a rejected password without
+ * shell access to read the server log. On a self-hosted, on-premise
+ * deployment the operator usually *is* looking at this screen, so the
+ * diagnosis is worth surfacing directly rather than only logging it.
+ */
+// Verified against real nodemailer/Node failures, not documentation: DNS
+// failures surface as `EDNS` (not `ENOTFOUND`, which only appears inside the
+// message text), and nodemailer wraps every raw socket error — including a
+// plain ECONNREFUSED — under one `ESOCKET` code. Whichever of those it was is
+// only recoverable from the message text, so ESOCKET is disambiguated there
+// rather than guessed at from the code alone.
+function classifyMailError(err: any): string {
+  const code = err?.code;
+  const message = String(err?.message || '');
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT || '587';
+
+  if (code === 'EDNS' || code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return `Cannot resolve "${host}" — check SMTP_HOST, or DNS from this server.`;
+  }
+  if (code === 'EAUTH') {
+    return 'The mail server rejected SMTP_USER/SMTP_PASSWORD — check those credentials.';
+  }
+  if (code === 'ESOCKET' && /ECONNREFUSED/.test(message)) {
+    return `Connection to ${host}:${port} was refused — nothing is listening there, or a firewall is dropping it immediately.`;
+  }
+  if (code === 'ESOCKET' && /ECONNRESET/.test(message)) {
+    return `The connection to ${host}:${port} was reset mid-handshake — check for a proxy or firewall interfering with outbound TLS.`;
+  }
+  if (code === 'ETIMEDOUT' || code === 'ESOCKET') {
+    return `Connection to ${host}:${port} timed out — likely outbound traffic to this host/port is blocked by a firewall or security group. This is common on an on-premise host with restricted egress.`;
+  }
+  return message || 'Unknown error contacting the mail server.';
+}
+
+/** Worth one retry: a blip, not a structural reason the send will never work. */
+function isTransientMailError(err: any): boolean {
+  return ['ETIMEDOUT', 'ESOCKET', 'ECONNRESET'].includes(err?.code);
 }
 
 /**
@@ -69,7 +115,7 @@ export function sendMailAfterResponse(label: string, opts: Parameters<typeof sen
       if (result.ok) {
         console.log(`[MAIL] ${label} -> ${Array.isArray(opts.to) ? opts.to.join(', ') : opts.to}`);
       } else {
-        console.error(`[MAIL] ${label} NOT SENT (${result.reason})`, result.error ?? '');
+        console.error(`[MAIL] ${label} NOT SENT (${result.reason})`, result.diagnosis ?? result.error ?? '');
       }
     } catch (err) {
       console.error(`[MAIL] ${label} threw`, err);
@@ -96,26 +142,50 @@ export async function sendMail(opts: {
     && !attachments.some((a) => a.cid === LOGO_CID);
   if (needsLogo) attachments.push(logoAttachment());
 
-  try {
-    await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'eOrbitor Pulse'}" <${process.env.SMTP_FROM_EMAIL || 'crm@eorbitor.local'}>`,
-      to: Array.isArray(opts.to) ? opts.to.join(', ') : opts.to,
-      subject: opts.subject,
-      html: opts.html,
-      attachments: attachments.length
-        ? attachments.map(a => ({
-            filename: a.filename,
-            content: a.content,
-            contentType: a.contentType,
-            ...(a.cid ? { cid: a.cid, contentDisposition: 'inline' as const } : {}),
-          }))
-        : undefined,
-    });
-    return { ok: true };
-  } catch (err: any) {
-    console.error('[MAIL ERROR]', err);
-    return { ok: false, reason: 'send_failed', error: err?.message || String(err) };
+  const message = {
+    from: `"${process.env.SMTP_FROM_NAME || 'eOrbitor Pulse'}" <${process.env.SMTP_FROM_EMAIL || 'crm@eorbitor.local'}>`,
+    to: Array.isArray(opts.to) ? opts.to.join(', ') : opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    attachments: attachments.length
+      ? attachments.map(a => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+          ...(a.cid ? { cid: a.cid, contentDisposition: 'inline' as const } : {}),
+        }))
+      : undefined,
+  };
+
+  // One retry, and only for errors that plausibly resolve on their own — a
+  // dropped connection or a slow handshake, not "this host doesn't exist" or
+  // "the password is wrong," where trying again a second later changes
+  // nothing. Self-hosted deployments are more prone to exactly this kind of
+  // transient failure than a cloud host with settled routing: NAT/proxy
+  // hiccups on the way out, a security appliance dropping the first
+  // handshake, etc.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await transporter.sendMail(message);
+      return { ok: true };
+    } catch (err: any) {
+      const willRetry = attempt === 0 && isTransientMailError(err);
+      console.error(`[MAIL ERROR]${willRetry ? ' (retrying once)' : ''}`, err?.code || '', err?.message || err);
+      if (willRetry) {
+        await new Promise((r) => setTimeout(r, 1200));
+        continue;
+      }
+      return {
+        ok: false,
+        reason: 'send_failed',
+        error: err?.message || String(err),
+        code: err?.code,
+        diagnosis: classifyMailError(err),
+      };
+    }
   }
+  // Unreachable — the loop always returns — but keeps TypeScript satisfied.
+  return { ok: false, reason: 'send_failed', error: 'unknown' };
 }
 
 // ─── Shared transactional layout ────────────────────────────────────────────

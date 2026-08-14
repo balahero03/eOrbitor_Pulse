@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { issueEmailVerification, mayExposeVerifyUrl } from '@/lib/emailVerification';
+import { isAdmin } from '@/lib/roles';
 
 // "Resend verification email" — same token/email plumbing the auto-send in
 // PATCH /api/profile uses, exposed on its own for when the first link
@@ -30,6 +31,9 @@ export const POST = withAuth(async (req: NextRequest, auth: AuthUser) => {
       : "We couldn't send the email — the mail server is unreachable.",
     emailSent: delivery.ok,
     mailProblem: delivery.ok ? undefined : delivery.reason,
+    // See the matching note in PATCH /api/profile — admin-only, since it can
+    // name internal infrastructure.
+    mailDiagnosis: !delivery.ok && isAdmin(auth.role) ? delivery.diagnosis : undefined,
     verifyUrl: !delivery.ok && mayExposeVerifyUrl() ? verifyUrl : undefined,
   });
 });
