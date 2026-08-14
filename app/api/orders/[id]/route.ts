@@ -78,7 +78,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!(await inScope(user, existing.deal?.assignedToId))) throw new ForbiddenError();
 
   const body = await req.json();
-  const { status, paymentStatus, totalAmount, deliveryDate, poNumber, poDate, invoiceNumber, invoiceFile, paymentMode, paymentRemarks, paymentProofUrl } = body;
+  const { status, paymentStatus, totalAmount, deliveryDate, poNumber, poDate, invoiceNumber, invoiceFile } = body;
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
 
@@ -146,9 +146,14 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
   if (poNumber !== undefined) updateData.poNumber = poNumber || null;
   if (poDate !== undefined) updateData.poDate = poDate ? new Date(poDate) : null;
-  if (paymentMode !== undefined) updateData.paymentMode = paymentMode || null;
-  if (paymentRemarks !== undefined) updateData.paymentRemarks = paymentRemarks || null;
-  if (paymentProofUrl !== undefined) updateData.paymentProofUrl = paymentProofUrl || null;
+  // paymentMode / paymentRemarks / paymentProofUrl are deliberately not accepted
+  // here — the same reasoning as amountPaid above. They are the attributes of a
+  // *single* payment, and each one now lives on its OrderPayment row, so
+  // setting them on the order let it advertise a mode or a receipt that none of
+  // its actual payments agreed with. paymentProofUrl additionally took a base64
+  // data URL, which is how ~544 KB of receipt ended up inside a Postgres row
+  // before proofs were moved to disk. Payment details go through
+  // POST /api/orders/[id]/payments.
 
   // Must mirror the GET's shape. The detail page does `setOrder(updated)` with
   // whatever this returns, so an order without its `customer` relation replaces
