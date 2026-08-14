@@ -228,7 +228,7 @@ export default function FollowUpsPage() {
       />
 
       {/* Quick filter chips */}
-      <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap">
+      <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 whitespace-nowrap scrollbar-none">
         {[
           { key: '', label: 'All' },
           { key: 'today', label: 'Today' },
@@ -237,20 +237,20 @@ export default function FollowUpsPage() {
           { key: 'overdue', label: 'Overdue' },
         ].map(q => (
           <button key={q.key} onClick={() => applyQuick(q.key)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${quickFilter === q.key
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ease-out ${quickFilter === q.key
               ? q.key === 'overdue'
-                ? 'bg-red-600 text-white border-red-600'
-                : 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+                ? 'bg-red-600 text-white border-red-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-red-400/30'
+                : 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
               }`}>
             {q.label}
             {q.key === 'today' && tabCounts.today > 0 && (
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${quickFilter === 'today' ? 'bg-white text-blue-700' : 'bg-blue-100 text-blue-700'}`}>
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full transition-colors ${quickFilter === 'today' ? 'bg-white text-blue-700 font-bold' : 'bg-blue-100 text-blue-700'}`}>
                 {tabCounts.today}
               </span>
             )}
             {q.key === 'overdue' && tabCounts.overdue > 0 && (
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${quickFilter === 'overdue' ? 'bg-white text-red-600' : 'bg-red-100 text-red-700'}`}>
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full transition-colors ${quickFilter === 'overdue' ? 'bg-white text-red-600 font-bold' : 'bg-red-100 text-red-700'}`}>
                 {tabCounts.overdue}
               </span>
             )}

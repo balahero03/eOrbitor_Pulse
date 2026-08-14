@@ -186,10 +186,10 @@ export default function TasksPage() {
       />
 
       {showMyTasksTab && (
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-full sm:w-fit">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-full sm:w-fit mb-4">
           <button
             onClick={() => { setMyTasksOnly(false); setPage(1); }}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`tab-button flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ease-out ${
               !myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -197,7 +197,7 @@ export default function TasksPage() {
           </button>
           <button
             onClick={() => { setMyTasksOnly(true); setPage(1); }}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`tab-button flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ease-out ${
               myTasksOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -205,6 +205,33 @@ export default function TasksPage() {
           </button>
         </div>
       )}
+
+      {/* Quick Status Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+        {[
+          { value: '', label: 'All Statuses' },
+          { value: 'TODO', label: 'To Do' },
+          { value: 'IN_PROGRESS', label: 'In Progress' },
+          { value: 'COMPLETED', label: 'Completed' },
+          { value: 'CANCELLED', label: 'Cancelled' },
+        ].map(s => (
+          <button
+            key={s.value}
+            onClick={() => {
+              const next = applied.status === s.value ? '' : s.value;
+              setFilters(f => ({ ...f, status: next }));
+              setApplied(f => ({ ...f, status: next }));
+              setPage(1);
+            }}
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${applied.status === s.value
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
+              }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       {/* Filters */}
       <FilterPanel

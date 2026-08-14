@@ -192,6 +192,31 @@ export default function QuotationsPage() {
             + New Quotation
           </Link>
         </div>
+      {/* Quick Status Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
+        {[
+          { value: '', label: 'All Quotations' },
+          { value: 'DRAFT', label: 'Draft' },
+          { value: 'SENT', label: 'Sent' },
+          { value: 'ACCEPTED', label: 'Accepted' },
+          { value: 'REJECTED', label: 'Rejected' },
+          { value: 'EXPIRED', label: 'Expired' },
+        ].map(s => (
+          <button
+            key={s.value}
+            onClick={() => {
+              const next = status === s.value ? '' : s.value;
+              setStatus(next);
+              setPage(1);
+            }}
+            className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${status === s.value
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-offset-1 ring-blue-400/30'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
+              }`}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
