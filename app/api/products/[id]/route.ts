@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { withAuth } from '@/lib/middleware/auth';
+import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { ForbiddenError } from '@/lib/errors';
+
+// Creating a product is already admin-only (see ../route.ts). Editing and
+// deactivating were left open to any signed-in user, so a field rep could
+// silently reprice or retire an item from the shared catalogue — and every
+// quotation drawn from it afterwards would carry the change.
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 
 export const GET = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
@@ -23,7 +30,10 @@ export const GET = withAuth(async (_req: NextRequest, _user, { params }: { param
   return NextResponse.json(product);
 });
 
-export const PATCH = withAuth(async (req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
+export const PATCH = withAuth(async (req: NextRequest, user: AuthUser, { params }: { params: Promise<{ id: string }> }) => {
+  if (!ADMIN_ROLES.includes(user.role)) {
+    throw new ForbiddenError('Only admins can edit products');
+  }
   const { id } = await params;
   const body = await req.json();
   const { name, category, oemName, description, basePrice, tax, isActive, attributes } = body;
@@ -53,7 +63,10 @@ export const PATCH = withAuth(async (req: NextRequest, _user, { params }: { para
   return NextResponse.json(product);
 });
 
-export const DELETE = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withAuth(async (_req: NextRequest, user: AuthUser, { params }: { params: Promise<{ id: string }> }) => {
+  if (!ADMIN_ROLES.includes(user.role)) {
+    throw new ForbiddenError('Only admins can deactivate products');
+  }
   const { id } = await params;
   await prisma.product.update({
     where: { id },
