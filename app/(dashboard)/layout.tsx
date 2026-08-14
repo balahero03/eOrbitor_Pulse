@@ -1122,7 +1122,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           {[
             { label: 'Home', href: '/dashboard', icon: HomeIcon },
             { label: 'Leads', href: '/leads', icon: FunnelIcon },
-            { label: 'Quotes', href: '/quotations', icon: PencilSquareIcon },
+            { label: 'Quotes', href: '/quotations', icon: DocumentTextIcon },
             { label: 'Orders', href: '/orders', icon: ShoppingBagIcon },
             { label: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
           ].map((item) => {

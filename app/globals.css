@@ -47,15 +47,30 @@ body {
   @apply bg-white border border-gray-200 rounded-lg shadow-sm transition-all duration-200 ease-out hover:shadow-md;
 }
 
-/* Input styles */
+/* Input styles with mobile zoom prevention (font-size 16px on mobile prevents iOS Safari auto-zoom) */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
 input[type="tel"],
+input[type="number"],
 select,
 textarea {
-  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out;
+  @apply w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out;
+}
+
+/* Responsive Table Touch Scroll Container */
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.7) transparent;
+}
+
+/* Touch-friendly active states for mobile buttons */
+@media (max-width: 639px) {
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* Hide native Edge/IE/Safari password reveal button & prevent autofill icon collisions */
