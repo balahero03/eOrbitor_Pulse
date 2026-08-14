@@ -405,8 +405,11 @@ export default function OrderDetailPage() {
   if (loading) return <InlineLoader message="Loading order…" />;
   if (!order) return <div className="p-6 text-center text-gray-500">Order not found</div>;
 
-  const total = parseFloat(order.totalAmount);
-  const paid = parseFloat(order.amountPaid);
+  // toFiniteNumber, not parseFloat: an order whose value was never set holds
+  // null/'' and parseFloat gives NaN, which then propagates into the balance,
+  // the progress bar width ("width: NaN%") and the label ("NaN% paid").
+  const total = toFiniteNumber(order.totalAmount);
+  const paid = toFiniteNumber(order.amountPaid);
   const balance = total - paid;
   // Balance implied by whatever is currently typed in the Edit modal, which is
   // not the same as the saved order's balance while the value is being edited.
@@ -424,7 +427,9 @@ export default function OrderDetailPage() {
     editData.status !== order.status ||
     !!invoiceUpload
   );
-  const paidPct = Math.min((paid / total) * 100, 100);
+  // Guarded: 0/0 is NaN, which CSS rejects outright and toFixed renders as
+  // the literal string "NaN".
+  const paidPct = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
 
   return (
     <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
@@ -618,12 +623,34 @@ export default function OrderDetailPage() {
             </div>
 
             {payments.length === 0 ? (
+              /* Always end on an action or an explanation. Previously a
+                 zero-value order showed only "No payments recorded yet" with
+                 no button (the header one is gated on balance > 0) and no
+                 reason given — a dead end, with nothing saying the order
+                 value had to be set first. */
               <div className="text-center py-8">
                 <p className="text-sm text-gray-500">No payments recorded yet</p>
-                {balance > 0 && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    {fmt(balance)} outstanding on this order.
-                  </p>
+                {total <= 0 ? (
+                  <>
+                    <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                      This order has no value yet. Set the total before recording a payment —
+                      a payment cannot exceed the order value.
+                    </p>
+                    <button onClick={openEdit} className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'mt-3' })}>
+                      Set order value
+                    </button>
+                  </>
+                ) : balance > 0 ? (
+                  <>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {fmt(balance)} outstanding on this order.
+                    </p>
+                    <button onClick={openPayment} className={buttonClasses({ size: 'sm', className: 'mt-3' })}>
+                      + Record Payment
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">This order is fully paid.</p>
                 )}
               </div>
             ) : (
