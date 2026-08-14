@@ -192,6 +192,8 @@ export default function OrdersPage() {
           </Link>{' '}
           to see WON leads ready for order creation.
         </p>
+      </div>
+
       {/* Quick Status Filter Pills */}
       <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         {[

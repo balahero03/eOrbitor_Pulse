@@ -440,6 +440,8 @@ export default function ProductsPage() {
             + Add Product
           </button>
         )}
+      </div>
+
       {/* Category quick-filter chips */}
       {categories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">

@@ -192,6 +192,8 @@ export default function QuotationsPage() {
             + New Quotation
           </Link>
         </div>
+      </div>
+
       {/* Quick Status Filter Pills */}
       <div className="flex gap-2 overflow-x-auto pb-2.5 pt-0.5 whitespace-nowrap mb-4 scrollbar-none max-w-full">
         {[
