@@ -55,3 +55,4 @@ deployserverlog*.md
 *.tar.gz
 *.zip
 .parser-build/
+.audit-build/
