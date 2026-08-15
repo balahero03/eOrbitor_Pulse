@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { InlineLoader } from '@/components/BrandedLoader';
 import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
@@ -295,7 +296,7 @@ export default function TasksPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading tasks...</div>
+          <InlineLoader message="Loading tasks…" />
         ) : tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No tasks found.</div>
         ) : (

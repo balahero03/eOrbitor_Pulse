@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { InlineLoader } from '@/components/BrandedLoader';
 import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { toFiniteNumber } from '@/lib/money';
 import Link from 'next/link';
@@ -272,11 +273,7 @@ export default function CustomerDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">Loading customer details...</p>
-      </div>
-    );
+    return <InlineLoader message="Loading customer…" />;
   }
 
   if (!lead) {

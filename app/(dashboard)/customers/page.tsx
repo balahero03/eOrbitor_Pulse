@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { InlineLoader } from '@/components/BrandedLoader';
 import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
@@ -229,7 +230,7 @@ export default function CustomersPage() {
       {/* Customers Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-6 text-center text-gray-500">Loading customers...</div>
+          <InlineLoader message="Loading customers…" />
         ) : customers.filter(c => !categoryFilter || c.source === categoryFilter).length === 0 ? (
           <div className="p-6 text-center text-gray-500">No customers found</div>
         ) : (

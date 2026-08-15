@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { InlineLoader } from '@/components/BrandedLoader';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -194,7 +195,7 @@ export default function TaskDetailPage() {
     return new Date(task.dueDate) < new Date();
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500 font-medium">Loading task...</div>;
+  if (loading) return <InlineLoader message="Loading task…" />;
   if (!task) return <div className="p-8 text-center text-gray-500 font-medium">Task not found</div>;
 
   const isAssignee = !!currentUser && currentUser.id === task.assignedTo?.id;

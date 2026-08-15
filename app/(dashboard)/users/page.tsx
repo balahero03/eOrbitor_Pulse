@@ -1405,7 +1405,7 @@ export default function UsersPage() {
 
               <div className="overflow-y-auto flex-1 p-6 space-y-5">
                 {rs.loading ? (
-                  <div className="py-10 text-center text-gray-400 text-sm">Loading ownership summary…</div>
+                  <InlineLoader size="sm" message="Loading ownership summary…" />
                 ) : rs.step === 'preview' ? (
                   <>
                     {/* Impact banner */}
@@ -1832,7 +1832,7 @@ export default function UsersPage() {
             </div>
 
             <div className="overflow-y-auto p-6 space-y-5">
-              {recordsLoading && <p className="text-sm text-gray-400">Loading records…</p>}
+              {recordsLoading && <InlineLoader size="sm" message="Loading records…" />}
 
               {!recordsLoading && records && (
                 <>

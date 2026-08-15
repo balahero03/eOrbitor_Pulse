@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { InlineLoader } from '@/components/BrandedLoader';
 import { istToday, shiftIstDate } from '@/lib/istDate';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -291,11 +292,7 @@ export default function ReportsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <h3 className="text-sm font-semibold text-gray-800 mb-4">Recent Reports</h3>
               {loadingInit ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-14 bg-gray-100 rounded-lg animate-pulse" />
-                  ))}
-                </div>
+                <InlineLoader size="sm" />
               ) : recentReports.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-6">No reports yet</p>
               ) : (
