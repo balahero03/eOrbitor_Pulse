@@ -119,7 +119,7 @@ PostgreSQL. Conventions used throughout:
 | **FollowUp** | Call/email/meeting/whatsapp/site-visit record. `scheduledDate`, `actualDate`, `outcome`, `reminderSentAt`. Belongs to Deal (cascade), optional Lead. |
 | **Task** | `status`, `priority`, `dueDate`, `assignedToId` vs `createdById`, optional `relatedDealId`/`relatedFollowUpId`, `tags[]`. |
 | **Quotation** | Unique `quotationNumber`, `status`, `items` JSON, money fields (`subtotal`/`taxAmount`/`discountAmount`/`totalAmount`), `revision`, approval (`approvedById`/`approvedAt`), `sentAt`, `pdfUrl`. |
-| **Order** | Unique `orderNumber`, `poNumber`/`poDate`, `status` (OrderStatus), `paymentStatus`, `totalAmount`/`amountPaid`, `paymentMode`/`paymentProofUrl`, `deliveryDate`/`deliveredAt`, `invoiceUrl`. |
+| **Order** | Unique `orderNumber`, `poNumber`/`poDate`, `status` (OrderStatus), `paymentStatus`, `totalAmount`/`amountPaid`, `paymentTerms`/`paymentDueDate` (due date derived from terms; "overdue" is derived, never stored), `deliveryDate`/`deliveredAt`, `invoiceNumber`/`invoiceFile`. Value, terms and dates are carried from the lead's `closureDetails.closure` when a lead is won. |
 | **Product** | Catalog. Unique `sku`, `oemName`, `basePrice`, `tax`, `attributes` JSON. Has one `Inventory`, many `VendorProduct`. |
 | **Inventory** | 1:1 with Product. `quantity`, `reorderLevel`, `warehouseLocation`, restock fields. |
 | **Vendor** | Unique `gstNumber`, `rating`, `paymentTerms`. Many `VendorProduct`. |
@@ -146,7 +146,7 @@ PostgreSQL. Conventions used throughout:
 - **QuotationStatus:** `DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED`
 - **OrderStatus:** `PENDING, CONFIRMED, FULFILLED, INVOICED, COMPLETED` · **PaymentStatus:** `PENDING, PARTIAL, COMPLETED`
 - **ActivityAction:** `CREATE, UPDATE, DELETE, VIEW, EXPORT, SEND_EMAIL`
-- **NotificationType:** `FOLLOW_UP_REMINDER, TASK_DUE, DEAL_UPDATED, LEAD_ASSIGNED, QUOTATION_APPROVED, ORDER_CONFIRMED, PAYMENT_RECEIVED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, TASK_ASSIGNED, USER_INACTIVE`
+- **NotificationType:** `FOLLOW_UP_REMINDER, TASK_DUE, DEAL_UPDATED, LEAD_ASSIGNED, QUOTATION_APPROVED, ORDER_CONFIRMED, PAYMENT_RECEIVED, PAYMENT_DUE, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, TASK_ASSIGNED, USER_INACTIVE`
 - **ApprovalType:** `LEAD_DELETE, LEAD_REOPEN, ORDER_DELETE, CUSTOMER_DELETE` · **ApprovalStatus:** `PENDING, APPROVED, REJECTED`
 
 ---
@@ -160,7 +160,11 @@ PostgreSQL. Conventions used throughout:
 | [lib/roles.ts](lib/roles.ts) | `ADMIN_ROLES` = [SUPER_ADMIN, ADMIN]; `MANAGER_ROLES` = [+SALES_MANAGER]; `isAdmin()`, `isManagerOrAbove()`. |
 | [lib/errors.ts](lib/errors.ts) | Typed errors with `.status`: `ValidationError`(400), `NotFoundError`(404), `ForbiddenError`(403), `UnauthorizedError`(401). Throw inside a `withAuth` handler to return that HTTP code. |
 | [lib/notify.ts](lib/notify.ts) | `createNotification(userId,type,title,msg,...)` and `notifyAdminsAndManagers(...)` (fan-out to active admins/managers, optional exclude). Failures are swallowed + logged. |
-| [lib/mail.ts](lib/mail.ts) | `sendMail({to,subject,html,attachments})` (nodemailer; console no-op without SMTP). HTML builders `buildWonEmail()` / `buildLostEmail()` for lead-closure notifications. |
+| [lib/paymentTerms.ts](lib/paymentTerms.ts) | Reads a day count out of free-text credit terms ("Net 30", "COD") and derives an order's `paymentDueDate`; `daysOverdue()`. Deliberately returns null rather than guessing — a wrong due date raises false reminders. |
+| [lib/istDate.ts](lib/istDate.ts) | IST calendar dates (`istToday`, `istDateString`, `shiftIstDate`, `daysBetweenIstDates`). Use these, never `toISOString().slice(0,10)`, which is UTC and runs a day behind until 05:30 IST. |
+| [lib/pagination.ts](lib/pagination.ts) | `parsePagination()` / `paginationMeta()` for list routes — clamps `page`/`limit` instead of letting a bad value 500. |
+| [lib/cronAuth.ts](lib/cronAuth.ts) | `checkCronAuth()` — shared `CRON_SECRET` gate for `/api/cron/*`. |
+| [lib/mail.ts](lib/mail.ts) | `sendMail()` / `sendMailAfterResponse()` (nodemailer; console no-op without SMTP). **Email is limited to password reset and account recovery** — business events go through `lib/notify.ts` instead. See the policy note at the top of the file. |
 | [lib/logger.ts](lib/logger.ts) | File logger → `logs/chat_YYYY-MM-DD.txt`. `logPrompt/Response/Data/Error/System`. |
 | [lib/reports/calculator.ts](lib/reports/calculator.ts) | `reportCalculator` singleton (`ReportCalculator` class, ~535 LOC) — computes personal / team / pipeline / appraisal analytics consumed by the reports routes. |
 | [lib/eorbitor-constants.ts](lib/eorbitor-constants.ts) | Domain constants: `SOLUTION_AREAS` (Compute, Cloud, Networking, Cyber Security, Data Centre, Managed Services, VC, Specialization Zone, Accessories, Other) and `OEM_LIST` (~48 vendors). |
@@ -216,7 +220,9 @@ All routes (except `auth/login`) run through `withAuth`. Method list per route:
 
 **Activity logs** — `GET,POST /api/activity-logs` — the audit-trail read/write endpoint.
 
-**Cron** — `POST /api/cron/inactive-users` — flags inactive users, notifies admins/managers (called by an external scheduler).
+**Cron** (external scheduler, `CRON_SECRET` via `x-cron-secret` — see [lib/cronAuth.ts](lib/cronAuth.ts) and DEPLOYMENT.md §6)
+- `POST /api/cron/inactive-users` — flags inactive users, notifies admins/managers.
+- `POST /api/cron/payment-reminders` — orders due within 3 days or overdue; notifies the deal owner, digests to admins/managers.
 
 **Health** — `app/api/health` — liveness probe.
 

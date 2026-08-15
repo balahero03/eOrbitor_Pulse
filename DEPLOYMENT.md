@@ -156,7 +156,33 @@ still referencing the dropped `SUPPORT`/`VIEWER` roles):
 
 ---
 
-## 6. Known gaps / things to watch
+## 6. Scheduled jobs
+
+Nothing in the container runs these — they are HTTP endpoints an external
+scheduler has to call, guarded by `CRON_SECRET` from `.env.local`. If no
+scheduler is configured, they simply never run and nothing reports that.
+
+| Endpoint | Suggested cadence | What it does |
+|---|---|---|
+| `POST /api/cron/inactive-users` | daily | Flags users with no login for 48h, notifies admins/managers |
+| `POST /api/cron/payment-reminders` | daily, morning | Notifies the deal owner about orders due within 3 days or overdue; sends admins/managers one overdue digest |
+
+```bash
+curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET" \
+  https://<host>/api/cron/payment-reminders
+```
+
+Both are idempotent within a day — `payment-reminders` skips any order it
+has already raised today, so a retry or a duplicated crontab entry will not
+double-notify. Overdue orders are re-raised weekly rather than daily, so a
+long-outstanding order stays visible without becoming noise.
+
+`payment-reminders` only sees orders that have a `paymentDueDate`. That is
+derived from the payment terms captured at lead closure, so an order closed
+without readable terms ("as agreed", a staged 50/50) will never appear until
+someone sets a due date on it by hand in Edit Order.
+
+## 7. Known gaps / things to watch
 
 - `app/api/health` has no `route.ts` — hitting it 404s. Harmless (nothing
   currently depends on it), but worth adding if an uptime monitor ever needs
