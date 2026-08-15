@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
+import { istToday } from '@/lib/istDate';
 import TimeField from '@/components/TimeField';
 import PageContainer from '@/components/PageContainer';
 import PageHeader from '@/components/PageHeader';
@@ -564,6 +565,11 @@ export default function AttendancePage() {
   useEffect(() => { fetchAttendance(); }, [currentMonth, selectedUserId]);
 
   // Calendar helpers
+  // The calendar's own cells are built from IST calendar dates (toDateStr
+  // reads the displayed month directly), so "today" has to be measured the
+  // same way. Comparing against the UTC date marked the wrong cell as today
+  // and left the real one unclickable as "future" until 05:30 IST.
+  const todayIst = istToday();
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
   const monthName = currentMonth.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
@@ -663,8 +669,8 @@ export default function AttendancePage() {
                 const present = isDayPresent(day);
                 const dayRecs = recordsForDay(day);
                 const isSelected = selectedDay === dateStr;
-                const isToday = dateStr === new Date().toISOString().slice(0, 10);
-                const isFuture = dateStr > new Date().toISOString().slice(0, 10);
+                const isToday = dateStr === todayIst;
+                const isFuture = dateStr > todayIst;
 
                 return (
                   <button

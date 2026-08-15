@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { istToday } from '@/lib/istDate';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 
@@ -12,7 +13,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const { searchParams } = new URL(req.url);
   const filterUserId = searchParams.get('userId');
-  const dateParam = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+  const dateParam = searchParams.get('date') || istToday();
   const mode = searchParams.get('mode');
 
   let startDate: string;

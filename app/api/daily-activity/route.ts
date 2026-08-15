@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
+import { istToday, daysBetweenIstDates } from '@/lib/istDate';
 
 const EDIT_WINDOW_DAYS = 2;
 
 function isWithinEditWindow(dateStr: string): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const actDate = new Date(dateStr + 'T00:00:00');
-  if (Number.isNaN(actDate.getTime())) return false;
-  const diffDays = Math.floor((today.getTime() - actDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Both sides are now IST calendar dates. This used to measure from the
+  // *server's* local midnight while the future-date guard below measured from
+  // UTC, so the two checks in this same file could disagree about what day it
+  // was — one reporting a date editable that the other rejected as future.
+  const diffDays = daysBetweenIstDates(dateStr, istToday());
+  if (Number.isNaN(diffDays)) return false;
   // A future date yields a negative diff, which used to satisfy `<= 2` and so
   // reported itself as editable — the UI then offered "+ Add Activity" for a
   // day that hasn't happened, and POST rejected the save with "Cannot log
@@ -21,7 +23,7 @@ function isWithinEditWindow(dateStr: string): boolean {
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId') || user.id;
-  const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const dateStr = searchParams.get('date') || istToday();
 
   if (userId !== user.id) {
     if (user.role === 'ON_FIELD_TEAM') throw new ForbiddenError();
@@ -61,7 +63,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   if (!dateStr) return NextResponse.json({ error: 'Date is required' }, { status: 400 });
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = istToday();
   if (dateStr > today) return NextResponse.json({ error: 'Cannot log future dates' }, { status: 400 });
 
   if (markExitNow && dateStr !== today) {

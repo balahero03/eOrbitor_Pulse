@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { istToday } from '@/lib/istDate';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
 import { createNotification, notifyAdminsAndManagers } from '@/lib/notify';
@@ -10,7 +11,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!date) throw new ValidationError('Date is required');
   if (!reason?.trim()) throw new ValidationError('Reason is required');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = istToday();
   if (date > today) throw new ValidationError('Cannot request unlock for future dates');
 
   // Prevent duplicate pending requests

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { istToday } from '@/lib/istDate';
 import { useMountTransition } from '@/lib/hooks/useMountTransition';
 import { useSearchParams } from 'next/navigation';
 import TimeField from '@/components/TimeField';
@@ -222,7 +223,9 @@ function DailyActivityContent() {
   const toast = useToast();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
-  const today = new Date().toISOString().slice(0, 10);
+  // IST, not UTC — the server keys attendance on the IST calendar date, and
+  // toISOString() disagrees with it between midnight and 05:30.
+  const today = istToday();
   const [selectedDate, setSelectedDate] = useState(() => {
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam;
     return today;

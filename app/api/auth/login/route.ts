@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, clearRateLimit, clientIp } from '@/lib/rateLimit';
 import { prisma } from '@/lib/prisma';
+import { istToday, istDateString } from '@/lib/istDate';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/jwt';
 
+// The working day in IST, not UTC. `toISOString()` gave the UTC date, so a
+// login between midnight and 05:30 IST stamped the employee's attendance and
+// TimeLog under the previous calendar day.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return istToday();
 }
 
 // Generous enough that a person fumbling their password is unaffected, tight
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (openLog) {
-      const openDate = openLog.loginTime.toISOString().slice(0, 10);
+      const openDate = istDateString(openLog.loginTime);
       if (openDate !== dateStr) {
         // Close the stale session so it doesn't stay open forever. This is
         // TimeLog cleanup only — it must NOT touch DailyActivity.logoutTime,

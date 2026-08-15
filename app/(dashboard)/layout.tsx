@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { istDateString } from '@/lib/istDate';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -484,7 +485,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           const [, y, m, d] = dateMatch;
           targetDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
         } else if (n.createdAt) {
-          targetDate = new Date(n.createdAt).toISOString().slice(0, 10);
+          targetDate = istDateString(new Date(n.createdAt));
         }
         const destination = targetDate ? `/daily-activity?date=${targetDate}` : '/daily-activity';
         return { destination, highlight: null };
