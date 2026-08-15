@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { describeNetworkError } from '@/lib/networkError';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -109,8 +110,8 @@ export default function ForgotPasswordPage() {
       setStage('code');
       setCooldown(data.resendCooldownSeconds ?? 60);
       setNotice(data.message || '');
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      setError(describeNetworkError(err));
     } finally {
       setLoading(false);
     }
@@ -137,8 +138,8 @@ export default function ForgotPasswordPage() {
       }
       setTicket(data.ticket);
       setStage('password');
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      setError(describeNetworkError(err));
     } finally {
       setLoading(false);
     }
@@ -165,8 +166,8 @@ export default function ForgotPasswordPage() {
       // token too so the app can't briefly act as if still signed in.
       localStorage.removeItem('token');
       setStage('done');
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      setError(describeNetworkError(err));
     } finally {
       setLoading(false);
     }

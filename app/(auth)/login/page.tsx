@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { describeNetworkError } from '@/lib/networkError';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -46,8 +47,11 @@ export default function LoginPage() {
       // a flicker on a fast connection.
       setTimeout(() => router.push('/dashboard'), 650);
     } catch (err) {
-      setError('An error occurred. Please try again.');
-      console.error(err);
+      // No console.error here. The failure is fully handled and reported on
+      // screen, and logging it only surfaced Next's dev overlay on top of the
+      // form — "Console TypeError: Load failed" covering the very message
+      // telling the user what to do about it.
+      setError(describeNetworkError(err));
       setLoading(false);
     }
   };
