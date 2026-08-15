@@ -116,6 +116,31 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Routes that are real destinations but deliberately absent from the sidebar.
+const OFF_NAV_TITLES: Record<string, string> = {
+  '/profile': 'Profile',
+};
+
+/**
+ * Which section of the app a path belongs to.
+ *
+ * Uses the same match the sidebar uses to decide which item is active, so the
+ * title in the top bar and the highlighted nav row can never disagree. A detail
+ * route resolves to its section — on `/orders/abc123` the bar reads "Orders",
+ * which is the question being asked ("where am I?"), not the record's name,
+ * which the page itself already shows.
+ */
+function sectionTitleFor(pathname: string): string {
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))) {
+        return item.label;
+      }
+    }
+  }
+  return OFF_NAV_TITLES[pathname] ?? '';
+}
+
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   SUPER_ADMIN:   { label: 'Super Admin',  color: 'bg-purple-100 text-purple-700' },
   ADMIN:         { label: 'Admin',        color: 'bg-red-100 text-red-700' },
@@ -319,6 +344,42 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const confirm = useConfirm();
+
+  // ── Collapsing page title ──────────────────────────────────────────────────
+  //
+  // The top bar never scrolls, but it carried nothing that said where you were:
+  // once a list scrolled past its own heading card, the only thing on screen
+  // naming the page was gone, and on a phone — where the sidebar is closed —
+  // there was no way to tell an Orders list from a Quotations one without
+  // scrolling back up.
+  //
+  // Handled the way iOS large titles and WhatsApp do it: the section name rises
+  // into the persistent bar exactly as the page's own heading leaves. Showing it
+  // permanently would have been simpler, but it would then sit directly above
+  // an identical heading at rest, which reads as a mistake.
+  const mainRef = useRef<HTMLElement>(null);
+  const [titlePinned, setTitlePinned] = useState(false);
+  const sectionTitle = sectionTitleFor(pathname);
+
+  const handleMainScroll = () => {
+    const el = mainRef.current;
+    if (!el) return;
+    setTitlePinned((prev) => {
+      // Two thresholds, not one. With a single value, a scroll coming to rest
+      // right on it flickers the title in and out on every stray pixel.
+      const next = el.scrollTop > (prev ? 24 : 56);
+      return next === prev ? prev : next;
+    });
+  };
+
+  // `<main>` is the scroll container, not the window, so Next's own
+  // scroll-to-top on navigation does not reach it — without this, moving from a
+  // scrolled Orders list to Leads landed you halfway down the new page.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+    setTitlePinned(false);
+  }, [pathname]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // The <aside> drawer itself stays mounted and slides via `translate-x` with
   // a CSS transition, so closing it already looks fine. Only this backdrop
@@ -869,15 +930,39 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 max-w-full">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
-          <button
-            onClick={handleToggle}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            <Bars3Icon className="w-6 h-6" />
-          </button>
-          <div className="flex items-center gap-3 min-w-0">
+        {/* `z-30` + a shadow that only appears once there is content behind it:
+            at rest the bar should read as part of the page, and only lift off it
+            while it is covering something. */}
+        <header
+          className={`bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-2 flex-shrink-0 relative z-30 transition-shadow duration-200 ${
+            titlePinned ? 'shadow-sm' : ''
+          }`}
+        >
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <button
+              onClick={handleToggle}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors flex-shrink-0"
+              aria-label="Toggle sidebar"
+            >
+              <Bars3Icon className="w-6 h-6" />
+            </button>
+            {/* Always rendered, only revealed — animating opacity and transform
+                rather than mounting it keeps the bar's height fixed, so the
+                page underneath never shifts as the title appears. */}
+            {sectionTitle && (
+              <h2
+                aria-hidden={!titlePinned}
+                className={`text-base font-bold text-gray-900 truncate transition-all duration-200 ease-out ${
+                  titlePinned
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-1.5 pointer-events-none'
+                }`}
+              >
+                {sectionTitle}
+              </h2>
+            )}
+          </div>
+          <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
             {/* Notification bell */}
             <div className="relative" ref={notifRef}>
               <button
@@ -1117,7 +1202,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative pb-20 md:pb-0 max-w-full">
+        <main
+          ref={mainRef}
+          onScroll={handleMainScroll}
+          className="flex-1 overflow-y-auto overflow-x-hidden relative pb-20 md:pb-0 max-w-full"
+        >
           {children}
         </main>
 
