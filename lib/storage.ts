@@ -82,6 +82,76 @@ const MAGIC: Record<string, number[][]> = {
   ppt: OLE2,
 };
 
+/**
+ * The MIME type a stored file is served as, keyed off its extension.
+ *
+ * The extension is the one thing about an upload that has been *verified* —
+ * it is on the allow-list and its magic bytes were checked against it. The
+ * `contentType` the client sent alongside was never checked at all, so it must
+ * not decide how the browser treats the bytes coming back.
+ */
+const CONTENT_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  zip: 'application/zip',
+};
+
+/**
+ * Formats a browser may render in place. Everything else is forced to download,
+ * so an unexpected type can never become a document in this origin.
+ *
+ * PDFs qualify: any script inside one runs in the browser's sandboxed PDF
+ * viewer, not in the page. SVG deliberately does not appear here or on the
+ * upload allow-list — it is an HTML document in all but name.
+ */
+const INLINE_SAFE = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif']);
+
+function extensionOf(storagePath: string): string {
+  return path.extname(storagePath).slice(1).toLowerCase();
+}
+
+/** MIME type for a stored file, derived from its own path — never from input. */
+export function contentTypeForPath(storagePath: string): string {
+  return CONTENT_TYPES[extensionOf(storagePath)] ?? 'application/octet-stream';
+}
+
+/**
+ * Response headers for serving a stored file.
+ *
+ * Centralised because getting it wrong is a stored-XSS bug, and it was
+ * previously spelled out separately in three routes. `preferInline` is a
+ * request, not a guarantee — it is honoured only for the types above.
+ */
+export function fileResponseHeaders(opts: {
+  storagePath: string;
+  filename?: string | null;
+  size: number;
+  preferInline?: boolean;
+}): Record<string, string> {
+  const ext = extensionOf(opts.storagePath);
+  const inline = !!opts.preferInline && INLINE_SAFE.has(ext);
+  // Quotes and CRLF would let a filename break out of the header value.
+  const safeName = String(opts.filename || `download${ext ? '.' + ext : ''}`).replace(/["\r\n]/g, '');
+  return {
+    'Content-Type': contentTypeForPath(opts.storagePath),
+    'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${safeName}"`,
+    'Content-Length': String(opts.size),
+    // Belt and braces: even with an explicit type, stop the browser sniffing
+    // its way to a different one.
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'private, no-store',
+  };
+}
+
 function looksLike(buffer: Buffer, ext: string): boolean {
   const signatures = MAGIC[ext];
   // No signature on record (a plain-text format, say) — the extension
@@ -145,7 +215,11 @@ export function saveBase64Files(
     stored.push({
       id,
       filename: f.filename,
-      contentType: f.contentType || 'application/octet-stream',
+      // Derived from the verified extension, not copied from `f.contentType`.
+      // The client's value was stored and later echoed back as the response
+      // Content-Type, so an upload could choose how the browser would treat
+      // its own bytes on the way out.
+      contentType: contentTypeForPath(relPath),
       size: buffer.length,
       storagePath: relPath,
       uploadedAt: new Date().toISOString(),

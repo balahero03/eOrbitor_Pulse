@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
-import { readStoredFile } from '@/lib/storage';
+import { readStoredFile, fileResponseHeaders } from '@/lib/storage';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -52,17 +52,13 @@ export async function GET(
       return NextResponse.json({ message: 'File is no longer available on the server' }, { status: 404 });
     }
 
-    // Sanitize filename for the header
-    const safeName = String(file.filename || 'download').replace(/["\r\n]/g, '');
-
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
-      headers: {
-        'Content-Type': file.contentType || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${safeName}"`,
-        'Content-Length': String(buffer.length),
-        'Cache-Control': 'private, no-store',
-      },
+      headers: fileResponseHeaders({
+        storagePath: file.storagePath,
+        filename: file.filename,
+        size: buffer.length,
+      }),
     });
   })(req);
 }

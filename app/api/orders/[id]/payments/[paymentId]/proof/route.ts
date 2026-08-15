@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
-import { readStoredFile } from '@/lib/storage';
+import { readStoredFile, fileResponseHeaders } from '@/lib/storage';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -60,15 +60,14 @@ export async function GET(
       );
     }
 
-    const safeName = String(proof.filename || 'receipt').replace(/["\r\n]/g, '');
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
-      headers: {
-        'Content-Type': proof.contentType || 'application/octet-stream',
-        'Content-Disposition': `inline; filename="${safeName}"`,
-        'Content-Length': String(buffer.length),
-        'Cache-Control': 'private, no-store',
-      },
+      headers: fileResponseHeaders({
+        storagePath: proof.storagePath,
+        filename: proof.filename,
+        size: buffer.length,
+        preferInline: true,
+      }),
     });
   })(req);
 }
