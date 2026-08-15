@@ -350,6 +350,16 @@ model Order {
   /// as OrderPayment.proof, so the PDF never sits inside Postgres.
   invoiceFile     Json?
   paymentStatus   PaymentStatus @default(PENDING)
+  /// Credit terms as agreed at closure — free text ("Net 30", "50% advance"),
+  /// because that is how the sales team writes them. lib/paymentTerms.ts reads
+  /// a day count out of it where it can; where it can't, the text still stands
+  /// as the record of what was agreed.
+  paymentTerms    String?
+  /// When the balance is due. Derived from paymentTerms against the PO date,
+  /// or set by hand — an explicit date is never recomputed over. Nullable
+  /// because orders predating this, and orders on no agreed terms, have none.
+  /// "Overdue" is derived from this and the balance, never stored.
+  paymentDueDate  DateTime?
   totalAmount     Decimal
   amountPaid      Decimal       @default(0)
   paymentMode     String?
@@ -366,6 +376,7 @@ model Order {
   @@index([status])
   @@index([customerId])
   @@index([paymentStatus])
+  @@index([paymentDueDate])
 }
 
 /// One recorded receipt of money against an order.
@@ -737,6 +748,7 @@ enum NotificationType {
   QUOTATION_APPROVED
   ORDER_CONFIRMED
   PAYMENT_RECEIVED
+  PAYMENT_DUE
   APPROVAL_REQUESTED
   APPROVAL_APPROVED
   APPROVAL_REJECTED

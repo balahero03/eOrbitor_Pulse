@@ -4,6 +4,7 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 import { saveBase64Files } from '@/lib/storage';
 import { parseMoneyInput } from '@/lib/money';
+import { derivePaymentDueDate, endOfIstDay } from '@/lib/paymentTerms';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -128,7 +129,8 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!(await inScope(user, existing.deal?.assignedToId))) throw new ForbiddenError();
 
   const body = await req.json();
-  const { status, paymentStatus, totalAmount, deliveryDate, poNumber, poDate, invoiceNumber, invoiceFile } = body;
+  const { status, paymentStatus, totalAmount, deliveryDate, poNumber, poDate, invoiceNumber, invoiceFile,
+          paymentTerms, paymentDueDate } = body;
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
 
@@ -196,6 +198,28 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
   if (poNumber !== undefined) updateData.poNumber = poNumber || null;
   if (poDate !== undefined) updateData.poDate = poDate ? new Date(poDate) : null;
+
+  // ── Credit terms and the due date ──────────────────────────────────────────
+  //
+  // An explicitly supplied date always wins and is never recomputed over: once
+  // someone has typed a date, silently moving it because the terms text also
+  // changed would overwrite a deliberate decision with a guess.
+  //
+  // Otherwise the date is re-derived whenever the terms or the PO date they are
+  // measured from change — which is what stops the due date going stale the
+  // moment its inputs move.
+  if (paymentTerms !== undefined) updateData.paymentTerms = paymentTerms?.trim() || null;
+
+  if (paymentDueDate !== undefined) {
+    updateData.paymentDueDate = paymentDueDate ? endOfIstDay(String(paymentDueDate).slice(0, 10)) : null;
+  } else if (paymentTerms !== undefined || poDate !== undefined) {
+    const terms = paymentTerms !== undefined ? updateData.paymentTerms : existing.paymentTerms;
+    const anchor = poDate !== undefined ? updateData.poDate : existing.poDate;
+    const derived = derivePaymentDueDate(terms, anchor ?? existing.createdAt);
+    // Only write a derived date when one could actually be read from the terms.
+    // Unrecognised terms must not wipe a date that is already there.
+    if (derived) updateData.paymentDueDate = derived;
+  }
   // paymentMode / paymentRemarks / paymentProofUrl are deliberately not accepted
   // here — the same reasoning as amountPaid above. They are the attributes of a
   // *single* payment, and each one now lives on its OrderPayment row, so

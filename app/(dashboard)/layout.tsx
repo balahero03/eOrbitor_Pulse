@@ -524,8 +524,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return { destination: '/quotations', highlight: null };
     }
 
-    if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED') {
-      return entityId ? resolveEntityDestination('ORDER', entityId) : { destination: '/orders', highlight: null };
+    if (type === 'ORDER_CONFIRMED' || type === 'PAYMENT_RECEIVED' || type === 'PAYMENT_DUE') {
+      // The overdue digest carries no entity id — it is about the book as a
+      // whole — so it lands on the list, filtered to what it was reporting.
+      if (!entityId) return { destination: '/orders?overdue=true', highlight: null };
+      return resolveEntityDestination('ORDER', entityId);
     }
 
     return { destination: '/dashboard', highlight: null };

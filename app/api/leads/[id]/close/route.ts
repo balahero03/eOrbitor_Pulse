@@ -9,6 +9,21 @@ import { ForbiddenError, ValidationError } from '@/lib/errors';
 import { notifyAdminsAndManagers } from '@/lib/notify';
 import { saveBase64Files } from '@/lib/storage';
 import { createWithOrderNumber } from '@/lib/orderNumber';
+import { parseMoneyInput } from '@/lib/money';
+import { derivePaymentDueDate } from '@/lib/paymentTerms';
+
+/**
+ * A date field off the closure form, or null.
+ *
+ * The form sends `''` for a date the user left alone, and `new Date('')` is an
+ * Invalid Date — which Prisma rejects at write time with an error naming a
+ * column the user has never heard of. Anything unparseable becomes null.
+ */
+function toDateOrNull(value: unknown): Date | null {
+  if (!value || typeof value !== 'string') return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export async function POST(
   req: NextRequest,
@@ -183,11 +198,48 @@ export async function POST(
         select: { id: true },
       });
 
+      // ── What the order is worth ──────────────────────────────────────────
+      //
+      // The closure form makes the rep enter a Final Deal Value, Payment Terms
+      // and a Delivery Date before it will submit — and none of it used to
+      // reach the order. The order was built from the quotation, falling back
+      // to `lead.quoteValue`, so a lead with neither produced a ₹0 order and
+      // the rep had to type the same figure a second time into Edit Order
+      // before a single payment could be recorded against it.
+      //
+      // finalDealValue now ranks *above* the quotation. The form pre-fills it
+      // from the selected quote and says "override only if the final figure
+      // differs", so in the ordinary case they are the same number — and where
+      // they differ, the one the human confirmed last is the right one. The
+      // quotation is still linked either way, so the order page can always
+      // show where its figure came from.
+      const closureBlock = (closureDetails as any)?.closure ?? {};
+      const finalDealValue = parseMoneyInput(closureBlock.finalDealValue);
       const leadValue = lead.quoteValue ? Number(lead.quoteValue) : 0;
       const quoteValue = accepted ? Number(accepted.totalAmount) : 0;
-      // An accepted quotation total ALWAYS takes priority as the authoritative order value.
-      // Falls back to lead.quoteValue only if no quotation exists.
-      const orderTotal = quoteValue > 0 ? quoteValue : leadValue;
+
+      const orderTotal =
+        Number.isFinite(finalDealValue) && finalDealValue > 0 ? finalDealValue
+        : quoteValue > 0 ? quoteValue
+        : leadValue;
+
+      // Refuse rather than create a ₹0 order. Every downstream action —
+      // recording a payment, computing a balance, chasing what is owed — is
+      // blocked by a zero total, so an order in that state is not a record of
+      // a win, it is a task someone has to come back and finish. The form
+      // already requires the value, so a genuine user cannot reach this.
+      if (!(orderTotal > 0)) {
+        throw new ValidationError(
+          'This lead has no value to carry to the order. Enter the Final Deal Value on the closure form, or link the accepted quotation.'
+        );
+      }
+
+      // The PO date anchors the payment due date, so it matters that it is set.
+      // Contract Signed Date is the closest thing the closure form captures;
+      // before this the field was left null on every auto-created order.
+      const poDateValue = toDateOrNull(closureBlock.contractSignedDate);
+      const deliveryDateValue = toDateOrNull(closureBlock.deliveryDateFinal);
+      const paymentTerms = String(closureBlock.paymentTermsFinal || '').trim() || null;
 
       const createdOrder = await createWithOrderNumber((orderNumber) =>
         prisma.order.create({
@@ -200,6 +252,13 @@ export async function POST(
           quotationId: accepted?.id ?? null,
           dealId: dealForOrder?.id ?? null,
           poNumber: poNumber || null,
+          poDate: poDateValue,
+          deliveryDate: deliveryDateValue,
+          paymentTerms,
+          // Derived from the terms against the PO date. Unrecognised terms
+          // ("as agreed", a staged 50/50) yield null rather than a guess —
+          // see lib/paymentTerms.ts for why a wrong due date is worse than none.
+          paymentDueDate: derivePaymentDueDate(paymentTerms, poDateValue ?? new Date()),
           totalAmount: orderTotal.toString(),
           amountPaid: '0',
           status: 'PENDING',

@@ -12,7 +12,8 @@ type NotifType =
   | 'QUOTATION_APPROVED'
   | 'LEAD_ASSIGNED'
   | 'DEAL_UPDATED'
-  | 'ORDER_CONFIRMED';
+  | 'ORDER_CONFIRMED'
+  | 'PAYMENT_DUE';
 
 export async function createNotification(
   userId: string,

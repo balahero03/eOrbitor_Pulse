@@ -27,6 +27,19 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   if (status) where.status = status;
   if (paymentStatus) where.paymentStatus = paymentStatus;
+
+  // Overdue is derived, never stored: a due date in the past and money still
+  // owed. Storing a flag would mean something had to remember to clear it the
+  // moment a payment landed, and it would be wrong for the rest of the day
+  // whenever nothing ran.
+  //
+  // `paymentStatus in (PENDING, PARTIAL)` stands in for "money still owed"
+  // because it is maintained from the ledger on every payment write, and
+  // unlike `totalAmount > amountPaid` it is an indexed column.
+  if (searchParams.get('overdue') === 'true') {
+    where.paymentDueDate = { lt: new Date() };
+    where.paymentStatus = { in: ['PENDING', 'PARTIAL'] };
+  }
   if (search) {
     where.OR = [
       { orderNumber: { contains: search, mode: 'insensitive' } },
@@ -45,6 +58,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         customer: { select: { id: true, companyName: true } },
         quotation: { select: { quotationNumber: true } },
         totalAmount: true, amountPaid: true, poDate: true, deliveryDate: true, createdAt: true,
+        paymentTerms: true, paymentDueDate: true,
       },
       orderBy: { createdAt: 'desc' },
     }),
