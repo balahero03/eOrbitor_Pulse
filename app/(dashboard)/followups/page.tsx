@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { istToday, shiftIstDate } from '@/lib/istDate';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import { FollowUpIcon, MenuIcon, CalendarIcon, ClipboardIcon, CheckGlyph } from '@/components/icons';
@@ -40,9 +41,14 @@ const isTomorrow = (d: string) => {
   return new Date(d).toDateString() === tmr.toDateString();
 };
 
-const todayStr = () => new Date().toISOString().split('T')[0];
-const tomorrowStr = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; };
-const weekEndStr = () => { const d = new Date(); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; };
+// IST calendar dates. These drive the "Due Today / Tomorrow / This Week"
+// filters, and toISOString() returns the UTC date — so between midnight and
+// 05:30 IST "Due Today" fetched yesterday's follow-ups, and the badge counted
+// them. The old tomorrow/week forms were worse still: they advanced a *local*
+// Date and then rendered it in UTC, mixing the two clocks in one expression.
+const todayStr = () => istToday();
+const tomorrowStr = () => shiftIstDate(istToday(), 1);
+const weekEndStr = () => shiftIstDate(istToday(), 6);
 
 export default function FollowUpsPage() {
   const confirm = useConfirm();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { istToday, shiftIstDate } from '@/lib/istDate';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
@@ -40,9 +41,6 @@ const QUICK_FILTERS: QuickFilter[] = [
 
 const MANAGER_ROLES = ['BACKEND_TEAM', 'ADMIN', 'SUPER_ADMIN'];
 
-function isoDate(d: Date) {
-  return d.toISOString().split('T')[0];
-}
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -62,11 +60,9 @@ export default function ReportsPage() {
   const [activeFilter, setActiveFilter] = useState('Last 30 Days');
 
   useEffect(() => {
-    const today = new Date();
-    const from = new Date(today);
-    from.setDate(from.getDate() - 30);
-    setStartDate(isoDate(from));
-    setEndDate(isoDate(today));
+    const today = istToday();
+    setStartDate(shiftIstDate(today, -30));
+    setEndDate(today);
   }, []);
 
   useEffect(() => {
@@ -105,17 +101,21 @@ export default function ReportsPage() {
     init();
   }, []);
 
+  // Ranges are built by shifting IST calendar dates rather than by doing
+  // arithmetic on Date objects and rendering them with toISOString(). The old
+  // form mixed the two: `new Date(today.getFullYear(), 0, 1)` is local
+  // midnight on 1 January, and toISOString() then reported that instant in
+  // UTC — which for any IST user is 31 December. Year-to-Date silently began
+  // in the previous year, every time, at every hour of the day.
   const applyQuickFilter = (filter: QuickFilter) => {
-    const today = new Date();
+    const today = istToday();
     setActiveFilter(filter.label);
     if (filter.ytd) {
-      setStartDate(isoDate(new Date(today.getFullYear(), 0, 1)));
+      setStartDate(`${today.slice(0, 4)}-01-01`);
     } else if (filter.days) {
-      const from = new Date(today);
-      from.setDate(from.getDate() - filter.days);
-      setStartDate(isoDate(from));
+      setStartDate(shiftIstDate(today, -filter.days));
     }
-    setEndDate(isoDate(today));
+    setEndDate(today);
   };
 
   const handleGenerate = async () => {

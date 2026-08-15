@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { istToday } from '@/lib/istDate';
 import { toFiniteNumber } from '@/lib/money';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -194,7 +195,7 @@ export default function OrderDetailPage() {
       // case is "they paid the rest", and it is still fully editable for a
       // part payment. This is the manual re-typing the old Edit flow forced.
       amount: outstanding > 0 ? String(outstanding) : '',
-      paidAt: new Date().toISOString().split('T')[0],
+      paidAt: istToday(),
       mode: order.paymentMode || 'UPI',
       reference: '',
       remarks: '',
@@ -879,7 +880,7 @@ export default function OrderDetailPage() {
                   <label className={LABEL}>Date received *</label>
                   <input type="date" value={paymentForm.paidAt}
                     onChange={e => setPaymentForm(p => ({ ...p, paidAt: e.target.value }))}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={istToday()}
                     className={FIELD} />
                 </div>
               </div>
