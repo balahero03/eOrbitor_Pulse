@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
-import { sendMail, buildWonEmail, buildLostEmail, MailAttachment } from '@/lib/mail';
+// Closure mail is deferred, not awaited. The reps closing a deal were paying
+// the full SMTP round-trip inside their own request — and on a failure, the
+// transport's own timeouts plus its one retry (see lib/mail.ts) could hold the
+// response open for roughly sixteen seconds before returning the 200 that was
+// already decided. Nothing here reads the delivery result, so there was never
+// anything to wait for. `after()` keeps the send alive past the response
+// instead; a bare floating promise would be torn down mid-conversation.
+import { sendMailAfterResponse, buildWonEmail, buildLostEmail, MailAttachment } from '@/lib/mail';
 import { saveBase64Files } from '@/lib/storage';
 import { createWithOrderNumber } from '@/lib/orderNumber';
 
@@ -242,7 +249,7 @@ export async function POST(
       });
 
       if (notifyEmails.length > 0) {
-        await sendMail({
+        sendMailAfterResponse('lead won', {
           to: notifyEmails,
           // Subjects read as a business record, not a chat message. These land
           // in manager and director inboxes and get forwarded on; an emoji
@@ -275,7 +282,7 @@ export async function POST(
     });
 
     if (notifyEmails.length > 0) {
-      await sendMail({
+      sendMailAfterResponse(`lead ${newStatus.toLowerCase()}`, {
         to: notifyEmails,
         subject: `Opportunity ${outcome === 'LOST' ? 'Lost' : 'Dropped'} — ${lead.company} (${lead.name})`,
         html: buildLostEmail({
