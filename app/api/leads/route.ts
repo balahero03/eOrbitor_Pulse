@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createWithLeadNumber } from '@/lib/leadNumber';
 import { parseMoneyInput } from '@/lib/money';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const { page, limit, skip } = parsePagination(searchParams);
   const status = searchParams.get('status');
   const source = searchParams.get('source');
   const search = searchParams.get('search')?.trim();
@@ -92,7 +92,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
   if (andConditions.length > 0) where.AND = andConditions;
 
-  const skip = (page - 1) * limit;
   const [leads, total] = await Promise.all([
     prisma.lead.findMany({
       where,
@@ -114,7 +113,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     leads,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   });
 });
 

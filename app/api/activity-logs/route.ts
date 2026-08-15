@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 
@@ -9,8 +10,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
 
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+  const { page, limit, skip } = parsePagination(searchParams, { defaultLimit: 50, maxLimit: 200 });
   const entityType = searchParams.get('entityType');
   const action = searchParams.get('action');
   const userId = searchParams.get('userId');
@@ -30,7 +30,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     where.userId = { in: teamIds };
   }
 
-  const skip = (page - 1) * limit;
   const [logs, total] = await Promise.all([
     prisma.activityLog.findMany({
       where,
@@ -44,7 +43,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     logs,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   });
 });
 

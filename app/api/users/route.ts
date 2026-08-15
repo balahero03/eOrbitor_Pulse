@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 import { roleRank } from '@/lib/roles';
@@ -9,8 +10,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   // Any authenticated user can list users (needed for assignment pickers)
 
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const { page, limit, skip } = parsePagination(searchParams);
   const role = searchParams.get('role');
   const search = searchParams.get('search')?.trim();
   // status=ex returns soft-deleted (ex-employee) users; default returns active records only.
@@ -31,7 +31,6 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     ];
   }
 
-  const skip = (page - 1) * limit;
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
@@ -52,7 +51,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     users,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   });
 });
 

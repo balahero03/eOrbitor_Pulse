@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeRichText } from '@/lib/sanitizeHtml';
 import { prisma } from '@/lib/prisma';
+import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createNotification } from '@/lib/notify';
 import { ForbiddenError } from '@/lib/errors';
@@ -21,8 +22,7 @@ async function canAssign(user: AuthUser, assignedToId: string): Promise<boolean>
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const { page, limit, skip } = parsePagination(searchParams);
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const assignedToId = searchParams.get('assignedToId');
@@ -77,7 +77,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         relatedDeal: { select: { id: true, dealName: true } },
       },
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
     }),
     prisma.task.count({ where }),
@@ -85,7 +85,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   return NextResponse.json({
     tasks,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   });
 });
 

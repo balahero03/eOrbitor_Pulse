@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ValidationError } from '@/lib/errors';
 
@@ -8,8 +9,7 @@ const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 // List real Customer records (manually created / converted), paginated + searchable.
 export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+  const { page, limit, skip } = parsePagination(searchParams);
   const search = searchParams.get('search')?.trim();
 
   const where: any = { deletedAt: null };
@@ -24,7 +24,6 @@ export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
     ];
   }
 
-  const skip = (page - 1) * limit;
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
       where,
@@ -40,7 +39,7 @@ export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
 
   return NextResponse.json({
     customers,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   });
 });
 
