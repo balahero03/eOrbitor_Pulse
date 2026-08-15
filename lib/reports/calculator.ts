@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { istDateString } from '@/lib/istDate';
 
 export interface DateRange {
   startDate: Date;
@@ -65,12 +66,28 @@ export class ReportCalculator {
       }),
     ]);
 
-    // Aggregate revenue by month
-    const monthMap: Record<string, number> = {};
+    // Aggregate revenue by month.
+    //
+    // Bucketed on a sortable 'YYYY-MM' key rather than on the display label,
+    // and emitted in that order. The label ("May 26") does not sort
+    // chronologically, and the query has no ORDER BY, so the buckets came out
+    // in whatever order Postgres returned the rows. On real data this produced
+    // May, Jun, Apr, Jul — which the report page feeds straight into a
+    // Recharts LineChart as "Revenue Trend", drawing a zigzag back through
+    // time, and which the Excel export wrote out in the same wrong order.
+    //
+    // Bucketed in IST, too. The month came from the server's local timezone,
+    // so on a UTC host a deal closed just after midnight IST on the 1st was
+    // counted against the previous month.
+    const monthMap: Record<string, { label: string; revenue: number }> = {};
     for (const lead of wonLeads) {
       if (!lead.closedAt) continue;
-      const key = lead.closedAt.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
-      monthMap[key] = (monthMap[key] || 0) + toNumber(lead.quoteValue);
+      const key = istDateString(lead.closedAt).slice(0, 7);
+      const label = lead.closedAt.toLocaleDateString('en-IN', {
+        month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata',
+      });
+      const bucket = monthMap[key] ?? (monthMap[key] = { label, revenue: 0 });
+      bucket.revenue += toNumber(lead.quoteValue);
     }
 
     // Aggregate revenue by source
@@ -83,7 +100,9 @@ export class ReportCalculator {
       total: toNumber(wonAgg._sum.quoteValue),
       pipeline: toNumber(pipelineAgg._sum.dealValue),
       average: toNumber(wonAgg._avg.quoteValue),
-      byMonth: Object.entries(monthMap).map(([month, revenue]) => ({ month, revenue })),
+      byMonth: Object.entries(monthMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, bucket]) => ({ month: bucket.label, revenue: bucket.revenue })),
       bySource: sourceMap,
     };
   }
