@@ -205,7 +205,42 @@ const BRAND = {
   rule: '#e3e7ec',
   page: '#f4f6f8',
   accent: '#1d4ed8',
+  // Outcome accents, named by meaning rather than colour so a future palette
+  // change happens in one place.
+  positive: '#15803d',
+  negative: '#b91c1c',
+  neutralAccent: '#525c6b',
+  caution: '#c2410c',
 };
+
+/**
+ * Escape a value before it is interpolated into email HTML.
+ *
+ * Every builder below composes HTML by string concatenation, and almost every
+ * value it interpolates is user-authored — a company name, a rep's note, an
+ * uploaded filename. Unescaped, `Sharma & Co <Pvt> Ltd` renders as
+ * `Sharma & Co  Ltd` with the middle swallowed as an unknown tag, and a
+ * deliberately crafted value can restyle or truncate the rest of the message.
+ * The recipients here are managers and administrators, so the blast radius is
+ * exactly the wrong set of inboxes.
+ */
+function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Escape, then honour line breaks. Free-text fields ("what went well", "reason
+ * of loss") are written in a textarea, so the newlines the author typed are
+ * meaningful; HTML would otherwise collapse the whole note into one paragraph.
+ */
+function escMultiline(value: unknown): string {
+  return esc(value).replace(/\r?\n/g, '<br />');
+}
 
 function emailShell(opts: {
   preheader: string;
@@ -240,11 +275,14 @@ function emailShell(opts: {
       </td></tr>
 
       <tr><td style="background:#fafbfc;border-top:1px solid ${BRAND.rule};padding:20px 40px;font-family:Helvetica,Arial,sans-serif">
-        <p style="margin:0 0 4px;font-size:12px;line-height:1.6;color:${BRAND.muted}">
-          This is an automated message from <strong style="color:${BRAND.body}">eOrbitor Pulse</strong>. Please do not reply.
+        <p style="margin:0 0 5px;font-size:12px;line-height:1.6;color:${BRAND.body}">
+          <strong style="color:${BRAND.ink}">eOrbitor Pulse</strong> &middot; Sales &amp; Operations Platform
+        </p>
+        <p style="margin:0 0 5px;font-size:11.5px;line-height:1.6;color:${BRAND.muted}">
+          This message was generated automatically. Replies to this address are not monitored.
         </p>
         <p style="margin:0;font-size:11px;line-height:1.6;color:${BRAND.muted}">
-          eOrbitor &middot; Technology for Better Tomorrow
+          &copy; ${new Date().getFullYear()} eOrbitor &middot; Technology for Better Tomorrow
         </p>
       </td></tr>
 
@@ -270,6 +308,71 @@ function noticeBlock(tone: 'warning' | 'danger' | 'neutral', html: string) {
   </table>`;
 }
 
+/**
+ * A label/value table — the workhorse of every notification body.
+ *
+ * One component rather than a hand-rolled table per email, so "Deal value" in
+ * a won notification lines up with "Method" in a security alert. `null` rows
+ * are dropped, which lets call sites express an optional field inline instead
+ * of assembling the row list conditionally.
+ */
+function detailTable(rows: Array<[string, string] | null | false>): string {
+  const present = rows.filter(Boolean) as Array<[string, string]>;
+  if (!present.length) return '';
+  const cells = present.map(([label, value], i) => {
+    const edge = i === present.length - 1 ? '' : `border-bottom:1px solid ${BRAND.rule};`;
+    return `<tr>
+      <td style="padding:11px 16px;${edge}font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${BRAND.muted};width:38%;vertical-align:top">${label}</td>
+      <td style="padding:11px 16px;${edge}font-family:Helvetica,Arial,sans-serif;font-size:13px;color:${BRAND.ink};vertical-align:top">${value}</td>
+    </tr>`;
+  }).join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:22px 0 0;border:1px solid ${BRAND.rule};border-radius:6px;border-collapse:separate">${cells}</table>`;
+}
+
+/**
+ * The single headline number of a message, set apart from the detail rows.
+ * Managers skim these notifications on a phone; the deal value is the one
+ * thing that should be readable without opening anything.
+ */
+function figureBlock(label: string, value: string, accent: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0 0">
+    <tr><td align="center" style="background:#f7f9fc;border:1px solid #d9e1ec;border-radius:8px;padding:20px 16px">
+      <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:${BRAND.muted};margin-bottom:8px">${label}</div>
+      <div style="font-family:Helvetica,Arial,sans-serif;font-size:28px;line-height:1.15;font-weight:700;color:${accent}">${value}</div>
+    </td></tr>
+  </table>`;
+}
+
+/** A titled block of free text — a rep's note, quoted back to the reader. */
+function noteBlock(label: string, bodyHtml: string, accent: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:18px 0 0">
+    <tr><td style="border:1px solid ${BRAND.rule};border-left:3px solid ${accent};border-radius:6px;padding:14px 16px;background:#ffffff">
+      <p style="margin:0 0 6px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.9px;text-transform:uppercase;font-weight:700;color:${accent}">${label}</p>
+      <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:13.5px;line-height:1.65;color:${BRAND.body}">${bodyHtml}</p>
+    </td></tr>
+  </table>`;
+}
+
+/** Names the files travelling with the message, so a stripped attachment is noticed. */
+function attachmentList(names: string[]): string {
+  if (!names.length) return '';
+  const items = names
+    .map(n => `<tr><td style="padding:3px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:${BRAND.body}">&#8226;&nbsp; ${esc(n)}</td></tr>`)
+    .join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:18px 0 0">
+    <tr><td style="border:1px solid ${BRAND.rule};border-radius:6px;padding:14px 16px">
+      <p style="margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.9px;text-transform:uppercase;font-weight:700;color:${BRAND.muted}">Attached to this email (${names.length})</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">${items}</table>
+    </td></tr>
+  </table>`;
+}
+
+function formatINR(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  return `&#8377;${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
+
 function formatIST(when: Date): string {
   return when.toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
@@ -292,7 +395,7 @@ export function buildPasswordResetCodeEmail(params: { firstName: string; code: s
     preheader: 'A verification code was requested for your eOrbitor Pulse account.',
     title: 'Verification code for your password reset',
     bodyHtml: `
-      <p style="${P}">Dear ${firstName},</p>
+      <p style="${P}">Dear ${esc(firstName)},</p>
       <p style="${P}">
         We received a request to reset the password for your eOrbitor Pulse account.
         Enter the verification code below to continue.
@@ -338,7 +441,7 @@ export function buildPasswordChangedEmail(params: { firstName: string; when: Dat
     title: 'Your password was changed',
     accentBar: '#15803d',
     bodyHtml: `
-      <p style="${P}">Dear ${firstName},</p>
+      <p style="${P}">Dear ${esc(firstName)},</p>
       <p style="${P}">
         This is a confirmation that the password for your eOrbitor Pulse account was
         changed. As a security measure, all active sessions have been signed out and
@@ -376,10 +479,10 @@ export function buildRecoveryEmailChangedEmail(params: { firstName: string; newE
     title: 'Your recovery email was changed',
     accentBar: '#c2410c',
     bodyHtml: `
-      <p style="${P}">Dear ${firstName},</p>
+      <p style="${P}">Dear ${esc(firstName)},</p>
       <p style="${P}">
         The recovery email on your eOrbitor Pulse account has been changed from this
-        address to <strong style="color:${BRAND.ink}">${newEmailMasked}</strong>.
+        address to <strong style="color:${BRAND.ink}">${esc(newEmailMasked)}</strong>.
       </p>
       <p style="${P}">
         Password reset codes will now be delivered to the new address. This message is
@@ -412,7 +515,7 @@ export function buildEmailVerificationEmail(params: { firstName: string; verifyU
     title: 'Confirm your recovery email address',
     accentBar: '#15803d',
     bodyHtml: `
-      <p style="${P}">Dear ${firstName},</p>
+      <p style="${P}">Dear ${esc(firstName)},</p>
       <p style="${P}">
         This address has been added as the recovery email on your eOrbitor Pulse account.
         Please confirm it so it can be used to reset your password if you are ever locked out.
@@ -420,7 +523,7 @@ export function buildEmailVerificationEmail(params: { firstName: string; verifyU
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px auto 20px">
         <tr><td align="center" style="background:#15803d;border-radius:6px">
-          <a href="${verifyUrl}"
+          <a href="${esc(verifyUrl)}"
              style="display:inline-block;padding:13px 34px;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">
             Confirm Email Address
           </a>
@@ -430,7 +533,7 @@ export function buildEmailVerificationEmail(params: { firstName: string; verifyU
       <p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:${BRAND.muted};font-family:Helvetica,Arial,sans-serif">
         If the button does not work, copy this link into your browser:
       </p>
-      <p style="margin:0;font-size:12px;line-height:1.6;color:${BRAND.accent};word-break:break-all;font-family:Helvetica,Arial,sans-serif">${verifyUrl}</p>
+      <p style="margin:0;font-size:12px;line-height:1.6;color:${BRAND.accent};word-break:break-all;font-family:Helvetica,Arial,sans-serif">${esc(verifyUrl)}</p>
 
       ${noticeBlock('neutral', `
         This link expires in ${expiresInMinutes} minutes and can be used once.
@@ -440,7 +543,15 @@ export function buildEmailVerificationEmail(params: { firstName: string; verifyU
   });
 }
 
-// ─── WON Email ────────────────────────────────────────────────────────────────
+// ─── Lead closure notifications ─────────────────────────────────────────────
+//
+// These go to managers and administrators — often the first they hear that a
+// deal landed or slipped. They previously rendered as their own thing: a
+// CSS-gradient banner (Outlook drops gradients entirely, leaving white text on
+// white), emoji headlines, no logo, and no preheader. They now use the same
+// shell as every other message the system sends, so the whole mail estate is
+// recognisably one product.
+
 export function buildWonEmail(params: {
   lead: { name: string; company: string; quoteValue?: any };
   rep: string;
@@ -451,66 +562,48 @@ export function buildWonEmail(params: {
   whatWentWell?: string;
   attachmentNames?: string[];
 }) {
-  const { lead, rep, manager, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames } = params;
-  const val = lead.quoteValue ? `₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : '';
+  const { lead, rep, manager, quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames = [] } = params;
+  // A zero or missing quote value is common on leads closed before the
+  // commercials were entered; a hero panel reading "\u20B90" is worse than no
+  // panel at all, so the figure only appears when there is a figure.
+  const value = Number(lead.quoteValue) > 0 ? formatINR(lead.quoteValue) : '';
 
-  return `
-  <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #d1fae5">
-    <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:28px 32px">
-      <h1 style="margin:0;color:#fff;font-size:22px">🏆 Lead WON!</h1>
-      <p style="margin:6px 0 0;color:#bbf7d0;font-size:15px">${lead.company} — ${lead.name}</p>
-    </div>
+  return emailShell({
+    preheader: `${esc(lead.company)} has been won${value ? ` \u2014 ${value}` : ''}. The lead has moved to Orders for fulfilment.`,
+    title: `Opportunity won \u2014 ${esc(lead.company)}`,
+    accentBar: BRAND.positive,
+    bodyHtml: `
+      <p style="${P}">
+        <strong style="color:${BRAND.ink}">${esc(lead.name)}</strong> at
+        <strong style="color:${BRAND.ink}">${esc(lead.company)}</strong> has been closed as won by
+        ${esc(rep)}. An order has been raised automatically and the account is now live in the
+        customer master.
+      </p>
 
-    <div style="padding:28px 32px;background:#f0fdf4">
-      <!-- Deal Summary -->
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-        <tr>
-          <td style="padding:8px 12px;background:#dcfce7;border-radius:8px;width:50%;vertical-align:top">
-            <p style="margin:0;font-size:11px;color:#166534;text-transform:uppercase;font-weight:700;letter-spacing:.5px">Opportunity</p>
-            <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#14532d">${lead.name}</p>
-          </td>
-          <td style="padding:0 0 0 12px;width:50%;vertical-align:top">
-            <table style="width:100%;border-collapse:collapse">
-              ${val ? `<tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Deal Value:</strong></td><td style="padding:4px 0;font-size:15px;font-weight:700;color:#16a34a;text-align:right">${val}</td></tr>` : ''}
-              ${quoteRef ? `<tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Quote Ref:</strong></td><td style="padding:4px 0;font-size:13px;color:#111;text-align:right">${quoteRef}</td></tr>` : ''}
-              ${poNumber ? `<tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>PO Number:</strong></td><td style="padding:4px 0;font-size:13px;color:#111;font-weight:600;text-align:right">${poNumber}</td></tr>` : ''}
-              <tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Closed By:</strong></td><td style="padding:4px 0;font-size:13px;color:#111;text-align:right">${rep}</td></tr>
-              <tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Reported To:</strong></td><td style="padding:4px 0;font-size:13px;color:#111;text-align:right">${manager}</td></tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+      ${value ? figureBlock('Order value', value, BRAND.positive) : ''}
 
-      ${reasonOfWin ? `
-      <div style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:14px">
-        <p style="margin:0 0 6px;font-size:12px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:.5px">🎯 Reason of Win</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;line-height:1.6">${reasonOfWin}</p>
-      </div>` : ''}
+      ${detailTable([
+        ['Opportunity', esc(lead.name)],
+        ['Account', esc(lead.company)],
+        !!quoteRef && ['Quotation reference', esc(quoteRef)],
+        !!poNumber && ['Purchase order', `<strong>${esc(poNumber)}</strong>`],
+        ['Closed by', esc(rep)],
+        ['Reported to', esc(manager)],
+        ['Outcome', `<strong style="color:${BRAND.positive}">Won</strong>`],
+      ])}
 
-      ${whatWentWell ? `
-      <div style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:14px">
-        <p style="margin:0 0 6px;font-size:12px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:.5px">✅ What Went Well</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;line-height:1.6">${whatWentWell}</p>
-      </div>` : ''}
+      ${reasonOfWin ? noteBlock('Reason for the win', escMultiline(reasonOfWin), BRAND.positive) : ''}
+      ${whatWentWell ? noteBlock('What went well', escMultiline(whatWentWell), BRAND.positive) : ''}
+      ${attachmentList(attachmentNames)}
 
-      ${attachmentNames && attachmentNames.length > 0 ? `
-      <div style="background:#fff;border:1px solid #d1fae5;border-radius:8px;padding:14px;margin-bottom:14px">
-        <p style="margin:0 0 8px;font-size:12px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:.5px">📎 Attached Documents</p>
-        ${attachmentNames.map(n => `<p style="margin:3px 0;font-size:13px;color:#374151">• ${n}</p>`).join('')}
-      </div>` : ''}
-
-      <div style="background:#dcfce7;border-radius:8px;padding:14px;text-align:center">
-        <p style="margin:0;font-size:14px;color:#166534;font-weight:600">Lead moved to <strong>Orders</strong> — please proceed with order creation.</p>
-      </div>
-    </div>
-
-    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb">
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">eOrbitor Pulse CRM · Auto-generated notification</p>
-    </div>
-  </div>`;
+      ${noticeBlock('neutral', `
+        <strong style="color:${BRAND.ink}">Next step:</strong> the lead has moved to
+        <strong>Orders</strong>. Please confirm the order details and begin fulfilment.
+      `)}
+    `,
+  });
 }
 
-// ─── LOST / DROPPED Email ─────────────────────────────────────────────────────
 export function buildLostEmail(params: {
   lead: { name: string; company: string; quoteValue?: any };
   outcome: 'LOST' | 'DROPPED';
@@ -520,63 +613,41 @@ export function buildLostEmail(params: {
   whatToImprove?: string;
   attachmentNames?: string[];
 }) {
-  const { lead, outcome, reason, rep, competitor, whatToImprove, attachmentNames } = params;
+  const { lead, outcome, reason, rep, competitor, whatToImprove, attachmentNames = [] } = params;
   const isLost = outcome === 'LOST';
-  const accent = isLost ? '#dc2626' : '#6b7280';
-  const lightBg = isLost ? '#fef2f2' : '#f9fafb';
-  const borderCol = isLost ? '#fecaca' : '#e5e7eb';
-  const textCol = isLost ? '#991b1b' : '#374151';
+  const accent = isLost ? BRAND.negative : BRAND.neutralAccent;
+  const verb = isLost ? 'lost' : 'dropped';
+  const value = Number(lead.quoteValue) > 0 ? formatINR(lead.quoteValue) : '';
 
-  return `
-  <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid ${borderCol}">
-    <div style="background:${accent};padding:28px 32px">
-      <h1 style="margin:0;color:#fff;font-size:22px">${isLost ? '❌ Lead LOST' : '🚫 Lead DROPPED'}</h1>
-      <p style="margin:6px 0 0;color:${isLost ? '#fecaca' : '#d1d5db'};font-size:15px">${lead.company} — ${lead.name}</p>
-    </div>
+  return emailShell({
+    preheader: `${esc(lead.company)} has been closed as ${verb}. Closure notes are recorded against the lead.`,
+    title: `Opportunity ${verb} \u2014 ${esc(lead.company)}`,
+    accentBar: accent,
+    bodyHtml: `
+      <p style="${P}">
+        <strong style="color:${BRAND.ink}">${esc(lead.name)}</strong> at
+        <strong style="color:${BRAND.ink}">${esc(lead.company)}</strong> has been closed as
+        ${verb} by ${esc(rep)}. The closure notes below have been recorded against the lead.
+      </p>
 
-    <div style="padding:28px 32px;background:${lightBg}">
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-        <tr>
-          <td style="padding:8px;background:${borderCol};border-radius:8px;width:50%;vertical-align:top">
-            <p style="margin:0;font-size:11px;color:${textCol};text-transform:uppercase;font-weight:700">Opportunity</p>
-            <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111">${lead.name}</p>
-          </td>
-          <td style="padding:0 0 0 12px;width:50%;vertical-align:top">
-            <table style="width:100%;border-collapse:collapse">
-              ${lead.quoteValue ? `<tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Deal Value:</strong></td><td style="padding:4px 0;font-size:13px;text-align:right">₹${Number(lead.quoteValue).toLocaleString('en-IN')}</td></tr>` : ''}
-              ${competitor ? `<tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Competitor:</strong></td><td style="padding:4px 0;font-size:13px;font-weight:600;color:${accent};text-align:right">${competitor}</td></tr>` : ''}
-              <tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Outcome:</strong></td><td style="padding:4px 0;font-size:13px;font-weight:600;text-align:right">${outcome}</td></tr>
-              <tr><td style="padding:4px 0;font-size:13px;color:#374151"><strong>Closed By:</strong></td><td style="padding:4px 0;font-size:13px;text-align:right">${rep}</td></tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+      ${value ? figureBlock('Value not realised', value, accent) : ''}
 
-      ${reason ? `
-      <div style="background:#fff;border:1px solid ${borderCol};border-radius:8px;padding:16px;margin-bottom:14px">
-        <p style="margin:0 0 6px;font-size:12px;color:${accent};font-weight:700;text-transform:uppercase;letter-spacing:.5px">${isLost ? '❌ Reason of Loss' : '🚫 Reason for Drop'}</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;line-height:1.6">${reason}</p>
-      </div>` : ''}
+      ${detailTable([
+        ['Opportunity', esc(lead.name)],
+        ['Account', esc(lead.company)],
+        !!competitor && ['Lost to', `<strong style="color:${accent}">${esc(competitor)}</strong>`],
+        ['Closed by', esc(rep)],
+        ['Outcome', `<strong style="color:${accent}">${isLost ? 'Lost' : 'Dropped'}</strong>`],
+      ])}
 
-      ${whatToImprove ? `
-      <div style="background:#fff;border:1px solid ${borderCol};border-radius:8px;padding:16px;margin-bottom:14px">
-        <p style="margin:0 0 6px;font-size:12px;color:#d97706;font-weight:700;text-transform:uppercase;letter-spacing:.5px">💡 What to Improve</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;line-height:1.6">${whatToImprove}</p>
-      </div>` : ''}
+      ${reason ? noteBlock(isLost ? 'Reason for the loss' : 'Reason for dropping', escMultiline(reason), accent) : ''}
+      ${whatToImprove ? noteBlock('What to improve', escMultiline(whatToImprove), BRAND.caution) : ''}
+      ${attachmentList(attachmentNames)}
 
-      ${attachmentNames && attachmentNames.length > 0 ? `
-      <div style="background:#fff;border:1px solid ${borderCol};border-radius:8px;padding:14px;margin-bottom:14px">
-        <p style="margin:0 0 8px;font-size:12px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.5px">📎 Attached Documents</p>
-        ${attachmentNames.map(n => `<p style="margin:3px 0;font-size:13px;color:#374151">• ${n}</p>`).join('')}
-      </div>` : ''}
-
-      <div style="background:${borderCol};border-radius:8px;padding:14px;text-align:center">
-        <p style="margin:0;font-size:14px;color:${textCol}">This lead has been archived in <strong>Closed Leads</strong>. Review learnings for the next opportunity.</p>
-      </div>
-    </div>
-
-    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb">
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">eOrbitor Pulse CRM · Auto-generated notification</p>
-    </div>
-  </div>`;
+      ${noticeBlock('neutral', `
+        This opportunity is archived under <strong>Closed Leads</strong>, where the full history
+        remains available for review.
+      `)}
+    `,
+  });
 }

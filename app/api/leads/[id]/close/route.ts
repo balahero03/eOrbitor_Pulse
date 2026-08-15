@@ -244,7 +244,10 @@ export async function POST(
       if (notifyEmails.length > 0) {
         await sendMail({
           to: notifyEmails,
-          subject: `🏆 Lead WON — ${lead.company} (${lead.name})${lead.quoteValue ? ` · ₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : ''}`,
+          // Subjects read as a business record, not a chat message. These land
+          // in manager and director inboxes and get forwarded on; an emoji
+          // headline undercuts that, and several corporate filters score it.
+          subject: `Opportunity Won — ${lead.company} (${lead.name})${lead.quoteValue ? ` · ₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : ''}`,
           html: buildWonEmail({
             lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
             rep: repName, manager: managerName,
@@ -274,7 +277,7 @@ export async function POST(
     if (notifyEmails.length > 0) {
       await sendMail({
         to: notifyEmails,
-        subject: `${outcome === 'LOST' ? '❌ Lead LOST' : '🚫 Lead DROPPED'} — ${lead.company} (${lead.name})`,
+        subject: `Opportunity ${outcome === 'LOST' ? 'Lost' : 'Dropped'} — ${lead.company} (${lead.name})`,
         html: buildLostEmail({
           lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
           outcome: outcome as 'LOST' | 'DROPPED',
