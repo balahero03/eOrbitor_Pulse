@@ -68,7 +68,32 @@ export function BrandedLoader({ message = 'Loading your workspace…' }: { messa
                 keyed off the white master logo so the red edges feather
                 cleanly, rather than cut out of the dark-disc version, which
                 would leave a grey halo on every light surface it lands on. */}
-            <Image src="/e-mark.png" alt="eOrbitor" width={56} height={56} priority className="drop-shadow-sm" />
+            {/* Nudged up and left to sit in the *optical* centre of the ring.
+                The file is already geometrically perfect — its glyph bounding
+                box is dead centre, 35px of padding left and right, 47px top and
+                bottom on a 512px canvas — which is exactly why this looked
+                wrong. The mark is a heavy round bowl in the upper right with a
+                long thin tail sweeping to the lower left, so its centre of mass
+                sits well away from the middle of its box: measured over the
+                alpha channel, 9.6% right and 6.9% down. Centring the box
+                therefore parks the visible weight of the logo up and to the
+                right of the ring it sits in.
+
+                Expressed as a percentage of the image's own size so the
+                correction holds if this is ever rendered at another size. */}
+            {/* 46, not 56: at 56 the mark filled the ring edge to edge, so the
+                tail crossed the stroke on the left while the bowl pressed the
+                stroke on the right. Rendered and compared at 56/50/46 — 46 is
+                where the glyph clears the ring evenly on every side. */}
+            <Image
+              src="/e-mark.png"
+              alt="eOrbitor"
+              width={46}
+              height={46}
+              priority
+              className="drop-shadow-sm"
+              style={{ transform: 'translate(-9.6%, -6.9%)' }}
+            />
           </div>
         </div>
         <div
