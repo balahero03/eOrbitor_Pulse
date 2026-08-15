@@ -55,6 +55,23 @@ async function recomputeTotals(tx: any, orderId: string) {
   return { paid, total, paymentStatus };
 }
 
+/**
+ * Reject a payment that would take the order past its value.
+ *
+ * The tolerance absorbs the rounding of a Decimal round-tripped through a
+ * JavaScript number; it is not slack for a genuine overpayment. Orders with no
+ * value set (total 0) are exempt — the value has simply not been entered yet,
+ * and the order page's own empty state points the user at setting it.
+ */
+function overpaymentGuard(total: number, alreadyPaid: number, value: number) {
+  if (total > 0 && alreadyPaid + value > total + 0.001) {
+    const remaining = Math.max(total - alreadyPaid, 0);
+    throw new ValidationError(
+      `That is more than the outstanding balance. ₹${remaining.toLocaleString('en-IN')} remains on this order.`
+    );
+  }
+}
+
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const orderId = orderIdFrom(req);
 
@@ -98,14 +115,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     throw new ValidationError('Enter a payment amount greater than zero.');
   }
 
-  const total = Number(order.totalAmount);
-  const alreadyPaid = Number(order.amountPaid);
-  if (total > 0 && alreadyPaid + value > total + 0.001) {
-    const remaining = Math.max(total - alreadyPaid, 0);
-    throw new ValidationError(
-      `That is more than the outstanding balance. ₹${remaining.toLocaleString('en-IN')} remains on this order.`
-    );
-  }
+  // Fast rejection on the cached figure, so the common "they typed too much"
+  // case fails before anything is written to disk. This is not the authoritative
+  // check — that one runs under a row lock inside the transaction below.
+  overpaymentGuard(Number(order.totalAmount), Number(order.amountPaid), value);
 
   // The receipt goes to disk and only its descriptor is stored. Inlining the
   // base64 into Postgres (what this used to do) put a multi-megabyte string in
@@ -123,6 +136,38 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    // Take an exclusive lock on the order row before reading the ledger.
+    //
+    // Without it, two payments submitted at the same moment each read the
+    // balance before the other had committed, so each saw room for itself and
+    // both were accepted. Reproduced against the running app: two concurrent
+    // ₹8,000 payments on a ₹10,000 order both returned 201, leaving a ledger of
+    // ₹16,000 against a ₹10,000 order.
+    //
+    // It also broke the invariant recomputeTotals exists to hold. Both
+    // transactions aggregated the ledger without seeing each other's
+    // uncommitted insert, so both computed ₹8,000 and both wrote it — the order
+    // ended up showing "₹8,000 paid, ₹2,000 outstanding" while its own Payment
+    // History listed two ₹8,000 rows. The screen then invited a third payment
+    // against a balance that did not exist.
+    //
+    // FOR UPDATE serialises payments per order — the second waits for the first
+    // to commit and then reads the true total — without imposing a serializable
+    // isolation level on unrelated writes.
+    await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+
+    const current = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { totalAmount: true },
+    });
+    const ledger = await tx.orderPayment.aggregate({
+      where: { orderId },
+      _sum: { amount: true },
+    });
+    // Re-derived from the ledger rather than from the cached amountPaid, so a
+    // cached figure that has drifted for any reason cannot authorise a payment.
+    overpaymentGuard(Number(current?.totalAmount ?? 0), Number(ledger._sum.amount ?? 0), value);
+
     const payment = await tx.orderPayment.create({
       data: {
         orderId,
