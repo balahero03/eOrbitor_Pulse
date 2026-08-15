@@ -1,4 +1,9 @@
 import { prisma } from '@/lib/prisma';
+import { isExemptPath } from '@/lib/exemptPaths';
+
+// Re-exported so the many routes already importing it from here keep working;
+// the list itself lives in lib/exemptPaths.ts, which proxy.ts can also load.
+export { isExemptPath };
 
 const IST_TZ = 'Asia/Kolkata';
 
@@ -6,23 +11,6 @@ const IST_TZ = 'Asia/Kolkata';
 // policy, SUPER_ADMIN/ADMIN can never be gated. Prevents an admin locking out
 // every admin (including themselves) by misconfiguring restrictedRoles.
 const HARD_EXEMPT_ROLES = ['SUPER_ADMIN', 'ADMIN'];
-
-// API paths a *blocked* user must still be able to reach: checking their own
-// status, filing/viewing their own access request, notifications, and
-// logging out. Everything else gets the gate applied.
-const EXEMPT_PATHS = [
-  '/api/auth/login',
-  '/api/auth/me',
-  '/api/access-status',
-  '/api/access-requests',
-  '/api/notifications',
-  '/api/time-tracking',
-  '/api/cron/inactive-users',
-];
-
-export function isExemptPath(pathname: string): boolean {
-  return EXEMPT_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
-}
 
 function nowInIST(): { dateStr: string; hm: string } {
   const parts = new Intl.DateTimeFormat('en-CA', {

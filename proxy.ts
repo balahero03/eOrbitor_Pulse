@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const EXEMPT_PATHS = [
-  '/api/auth/login',
-  '/api/auth/me',
-  '/api/access-status',
-  '/api/access-requests',
-  '/api/notifications',
-  '/api/time-tracking',
-  '/api/cron/inactive-users',
-];
-
-function isExemptPath(pathname: string): boolean {
-  return EXEMPT_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
-}
+import { isExemptPath } from '@/lib/exemptPaths';
 
 export const config = { matcher: ['/api/:path*'] };
 
