@@ -147,9 +147,12 @@ export class ReportCalculator {
 
   async getActivityMetrics(userId: string, dateRange: DateRange) {
     const { startDate, endDate } = dateRange;
-    // DailyActivity.date is a 'YYYY-MM-DD' string, so compare against string bounds.
-    const startStr = startDate.toISOString().slice(0, 10);
-    const endStr = endDate.toISOString().slice(0, 10);
+    // DailyActivity.date is a 'YYYY-MM-DD' string, so compare against string
+    // bounds — and those rows are keyed on the IST calendar date, so the bounds
+    // have to be derived the same way. toISOString() gave the UTC date, which
+    // silently shifted the window by a day at the edges.
+    const startStr = istDateString(startDate);
+    const endStr = istDateString(endDate);
 
     const [dailyRecords, followupsCompleted, tasksCompleted] = await Promise.all([
       // Activities are the entries users log on their "My Activity" page.
@@ -265,8 +268,8 @@ export class ReportCalculator {
   }
 
   async getDailyActivityMetrics(userId: string, dateRange: DateRange) {
-    const startStr = dateRange.startDate.toISOString().slice(0, 10);
-    const endStr   = dateRange.endDate.toISOString().slice(0, 10);
+    const startStr = istDateString(dateRange.startDate);
+    const endStr   = istDateString(dateRange.endDate);
 
     const records = await prisma.dailyActivity.findMany({
       where: { userId, date: { gte: startStr, lte: endStr } },
@@ -363,8 +366,8 @@ export class ReportCalculator {
 
     return {
       previousPeriod: {
-        startDate: prevStart.toISOString().split('T')[0],
-        endDate: prevEnd.toISOString().split('T')[0],
+        startDate: istDateString(prevStart),
+        endDate: istDateString(prevEnd),
       },
       metrics: {
         revenue:    { current: curRevenue.total, previous: prevRevenue.total, deltaPct: delta(curRevenue.total, prevRevenue.total) },
