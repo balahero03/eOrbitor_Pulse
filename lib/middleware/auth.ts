@@ -111,9 +111,31 @@ export function withAuth(handler: Handler) {
       return await handler(req, user, context);
     } catch (err: any) {
       const status: number = err.status || 500;
-      const message: string = err.message || 'Internal server error';
-      if (status >= 500) console.error('[API ERROR]', err?.message, err?.code, err?.meta);
-      return NextResponse.json({ message }, { status });
+      if (status < 500) {
+        // A typed error from lib/errors.ts. Its message was written to be read
+        // by the person who triggered it, so it passes through unchanged.
+        return NextResponse.json({ message: err.message || 'Request failed' }, { status });
+      }
+
+      // Anything else is a fault, and its message was written for us, not for
+      // the caller. Returning it verbatim leaked a great deal: a request for
+      // /api/orders?page=0 handed the client Prisma's full failure — the model
+      // and method being called, the offending argument, an excerpt of the
+      // compiled source, and the absolute filesystem path of the project on the
+      // server. Confirmed reproducible as an ON_FIELD_TEAM user, the
+      // lowest-privilege role in the system, with nothing but a URL edit.
+      //
+      // Details still go to the server log, where the operator of a self-hosted
+      // deployment can read them; and outside production they are returned as
+      // well, so local debugging is unaffected.
+      console.error('[API ERROR]', req.method, req.nextUrl.pathname, err?.message, err?.code, err?.meta);
+      return NextResponse.json(
+        {
+          message: 'Something went wrong on our end. Please try again, or contact your administrator if it persists.',
+          ...(process.env.NODE_ENV !== 'production' ? { detail: err?.message } : {}),
+        },
+        { status: 500 }
+      );
     }
   };
 }
