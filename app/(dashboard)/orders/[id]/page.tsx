@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { daysOverdue, derivePaymentDueDateStr } from '@/lib/paymentTerms';
 import { istToday } from '@/lib/istDate';
 import { toFiniteNumber } from '@/lib/money';
 import { useRouter, useParams } from 'next/navigation';
@@ -44,6 +45,8 @@ interface Order {
   paymentRemarks?: string;
   paymentProofUrl?: string;
   poDate?: string;
+  paymentTerms?: string | null;
+  paymentDueDate?: string | null;
   deliveryDate?: string;
   invoiceUrl?: string;
   invoiceNumber?: string;
@@ -125,6 +128,7 @@ export default function OrderDetailPage() {
   const [editData, setEditData] = useState({
     poNumber: '', poDate: '', totalAmount: '',
     deliveryDate: '', invoiceNumber: '', status: '',
+    paymentTerms: '', paymentDueDate: '',
   });
   /** New invoice file chosen in the Edit modal, base64 for the API. */
   const [invoiceUpload, setInvoiceUpload] = useState<{ name: string; dataBase64: string; contentType: string } | null>(null);
@@ -136,6 +140,7 @@ export default function OrderDetailPage() {
   // Knowing which lets the dialog offer a way back instead of being a dead end.
   const [paymentFromEdit, setPaymentFromEdit] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount: '', paidAt: '', mode: 'UPI', reference: '', remarks: '',
   });
@@ -281,6 +286,56 @@ export default function OrderDetailPage() {
     }
   };
 
+  /**
+   * Download the ledger as a workbook.
+   *
+   * Generated in the browser and handed straight to the user, the same way
+   * reports/[id] exports a performance report — no endpoint needed, and the
+   * data is already in state. ExcelJS is imported on demand so its weight
+   * lands only on someone who actually asks for the file.
+   */
+  const downloadStatement = async () => {
+    if (!order) return;
+    setExporting(true);
+    try {
+      const { generateOrderStatementExcel } = await import('@/lib/excel-export');
+      const buffer = await generateOrderStatementExcel({
+        order: {
+          orderNumber: order.orderNumber,
+          customerName: order.customer?.companyName ?? '—',
+          poNumber: order.poNumber,
+          totalAmount: toFiniteNumber(order.totalAmount),
+          amountPaid: toFiniteNumber(order.amountPaid),
+          paymentTerms: order.paymentTerms,
+          paymentDueDate: order.paymentDueDate ? fmtDate(order.paymentDueDate) : null,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+        },
+        payments: payments.map(p => ({
+          paidAt: p.paidAt,
+          amount: toFiniteNumber(p.amount),
+          mode: p.mode,
+          reference: p.reference,
+          remarks: p.remarks,
+          recordedBy: `${p.recordedBy.firstName} ${p.recordedBy.lastName}`,
+        })),
+      });
+      const blob = new Blob([new Uint8Array(buffer)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${order.orderNumber}-statement.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not generate the statement.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const openEdit = () => {
     if (!order) return;
     const initialTotal = (order.totalAmount && Number(order.totalAmount) > 0)
@@ -296,6 +351,8 @@ export default function OrderDetailPage() {
       deliveryDate: order.deliveryDate ? order.deliveryDate.split('T')[0] : '',
       invoiceNumber: order.invoiceNumber || '',
       status: order.status,
+      paymentTerms: order.paymentTerms || '',
+      paymentDueDate: order.paymentDueDate ? order.paymentDueDate.split('T')[0] : '',
     });
     setInvoiceUpload(null);
     setShowEdit(true);
@@ -330,6 +387,10 @@ export default function OrderDetailPage() {
           totalAmount: editData.totalAmount,
           deliveryDate: editData.deliveryDate || undefined,
           invoiceNumber: editData.invoiceNumber,
+          paymentTerms: editData.paymentTerms,
+          // Only send the date when the user actually set one. Sending '' would
+          // be read as "clear it", wiping a date the server had derived.
+          ...(editData.paymentDueDate ? { paymentDueDate: editData.paymentDueDate } : {}),
           // Only sent when a new file was picked, so saving the form doesn't
           // clear an invoice already on file.
           invoiceFile: invoiceUpload
@@ -425,12 +486,42 @@ export default function OrderDetailPage() {
     String(editData.totalAmount) !== String(order.totalAmount) ||
     editData.deliveryDate !== (order.deliveryDate ? order.deliveryDate.split('T')[0] : '') ||
     (editData.invoiceNumber || '') !== (order.invoiceNumber || '') ||
+    (editData.paymentTerms || '') !== (order.paymentTerms || '') ||
+    editData.paymentDueDate !== (order.paymentDueDate ? order.paymentDueDate.split('T')[0] : '') ||
     editData.status !== order.status ||
     !!invoiceUpload
   );
   // Guarded: 0/0 is NaN, which CSS rejects outright and toFixed renders as
   // the literal string "NaN".
   const paidPct = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
+
+  // Overdue is derived here rather than stored, so it is right the moment a
+  // payment lands instead of waiting for something to clear a flag.
+  const overdueBy = balance > 0 ? daysOverdue(order.paymentDueDate) : 0;
+
+  // What the typed terms would resolve to, previewed live in the edit modal.
+  const derivedDuePreview = derivePaymentDueDateStr(
+    editData.paymentTerms,
+    editData.poDate ? new Date(editData.poDate) : (order.poDate ? new Date(order.poDate) : new Date()),
+  );
+
+  // Running balance per payment row.
+  //
+  // The list is rendered newest-first, but "what was still owed after this
+  // one" only means anything read oldest-first — so accumulate over a
+  // chronological copy and look the answer up by id when rendering.
+  const balanceAfter = new Map<string, number>();
+  {
+    const chronological = [...payments].sort(
+      (a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime(),
+    );
+    let running = total;
+    for (const p of chronological) {
+      running -= toFiniteNumber(p.amount);
+      balanceAfter.set(p.id, running);
+    }
+  }
+  const receivedTotal = payments.reduce((sum, p) => sum + toFiniteNumber(p.amount), 0);
 
   return (
     <div className="p-3 sm:p-6 space-y-3 sm:space-y-5">
@@ -449,10 +540,19 @@ export default function OrderDetailPage() {
             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${statusColor[order.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
               <span className="opacity-60 font-medium">Order</span> {order.status}
             </span>
+            {/* Amber for money still owed, red once it is actually late — the
+                distinction the order list and the reminder job work from. */}
             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ${
-              balance > 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-green-50 text-green-800 border-green-200'
+              balance <= 0 ? 'bg-green-50 text-green-800 border-green-200'
+                : overdueBy > 0 ? 'bg-red-50 text-red-800 border-red-200'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}>
-              {balance > 0 ? <>{fmt(balance)} <span className="opacity-70 font-medium">due</span></> : 'Paid in full'}
+              {balance > 0 ? (
+                <>
+                  {fmt(balance)} <span className="opacity-70 font-medium">due</span>
+                  {overdueBy > 0 && <> · {overdueBy}d overdue</>}
+                </>
+              ) : 'Paid in full'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{order.customer?.companyName ?? '—'}</p>
@@ -599,6 +699,17 @@ export default function OrderDetailPage() {
                 <span>Outstanding</span>
                 <span className={balance > 0 ? 'text-red-600' : 'text-green-600'}>{fmt(balance)}</span>
               </div>
+              {(order.paymentDueDate || order.paymentTerms) && (
+                <div className="flex justify-between text-xs pt-0.5">
+                  <span className="text-gray-500">
+                    Due{order.paymentTerms ? <span className="text-gray-400"> · {order.paymentTerms}</span> : null}
+                  </span>
+                  <span className={overdueBy > 0 ? 'font-semibold text-red-600' : 'text-gray-600'}>
+                    {order.paymentDueDate ? fmtDate(order.paymentDueDate) : 'not set'}
+                    {overdueBy > 0 && ` · ${overdueBy}d late`}
+                  </span>
+                </div>
+              )}
               <div className="mt-2">
                 <div className="w-full bg-gray-100 rounded-full h-2.5">
                   <div className="bg-blue-600 h-2.5 rounded-full transition-all" style={{ width: `${paidPct}%` }} />
@@ -616,11 +727,19 @@ export default function OrderDetailPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
             <div className="flex items-center justify-between gap-2 mb-4">
               <h2 className="text-base font-bold text-gray-900">Payment History</h2>
-              {balance > 0 && (
-                <button onClick={openPayment} className={buttonClasses({ size: 'sm' })}>
-                  + Record Payment
-                </button>
-              )}
+              <div className="flex items-center gap-2 print:hidden">
+                {payments.length > 0 && (
+                  <button onClick={downloadStatement} disabled={exporting}
+                    className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
+                    <DownloadIcon className="w-3.5 h-3.5" /> {exporting ? 'Preparing…' : 'Statement'}
+                  </button>
+                )}
+                {balance > 0 && (
+                  <button onClick={openPayment} className={buttonClasses({ size: 'sm' })}>
+                    + Record Payment
+                  </button>
+                )}
+              </div>
             </div>
 
             {payments.length === 0 ? (
@@ -675,6 +794,16 @@ export default function OrderDetailPage() {
                             recorded by {p.recordedBy.firstName} {p.recordedBy.lastName}
                           </span>
                         </p>
+                        {/* What was still owed after this receipt. Reading a
+                            part-paid order otherwise meant re-adding the rows
+                            by hand to work out where each one left the balance. */}
+                        {balanceAfter.has(p.id) && (
+                          <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+                            {balanceAfter.get(p.id)! > 0.001
+                              ? <>{fmt(balanceAfter.get(p.id)!)} remaining after this</>
+                              : <span className="text-green-600 font-medium">settled in full</span>}
+                          </p>
+                        )}
                         {/* The reference is the field you match against a bank
                             statement, so it gets monospace and its own line. */}
                         {p.reference && (
@@ -713,6 +842,21 @@ export default function OrderDetailPage() {
                   </li>
                 ))}
               </ol>
+            )}
+
+            {/* Totals footer — reconciles the ledger against the order without
+                the reader having to add the rows up themselves. */}
+            {payments.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-200 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                <span className="text-gray-500">
+                  {payments.length} payment{payments.length === 1 ? '' : 's'}
+                  {' · '}
+                  <span className="font-semibold text-green-700 tabular-nums">{fmt(receivedTotal)}</span> received
+                </span>
+                <span className={balance > 0 ? 'font-semibold text-red-600 tabular-nums' : 'font-semibold text-green-600 tabular-nums'}>
+                  {balance > 0 ? <>{fmt(balance)} outstanding</> : 'Fully paid'}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -975,6 +1119,32 @@ export default function OrderDetailPage() {
                     <input type="date" value={editData.poDate}
                       onChange={e => setEditData(p => ({ ...p, poDate: e.target.value }))}
                       className={FIELD} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Payment Terms</label>
+                    <input type="text" value={editData.paymentTerms}
+                      onChange={e => setEditData(p => ({ ...p, paymentTerms: e.target.value }))}
+                      placeholder="e.g. Net 30, COD" className={FIELD} />
+                    {/* Shows what the terms will resolve to before saving, so a
+                        term the parser cannot read is obvious here rather than
+                        discovered later as an order that never appears on the
+                        overdue list. */}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {derivedDuePreview
+                        ? <>Due <span className="font-semibold text-gray-600">{fmtDate(derivedDuePreview)}</span> — set a date below to override.</>
+                        : editData.paymentTerms.trim()
+                          ? 'No due date can be read from these terms — set one below.'
+                          : 'Free text. "Net 30", "COD" and similar set the due date automatically.'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Payment Due Date</label>
+                    <input type="date" value={editData.paymentDueDate}
+                      onChange={e => setEditData(p => ({ ...p, paymentDueDate: e.target.value }))}
+                      className={FIELD} />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Drives the overdue flag and the payment reminders.
+                    </p>
                   </div>
                 </div>
               </FieldGroup>

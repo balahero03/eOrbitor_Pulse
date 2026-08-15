@@ -366,3 +366,104 @@ export async function generatePersonalReportExcel(report: PersonalReportInput): 
   const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
   return buffer;
 }
+
+// ─── Order payment statement ────────────────────────────────────────────────
+
+export interface OrderStatementInput {
+  order: {
+    orderNumber: string;
+    customerName: string;
+    poNumber?: string | null;
+    totalAmount: number;
+    amountPaid: number;
+    paymentTerms?: string | null;
+    paymentDueDate?: string | null;
+    status: string;
+    paymentStatus: string;
+  };
+  payments: {
+    paidAt: string;
+    amount: number;
+    mode?: string | null;
+    reference?: string | null;
+    remarks?: string | null;
+    recordedBy: string;
+  }[];
+}
+
+/**
+ * The payment ledger for one order, as a workbook.
+ *
+ * Built on the same banner/section/table helpers as the performance report so
+ * the two look like they came from the same system, and generated in the
+ * browser and downloaded — the pattern reports/[id] already uses — rather than
+ * behind a new endpoint.
+ *
+ * Rows run oldest-first here even though the screen shows newest-first: a
+ * statement is read as a running account, and the closing balance only makes
+ * sense at the bottom of one.
+ */
+export async function generateOrderStatementExcel(input: OrderStatementInput): Promise<Buffer> {
+  const { order, payments } = input;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'eOrbitor Pulse';
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet('Statement');
+  sheet.columns = [
+    { width: 14 }, { width: 16 }, { width: 14 }, { width: 24 }, { width: 30 }, { width: 20 },
+  ];
+
+  const balance = order.totalAmount - order.amountPaid;
+
+  bannerTitle(
+    sheet,
+    `Payment Statement — ${order.orderNumber}`,
+    `${order.customerName}${order.poNumber ? ` · PO ${order.poNumber}` : ''}`,
+    6,
+  );
+
+  addTable(sheet, 'Order', ['Field', 'Value'], [
+    ['Order Number', order.orderNumber],
+    ['Customer', order.customerName],
+    ['PO Number', order.poNumber || '—'],
+    ['Order Status', order.status],
+    ['Payment Status', order.paymentStatus],
+    ['Payment Terms', order.paymentTerms || '—'],
+    ['Payment Due', order.paymentDueDate || '—'],
+  ], { alignLeftCols: [0, 1] });
+
+  const chronological = [...payments].sort(
+    (a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime(),
+  );
+
+  let running = order.totalAmount;
+  const rows: Row[] = chronological.map((p) => {
+    running -= p.amount;
+    return [
+      new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      p.amount,
+      p.mode || '—',
+      p.reference || '—',
+      p.remarks || '—',
+      running,
+    ];
+  });
+
+  addTable(
+    sheet,
+    'Payments Received',
+    ['Date', 'Amount', 'Mode', 'Reference', 'Remarks', 'Balance After'],
+    rows,
+    { currencyCols: [1, 5], alignLeftCols: [2, 3, 4] },
+  );
+
+  addTable(sheet, 'Summary', ['Field', 'Amount'], [
+    ['Order Value', order.totalAmount],
+    ['Total Received', order.amountPaid],
+    ['Balance Outstanding', balance],
+  ], { currencyCols: [1], boldCols: [0] });
+
+  const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
+  return buffer;
+}

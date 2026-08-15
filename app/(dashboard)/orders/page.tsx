@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { daysOverdue } from '@/lib/paymentTerms';
 import { useRouter } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { toFiniteNumber } from '@/lib/money';
@@ -24,6 +25,8 @@ interface Order {
   amountPaid: string;
   poDate?: string;
   deliveryDate?: string;
+  paymentTerms?: string | null;
+  paymentDueDate?: string | null;
   createdAt: string;
 }
 
@@ -53,10 +56,14 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
+  // Deep-linked from the overdue digest notification (/orders?overdue=true).
+  const [overdueOnly, setOverdueOnly] = useState(
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('overdue') === 'true'
+  );
 
   useEffect(() => {
     fetchOrders();
-  }, [page, status, paymentStatus]);
+  }, [page, status, paymentStatus, overdueOnly]);
 
   const fetchOrders = async () => {
     setRefreshing(true);
@@ -67,6 +74,7 @@ export default function OrdersPage() {
         limit: '20',
         ...(status && { status }),
         ...(paymentStatus && { paymentStatus }),
+        ...(overdueOnly && { overdue: 'true' }),
         ...(search && { search }),
       });
 
@@ -221,13 +229,25 @@ export default function OrdersPage() {
             {s.label}
           </button>
         ))}
+        {/* Sits with the status pills but filters on money, not fulfilment —
+            an order can be Fulfilled and still unpaid, which is exactly the
+            case worth being able to isolate. */}
+        <button
+          onClick={() => { setOverdueOnly(v => !v); setPage(1); }}
+          className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${overdueOnly
+              ? 'bg-red-600 text-white border-red-600 shadow-sm scale-[1.02] ring-2 ring-red-400/40'
+              : 'bg-white text-red-600 border-red-200 hover:border-red-300 hover:bg-red-50/80'
+            }`}
+        >
+          Overdue
+        </button>
       </div>
 
       {/* Filters */}
       <FilterPanel
         label="Search & Filters"
-        activeCount={[search, status, paymentStatus].filter(Boolean).length}
-        onClear={() => { setSearch(''); setStatus(''); setPaymentStatus(''); setPage(1); }}
+        activeCount={[search, status, paymentStatus, overdueOnly].filter(Boolean).length}
+        onClear={() => { setSearch(''); setStatus(''); setPaymentStatus(''); setOverdueOnly(false); setPage(1); }}
       >
         <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
           <div className="w-full">
@@ -349,6 +369,7 @@ export default function OrdersPage() {
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide w-44">Payment</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-28">PO Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-32">Payment Due</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24">Actions</th>
                   </tr>
                 </thead>
@@ -392,6 +413,21 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">
                         {order.poDate ? new Date(order.poDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-sm whitespace-nowrap">
+                        {(() => {
+                          if (!order.paymentDueDate) {
+                            return <span className="text-gray-300">—</span>;
+                          }
+                          const owed = (parseFloat(order.totalAmount) || 0) - (parseFloat(order.amountPaid) || 0);
+                          const late = owed > 0 ? daysOverdue(order.paymentDueDate) : 0;
+                          return (
+                            <div className={late > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'}>
+                              {new Date(order.paymentDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {late > 0 && <div className="text-[11px] font-bold">{late}d overdue</div>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 text-right text-sm">
                         <button

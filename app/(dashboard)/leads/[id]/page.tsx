@@ -1488,7 +1488,7 @@ function ClosureModal({
           {form.outcome === 'WON' && (
             <div className="space-y-4">
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
-                Lead moves to <strong>Orders</strong> · Manager &amp; Admin notified by email with attachments
+                Lead moves to <strong>Orders</strong> at this value · Manager &amp; Admin notified in the app
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
