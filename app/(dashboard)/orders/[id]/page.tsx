@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { viewAuthedFile } from '@/lib/downloadFile';
 import { daysOverdue, derivePaymentDueDateStr } from '@/lib/paymentTerms';
 import { istToday } from '@/lib/istDate';
 import { toFiniteNumber } from '@/lib/money';
@@ -670,10 +671,16 @@ export default function OrderDetailPage() {
                       {order.invoiceNumber || '—'}
                     </span>
                     {order.invoiceFile && (
-                      <a href={`/api/orders/${id}/invoice`} target="_blank" rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => viewAuthedFile(
+                          `/api/orders/${id}/invoice`,
+                          (order.invoiceFile as any)?.filename || `${order.orderNumber}-invoice`,
+                          toast.error,
+                        )}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap">
                         <AttachmentIcon className="w-3.5 h-3.5" /> View
-                      </a>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -818,15 +825,18 @@ export default function OrderDetailPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {p.proof && (
-                          <a
-                            href={`/api/orders/${id}/payments/${p.id}/proof`}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => viewAuthedFile(
+                              `/api/orders/${id}/payments/${p.id}/proof`,
+                              (p.proof as any)?.filename || 'receipt',
+                              toast.error,
+                            )}
                             title={(p.proof as any).filename || 'Receipt'}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap"
                           >
                             <AttachmentIcon className="w-3.5 h-3.5" /> Receipt
-                          </a>
+                          </button>
                         )}
                         {isAdminUser && (
                           <button

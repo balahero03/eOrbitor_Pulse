@@ -9,6 +9,7 @@ function clampMoney(raw: string): number {
 }
 
 import { useState, useEffect, useRef } from 'react';
+import { downloadAuthedFile } from '@/lib/downloadFile';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SOLUTION_AREAS, OEM_LIST } from '@/lib/eorbitor-constants';
@@ -2730,30 +2731,10 @@ export default function LeadDetailPage() {
     finally { setStageSubmitting(false); }
   };
 
-  const downloadAttachment = async (fileId: string, filename: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/leads/${id}/attachments/${fileId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        toast.error(e.message || 'Could not download file');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'download';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Download failed.');
-    }
-  };
+  // Was the only download in the app that did this correctly. Now shared, so
+  // the orders page cannot drift back to a plain <a href> that 401s.
+  const downloadAttachment = (fileId: string, filename: string) =>
+    downloadAuthedFile(`/api/leads/${id}/attachments/${fileId}`, filename, toast.error);
 
   const handleClosureSumbit = async (form: ClosureFormData) => {
     setClosureSubmitting(true);
