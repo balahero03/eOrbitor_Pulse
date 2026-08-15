@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
-// Closure mail is deferred, not awaited. The reps closing a deal were paying
-// the full SMTP round-trip inside their own request — and on a failure, the
-// transport's own timeouts plus its one retry (see lib/mail.ts) could hold the
-// response open for roughly sixteen seconds before returning the 200 that was
-// already decided. Nothing here reads the delivery result, so there was never
-// anything to wait for. `after()` keeps the send alive past the response
-// instead; a bare floating promise would be torn down mid-conversation.
-import { sendMailAfterResponse, buildWonEmail, buildLostEmail, MailAttachment } from '@/lib/mail';
+// Closing a lead no longer sends email. Outbound mail is reserved for password
+// reset and account recovery (see the policy note at the top of lib/mail.ts);
+// managers and admins are told about a closure in-app instead, through the same
+// notification mechanism every other cross-team event in the app already uses.
+import { notifyAdminsAndManagers } from '@/lib/notify';
 import { saveBase64Files } from '@/lib/storage';
 import { createWithOrderNumber } from '@/lib/orderNumber';
 
@@ -70,37 +67,15 @@ export async function POST(
       (rawAttachments as any[]).filter((a: any) => a?.dataBase64 && a?.filename),
     );
 
-    // Build mail attachments from base64 (transient — for the notification email)
-    const attachments: MailAttachment[] = (rawAttachments as any[])
-      .filter((a: any) => a?.dataBase64 && a?.filename)
-      .map((a: any) => ({
-        filename: a.filename,
-        content: Buffer.from(a.dataBase64, 'base64'),
-        contentType: a.contentType || 'application/octet-stream',
-      }));
-
-    // Recipients
-    const [managers, admins] = await Promise.all([
-      prisma.user.findMany({
-        where: { id: { in: await getManagerIds(lead.assignedToId) } },
-        select: { email: true, firstName: true, lastName: true },
-      }),
-      prisma.user.findMany({
-        where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] } },
-        select: { email: true, firstName: true, lastName: true },
-      }),
-    ]);
-
-    const notifyEmails = [...new Set([
-      ...managers.map(m => m.email),
-      ...admins.map(a => a.email),
-    ])].filter(Boolean) as string[];
-
-    const repName     = `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}`;
-    const managerName = managers[0]
-      ? `${managers[0].firstName} ${managers[0].lastName}`
-      : 'Manager';
-    const attachmentNames = attachments.map(a => a.filename);
+    // filter(Boolean) rather than a template literal: accounts without a
+    // surname (the seeded admin, for one) otherwise render as "Admin  closed"
+    // with a doubled space.
+    const repName = [lead.assignedTo.firstName, lead.assignedTo.lastName].filter(Boolean).join(' ');
+    // Taken from what was actually written to disk rather than re-derived from
+    // the request. Every upload used to be base64-decoded into a second
+    // in-memory Buffer purely so it could ride along on the notification email;
+    // with the email gone, the stored descriptors are the only copy needed.
+    const attachmentNames = storedFiles.map(f => f.filename);
     // Metadata for the download UI — excludes storagePath from the client-facing shape
     const attachmentMeta = storedFiles.map(f => ({
       id: f.id,
@@ -214,7 +189,7 @@ export async function POST(
       // Falls back to lead.quoteValue only if no quotation exists.
       const orderTotal = quoteValue > 0 ? quoteValue : leadValue;
 
-      await createWithOrderNumber((orderNumber) =>
+      const createdOrder = await createWithOrderNumber((orderNumber) =>
         prisma.order.create({
         data: {
           orderNumber,
@@ -248,21 +223,17 @@ export async function POST(
         },
       });
 
-      if (notifyEmails.length > 0) {
-        sendMailAfterResponse('lead won', {
-          to: notifyEmails,
-          // Subjects read as a business record, not a chat message. These land
-          // in manager and director inboxes and get forwarded on; an emoji
-          // headline undercuts that, and several corporate filters score it.
-          subject: `Opportunity Won — ${lead.company} (${lead.name})${lead.quoteValue ? ` · ₹${Number(lead.quoteValue).toLocaleString('en-IN')}` : ''}`,
-          html: buildWonEmail({
-            lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
-            rep: repName, manager: managerName,
-            quoteRef, poNumber, reasonOfWin, whatWentWell, attachmentNames,
-          }),
-          attachments,
-        });
-      }
+      // ORDER_CONFIRMED rather than a lead-shaped type: an order was just
+      // raised, and that order is what the recipient has to act on. The
+      // notification shell resolves this type straight to the order page.
+      await notifyAdminsAndManagers(
+        'ORDER_CONFIRMED',
+        'Opportunity Won',
+        `${repName} closed ${lead.company} (${lead.name}) as won${orderTotal > 0 ? ` for ₹${orderTotal.toLocaleString('en-IN')}` : ''}. An order has been raised.`,
+        'ORDER',
+        createdOrder.id,
+        user.id,
+      );
 
       return NextResponse.json({ outcome: 'WON', lead: updated, message: 'Lead won! Auto-converted to Customer and moved to Orders.' });
     }
@@ -281,27 +252,18 @@ export async function POST(
       include: { assignedTo: { select: { firstName: true, lastName: true } } },
     });
 
-    if (notifyEmails.length > 0) {
-      sendMailAfterResponse(`lead ${newStatus.toLowerCase()}`, {
-        to: notifyEmails,
-        subject: `Opportunity ${outcome === 'LOST' ? 'Lost' : 'Dropped'} — ${lead.company} (${lead.name})`,
-        html: buildLostEmail({
-          lead: { name: lead.name, company: lead.company, quoteValue: lead.quoteValue },
-          outcome: outcome as 'LOST' | 'DROPPED',
-          reason, rep: repName, competitor, whatToImprove, attachmentNames,
-        }),
-        attachments,
-      });
-    }
+    // DEAL_UPDATED resolves to the lead itself, where the closure reason and
+    // any attached documents are recorded.
+    await notifyAdminsAndManagers(
+      'DEAL_UPDATED',
+      `Opportunity ${outcome === 'LOST' ? 'Lost' : 'Dropped'}`,
+      `${repName} closed ${lead.company} (${lead.name}) as ${newStatus.toLowerCase()}` +
+        `${competitor ? ` to ${competitor}` : ''}${reason ? `. Reason: ${reason}` : '.'}`,
+      'LEAD',
+      id,
+      user.id,
+    );
 
     return NextResponse.json({ outcome: newStatus, lead: updated, message: `Lead marked as ${newStatus}.` });
   })(req);
-}
-
-async function getManagerIds(userId: string): Promise<string[]> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { managerId: true },
-  });
-  return user?.managerId ? [user.managerId] : [];
 }

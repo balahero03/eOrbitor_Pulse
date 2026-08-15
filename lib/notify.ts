@@ -11,6 +11,7 @@ type NotifType =
   | 'USER_INACTIVE'
   | 'QUOTATION_APPROVED'
   | 'LEAD_ASSIGNED'
+  | 'DEAL_UPDATED'
   | 'ORDER_CONFIRMED';
 
 export async function createNotification(
