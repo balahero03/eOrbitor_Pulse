@@ -17,6 +17,16 @@ import { InlineLoader } from '@/components/BrandedLoader';
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'record' | 'access';
 
+/**
+ * A notification target that has been "armed" for highlighting, scoped to the
+ * exact category/tab it belongs to. Passed down as one unit (rather than a
+ * bare id) so a list can never show a ring for a target that isn't actually
+ * meant for the view it's currently rendering — the render-time check lives
+ * in the parent, but each list also matches on the id itself, so a stale or
+ * mismatched armed object still can't light up the wrong card.
+ */
+interface ArmedHighlight { category: Category; tab: Status; id: string; nonce: string }
+
 // Record approvals — lead/order/customer delete/reopen requests.
 interface RecordRequest {
   id: string;
@@ -96,8 +106,6 @@ function ApprovalsContent() {
     if (paramTab && ['PENDING', 'APPROVED', 'REJECTED'].includes(paramTab)) return paramTab;
     return 'PENDING';
   });
-  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(paramId || null);
-
 
   // ── Where the highlight comes from ────────────────────────────────────────
   //
@@ -123,16 +131,51 @@ function ApprovalsContent() {
     if (paramTab && ['PENDING', 'APPROVED', 'REJECTED'].includes(paramTab)) setTab(paramTab as Status);
   }, [paramTab, paramNonce]);
 
-  // Cleared just after the CSS animation ends, so the class is not left on the
-  // card holding a finished animation in its final frame.
+  // ── What is "armed" to be highlighted ───────────────────────────────────────
+  //
+  // Carries the category and tab the target belongs to, not just its id. A
+  // bare id let the highlight survive a manual tab switch and land on whatever
+  // the new tab happened to show — including, via the single-item fallback
+  // this replaces, a completely unrelated record that just happened to be the
+  // only row on that tab. Recording where the target *belongs* is what lets
+  // the render below refuse to show it anywhere else.
+  const [armed, setArmed] = useState<ArmedHighlight | null>(null);
+
+  // Re-armed from the URL on mount and on every notification click (paramNonce
+  // changes each time, including a repeat click on the same notification —
+  // see the key on the card below for why that matters). Auto-clears after
+  // HIGHLIGHT_VISIBLE_MS so the ring is not left on indefinitely if nothing
+  // else dismisses it first.
   useEffect(() => {
-    if (!paramId) { setActiveHighlightId(null); return; }
-    setActiveHighlightId(paramId);
-    const t = setTimeout(() => setActiveHighlightId(null), HIGHLIGHT_VISIBLE_MS);
+    if (!paramId || !paramTab || !['PENDING', 'APPROVED', 'REJECTED'].includes(paramTab)) {
+      setArmed(null);
+      return;
+    }
+    const armedCategory: Category = paramCategory === 'access' && canReviewAccess ? 'access' : 'record';
+    setArmed({ category: armedCategory, tab: paramTab as Status, id: paramId, nonce: paramNonce ?? paramId });
+    const t = setTimeout(() => setArmed(null), HIGHLIGHT_VISIBLE_MS);
     return () => clearTimeout(t);
-  }, [paramId, paramTab, paramCategory, paramNonce]);
+  }, [paramId, paramTab, paramCategory, paramNonce, canReviewAccess]);
+
+  // Manual navigation dismisses the armed highlight immediately and for good —
+  // not just until the tab happens to match again. Revisiting the original tab
+  // later in the same window should not cause a surprise re-highlight; the
+  // ring is a one-time "look here" cue, not a standing state.
+  const dismissHighlight = useCallback(() => setArmed(null), []);
+  const handleTabChange = useCallback((s: Status) => { setTab(s); dismissHighlight(); }, [dismissHighlight]);
+  const handleCategoryChange = useCallback(
+    (c: Category) => { setCategory(c); setTab('PENDING'); dismissHighlight(); },
+    [dismissHighlight],
+  );
 
   const activeCategory = canReviewAccess ? category : 'record';
+
+  // The only thing ever handed to the lists as "flash this id". Requires an
+  // exact match on *both* category and tab against what was armed, so a
+  // mismatched view can never show a ring — by construction, not by every
+  // call site remembering to clear something.
+  const effectiveHighlight =
+    armed && armed.category === activeCategory && armed.tab === tab ? armed : null;
 
   return (
     <PageContainer>
@@ -140,7 +183,7 @@ function ApprovalsContent() {
         title="Approvals"
         subtitle="Review and manage pending approval requests"
         actions={canReviewAccess ? (
-          <CategoryBar category={activeCategory} onChange={(c) => { setCategory(c); setTab('PENDING'); }} />
+          <CategoryBar category={activeCategory} onChange={handleCategoryChange} />
         ) : undefined}
       />
 
@@ -150,7 +193,7 @@ function ApprovalsContent() {
             activeCategory === 'record' ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
-          <RecordApprovals tab={tab} setTab={setTab} flashId={activeCategory === 'record' ? activeHighlightId : null} />
+          <RecordApprovals tab={tab} setTab={handleTabChange} flash={activeCategory === 'record' ? effectiveHighlight : null} />
         </div>
         {canReviewAccess && (
           <div
@@ -158,7 +201,7 @@ function ApprovalsContent() {
               activeCategory === 'access' ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
-            <AccessApprovals tab={tab} setTab={setTab} flashId={activeCategory === 'access' ? activeHighlightId : null} />
+            <AccessApprovals tab={tab} setTab={handleTabChange} flash={activeCategory === 'access' ? effectiveHighlight : null} />
           </div>
         )}
       </div>
@@ -417,8 +460,9 @@ function cardBorder(status: Status) {
 }
 
 // ── Record approvals ────────────────────────────────────────────────────────
-function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
+function RecordApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Status) => void; flash: ArmedHighlight | null }) {
   const toast = useToast();
+  const flashId = flash?.id ?? null;
   const [requests, setRequests] = useState<RecordRequest[]>([]);
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [loading, setLoading] = useState(true);
@@ -535,23 +579,18 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     } finally { setProcessingId(null); }
   };
 
-  const hasExactMatch = requests.some(
-    (r) =>
-      Boolean(flashId) &&
-      (flashId === r.entityId ||
-        flashId === r.id ||
-        (r as any).leadId === flashId ||
-        flashId?.toLowerCase() === r.entityId?.toLowerCase() ||
-        flashId?.toLowerCase() === r.id?.toLowerCase())
-  );
-
   return (
     <div className="space-y-4">
       <StatusTabs tab={tab} setTab={setTab} counts={counts} />
       {loading ? <Spinner /> : requests.length === 0 ? <EmptyState tab={tab} /> : (
         <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
           {requests.map((req) => {
-            const isExactMatch =
+            // Exact ID match only. There used to be a fallback here that lit
+            // up a tab's one-and-only row whenever the target id wasn't found
+            // in it — meant for some ID-mismatch edge case, but it fired on
+            // pure coincidence and was the actual cause of an unrelated
+            // record lighting up on a tab the user had switched to.
+            const isHighlighted =
               Boolean(flashId) &&
               (flashId === req.entityId ||
                 flashId === req.id ||
@@ -559,12 +598,15 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                 flashId?.toLowerCase() === req.entityId?.toLowerCase() ||
                 flashId?.toLowerCase() === req.id?.toLowerCase());
 
-            const isSingleFallback = Boolean(flashId) && !hasExactMatch && requests.length === 1;
-            const isHighlighted = isExactMatch || isSingleFallback;
-
             return (
               <div
-                key={req.id}
+                // Remounts just this one card when the *same* notification is
+                // clicked again (paramNonce changes on every click). Without
+                // it, re-arming an already-highlighted id sets the identical
+                // className twice, React skips the DOM write, and the CSS
+                // animation never restarts — a repeat click produced no
+                // visible response at all.
+                key={isHighlighted ? `${req.id}-hl-${flash?.nonce}` : req.id}
                 id={`approval-${req.entityId}`}
                 data-highlight-id={req.entityId}
                 data-entity-id={req.entityId}
@@ -674,8 +716,9 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 }
 
 // ── Access approvals ────────────────────────────────────────────────────────
-function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
+function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Status) => void; flash: ArmedHighlight | null }) {
   const toast = useToast();
+  const flashId = flash?.id ?? null;
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'AFTER_HOURS' | 'ACTIVITY_UNLOCK'>('ALL');
   const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
@@ -814,29 +857,21 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
         <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
           {(() => {
-            const hasExactAccessMatch = filteredRequests.some(
-              (r) =>
-                Boolean(flashId) &&
-                (flashId === r.id ||
-                  flashId === (r as any).userId ||
-                  flashId?.toLowerCase() === r.id?.toLowerCase())
-            );
-
             return filteredRequests.map((req) => {
               const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
               const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';
-              const isExactMatch =
+              // Exact ID match only — see the equivalent comment in
+              // RecordApprovals for why the single-item fallback this replaced
+              // is gone rather than fixed.
+              const isHighlighted =
                 Boolean(flashId) &&
                 (flashId === req.id ||
                   flashId === (req as any).userId ||
                   flashId?.toLowerCase() === req.id?.toLowerCase());
 
-              const isSingleFallback = Boolean(flashId) && !hasExactAccessMatch && filteredRequests.length === 1;
-              const isHighlighted = isExactMatch || isSingleFallback;
-
               return (
                 <div
-                  key={req.id}
+                  key={isHighlighted ? `${req.id}-hl-${flash?.nonce}` : req.id}
                   id={`access-${req.id}`}
                   data-highlight-id={req.id}
                   data-request-id={req.id}
