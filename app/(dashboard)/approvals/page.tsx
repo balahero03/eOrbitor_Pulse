@@ -86,19 +86,47 @@ export default function ApprovalsPage() {
   const flashRecordId = useNotificationHighlight('approval');
   const flashAccessId = useNotificationHighlight('access');
 
-  // Jump to the right category on mount / when a notification fires, so the
+  // Jump to the right category & status tab on mount / when a notification fires, so the
   // deep-linked row is actually rendered for the ring to land on.
   useEffect(() => {
-    if (!canReviewAccess) return; // no access category to switch to
+    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+    const checkAndSetTab = async (targetId: string, scope: string) => {
+      if (scope === 'access' && canReviewAccess) {
+        setCategory('access');
+        try {
+          const res = await fetch('/api/access-requests?limit=100', { headers: authHeaders() });
+          if (res.ok) {
+            const data = await res.json();
+            const req = (data.requests || []).find((r: any) => r.id === targetId || r.entityId === targetId);
+            if (req?.status) setTab(req.status);
+            else setTab('PENDING');
+          }
+        } catch { setTab('PENDING'); }
+      } else if (scope === 'approval') {
+        setCategory('record');
+        try {
+          const res = await fetch('/api/approval-requests?limit=100', { headers: authHeaders() });
+          if (res.ok) {
+            const data = await res.json();
+            const req = (data.requests || []).find((r: any) => r.entityId === targetId || r.id === targetId);
+            if (req?.status) setTab(req.status);
+            else setTab('PENDING');
+          }
+        } catch { setTab('PENDING'); }
+      }
+    };
+
     const pendingAccess = readPendingHighlight('access');
     const pendingRecord = readPendingHighlight('approval');
-    if (pendingAccess) { setCategory('access'); setTab('PENDING'); }
-    else if (pendingRecord) { setCategory('record'); setTab('PENDING'); }
+    if (pendingAccess) checkAndSetTab(pendingAccess.id, 'access');
+    else if (pendingRecord) checkAndSetTab(pendingRecord.id, 'approval');
 
     const handler = (e: Event) => {
-      const scope = (e as CustomEvent<HighlightRequest>).detail?.scope;
-      if (scope === 'access') { setCategory('access'); setTab('PENDING'); }
-      else if (scope === 'approval') { setCategory('record'); setTab('PENDING'); }
+      const detail = (e as CustomEvent<HighlightRequest>).detail;
+      if (detail?.id && detail?.scope) {
+        checkAndSetTab(detail.id, detail.scope);
+      }
     };
     window.addEventListener(HIGHLIGHT_EVENT, handler);
     return () => window.removeEventListener(HIGHLIGHT_EVENT, handler);
