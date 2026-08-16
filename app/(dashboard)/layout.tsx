@@ -31,8 +31,16 @@ import {
   BellIcon,
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
-  UserCircleIcon
+  UserCircleIcon,
+  CheckIcon,
+  TrashIcon,
+  ClockIcon,
+  EyeIcon,
+  SparklesIcon,
+  XMarkIcon,
+  BellSlashIcon,
 } from '@heroicons/react/24/outline';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
 interface MenuItem {
   label: string;
@@ -160,6 +168,135 @@ function isGroupVisible(group: NavGroup, role: string): boolean {
 function fmt24(hm: string) {
   const [h, m] = hm.split(':').map(Number);
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diffSec = Math.max(0, Math.floor((now - date) / 1000));
+
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+interface NotifMeta {
+  icon: any;
+  iconBg: string;
+  iconColor: string;
+  category: string;
+  badgeBg: string;
+}
+
+function getNotificationMeta(n: AppNotification): NotifMeta {
+  const type = n.type || '';
+  const title = n.title || '';
+
+  if (type.startsWith('APPROVAL')) {
+    if (type === 'APPROVAL_APPROVED') {
+      return {
+        icon: ShieldCheckIcon,
+        iconBg: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20',
+        iconColor: 'text-emerald-600',
+        category: 'Approved',
+        badgeBg: 'bg-emerald-100/80 text-emerald-700',
+      };
+    }
+    if (type === 'APPROVAL_REJECTED') {
+      return {
+        icon: ShieldCheckIcon,
+        iconBg: 'bg-rose-50 text-rose-600 ring-rose-500/20',
+        iconColor: 'text-rose-600',
+        category: 'Rejected',
+        badgeBg: 'bg-rose-100/80 text-rose-700',
+      };
+    }
+    return {
+      icon: ShieldCheckIcon,
+      iconBg: 'bg-amber-50 text-amber-600 ring-amber-500/20',
+      iconColor: 'text-amber-600',
+      category: 'Approval',
+      badgeBg: 'bg-amber-100/80 text-amber-700',
+    };
+  }
+
+  if (type.startsWith('TASK')) {
+    return {
+      icon: CheckCircleIcon,
+      iconBg: 'bg-indigo-50 text-indigo-600 ring-indigo-500/20',
+      iconColor: 'text-indigo-600',
+      category: 'Task',
+      badgeBg: 'bg-indigo-100/80 text-indigo-700',
+    };
+  }
+
+  if (type.startsWith('ORDER') || type.startsWith('PAYMENT')) {
+    return {
+      icon: ShoppingBagIcon,
+      iconBg: 'bg-teal-50 text-teal-600 ring-teal-500/20',
+      iconColor: 'text-teal-600',
+      category: type.includes('PAYMENT') ? 'Payment' : 'Order',
+      badgeBg: 'bg-teal-100/80 text-teal-700',
+    };
+  }
+
+  if (type.startsWith('LEAD') || type === 'DEAL_UPDATED') {
+    return {
+      icon: FunnelIcon,
+      iconBg: 'bg-blue-50 text-blue-600 ring-blue-500/20',
+      iconColor: 'text-blue-600',
+      category: 'Lead',
+      badgeBg: 'bg-blue-100/80 text-blue-700',
+    };
+  }
+
+  if (type.startsWith('QUOTATION')) {
+    return {
+      icon: DocumentTextIcon,
+      iconBg: 'bg-purple-50 text-purple-600 ring-purple-500/20',
+      iconColor: 'text-purple-600',
+      category: 'Quotation',
+      badgeBg: 'bg-purple-100/80 text-purple-700',
+    };
+  }
+
+  if (type === 'FOLLOW_UP_REMINDER') {
+    return {
+      icon: PhoneIcon,
+      iconBg: 'bg-cyan-50 text-cyan-600 ring-cyan-500/20',
+      iconColor: 'text-cyan-600',
+      category: 'Follow-up',
+      badgeBg: 'bg-cyan-100/80 text-cyan-700',
+    };
+  }
+
+  if (title.includes('Daily Activity') || title.includes('After-Hours Access')) {
+    return {
+      icon: CalendarDaysIcon,
+      iconBg: 'bg-orange-50 text-orange-600 ring-orange-500/20',
+      iconColor: 'text-orange-600',
+      category: 'Access',
+      badgeBg: 'bg-orange-100/80 text-orange-700',
+    };
+  }
+
+  return {
+    icon: MegaphoneIcon,
+    iconBg: 'bg-slate-100 text-slate-700 ring-slate-400/20',
+    iconColor: 'text-slate-700',
+    category: 'System',
+    badgeBg: 'bg-slate-200/80 text-slate-700',
+  };
 }
 
 interface AccessRequest {
@@ -416,6 +553,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifTab, setNotifTab] = useState<'ALL' | 'UNREAD'>('ALL');
   // The bell dropdown animated open but vanished instantly on close — same
   // "jump cut" the order modals had before components/Modal.tsx existed.
   // This is the one popover every user opens every session, so it is worth
@@ -963,68 +1101,137 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
-            {/* Notification bell */}
+            {/* Notification Center */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setNotifOpen(o => !o)}
-                className="relative p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                className={`relative p-2 rounded-xl text-slate-600 transition-all duration-200 focus:outline-none ${
+                  notifOpen
+                    ? 'bg-blue-50/80 text-blue-600 ring-2 ring-blue-500/20 shadow-sm'
+                    : 'hover:bg-slate-100/80 active:scale-95'
+                }`}
                 aria-label="Notifications"
               >
-                <BellIcon className="w-6 h-6" />
+                <BellIcon className="w-5 h-5 transition-transform duration-200" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold rounded-full items-center justify-center shadow-[0_2px_8px_rgba(37,99,235,0.35)] ring-2 ring-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </button>
 
               {notifMounted && (
                 <>
-                  {/* Scrim (mobile only). Without it the panel reads as part of
-                      the page rather than a floating overlay, and there is no
-                      large target to dismiss it by tapping away. */}
+                  {/* Scrim (mobile overlay) */}
                   <div
-                    className={`fixed inset-0 bg-black/30 z-[90] sm:hidden ${notifLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}
+                    className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] sm:hidden ${notifLeaving ? 'animate-fade-out' : 'animate-fade-in'}`}
                     onClick={() => setNotifOpen(false)}
                     aria-hidden="true"
                   />
-                  {/* The old max-height reserved only 5rem, but the sticky header
-                      (3.5rem) and the mobile bottom nav (3.5rem + safe area)
-                      together need ~9rem — so the panel ran underneath the nav and
-                      swallowed the screen. Reserve 10rem and it floats clear of both. */}
-                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-10rem)] sm:max-h-[28rem] origin-top-right ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-2.5 sm:py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
-                    <div>
-                      <span className="text-sm font-bold text-gray-900">Notifications</span>
-                      {notifications.length > 0 && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {unreadCount} unread · {notifications.length} total
-                        </p>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="min-h-[36px] sm:min-h-0 text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded transition-colors inline-flex items-center whitespace-nowrap"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Notifications list */}
-                  <div className="flex-1 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="text-center py-12 px-4">
-                        <p className="text-sm text-gray-400">No notifications yet</p>
-                        <p className="text-xs text-gray-300 mt-1">Activity updates will appear here</p>
+                  {/* Notification Center Floating Panel */}
+                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-12 sm:w-[410px] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[32rem] origin-top-right transition-all ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
+                    
+                    {/* Header */}
+                    <div className="px-4 pt-3.5 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur-md flex-shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-slate-900 tracking-tight">Notifications</span>
+                          {unreadCount > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-200/60 shadow-xs">
+                              {unreadCount} new
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={markAllRead}
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2.5 py-1.5 hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-all inline-flex items-center gap-1.5"
+                              title="Mark all as read"
+                            >
+                              <CheckBadgeIcon className="w-4 h-4 text-blue-600" />
+                              <span>Mark all read</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setNotifOpen(false)}
+                            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg sm:hidden"
+                            aria-label="Close"
+                          >
+                            <XMarkIcon className="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <div>
-                        {notifications.map((n, idx) => {
+
+                      {/* Filter Switcher Tabs */}
+                      <div className="mt-3 flex items-center p-1 bg-slate-100/90 rounded-xl">
+                        <button
+                          onClick={() => setNotifTab('ALL')}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 ${
+                            notifTab === 'ALL'
+                              ? 'bg-white text-slate-900 shadow-xs ring-1 ring-slate-200/60'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          <span>All</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                            notifTab === 'ALL' ? 'bg-slate-100 text-slate-700' : 'bg-slate-200/70 text-slate-500'
+                          }`}>
+                            {notifications.length}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setNotifTab('UNREAD')}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 ${
+                            notifTab === 'UNREAD'
+                              ? 'bg-white text-blue-600 shadow-xs ring-1 ring-blue-200/60'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          <span>Unread</span>
+                          {unreadCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-500 text-white">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Notifications list */}
+                    <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80">
+                      {(() => {
+                        const items = notifTab === 'UNREAD' ? notifications.filter(n => !n.isRead) : notifications;
+
+                        if (items.length === 0) {
+                          return (
+                            <div className="text-center py-12 px-6">
+                              <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-inner">
+                                {notifTab === 'UNREAD' ? (
+                                  <SparklesIcon className="w-6 h-6 text-blue-500" />
+                                ) : (
+                                  <BellSlashIcon className="w-6 h-6 text-slate-400" />
+                                )}
+                              </div>
+                              <p className="text-sm font-semibold text-slate-800">
+                                {notifTab === 'UNREAD' ? "You're all caught up!" : 'No notifications yet'}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1 max-w-[240px] mx-auto leading-relaxed">
+                                {notifTab === 'UNREAD'
+                                  ? 'All incoming alerts and task updates have been reviewed.'
+                                  : 'New assignments, approvals, and reminders will appear here in real-time.'}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return items.map((n) => {
                           const removing = removingIds.has(n.id);
-                          const isLast = idx === notifications.length - 1;
+                          const meta = getNotificationMeta(n);
+                          const Icon = meta.icon;
+
                           return (
                             <div
                               key={n.id}
@@ -1042,88 +1249,102 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                   tabIndex={0}
                                   onClick={() => handleNotifClick(n)}
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n); } }}
-                                  className={`w-full text-left px-3.5 py-2.5 sm:px-4 sm:py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group ${
-                                    !n.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''
-                                  } ${!isLast ? 'border-b border-gray-100' : ''}`}
+                                  className={`relative w-full text-left p-3.5 sm:px-4 sm:py-3.5 hover:bg-slate-50/90 active:bg-slate-100/90 transition-all cursor-pointer group ${
+                                    !n.isRead ? 'bg-blue-50/30' : ''
+                                  }`}
                                 >
-                                  <div className="flex items-start gap-2.5">
-                                    {/* Read indicator dot */}
-                                    <span
-                                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 mt-1.5"
-                                      style={{ background: n.isRead ? '#e5e7eb' : '#3b82f6' }}
-                                    />
+                                  {/* Unread Indicator Bar */}
+                                  {!n.isRead && (
+                                    <div className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-r-full shadow-xs" />
+                                  )}
 
-                                    {/* Notification content — a notification is a
-                                        glance, not an article: the body sat at the
-                                        same size as the title, making every row
-                                        ~100px tall on a phone. */}
+                                  <div className="flex items-start gap-3">
+                                    {/* Categorized Glowing Icon Pod */}
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 shadow-xs transition-transform duration-200 group-hover:scale-105 ${meta.iconBg}`}>
+                                      <Icon className="w-5 h-5 stroke-[2]" />
+                                    </div>
+
+                                    {/* Text Body */}
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate">{n.title}</p>
-                                      <p className="text-xs sm:text-[13px] text-gray-600 mt-0.5 line-clamp-2 break-words">{n.message}</p>
-                                      <p className="text-[11px] text-gray-400 mt-1">
-                                        {new Date(n.createdAt).toLocaleString('en-IN', {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                          hour12: false,
-                                        })}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <p className={`text-[13px] sm:text-sm font-semibold truncate ${
+                                            !n.isRead ? 'text-slate-900 font-bold' : 'text-slate-700'
+                                          }`}>
+                                            {n.title}
+                                          </p>
+                                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold tracking-wide flex-shrink-0 ${meta.badgeBg}`}>
+                                            {meta.category}
+                                          </span>
+                                        </div>
+                                        <span
+                                          className="text-[11px] font-medium text-slate-400 whitespace-nowrap flex-shrink-0"
+                                          title={new Date(n.createdAt).toLocaleString('en-IN', {
+                                            dateStyle: 'medium',
+                                            timeStyle: 'short',
+                                          })}
+                                        >
+                                          {formatRelativeTime(n.createdAt)}
+                                        </span>
+                                      </div>
+
+                                      <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed break-words">
+                                        {n.message}
                                       </p>
                                     </div>
 
-                                    {/* Delete. Revealing this on hover alone meant it
-                                        was unreachable on a touch device, so it stays
-                                        visible on mobile and keeps the hover reveal
-                                        on pointer devices. */}
-                                    <button
-                                      onClick={(e) => deleteNotification(n.id, e)}
-                                      className="p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 rounded transition-all flex-shrink-0 text-gray-400 hover:text-red-500"
-                                      title="Delete notification"
-                                      aria-label="Delete notification"
-                                    >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
+                                    {/* Action Buttons on Hover / Mobile */}
+                                    <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
+                                      {!n.isRead && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            markRead(n.id);
+                                          }}
+                                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                          title="Mark as read"
+                                          aria-label="Mark as read"
+                                        >
+                                          <CheckIcon className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={(e) => deleteNotification(n.id, e)}
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                        title="Delete notification"
+                                        aria-label="Delete notification"
                                       >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={1.5}
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3H4v2h16V7h-3z"
-                                        />
-                                      </svg>
-                                    </button>
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           );
-                        })}
+                        });
+                      })()}
+                    </div>
+
+                    {/* Footer */}
+                    {notifications.length > 0 && (
+                      <div className="px-4 py-2.5 sm:py-3 border-t border-slate-100 bg-slate-50/80 backdrop-blur-md flex items-center justify-between gap-2 flex-shrink-0">
+                        {notifications.some(n => n.isRead) && (
+                          <button
+                            onClick={clearReadNotifications}
+                            className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 hover:bg-white active:bg-slate-100 rounded-lg border border-slate-200/70 shadow-xs transition-all flex-1 text-center"
+                          >
+                            Clear read
+                          </button>
+                        )}
+                        <button
+                          onClick={clearAllNotifications}
+                          className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-1.5 hover:bg-rose-50 active:bg-rose-100 rounded-lg transition-all flex-1 text-center"
+                        >
+                          Clear all
+                        </button>
                       </div>
                     )}
-                  </div>
-
-                  {/* Footer with action buttons */}
-                  {notifications.length > 0 && (
-                    <div className="px-4 py-2.5 sm:py-3 border-t border-gray-100 bg-gray-50 flex gap-2 flex-shrink-0">
-                      {notifications.some(n => n.isRead) && (
-                        <button
-                          onClick={clearReadNotifications}
-                          className="min-h-[36px] sm:min-h-0 text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 hover:bg-gray-200 rounded transition-colors flex-1 inline-flex items-center justify-center whitespace-nowrap"
-                        >
-                          Clear read
-                        </button>
-                      )}
-                      <button
-                        onClick={clearAllNotifications}
-                        className="min-h-[36px] sm:min-h-0 text-xs font-medium text-red-600 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded transition-colors flex-1 inline-flex items-center justify-center whitespace-nowrap"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                  )}
                   </div>
                 </>
               )}
