@@ -79,3 +79,13 @@ export function daysBetweenIstDates(from: string, to: string): number {
   if (Number.isNaN(a) || Number.isNaN(b)) return NaN;
   return Math.round((b - a) / 86400000);
 }
+
+/** `YYYY-MM-DD` → the first instant of that calendar day in IST. */
+export function startOfIstDay(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00.000+05:30`);
+}
+
+/** `YYYY-MM-DD` → the last instant of that calendar day in IST. */
+export function endOfIstDay(dateStr: string): Date {
+  return new Date(`${dateStr}T23:59:59.999+05:30`);
+}

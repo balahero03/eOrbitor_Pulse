@@ -1,4 +1,7 @@
-import { istDateString, shiftIstDate } from '@/lib/istDate';
+import { istDateString, shiftIstDate, endOfIstDay } from '@/lib/istDate';
+
+// Re-exported: this module's callers already import it from here.
+export { endOfIstDay };
 
 /**
  * Credit terms → a payment due date.
@@ -94,10 +97,6 @@ export function derivePaymentDueDate(
   return dateStr ? endOfIstDay(dateStr) : null;
 }
 
-/** `YYYY-MM-DD` → the last instant of that day in IST. */
-export function endOfIstDay(dateStr: string): Date {
-  return new Date(`${dateStr}T23:59:59.999+05:30`);
-}
 
 /**
  * Whole days a balance is past due — 0 when it is due today or not yet due.

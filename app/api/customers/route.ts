@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeSearch } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -10,7 +11,7 @@ const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 export const GET = withAuth(async (req: NextRequest, _user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const { page, limit, skip } = parsePagination(searchParams);
-  const search = searchParams.get('search')?.trim();
+  const search = sanitizeSearch(searchParams.get('search'));
 
   const where: any = { deletedAt: null };
 

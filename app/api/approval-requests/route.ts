@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseEnumParam } from '@/lib/queryFilters';
+import { ApprovalStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -11,10 +13,25 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
 
   const { searchParams } = new URL(req.url);
-  const status = searchParams.get('status') || 'PENDING';
+  const rawStatus = searchParams.get('status');
+  const entityId = searchParams.get('entityId');
+  const id = searchParams.get('id');
   const { page, limit, skip } = parsePagination(searchParams);
 
-  const where: any = { status };
+  const where: any = {};
+
+  if (rawStatus && rawStatus !== 'ALL') {
+    const status = parseEnumParam(rawStatus, ApprovalStatus, 'approval status');
+    if (status) where.status = status;
+  } else if (!rawStatus && !entityId && !id) {
+    where.status = 'PENDING';
+  }
+
+  if (id) {
+    where.OR = [{ id }, { entityId: id }, { leadId: id }];
+  } else if (entityId) {
+    where.OR = [{ entityId }, { id: entityId }, { leadId: entityId }];
+  }
 
   if (user.role === 'BACKEND_TEAM') {
     const subordinates = await prisma.user.findMany({

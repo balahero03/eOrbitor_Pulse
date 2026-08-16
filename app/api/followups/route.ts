@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeSearch, parseEnumParam, parseDateParam } from '@/lib/queryFilters';
+import { istDateString, startOfIstDay, endOfIstDay } from '@/lib/istDate';
+import { FollowUpType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -7,10 +10,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const { page, limit, skip } = parsePagination(searchParams);
   const dealId = searchParams.get('dealId');
-  const type = searchParams.get('type');
-  const fromDate = searchParams.get('fromDate');
-  const toDate = searchParams.get('toDate');
-  const search = searchParams.get('search')?.trim();
+  const type = parseEnumParam(searchParams.get('type'), FollowUpType, 'follow-up type');
+  const fromDate = parseDateParam(searchParams.get('fromDate'), 'from date');
+  const toDate = parseDateParam(searchParams.get('toDate'), 'to date');
+  const search = sanitizeSearch(searchParams.get('search'));
   const status = searchParams.get('status'); // 'pending' | 'completed' | 'overdue'
 
   const where: any = {};
@@ -32,8 +35,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (type) where.type = type;
   if (fromDate || toDate) {
     where.scheduledDate = {
-      ...(fromDate && { gte: new Date(fromDate) }),
-      ...(toDate && { lte: new Date(toDate + 'T23:59:59') }),
+      // Anchored to IST calendar days. `new Date(toDate + 'T23:59:59')` was
+      // parsed in the *server's* timezone, so on a UTC container the "to" day
+      // ran to 05:29 IST the following morning — the same class of bug as the
+      // report range boundaries.
+      ...(fromDate && { gte: startOfIstDay(istDateString(fromDate)) }),
+      ...(toDate && { lte: endOfIstDay(istDateString(toDate)) }),
     };
   }
   if (status === 'completed') where.actualDate = { not: null };

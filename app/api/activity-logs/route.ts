@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseEnumParam } from '@/lib/queryFilters';
+import { ActivityAction } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -12,7 +14,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const { page, limit, skip } = parsePagination(searchParams, { defaultLimit: 50, maxLimit: 200 });
   const entityType = searchParams.get('entityType');
-  const action = searchParams.get('action');
+  const action = parseEnumParam(searchParams.get('action'), ActivityAction, 'activity action');
   const userId = searchParams.get('userId');
 
   const where: any = {};

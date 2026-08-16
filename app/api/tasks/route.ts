@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseEnumParam, sanitizeSearch } from '@/lib/queryFilters';
+import { TaskPriority, TaskStatus } from '@prisma/client';
 import { sanitizeRichText } from '@/lib/sanitizeHtml';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
@@ -23,10 +25,10 @@ async function canAssign(user: AuthUser, assignedToId: string): Promise<boolean>
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const { page, limit, skip } = parsePagination(searchParams);
-  const status = searchParams.get('status');
-  const priority = searchParams.get('priority');
+  const status = parseEnumParam(searchParams.get('status'), TaskStatus, 'task status');
+  const priority = parseEnumParam(searchParams.get('priority'), TaskPriority, 'task priority');
   const assignedToId = searchParams.get('assignedToId');
-  const search = searchParams.get('search')?.trim();
+  const search = sanitizeSearch(searchParams.get('search'));
 
   const where: any = {};
 

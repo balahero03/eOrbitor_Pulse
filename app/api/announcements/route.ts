@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeSearch } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -7,7 +8,7 @@ import { ForbiddenError } from '@/lib/errors';
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const { page, limit, skip } = parsePagination(searchParams, { defaultLimit: 10 });
-  const search = searchParams.get('search')?.trim();
+  const search = sanitizeSearch(searchParams.get('search'));
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
   // Admins see all (drafts + published), others see only published
