@@ -211,6 +211,12 @@ interface NotifMeta {
  * the approvals highlight (one page deciding the same thing four different
  * ways); this keeps it to one answer, asked from two places.
  */
+// How long the notification panel's own close animation takes
+// (`animate-scale-out`, see tailwind.config.js). `handleNotifClick` paces
+// navigation against this exact number — one named constant both call sites
+// share, rather than a duration typed twice that could quietly drift apart.
+const NOTIF_PANEL_CLOSE_MS = 180;
+
 function isAccessRequestNotification(n: AppNotification): boolean {
   return (
     ['AFTER_HOURS_ACCESS', 'ACTIVITY_UNLOCK'].includes(n.relatedEntityType || '') ||
@@ -591,7 +597,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   // "jump cut" the order modals had before components/Modal.tsx existed.
   // This is the one popover every user opens every session, so it is worth
   // fixing directly rather than waiting for a full rebuild onto that shell.
-  const { mounted: notifMounted, leaving: notifLeaving } = useMountTransition(notifOpen);
+  const { mounted: notifMounted, leaving: notifLeaving } = useMountTransition(notifOpen, NOTIF_PANEL_CLOSE_MS);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   // Ids currently mid-delete-animation — kept separate from `notifications`
   // so the row can play its collapse/fade before actually leaving the list.
@@ -783,7 +789,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (!n.isRead) await markRead(n.id);
     setNotifOpen(false);
 
-    const { destination, highlight } = await resolveNotification(n);
+    // Resolving the destination and giving the panel's own close animation
+    // time to actually play happen concurrently, not one after the other.
+    //
+    // The two used to be sequential — `router.push` fired the instant
+    // `setNotifOpen(false)` was called — and capturing a click frame-by-frame
+    // to diagnose "the transition feels rough" showed why: the whole page
+    // was torn out and replaced before a single frame of the panel's close
+    // animation painted. It didn't visibly close at all; it was just gone.
+    //
+    // `Promise.all` rather than an `await` in sequence: racing the fetch
+    // against a minimum hold means a fast-resolving notification (most —
+    // record and access lookups here are usually sub-100ms on the same host)
+    // is never rushed past the point where the close animation would read as
+    // real, while a slow one is never held any longer than it already takes.
+    // Summing them would have made every click at least 180ms slower on top
+    // of whatever the network already cost, for no benefit.
+    const [{ destination, highlight }] = await Promise.all([
+      resolveNotification(n),
+      new Promise<void>((resolve) => setTimeout(resolve, NOTIF_PANEL_CLOSE_MS)),
+    ]);
 
     router.push(destination);
     // requestHighlight records the target (picked up by the destination page
@@ -1472,7 +1497,30 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           onScroll={handleMainScroll}
           className="flex-1 overflow-y-auto overflow-x-hidden relative pb-20 md:pb-0 max-w-full"
         >
-          {children}
+          {/* Same frame-by-frame capture that showed the notification panel
+              vanishing with no close animation also showed the destination
+              page arriving in visible, disconnected pieces — the heading,
+              then a beat later the tabs, then the rows, each snapping in at
+              full opacity against a plain white background with no relation
+              to the one before it. That staggering is real (each piece
+              depends on its own fetch resolving) and isn't something to
+              paper over here; what this fixes is that it was happening in
+              front of a hard cut, which is what actually read as rough.
+              Fading and lifting the whole container in once, on arrival,
+              means every piece that lands while the container is still
+              easing in reads as part of one continuous entrance rather than
+              a series of separate pops.
+
+              Keyed on the path alone, not the full URL. A notification
+              landing on a page already on screen — a second approval
+              notification while still on /approvals — only changes search
+              params, and that case is deliberately left to the page's own
+              highlight system (lib/approvalTarget.ts), which depends on
+              staying mounted across a param change. Keying on the full URL
+              would force a remount there and undo it. */}
+          <div key={pathname} className="animate-slide-up">
+            {children}
+          </div>
         </main>
 
         {/* Mobile Bottom Navigation Bar (< 768px) */}
