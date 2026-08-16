@@ -608,10 +608,66 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  // ── "Just arrived" — a transient cue distinct from "unread" ────────────────
+  //
+  // Every unread row already carries a persistent indicator (the left accent
+  // bar below), and it deliberately stays quiet: there can be a dozen unread
+  // rows on screen at once, and a loud treatment repeated that many times
+  // would be noise, not polish. This is a different thing — a one-time glow
+  // for a notification that appeared since the *last* poll, the same
+  // "something just happened here" moment the approvals page's highlight ring
+  // gives a record after a click-through, given to a row that arrived on its
+  // own rather than one the user navigated to.
+  //
+  // `seenNotifIds` is `null` until the first fetch completes, and that first
+  // fetch never flags anything as new — the whole inbox isn't "new" just
+  // because this is the first time it loaded this session. Only ids that
+  // appear on a *later* poll that weren't in the previous one qualify.
+  const seenNotifIds = useRef<Set<string> | null>(null);
+  const [justArrivedIds, setJustArrivedIds] = useState<Set<string>>(new Set());
+  const arrivalTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Matches `notif-row-arrived`'s duration in globals.css — the glow is
+  // removed from state once the CSS animation has actually finished, not
+  // left to linger as a class with nothing left to animate.
+  const NOTIF_ARRIVAL_GLOW_MS = 3200;
+
+  useEffect(() => () => { arrivalTimers.current.forEach(clearTimeout); }, []);
+
   const fetchNotifications = (token: string) => {
     fetch('/api/notifications?limit=20', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.notifications) setNotifications(data.notifications); })
+      .then(data => {
+        if (!data?.notifications) return;
+        const list: AppNotification[] = data.notifications;
+        setNotifications(list);
+
+        const ids = new Set<string>(list.map((n) => n.id));
+        if (seenNotifIds.current) {
+          const arrived = list.filter((n) => !seenNotifIds.current!.has(n.id)).map((n) => n.id);
+          if (arrived.length) {
+            setJustArrivedIds((prev) => new Set([...prev, ...arrived]));
+            arrived.forEach((id) => {
+              // A second arrival for the same id shouldn't happen (ids are
+              // permanent), but re-arming the timer rather than leaking a
+              // duplicate costs nothing and removes any doubt.
+              const existing = arrivalTimers.current.get(id);
+              if (existing) clearTimeout(existing);
+              arrivalTimers.current.set(
+                id,
+                setTimeout(() => {
+                  setJustArrivedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(id);
+                    return next;
+                  });
+                  arrivalTimers.current.delete(id);
+                }, NOTIF_ARRIVAL_GLOW_MS),
+              );
+            });
+          }
+        }
+        seenNotifIds.current = ids;
+      })
       .catch(() => {});
   };
 
@@ -1298,6 +1354,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
                         return items.map((n) => {
                           const removing = removingIds.has(n.id);
+                          const arrived = justArrivedIds.has(n.id);
                           const meta = getNotificationMeta(n);
                           const Icon = meta.icon;
 
@@ -1320,7 +1377,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n); } }}
                                   className={`relative w-full text-left p-3.5 sm:px-4 sm:py-3.5 hover:bg-slate-50/90 active:bg-slate-100/90 transition-all cursor-pointer group ${
                                     !n.isRead ? 'bg-blue-50/30' : ''
-                                  }`}
+                                  } ${arrived ? 'notif-row-arrived' : ''}`}
                                 >
                                   {/* Unread Indicator Bar */}
                                   {!n.isRead && (

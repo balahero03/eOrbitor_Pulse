@@ -389,6 +389,59 @@ input::-webkit-credentials-auto-fill-button {
   animation: notif-glow 2.8s ease-in-out;
 }
 
+/* ── "Just arrived" notification row ──────────────────────────────────────
+   A one-time glow for a notification that appeared since the last poll —
+   distinct from "unread" (the persistent left accent bar just above this
+   in the panel), which stays deliberately quiet because a dozen rows can
+   be unread at once and a loud treatment repeated that many times is noise,
+   not polish. This fires once, on the row that actually just showed up.
+
+   Same "trace the edge, not the fill" idea as the approvals-page highlight
+   ring, adapted to a shape that idea wasn't built for. These rows are
+   full-width and unrounded, and each one's wrapper clips overflow for its
+   own collapse-on-delete animation — an outward ring or a glow that spreads
+   beyond the row (the card treatment's `inset:-2px` and blurred box-shadow)
+   would be clipped by that wrapper on one side and bleed into the row above
+   or below on the other, in a list this dense. Traced *inward* instead: an
+   inset ring plus a reinforced left edge, fully contained within the row's
+   own bounds, so it can neither be clipped nor bleed into a neighbour.
+
+   Deliberately animates only `box-shadow`, never `background-color` — the
+   row's read/unread tint is a static Tailwind class driven by state that
+   can change mid-glow (marked read while still arriving), and a CSS
+   animation owns whichever property it touches for its full duration,
+   overriding a static value on that same property until it finishes. That
+   exact conflict is what made the approvals-card accent bar vanish under
+   its own highlight ring before it was split onto a separate layer — kept
+   to one property here from the start rather than repeating it. */
+@keyframes notif-row-arrived {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(37, 99, 235, 0), inset 4px 0 0 0 rgba(37, 99, 235, 0);
+  }
+
+  14% {
+    box-shadow: inset 0 0 0 1.5px rgba(37, 99, 235, 0.55), inset 4px 0 0 0 rgba(37, 99, 235, 0.6);
+  }
+
+  55% {
+    box-shadow: inset 0 0 0 1.5px rgba(37, 99, 235, 0.28), inset 4px 0 0 0 rgba(37, 99, 235, 0.35);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(37, 99, 235, 0), inset 4px 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.notif-row-arrived {
+  animation: notif-row-arrived 3.2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-row-arrived {
+    animation: none;
+  }
+}
+
 /* ── Live search suggestion dropdown ──────────────────────────────────────── */
 
 @keyframes search-dropdown-in {
