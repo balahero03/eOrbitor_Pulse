@@ -16,7 +16,17 @@
 // simply revisits the page later.
 
 export const HIGHLIGHT_EVENT = 'eorbitor:highlight';
-export const HIGHLIGHT_TTL_MS = 5000;
+export const HIGHLIGHT_TTL_MS = 8000;
+
+/**
+ * How long the highlight class stays on the target.
+ *
+ * Must outlast the `eo-highlight-ring` / `eo-highlight-glow` animations in
+ * globals.css (5.2s) by enough that the class is removed *after* they have
+ * finished, not part-way through — pulling it early cuts the fade off and the
+ * ring vanishes in one frame.
+ */
+export const HIGHLIGHT_VISIBLE_MS = 5600;
 
 export interface HighlightRequest {
   scope: string; // which page listens: 'lead' | 'order' | 'customer' | 'user' | 'task' | 'approval' | 'quotation'
@@ -47,18 +57,12 @@ export function readPendingHighlight(scope: string): HighlightRequest | null {
   return null;
 }
 
-// One ring treatment for every highlight, so all pages flash identically.
-// `active` true → solid ring; false → transitions out smoothly over 1.5s
-// (an explicit transparent ring, not a bare class removal, so it fades).
-// For bordered card/`<div>` targets.
+// Professional, subtle highlight treatment for highlighted items across all pages.
 export function highlightRingClass(active: boolean): string {
-  return `transition-all duration-[1500ms] ease-out ${
-    active ? 'ring-2 ring-blue-400 border-blue-300 shadow-md' : 'ring-0 ring-transparent'
-  }`;
+  return active ? 'premium-highlight-card' : '';
 }
 
-// Box-shadow rings render unreliably on <tr> elements (border-collapse), so
-// table rows flash with a background tint that eases out over the same 1.5s.
+// Table rows flash with a smooth high-contrast tint that eases out smoothly.
 export function highlightRowClass(active: boolean): string {
-  return `transition-colors duration-[1500ms] ease-out ${active ? 'bg-blue-100' : ''}`;
+  return `transition-colors duration-[3500ms] ease-out ${active ? 'bg-blue-50/80 font-medium' : ''}`;
 }

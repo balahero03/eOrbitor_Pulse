@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseEnumParam } from '@/lib/queryFilters';
+import { ApprovalStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { checkAccessGate, currentNightDate } from '@/lib/accessControl';
@@ -55,11 +57,16 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
   const typeFilter = searchParams.get('type');
+  const id = searchParams.get('id');
 
   const isAdmin = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role);
   const baseWhere: any = isAdmin ? {} : { userId: user.id };
-  if (status && status !== 'ALL') {
-    baseWhere.status = status;
+  if (id) {
+    baseWhere.id = id;
+  } else if (status && status !== 'ALL') {
+    // Same enum column as the record approvals, so the same guard: an
+    // unrecognised value reached Prisma and came back as a 500.
+    baseWhere.status = parseEnumParam(status, ApprovalStatus, 'access request status');
   } else if (isAdmin && !status) {
     baseWhere.status = 'PENDING';
   }

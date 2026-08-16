@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { LockIcon } from '@/components/icons';
 import { requestHighlight } from '@/lib/notificationHighlight';
+import { resolveApprovalLocation, approvalsUrl } from '@/lib/approvalTarget';
 import { ToastProvider } from '@/components/Toast';
 import { ConfirmProvider, useConfirm } from '@/components/ConfirmDialog';
 import { BrandedLoader, InlineLoader } from '@/components/BrandedLoader';
@@ -39,9 +40,6 @@ import {
   SparklesIcon,
   XMarkIcon,
   BellSlashIcon,
-  ArrowPathIcon,
-  UserPlusIcon,
-  DocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
@@ -205,120 +203,100 @@ function getNotificationMeta(n: AppNotification): NotifMeta {
   const type = n.type || '';
   const title = n.title || '';
 
-  if (title.toLowerCase().includes('reopen') || title.toLowerCase().includes('re-open')) {
-    return {
-      icon: ArrowPathIcon,
-      iconBg: 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 shadow-xs',
-      iconColor: 'text-amber-600',
-      category: 'Lead Reopen',
-      badgeBg: 'bg-amber-50 text-amber-700 border border-amber-200/60 font-semibold',
-    };
-  }
-
-  if (title.toLowerCase().includes('transfer')) {
-    return {
-      icon: UserPlusIcon,
-      iconBg: 'bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 shadow-xs',
-      iconColor: 'text-blue-600',
-      category: 'Lead Transfer',
-      badgeBg: 'bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold',
-    };
-  }
-
   if (type.startsWith('APPROVAL')) {
-    if (type === 'APPROVAL_APPROVED' || title.toLowerCase().includes('approved')) {
-      return {
-        icon: DocumentCheckIcon,
-        iconBg: 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 shadow-xs',
-        iconColor: 'text-emerald-600',
-        category: 'Approved',
-        badgeBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-semibold',
-      };
-    }
-    if (type === 'APPROVAL_REJECTED' || title.toLowerCase().includes('rejected')) {
+    if (type === 'APPROVAL_APPROVED') {
       return {
         icon: ShieldCheckIcon,
-        iconBg: 'bg-rose-500/10 text-rose-600 ring-1 ring-rose-500/20 shadow-xs',
+        iconBg: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20',
+        iconColor: 'text-emerald-600',
+        category: 'Approved',
+        badgeBg: 'bg-emerald-100/80 text-emerald-700',
+      };
+    }
+    if (type === 'APPROVAL_REJECTED') {
+      return {
+        icon: ShieldCheckIcon,
+        iconBg: 'bg-rose-50 text-rose-600 ring-rose-500/20',
         iconColor: 'text-rose-600',
         category: 'Rejected',
-        badgeBg: 'bg-rose-50 text-rose-700 border border-rose-200/60 font-semibold',
+        badgeBg: 'bg-rose-100/80 text-rose-700',
       };
     }
     return {
       icon: ShieldCheckIcon,
-      iconBg: 'bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 shadow-xs',
-      iconColor: 'text-indigo-600',
+      iconBg: 'bg-amber-50 text-amber-600 ring-amber-500/20',
+      iconColor: 'text-amber-600',
       category: 'Approval',
-      badgeBg: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-semibold',
+      badgeBg: 'bg-amber-100/80 text-amber-700',
     };
   }
 
   if (type.startsWith('TASK')) {
     return {
       icon: CheckCircleIcon,
-      iconBg: 'bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 shadow-xs',
+      iconBg: 'bg-indigo-50 text-indigo-600 ring-indigo-500/20',
       iconColor: 'text-indigo-600',
       category: 'Task',
-      badgeBg: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-semibold',
+      badgeBg: 'bg-indigo-100/80 text-indigo-700',
     };
   }
 
   if (type.startsWith('ORDER') || type.startsWith('PAYMENT')) {
     return {
       icon: ShoppingBagIcon,
-      iconBg: 'bg-teal-500/10 text-teal-600 ring-1 ring-teal-500/20 shadow-xs',
+      iconBg: 'bg-teal-50 text-teal-600 ring-teal-500/20',
       iconColor: 'text-teal-600',
       category: type.includes('PAYMENT') ? 'Payment' : 'Order',
-      badgeBg: 'bg-teal-50 text-teal-700 border border-teal-200/60 font-semibold',
+      badgeBg: 'bg-teal-100/80 text-teal-700',
     };
   }
 
   if (type.startsWith('LEAD') || type === 'DEAL_UPDATED') {
     return {
       icon: FunnelIcon,
-      iconBg: 'bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 shadow-xs',
+      iconBg: 'bg-blue-50 text-blue-600 ring-blue-500/20',
       iconColor: 'text-blue-600',
       category: 'Lead',
-      badgeBg: 'bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold',
+      badgeBg: 'bg-blue-100/80 text-blue-700',
     };
   }
 
   if (type.startsWith('QUOTATION')) {
     return {
       icon: DocumentTextIcon,
-      iconBg: 'bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20 shadow-xs',
+      iconBg: 'bg-purple-50 text-purple-600 ring-purple-500/20',
       iconColor: 'text-purple-600',
       category: 'Quotation',
-      badgeBg: 'bg-purple-50 text-purple-700 border border-purple-200/60 font-semibold',
+      badgeBg: 'bg-purple-100/80 text-purple-700',
     };
   }
 
   if (type === 'FOLLOW_UP_REMINDER') {
     return {
       icon: PhoneIcon,
-      iconBg: 'bg-cyan-500/10 text-cyan-600 ring-1 ring-cyan-500/20 shadow-xs',
+      iconBg: 'bg-cyan-50 text-cyan-600 ring-cyan-500/20',
       iconColor: 'text-cyan-600',
       category: 'Follow-up',
-      badgeBg: 'bg-cyan-50 text-cyan-700 border border-cyan-200/60 font-semibold',
+      badgeBg: 'bg-cyan-100/80 text-cyan-700',
     };
   }
 
   if (title.includes('Daily Activity') || title.includes('After-Hours Access')) {
     return {
       icon: CalendarDaysIcon,
-      iconBg: 'bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20 shadow-xs',
+      iconBg: 'bg-orange-50 text-orange-600 ring-orange-500/20',
       iconColor: 'text-orange-600',
       category: 'Access',
-      badgeBg: 'bg-orange-50 text-orange-700 border border-orange-200/60 font-semibold',
+      badgeBg: 'bg-orange-100/80 text-orange-700',
     };
   }
 
   return {
     icon: MegaphoneIcon,
-    iconBg: 'bg-slate-500/10 text-slate-700 ring-1 ring-slate-400/20 shadow-xs',
+    iconBg: 'bg-slate-100 text-slate-700 ring-slate-400/20',
     iconColor: 'text-slate-700',
     category: 'System',
-    badgeBg: 'bg-slate-100 text-slate-700 border border-slate-200/60 font-semibold',
+    badgeBg: 'bg-slate-200/80 text-slate-700',
   };
 }
 
@@ -676,55 +654,61 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const entityType = n.relatedEntityType;
     const entityId = n.relatedEntityId;
 
+    const canViewApprovals = !!user && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
     if (type === 'APPROVAL_REQUESTED' || type === 'APPROVAL_APPROVED' || type === 'APPROVAL_REJECTED') {
       if (entityType === 'QUOTATION' && entityId) {
         const { destination, highlight } = await resolveQuotationDestination(entityId);
         return { destination, highlight };
       }
 
-      // Daily activity unlock & after-hours access notifications redirect user straight to daily-activity page with target date
-      if (
-        ['ACTIVITY_UNLOCK', 'AFTER_HOURS_ACCESS'].includes(entityType || '') ||
-        n.title?.includes('Daily Activity') ||
-        n.title?.includes('After-Hours Access')
-      ) {
-        let targetDate: string | null = null;
-        const dateMatch = n.message?.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-        if (dateMatch) {
-          const [, y, m, d] = dateMatch;
-          targetDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-        } else if (n.createdAt) {
-          targetDate = istDateString(new Date(n.createdAt));
+      // Check if this is an Access Request (After hours / Activity Unlock)
+      const isAccess =
+        ['AFTER_HOURS_ACCESS', 'ACTIVITY_UNLOCK'].includes(entityType || '') ||
+        n.title?.toLowerCase().includes('daily activity') ||
+        n.title?.toLowerCase().includes('after-hours') ||
+        n.message?.toLowerCase().includes('unlock') ||
+        n.message?.toLowerCase().includes('after-hours');
+
+      if (isAccess) {
+        const loc = entityId ? await resolveApprovalLocation(entityId, 'access') : null;
+        const accessType = loc?.raw?.type ?? entityType;
+        const unlockDate: string | null = loc?.raw?.date ?? null;
+
+        if (canViewApprovals && entityId) {
+          return { destination: approvalsUrl('access', loc, entityId), highlight: null };
         }
-        const destination = targetDate ? `/daily-activity?date=${targetDate}` : '/daily-activity';
-        return { destination, highlight: null };
+
+        if (accessType === 'ACTIVITY_UNLOCK' || unlockDate || n.title?.includes('Daily Activity')) {
+          let targetDate = unlockDate;
+          if (!targetDate) {
+            const dateMatch = n.message?.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+            if (dateMatch) targetDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+            else if (n.createdAt) targetDate = istDateString(new Date(n.createdAt));
+          }
+          return { destination: targetDate ? `/daily-activity?date=${targetDate}` : '/daily-activity', highlight: null };
+        }
+        return { destination: '/dashboard', highlight: null };
       }
 
-      // Lead/Order/Customer requests
-      if (entityId && ['LEAD', 'ORDER', 'CUSTOMER'].includes(entityType || '')) {
-        if (entityType === 'LEAD') {
-          // If it's a lead reopen/approval, check if the lead is already live/reopened
-          try {
-            const token = localStorage.getItem('token');
-            const [leadRes, appRes] = await Promise.all([
-              fetch(`/api/leads/${entityId}`, { headers: { Authorization: `Bearer ${token}` } }),
-              fetch(`/api/approval-requests?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
-            ]);
+      // Record Approvals (Lead, Order, Customer, ApprovalRequest, etc.)
+      if (entityId) {
+        const loc = await resolveApprovalLocation(entityId, 'record');
 
-            if (leadRes.ok) {
-              const leadData = await leadRes.json();
-              const appData = appRes.ok ? await appRes.json() : null;
-              const matchingReq = appData?.requests?.find((r: any) => r.entityId === entityId);
-
-              // If approved or lead exists in active status, navigate directly to the lead and highlight it!
-              if (matchingReq?.status === 'APPROVED' || type === 'APPROVAL_APPROVED' || (!matchingReq && leadData?.id)) {
-                return { destination: `/leads/${entityId}`, highlight: { scope: 'lead', id: entityId } };
-              }
-            }
-          } catch { /* fall back to approvals list */ }
+        if (canViewApprovals) {
+          // The URL carries the whole destination — category, tab, target and a
+          // nonce so a repeat click on the same notification still counts as a
+          // new one. No highlight event is emitted alongside it: the approvals
+          // page used to receive both, resolve the status a second time, and
+          // end up on whichever answer arrived last.
+          return { destination: approvalsUrl('record', loc, entityId), highlight: null };
         }
 
-        return { destination: '/approvals', highlight: { scope: 'approval', id: entityId } };
+        // Not an approver — send them to the record itself, which is the only
+        // part of this they can actually see.
+        const targetType = loc?.raw?.entityType || entityType || 'LEAD';
+        return resolveEntityDestination(targetType as string, loc?.highlightId ?? entityId);
       }
 
       return { destination: '/approvals', highlight: null };
@@ -1144,9 +1128,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 }`}
                 aria-label="Notifications"
               >
-                <BellIcon className="w-5 h-5 transition-transform duration-200" />
+                <BellIcon className="w-5 h-5 text-slate-600" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold rounded-full items-center justify-center shadow-[0_2px_8px_rgba(37,99,235,0.35)] ring-2 ring-white">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold rounded-full items-center justify-center shadow-sm ring-2 ring-white">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -1162,7 +1146,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   />
 
                   {/* Notification Center Floating Panel */}
-                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-12 sm:w-[440px] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[34rem] origin-top-right transition-all ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
+                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-12 sm:w-[410px] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[32rem] origin-top-right transition-all ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
                     
                     {/* Header */}
                     <div className="px-4 pt-3.5 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur-md flex-shrink-0">
@@ -1281,7 +1265,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                   tabIndex={0}
                                   onClick={() => handleNotifClick(n)}
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n); } }}
-                                  className={`relative w-full text-left p-3.5 sm:p-4 hover:bg-slate-50/90 active:bg-slate-100/90 transition-all cursor-pointer group ${
+                                  className={`relative w-full text-left p-3.5 sm:px-4 sm:py-3.5 hover:bg-slate-50/90 active:bg-slate-100/90 transition-all cursor-pointer group ${
                                     !n.isRead ? 'bg-blue-50/30' : ''
                                   }`}
                                 >
@@ -1290,19 +1274,25 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                     <div className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-r-full shadow-xs" />
                                   )}
 
-                                  <div className="flex items-start gap-3.5">
-                                    {/* Categorized Professional Icon Pod */}
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${meta.iconBg}`}>
+                                  <div className="flex items-start gap-3">
+                                    {/* Categorized Glowing Icon Pod */}
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 shadow-xs transition-transform duration-200 group-hover:scale-105 ${meta.iconBg}`}>
                                       <Icon className="w-5 h-5 stroke-[2]" />
                                     </div>
 
                                     {/* Text Body */}
                                     <div className="min-w-0 flex-1">
-                                      {/* Category & Timestamp Top Row */}
-                                      <div className="flex items-center justify-between gap-2 mb-1">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider ${meta.badgeBg}`}>
-                                          {meta.category}
-                                        </span>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <p className={`text-[13px] sm:text-sm font-semibold truncate ${
+                                            !n.isRead ? 'text-slate-900 font-bold' : 'text-slate-700'
+                                          }`}>
+                                            {n.title}
+                                          </p>
+                                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold tracking-wide flex-shrink-0 ${meta.badgeBg}`}>
+                                            {meta.category}
+                                          </span>
+                                        </div>
                                         <span
                                           className="text-[11px] font-medium text-slate-400 whitespace-nowrap flex-shrink-0"
                                           title={new Date(n.createdAt).toLocaleString('en-IN', {
@@ -1314,41 +1304,33 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                         </span>
                                       </div>
 
-                                      {/* Full Title (No Premature Truncation) */}
-                                      <h4 className={`text-[13px] sm:text-sm font-semibold leading-snug break-words transition-colors ${
-                                        !n.isRead ? 'text-slate-900 font-bold group-hover:text-blue-600' : 'text-slate-700 group-hover:text-slate-900'
-                                      }`}>
-                                        {n.title}
-                                      </h4>
-
-                                      {/* Message description */}
                                       <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed break-words">
                                         {n.message}
                                       </p>
                                     </div>
 
                                     {/* Action Buttons on Hover / Mobile */}
-                                    <div className="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
+                                    <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
                                       {!n.isRead && (
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             markRead(n.id);
                                           }}
-                                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-all"
+                                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                           title="Mark as read"
                                           aria-label="Mark as read"
                                         >
-                                          <CheckIcon className="w-4 h-4 stroke-[2]" />
+                                          <CheckIcon className="w-4 h-4" />
                                         </button>
                                       )}
                                       <button
                                         onClick={(e) => deleteNotification(n.id, e)}
-                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50/80 active:bg-rose-100 rounded-lg transition-all"
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                                         title="Delete notification"
                                         aria-label="Delete notification"
                                       >
-                                        <TrashIcon className="w-4 h-4 stroke-[2]" />
+                                        <TrashIcon className="w-4 h-4" />
                                       </button>
                                     </div>
                                   </div>

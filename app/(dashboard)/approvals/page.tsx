@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import type { ReactNode } from 'react';
 import { useRequireRole } from '@/lib/hooks/useRequireRole';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
-import { highlightRingClass, HIGHLIGHT_EVENT, readPendingHighlight, HighlightRequest } from '@/lib/notificationHighlight';
+import { highlightRingClass, HIGHLIGHT_VISIBLE_MS } from '@/lib/notificationHighlight';
 import { SuccessIcon, ErrorIcon, PendingIcon, UserSingleIcon, ClipboardIcon, CheckGlyph, CloseIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import { useToast } from '@/components/Toast';
 import PageContainer from '@/components/PageContainer';
@@ -71,66 +71,66 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function ApprovalsPage() {
+function ApprovalsContent() {
   useRequireRole(['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM']);
   const { user } = useCurrentUser();
+  const searchParams = useSearchParams();
+  const paramTab = searchParams?.get('tab') as Status | null;
+  const paramCategory = searchParams?.get('category') as Category | null;
+  const paramId = searchParams?.get('id');
+  // Bumped by the notification handler on every click. Without it, clicking the
+  // same notification twice pushes an identical URL, nothing in searchParams
+  // changes, and the effects below never re-run — so the second click did
+  // nothing at all.
+  const paramNonce = searchParams?.get('n');
+
   // Only admins can decide after-hours access requests (the API gates that),
   // and the request list is admin-scoped — so the Access category is admin-only.
   const canReviewAccess = !!user && ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
 
-  const [category, setCategory] = useState<Category>('record');
-  const [tab, setTab] = useState<Status>('PENDING');
+  const [category, setCategory] = useState<Category>(() => {
+    if (paramCategory === 'access' && canReviewAccess) return 'access';
+    return 'record';
+  });
+  const [tab, setTab] = useState<Status>(() => {
+    if (paramTab && ['PENDING', 'APPROVED', 'REJECTED'].includes(paramTab)) return paramTab;
+    return 'PENDING';
+  });
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(paramId || null);
 
-  // Highlight rings — record requests keyed by their entity id (what the
-  // notification carries), access requests keyed by their own id.
-  const flashRecordId = useNotificationHighlight('approval');
-  const flashAccessId = useNotificationHighlight('access');
 
-  // Jump to the right category & status tab on mount / when a notification fires, so the
-  // deep-linked row is actually rendered for the ring to land on.
+  // ── Where the highlight comes from ────────────────────────────────────────
+  //
+  // The URL, and only the URL. The notification handler resolves the record's
+  // *current* status before navigating and encodes it as
+  // `?category=…&tab=…&id=…`, so by the time this page mounts the destination
+  // is already decided.
+  //
+  // It used to be decided here as well, three more times over: a
+  // `syncHighlightTab` that re-fetched the status and called setTab, a
+  // HIGHLIGHT_EVENT listener that did the same, a readPendingHighlight on
+  // mount that did it again, and a fourth setTab inside the list's own fetch.
+  // Each of those could land after the others, so the tab was whichever
+  // request happened to finish last — and every setTab re-ran the fetch that
+  // triggered it. That is what made clicking a notification land on the wrong
+  // tab, or flick between two.
   useEffect(() => {
-    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+    if (paramCategory === 'access' && canReviewAccess) setCategory('access');
+    else if (paramCategory === 'record') setCategory('record');
+  }, [paramCategory, paramNonce, canReviewAccess]);
 
-    const checkAndSetTab = async (targetId: string, scope: string) => {
-      if (scope === 'access' && canReviewAccess) {
-        setCategory('access');
-        try {
-          const res = await fetch('/api/access-requests?limit=100', { headers: authHeaders() });
-          if (res.ok) {
-            const data = await res.json();
-            const req = (data.requests || []).find((r: any) => r.id === targetId || r.entityId === targetId);
-            if (req?.status) setTab(req.status);
-            else setTab('PENDING');
-          }
-        } catch { setTab('PENDING'); }
-      } else if (scope === 'approval') {
-        setCategory('record');
-        try {
-          const res = await fetch('/api/approval-requests?limit=100', { headers: authHeaders() });
-          if (res.ok) {
-            const data = await res.json();
-            const req = (data.requests || []).find((r: any) => r.entityId === targetId || r.id === targetId);
-            if (req?.status) setTab(req.status);
-            else setTab('PENDING');
-          }
-        } catch { setTab('PENDING'); }
-      }
-    };
+  useEffect(() => {
+    if (paramTab && ['PENDING', 'APPROVED', 'REJECTED'].includes(paramTab)) setTab(paramTab as Status);
+  }, [paramTab, paramNonce]);
 
-    const pendingAccess = readPendingHighlight('access');
-    const pendingRecord = readPendingHighlight('approval');
-    if (pendingAccess) checkAndSetTab(pendingAccess.id, 'access');
-    else if (pendingRecord) checkAndSetTab(pendingRecord.id, 'approval');
-
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<HighlightRequest>).detail;
-      if (detail?.id && detail?.scope) {
-        checkAndSetTab(detail.id, detail.scope);
-      }
-    };
-    window.addEventListener(HIGHLIGHT_EVENT, handler);
-    return () => window.removeEventListener(HIGHLIGHT_EVENT, handler);
-  }, [canReviewAccess]);
+  // Cleared just after the CSS animation ends, so the class is not left on the
+  // card holding a finished animation in its final frame.
+  useEffect(() => {
+    if (!paramId) { setActiveHighlightId(null); return; }
+    setActiveHighlightId(paramId);
+    const t = setTimeout(() => setActiveHighlightId(null), HIGHLIGHT_VISIBLE_MS);
+    return () => clearTimeout(t);
+  }, [paramId, paramTab, paramCategory, paramNonce]);
 
   const activeCategory = canReviewAccess ? category : 'record';
 
@@ -144,19 +144,13 @@ export default function ApprovalsPage() {
         ) : undefined}
       />
 
-      {/* Both categories stay mounted once eligible, rather than one unmounting
-          the other. Switching used to dump the whole page back to a spinner —
-          Record's list vanished, Access's had to fetch from nothing, and there
-          was no transition between the two states at all. Stacking them in the
-          same grid cell and swapping opacity makes it an instant crossfade
-          instead, and a category you've already looked at doesn't re-fetch. */}
       <div className="grid">
         <div
           className={`[grid-area:1/1] transition-opacity duration-200 ${
             activeCategory === 'record' ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
-          <RecordApprovals tab={tab} setTab={setTab} flashId={flashRecordId} />
+          <RecordApprovals tab={tab} setTab={setTab} flashId={activeCategory === 'record' ? activeHighlightId : null} />
         </div>
         {canReviewAccess && (
           <div
@@ -164,11 +158,25 @@ export default function ApprovalsPage() {
               activeCategory === 'access' ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
-            <AccessApprovals tab={tab} setTab={setTab} flashId={flashAccessId} />
+            <AccessApprovals tab={tab} setTab={setTab} flashId={activeCategory === 'access' ? activeHighlightId : null} />
           </div>
         )}
       </div>
     </PageContainer>
+  );
+}
+
+export default function ApprovalsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <InlineLoader />
+        </div>
+      }
+    >
+      <ApprovalsContent />
+    </Suspense>
   );
 }
 
@@ -450,15 +458,60 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       const res = await fetch(`/api/approval-requests?status=${tab}&page=${page}&limit=${PAGE_SIZE}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setRequests(data.requests);
+      let list: RecordRequest[] = data.requests || [];
+
+      // If a flashId is requested and not in the current page list, fetch it and prepend so it's visible & highlighted
+      if (flashId && !list.some((r) => r.entityId === flashId || r.id === flashId)) {
+        try {
+          const singleRes = await fetch(`/api/approval-requests?entityId=${flashId}&status=ALL`, { headers: authHeaders() });
+          if (singleRes.ok) {
+            const singleData = await singleRes.json();
+            const found = singleData.requests?.find((r: RecordRequest) => (r.entityId === flashId || r.id === flashId || (r as any).leadId === flashId));
+            // Only surface it if it genuinely belongs on this tab. It might
+            // simply be on a later page of the same list, which is worth
+            // pulling forward; if its status does not match, the tab is wrong
+            // and the fix is in the URL, not in quietly showing a card that
+            // contradicts the tab it is sitting under.
+            if (found && found.status === tab && !list.some((r) => r.id === found.id)) {
+              list = [found, ...list];
+            }
+          }
+        } catch { /* continue */ }
+      }
+
+      setRequests(list);
       setTotalPages(data.pagination?.pages || 1);
     } catch (err) { console.error(err); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [tab, page]);
+  }, [tab, page, flashId]);
 
   useEffect(() => { setPage(1); }, [tab]);
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
+
+  // Smoothly center the target card into view as soon as requests are loaded
+  useEffect(() => {
+    if (!flashId || requests.length === 0) return;
+    const target = requests.find((r) => r.entityId === flashId || r.id === flashId || (r as any).leadId === flashId);
+    if (target) {
+      const scrollIt = () => {
+        const el =
+          document.getElementById(`approval-${target.entityId}`) ||
+          document.getElementById(`approval-${target.id}`) ||
+          document.querySelector(`[data-highlight-id="${flashId}"]`) ||
+          document.querySelector(`[data-request-id="${target.id}"]`) ||
+          document.querySelector(`[data-entity-id="${target.entityId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      };
+      scrollIt();
+      const t1 = setTimeout(scrollIt, 120);
+      const t2 = setTimeout(scrollIt, 450);
+      const t3 = setTimeout(scrollIt, 900);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [flashId, requests]);
 
   const decide = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     setProcessingId(id);
@@ -482,103 +535,138 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
     } finally { setProcessingId(null); }
   };
 
+  const hasExactMatch = requests.some(
+    (r) =>
+      Boolean(flashId) &&
+      (flashId === r.entityId ||
+        flashId === r.id ||
+        (r as any).leadId === flashId ||
+        flashId?.toLowerCase() === r.entityId?.toLowerCase() ||
+        flashId?.toLowerCase() === r.id?.toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       <StatusTabs tab={tab} setTab={setTab} counts={counts} />
       {loading ? <Spinner /> : requests.length === 0 ? <EmptyState tab={tab} /> : (
         <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
-          {requests.map((req) => (
-            <div key={req.id} id={`approval-${req.entityId}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.entityId)}`}>
-              {/* Content first, actions after — on a phone the buttons used to
-                  sit in a flex-shrink-0 column beside the text, squeezing a
-                  long company name into a two-character column. */}
-              {/* Name first, then what is being asked of it — the status badge
-                  is pushed right so it lines up down the list instead of
-                  crowding the title. */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-[15px] break-words leading-snug">
-                    {req.lead ? req.lead.name : `${req.entityType} ${req.entityId.slice(0, 8)}…`}
-                  </h3>
-                  <p className="text-sm text-gray-500 break-words mt-0.5">
-                    <ActionLabel
-                      label={TYPE_LABEL[req.type] || 'Approval request'}
-                      danger={/DELETE/i.test(req.type)}
-                    />
-                    {req.lead && (
-                      <>
-                        <span className="text-gray-300"> · </span>{req.lead.company}
-                        <span className="text-gray-300"> · </span>{req.lead.status}
-                      </>
-                    )}
-                  </p>
+          {requests.map((req) => {
+            const isExactMatch =
+              Boolean(flashId) &&
+              (flashId === req.entityId ||
+                flashId === req.id ||
+                (req as any).leadId === flashId ||
+                flashId?.toLowerCase() === req.entityId?.toLowerCase() ||
+                flashId?.toLowerCase() === req.id?.toLowerCase());
+
+            const isSingleFallback = Boolean(flashId) && !hasExactMatch && requests.length === 1;
+            const isHighlighted = isExactMatch || isSingleFallback;
+
+            return (
+              <div
+                key={req.id}
+                id={`approval-${req.entityId}`}
+                data-highlight-id={req.entityId}
+                data-entity-id={req.entityId}
+                data-request-id={req.id}
+                data-lead-id={(req as any).leadId}
+                className={`relative bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 transition-all duration-300 ${
+                  isHighlighted ? 'premium-highlight-card' : ''
+                }`}
+              >
+
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-[15px] break-words leading-snug">
+                      {req.lead ? req.lead.name : `${req.entityType} ${req.entityId.slice(0, 8)}…`}
+                    </h3>
+                    <p className="text-sm text-gray-500 break-words mt-0.5">
+                      <ActionLabel
+                        label={TYPE_LABEL[req.type] || 'Approval request'}
+                        danger={/DELETE/i.test(req.type)}
+                      />
+                      {req.lead && (
+                        <>
+                          <span className="text-gray-300"> · </span>{req.lead.company}
+                          <span className="text-gray-300"> · </span>{req.lead.status}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0"><StatusPill status={req.status} /></div>
                 </div>
-                <div className="flex-shrink-0"><StatusPill status={req.status} /></div>
-              </div>
 
-              {req.targetUser && (
-                <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
-                  <UserSingleIcon className="w-3.5 h-3.5" />
-                  Transfer to
-                  <span className="font-semibold text-blue-700">
-                    {req.targetUser.firstName} {req.targetUser.lastName}
-                  </span>
-                </p>
-              )}
-
-              {req.reason && <ReasonBlock text={req.reason} />}
-              {req.status === 'REJECTED' && req.rejectionReason && (
-                <ReasonBlock text={req.rejectionReason} tone="danger" />
-              )}
-
-              {/* The facts of the request, each one named. */}
-              <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
-                <Fact
-                  label="Requested by"
-                  value={`${req.requestedByUser.firstName} ${req.requestedByUser.lastName}`}
-                />
-                <Fact label="Requested" value={fmtDateTime(req.createdAt)} />
                 {req.targetUser && (
-                  <Fact
-                    label="Transfer to"
-                    value={<span className="text-blue-700">{req.targetUser.firstName} {req.targetUser.lastName}</span>}
-                  />
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
+                    <UserSingleIcon className="w-3.5 h-3.5" />
+                    Transfer to
+                    <span className="font-semibold text-blue-700">
+                      {req.targetUser.firstName} {req.targetUser.lastName}
+                    </span>
+                  </p>
                 )}
-                {req.status === 'APPROVED' && req.approvedByUser && (
-                  <Fact
-                    label="Approved by"
-                    tone="good"
-                    value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
-                  />
-                )}
-                {req.status === 'REJECTED' && req.approvedByUser && (
-                  <Fact
-                    label="Rejected by"
-                    tone="bad"
-                    value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
-                  />
-                )}
-              </dl>
 
-              {req.status === 'PENDING' && (
-                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                  <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                    className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
-                    <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
-                  </button>
-                  <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
-                    className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
-                    <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
-                  </button>
-                </div>
-              )}
-              {showRejectForm === req.id && (
-                <RejectForm value={rejectionReason} onChange={setRejectionReason} processing={processingId === req.id}
-                  onConfirm={() => decide(req.id, 'REJECTED')} onCancel={() => { setShowRejectForm(null); setRejectionReason(''); }} />
-              )}
-            </div>
-          ))}
-          {totalPages > 1 && <Pagination page={page} totalPages={totalPages} setPage={setPage} />}
+                {req.reason && <ReasonBlock text={req.reason} />}
+                {req.status === 'REJECTED' && req.rejectionReason && (
+                  <ReasonBlock text={req.rejectionReason} tone="danger" />
+                )}
+
+                <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+                  <Fact
+                    label="Requested by"
+                    value={`${req.requestedByUser.firstName} ${req.requestedByUser.lastName}`}
+                  />
+                  <Fact label="Requested" value={fmtDateTime(req.createdAt)} />
+                  {req.targetUser && (
+                    <Fact
+                      label="Transfer to"
+                      value={<span className="text-blue-700">{req.targetUser.firstName} {req.targetUser.lastName}</span>}
+                    />
+                  )}
+                  {req.status === 'APPROVED' && req.approvedByUser && (
+                    <Fact
+                      label="Approved by"
+                      tone="good"
+                      value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
+                    />
+                  )}
+                  {req.status === 'REJECTED' && req.approvedByUser && (
+                    <Fact
+                      label="Rejected by"
+                      tone="bad"
+                      value={`${req.approvedByUser.firstName} ${req.approvedByUser.lastName} · ${fmtDateTime(req.updatedAt)}`}
+                    />
+                  )}
+                </dl>
+
+                {req.status === 'PENDING' && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
+                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                      <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
+                    </button>
+                    <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
+                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                      <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
+                    </button>
+                  </div>
+                )}
+                {showRejectForm === req.id && (
+                  <RejectForm value={rejectionReason} onChange={setRejectionReason} processing={processingId === req.id}
+                    onConfirm={() => decide(req.id, 'REJECTED')} onCancel={() => { setShowRejectForm(null); setRejectionReason(''); }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
+            className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Previous</button>
+          <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
+          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+            className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Next</button>
         </div>
       )}
     </div>
@@ -589,17 +677,10 @@ function RecordApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: Status) => void; flashId: string | null }) {
   const toast = useToast();
   const [requests, setRequests] = useState<AccessRequest[]>([]);
-  const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'AFTER_HOURS' | 'ACTIVITY_UNLOCK'>('ALL');
+  const [counts, setCounts] = useState<Record<Status, number | null>>({ PENDING: null, APPROVED: null, REJECTED: null });
   const [loading, setLoading] = useState(true);
-  // See the matching comment in RecordApprovals — same keep-previous-data
-  // treatment so the Pending/Approved/Rejected tabs cross-fade instead of
-  // flashing to a spinner.
   const [refreshing, setRefreshing] = useState(false);
-  // Only actually dims the list once the fetch has been running for 150ms —
-  // see lib/hooks/useDelayedFlag.ts. Without this, a fast API response
-  // reverses the opacity transition before it ever finishes animating, which
-  // reads as a one-frame flicker rather than a fade.
   const showRefreshing = useDelayedFlag(refreshing);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -624,13 +705,55 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
       const res = await fetch(`/api/access-requests?status=${tab}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setRequests(data.requests || []);
+      let list: AccessRequest[] = data.requests || [];
+
+      if (flashId && !list.some((r) => r.id === flashId)) {
+        try {
+          const singleRes = await fetch(`/api/access-requests?id=${flashId}`, { headers: authHeaders() });
+          if (singleRes.ok) {
+            const singleData = await singleRes.json();
+            const found = singleData.requests?.find((r: AccessRequest) => r.id === flashId || (r as any).userId === flashId);
+            // Only surface it if it genuinely belongs on this tab. It might
+            // simply be on a later page of the same list, which is worth
+            // pulling forward; if its status does not match, the tab is wrong
+            // and the fix is in the URL, not in quietly showing a card that
+            // contradicts the tab it is sitting under.
+            if (found && found.status === tab && !list.some((r) => r.id === found.id)) {
+              list = [found, ...list];
+            }
+          }
+        } catch { /* continue */ }
+      }
+
+      setRequests(list);
     } catch (err) { console.error(err); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [tab]);
+  }, [tab, flashId, setTab]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
+
+  // Smoothly center the target card into view as soon as requests are loaded
+  useEffect(() => {
+    if (!flashId || requests.length === 0) return;
+    const target = requests.find((r) => r.id === flashId || (r as any).userId === flashId);
+    if (target) {
+      const scrollIt = () => {
+        const el =
+          document.getElementById(`access-${target.id}`) ||
+          document.querySelector(`[data-highlight-id="${flashId}"]`) ||
+          document.querySelector(`[data-request-id="${target.id}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      };
+      scrollIt();
+      const t1 = setTimeout(scrollIt, 120);
+      const t2 = setTimeout(scrollIt, 450);
+      const t3 = setTimeout(scrollIt, 900);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [flashId, requests]);
 
   const decide = async (id: string, action: 'APPROVE' | 'REJECT') => {
     setProcessingId(id);
@@ -690,12 +813,37 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
 
       {loading ? <Spinner /> : filteredRequests.length === 0 ? <EmptyState tab={tab} /> : (
         <div className={`space-y-3 transition-opacity duration-200 ${showRefreshing ? 'opacity-40' : 'opacity-100'}`}>
-          {filteredRequests.map((req) => {
-            const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
-            const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';
+          {(() => {
+            const hasExactAccessMatch = filteredRequests.some(
+              (r) =>
+                Boolean(flashId) &&
+                (flashId === r.id ||
+                  flashId === (r as any).userId ||
+                  flashId?.toLowerCase() === r.id?.toLowerCase())
+            );
 
-            return (
-              <div key={req.id} id={`access-${req.id}`} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 ${highlightRingClass(flashId === req.id)}`}>
+            return filteredRequests.map((req) => {
+              const who = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'A user';
+              const isActivityUnlock = req.requestType === 'ACTIVITY_UNLOCK';
+              const isExactMatch =
+                Boolean(flashId) &&
+                (flashId === req.id ||
+                  flashId === (req as any).userId ||
+                  flashId?.toLowerCase() === req.id?.toLowerCase());
+
+              const isSingleFallback = Boolean(flashId) && !hasExactAccessMatch && filteredRequests.length === 1;
+              const isHighlighted = isExactMatch || isSingleFallback;
+
+              return (
+                <div
+                  key={req.id}
+                  id={`access-${req.id}`}
+                  data-highlight-id={req.id}
+                  data-request-id={req.id}
+                  className={`relative bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 transition-all duration-300 ${
+                    isHighlighted ? 'premium-highlight-card' : ''
+                  }`}
+                >
                 {/* Identity at the top, the facts of the request in a labelled
                     row beneath, then the requester's words. Same shape as a
                     record request so the two categories read as one queue. */}
@@ -750,7 +898,8 @@ function AccessApprovals({ tab, setTab, flashId }: { tab: Status; setTab: (s: St
                 )}
               </div>
             );
-          })}
+          });
+        })()}
         </div>
       )}
     </div>
