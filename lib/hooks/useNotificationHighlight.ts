@@ -29,15 +29,20 @@ export function useNotificationHighlight(scope: string): string | null {
     const attempt = () => {
       const t = target.current;
       if (!t || processedNonce.current === t.nonce) return;
-      const el = document.getElementById(`${scope}-${t.id}`);
+      const el =
+        document.getElementById(`${scope}-${t.id}`) ||
+        document.getElementById(`approval-${t.id}`) ||
+        document.getElementById(`access-${t.id}`) ||
+        document.querySelector(`[data-highlight-id="${t.id}"]`) ||
+        document.querySelector(`[data-entity-id="${t.id}"]`) ||
+        document.querySelector(`[data-request-id="${t.id}"]`);
+
       if (!el) return;
       processedNonce.current = t.nonce;
       setFlashId(t.id);
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (flashTimer.current) clearTimeout(flashTimer.current);
-      // Independent timer (not effect cleanup) so a data refetch mid-flash
-      // can't cancel it and leave the ring stuck on.
-      flashTimer.current = setTimeout(() => setFlashId(null), 3000);
+      flashTimer.current = setTimeout(() => setFlashId(null), 6000);
       clearRetries();
     };
 
@@ -46,8 +51,8 @@ export function useNotificationHighlight(scope: string): string | null {
       clearRetries();
       attempt();
       // The target row may render a moment after we arrive (async fetch) —
-      // re-attempt across a couple of seconds until it exists.
-      retryTimers.current = [150, 350, 700, 1200, 2000, 3000].map((ms) => setTimeout(attempt, ms));
+      // re-attempt across multiple intervals until it exists.
+      retryTimers.current = [50, 150, 300, 600, 1000, 1600, 2400, 3500, 5000].map((ms) => setTimeout(attempt, ms));
     };
 
     // Case A: navigated in — the request was recorded before this page's

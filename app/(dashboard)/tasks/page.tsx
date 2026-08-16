@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { WarningIcon } from '@/components/icons';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useNotificationHighlight } from '@/lib/hooks/useNotificationHighlight';
-import { highlightRowClass } from '@/lib/notificationHighlight';
+import { highlightRingClass, highlightRowClass } from '@/lib/notificationHighlight';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
@@ -308,8 +308,10 @@ export default function TasksPage() {
                 return (
                   <Link
                     key={task.id}
+                    id={`task-card-${task.id}`}
+                    data-highlight-id={task.id}
                     href={`/tasks/${task.id}`}
-                    className="block p-4 active:bg-blue-50/70 transition-colors space-y-2"
+                    className={`block p-4 active:bg-blue-50/70 transition-colors space-y-2 rounded-xl ${highlightRingClass(flashTaskId === task.id)}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1">
