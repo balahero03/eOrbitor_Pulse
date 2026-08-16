@@ -5,7 +5,7 @@ import { istDateString } from '@/lib/istDate';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { LockIcon } from '@/components/icons';
+import { LockIcon, ClipboardIcon } from '@/components/icons';
 import { requestHighlight } from '@/lib/notificationHighlight';
 import { resolveApprovalLocation, approvalsUrl } from '@/lib/approvalTarget';
 import { ToastProvider } from '@/components/Toast';
@@ -199,14 +199,46 @@ interface NotifMeta {
   badgeBg: string;
 }
 
+/**
+ * Is this approval notification about an access request (after-hours CRM
+ * access, a daily-activity unlock) rather than a record request (lead/order/
+ * customer delete or reopen)?
+ *
+ * Pulled out as its own function — rather than left as the inline check that
+ * used to live only inside `resolveNotification` — so the bell's icon and the
+ * click-through routing agree by construction. Two copies of "is this an
+ * access request" drifting apart is exactly the shape of the bug fixed in
+ * the approvals highlight (one page deciding the same thing four different
+ * ways); this keeps it to one answer, asked from two places.
+ */
+function isAccessRequestNotification(n: AppNotification): boolean {
+  return (
+    ['AFTER_HOURS_ACCESS', 'ACTIVITY_UNLOCK'].includes(n.relatedEntityType || '') ||
+    !!n.title?.toLowerCase().includes('daily activity') ||
+    !!n.title?.toLowerCase().includes('after-hours') ||
+    !!n.message?.toLowerCase().includes('unlock') ||
+    !!n.message?.toLowerCase().includes('after-hours')
+  );
+}
+
 function getNotificationMeta(n: AppNotification): NotifMeta {
   const type = n.type || '';
   const title = n.title || '';
 
   if (type.startsWith('APPROVAL')) {
+    // Same shield-and-checkmark glyph for every approval notification meant
+    // record requests and access requests were indistinguishable at a glance
+    // in the bell — a stack of identical icons with nothing but the text
+    // beside them saying which was which. The two categories already have
+    // their own symbol on the Approvals page itself (ClipboardIcon for
+    // Record Requests, LockIcon for Access Requests); reused here rather
+    // than invented, so a "record" notification and its destination tab look
+    // like the same thing.
+    const icon = isAccessRequestNotification(n) ? LockIcon : ClipboardIcon;
+
     if (type === 'APPROVAL_APPROVED') {
       return {
-        icon: ShieldCheckIcon,
+        icon,
         iconBg: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20',
         iconColor: 'text-emerald-600',
         category: 'Approved',
@@ -215,7 +247,7 @@ function getNotificationMeta(n: AppNotification): NotifMeta {
     }
     if (type === 'APPROVAL_REJECTED') {
       return {
-        icon: ShieldCheckIcon,
+        icon,
         iconBg: 'bg-rose-50 text-rose-600 ring-rose-500/20',
         iconColor: 'text-rose-600',
         category: 'Rejected',
@@ -223,7 +255,7 @@ function getNotificationMeta(n: AppNotification): NotifMeta {
       };
     }
     return {
-      icon: ShieldCheckIcon,
+      icon,
       iconBg: 'bg-amber-50 text-amber-600 ring-amber-500/20',
       iconColor: 'text-amber-600',
       category: 'Approval',
@@ -663,13 +695,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         return { destination, highlight };
       }
 
-      // Check if this is an Access Request (After hours / Activity Unlock)
-      const isAccess =
-        ['AFTER_HOURS_ACCESS', 'ACTIVITY_UNLOCK'].includes(entityType || '') ||
-        n.title?.toLowerCase().includes('daily activity') ||
-        n.title?.toLowerCase().includes('after-hours') ||
-        n.message?.toLowerCase().includes('unlock') ||
-        n.message?.toLowerCase().includes('after-hours');
+      // Check if this is an Access Request (After hours / Activity Unlock) —
+      // shared with the bell's icon selection, so the two can't disagree.
+      const isAccess = isAccessRequestNotification(n);
 
       if (isAccess) {
         const loc = entityId ? await resolveApprovalLocation(entityId, 'access') : null;
