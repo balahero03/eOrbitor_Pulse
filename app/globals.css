@@ -255,6 +255,48 @@ input::-webkit-credentials-auto-fill-button {
   }
 }
 
+/* ── Status accent bar ───────────────────────────────────────────────────
+   A coloured left edge on a rounded card (the approvals list — pending
+   amber, approved green, rejected red), drawn as an inset shadow on a
+   dedicated pseudo-element rather than as a thick `border-left`.
+
+   It was a plain `border-l-4 border-l-<color>` sitting next to a uniform
+   1px border on the other three sides. `border-radius` only blends a
+   corner smoothly when every side's border is the same width; with the
+   left side four times the others, the top-left corner rendered as a
+   visibly jagged, kinked curve rather than a clean arc — present on every
+   card, made obvious by the highlight ring below, whose own perfectly
+   smooth corner sits right next to it.
+
+   An inset box-shadow doesn't have that failure mode — it's clipped to the
+   rounded border-box the same way a background is, with no per-side width
+   for `border-radius` to mishandle. It is deliberately its own
+   pseudo-element (`::before`) rather than folded into the card's own
+   `box-shadow`: `.premium-highlight-card` below animates `box-shadow` on
+   the card element itself, and a CSS animation owns its target property
+   outright for as long as it runs. A static shadow value competing for the
+   same property on the same element simply vanished the instant a card
+   was highlighted — confirmed by rendering one: the accent bar disappeared
+   entirely, replaced by the glow's own shadow, for the whole ~5s the ring
+   was up. Splitting it onto a layer the glow never touches is what lets
+   both run at once without either erasing the other.
+
+   Colour is per-card, supplied as a custom property inline (a
+   pseudo-element cannot read a Tailwind class on its host), defaulting to
+   transparent so the class is inert without one. */
+.status-accent-card {
+  position: relative;
+}
+
+.status-accent-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: inset 4px 0 0 0 var(--status-accent, transparent);
+  pointer-events: none;
+}
+
 /* ── Notification target highlight ────────────────────────────────────────
    Marks the one record a notification refers to, after navigating to it.
 

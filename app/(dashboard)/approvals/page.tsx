@@ -455,8 +455,37 @@ function Spinner() {
   );
 }
 
-function cardBorder(status: Status) {
-  return status === 'PENDING' ? 'border-l-amber-500' : status === 'APPROVED' ? 'border-l-green-500' : 'border-l-red-500';
+/**
+ * Colour for the card's left status accent — see `.status-accent-card` in
+ * globals.css for how it's actually drawn.
+ *
+ * It used to be `border-l-4 border-l-<color>` sitting alongside a uniform
+ * `border border-gray-200` — so the left edge was 4px while the other three
+ * were 1px. `border-radius` only blends a corner smoothly when every side's
+ * border is the same width; with one side four times the others, the
+ * top-left corner rendered as a visibly jagged, kinked curve rather than a
+ * clean arc. It was there on every card all along — the highlight ring's
+ * own perfectly smooth corner sitting right next to it is what made it
+ * obvious enough to notice, but a zoomed capture of a plain, unhighlighted
+ * card showed the same kink.
+ *
+ * First fix attempt folded the accent into the card's own `box-shadow`
+ * (an inset shadow, which — unlike a border — is clipped to the rounded
+ * border-box with no per-side width to distort). That was wrong in a
+ * different way: the highlight glow just below also animates `box-shadow`
+ * on this same element, and a CSS animation owns its target property
+ * outright for as long as it runs — a static shadow set alongside it simply
+ * disappears the moment the animation starts. Confirmed by rendering a
+ * highlighted card: the accent bar was gone entirely, replaced by the
+ * glow's own shadow, for the full ~5s the ring was up.
+ *
+ * The accent now lives on its own `::before`, a layer the glow animation
+ * never touches, so the two can run at once without either one erasing the
+ * other. Colour reaches it through a CSS custom property set inline per
+ * card, since a pseudo-element can't read a Tailwind class directly.
+ */
+function statusAccentColor(status: Status): string {
+  return status === 'PENDING' ? '#f59e0b' : status === 'APPROVED' ? '#22c55e' : '#ef4444';
 }
 
 // ── Record approvals ────────────────────────────────────────────────────────
@@ -612,7 +641,8 @@ function RecordApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
                 data-entity-id={req.entityId}
                 data-request-id={req.id}
                 data-lead-id={(req as any).leadId}
-                className={`relative bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 transition-all duration-300 ${
+                style={{ '--status-accent': statusAccentColor(req.status) } as React.CSSProperties}
+                className={`relative status-accent-card bg-white rounded-xl border border-gray-200 shadow-sm p-4 transition-all duration-300 ${
                   isHighlighted ? 'premium-highlight-card' : ''
                 }`}
               >
@@ -875,7 +905,8 @@ function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
                   id={`access-${req.id}`}
                   data-highlight-id={req.id}
                   data-request-id={req.id}
-                  className={`relative bg-white rounded-xl border border-gray-200 border-l-4 ${cardBorder(req.status)} shadow-sm p-4 transition-all duration-300 ${
+                  style={{ '--status-accent': statusAccentColor(req.status) } as React.CSSProperties}
+                  className={`relative status-accent-card bg-white rounded-xl border border-gray-200 shadow-sm p-4 transition-all duration-300 ${
                     isHighlighted ? 'premium-highlight-card' : ''
                   }`}
                 >
