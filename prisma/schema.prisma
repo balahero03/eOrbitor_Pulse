@@ -67,6 +67,11 @@ model User {
   @@index([email])
   @@index([role])
   @@index([isActive])
+  // Every request from a BACKEND_TEAM user resolves their team with
+  // `where: { managerId: <id> }` before it can scope anything — 36 call sites
+  // across the API. Without an index that is a sequential scan of User on each
+  // one, including inside withAuth-adjacent hot paths like the leads list.
+  @@index([managerId])
 }
 
 // One "forgot password" attempt, from requesting a code through to setting the
@@ -177,6 +182,15 @@ model Lead {
   @@index([status])
   @@index([assignedToId])
   @@index([createdAt])
+  // Soft delete is filtered on in 37 places, and almost never alone — it pairs
+  // with the owner on every scoped list, which is what this composite serves.
+  @@index([deletedAt])
+  @@index([assignedToId, deletedAt])
+  // Closed-leads listing sorts and filters on this, and the reports engine
+  // measures every "won in period" figure by it.
+  @@index([closedAt])
+  // Counted per team on the Backend Team dashboard.
+  @@index([broughtById])
 }
 
 model Customer {
