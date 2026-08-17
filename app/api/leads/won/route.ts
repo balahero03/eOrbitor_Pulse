@@ -9,7 +9,28 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { page, limit, skip } = parsePagination(searchParams);
   const search = sanitizeSearch(searchParams.get('search'));
 
-  const where: any = { status: 'ORDER' };
+  // `deletedAt: null` matters as much as the scoping below: this route filtered
+  // on status alone, so a lead that had been deleted still came back here and
+  // reappeared on the Customers page after being removed everywhere else.
+  const where: any = { status: 'ORDER', deletedAt: null };
+
+  // Role-based data scoping — the same rule as /api/leads and /api/leads/closed,
+  // which this route never had. Without it every signed-in user, including the
+  // lowest-privilege ON_FIELD_TEAM role, could read the company's entire won
+  // book: customer name, address, phone, the deal's quoteValue and the linked
+  // customer's GST number. It is not a theoretical hole either — the Customers
+  // page calls this endpoint on load, so every rep was already being served the
+  // whole company's closed business.
+  if (user.role === 'ON_FIELD_TEAM') {
+    where.assignedToId = user.id;
+  } else if (user.role === 'BACKEND_TEAM') {
+    const team = await prisma.user.findMany({
+      where: { managerId: user.id },
+      select: { id: true },
+    });
+    where.assignedToId = { in: [user.id, ...team.map((u) => u.id)] };
+  }
+  // ADMIN/SUPER_ADMIN see all — no extra filter
 
   if (search) {
     where.OR = [
@@ -35,26 +56,20 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         quoteValue: true,
         closedAt: true,
         linkedCustomerId: true,
+        // Joined here rather than fetched per row. This used to be a
+        // findUnique inside a leads.map(), i.e. one extra round trip per lead —
+        // 201 queries to render the default page of 200.
+        linkedCustomer: { select: { gstNumber: true } },
       },
       orderBy: { closedAt: 'desc' },
     }),
     prisma.lead.count({ where }),
   ]);
 
-  // Fetch GST numbers from linkedCustomer if available
-  const customersWithGst = await Promise.all(
-    leads.map(async (lead) => {
-      let gstNumber = '';
-      if (lead.linkedCustomerId) {
-        const customer = await prisma.customer.findUnique({
-          where: { id: lead.linkedCustomerId },
-          select: { gstNumber: true },
-        });
-        gstNumber = customer?.gstNumber || '';
-      }
-      return { ...lead, gstNumber };
-    })
-  );
+  const customersWithGst = leads.map(({ linkedCustomer, ...lead }) => ({
+    ...lead,
+    gstNumber: linkedCustomer?.gstNumber || '',
+  }));
 
   return NextResponse.json({
     customers: customersWithGst,
