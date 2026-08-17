@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch } from '@/lib/queryFilters';
+import { sanitizeSearch, parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -56,7 +56,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       isPublished,
       publishedAt: isPublished ? new Date() : null,
       createdById: user.id,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      expiresAt: parseDateInput(expiresAt, 'expiry date') ?? null,
     },
     include: { createdBy: { select: { id: true, firstName: true, lastName: true } } },
   });

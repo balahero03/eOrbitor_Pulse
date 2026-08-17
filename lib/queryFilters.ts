@@ -80,6 +80,65 @@ export function parseDateParam(
 }
 
 /**
+ * Parse a date arriving in a request *body*, where `null`/`''` is a meaningful
+ * "clear this field" and anything unparseable is a mistake.
+ *
+ * Distinct from `parseDateParam`, which reads query-string filters: there,
+ * absent simply means "don't filter". Here the three cases have to stay
+ * separate, so the caller can tell "leave it alone" (undefined) from "set it
+ * to null" (null) from "set it to this date".
+ *
+ * `new Date(x)` returns an Invalid Date rather than throwing, and Prisma then
+ * rejects it as "Provided Date object is invalid" — an exception, so a typo in
+ * a date field answered 500. Every write route did this bare.
+ */
+export function parseDateInput(
+  raw: unknown,
+  label: string,
+): Date | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  const d = new Date(raw as any);
+  if (Number.isNaN(d.getTime())) {
+    throw new ValidationError(`"${String(raw)}" is not a valid ${label}.`);
+  }
+  return d;
+}
+
+/**
+ * Parse a date that the column requires — it cannot be cleared, so absent is
+ * as much an error as unparseable.
+ */
+export function requireDateInput(raw: unknown, label: string): Date {
+  const d = parseDateInput(raw, label);
+  if (!d) throw new ValidationError(`A ${label} is required.`);
+  return d;
+}
+
+/**
+ * Parse a whole number arriving in a request body (a quantity, a reorder
+ * level, a year), or `null` when blank.
+ *
+ * `parseInt` accepts "12abc" as 12 and returns NaN for anything else, which
+ * then reaches an Int column and throws. Both are wrong in the same direction:
+ * the user's typo is either silently reinterpreted or turned into a 500.
+ */
+export function parseIntegerInput(
+  raw: unknown,
+  label: string,
+  { min, max }: { min?: number; max?: number } = {},
+): number | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) {
+    throw new ValidationError(`${label} must be a whole number.`);
+  }
+  if (min !== undefined && n < min) throw new ValidationError(`${label} cannot be less than ${min}.`);
+  if (max !== undefined && n > max) throw new ValidationError(`${label} cannot be more than ${max}.`);
+  return n;
+}
+
+/**
  * Parse a numeric filter (a min/max bound), or `undefined` when absent.
  *
  * The gap `parseFloat` left: it returns NaN for free text and Infinity for

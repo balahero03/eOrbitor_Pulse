@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch } from '@/lib/queryFilters';
+import { sanitizeSearch, parseIntegerInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
-import { ForbiddenError } from '@/lib/errors';
+import { ForbiddenError, ValidationError } from '@/lib/errors';
+import { parseMoneyInput } from '@/lib/money';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -57,20 +58,35 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'SKU already exists' }, { status: 400 });
   }
 
+  // parseFloat('abc') is NaN, which Prisma rejects on a Decimal column as an
+  // exception — so a mistyped price answered 500 rather than saying which field
+  // was wrong. `tax: parseFloat(tax) || 0` also silently turned a typo into 0,
+  // quietly pricing the product with no tax at all.
+  const parsedBasePrice = parseMoneyInput(basePrice);
+  if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+    throw new ValidationError('Base price must be a non-negative number.');
+  }
+  const parsedTax = tax === undefined || tax === null || tax === '' ? 0 : parseMoneyInput(tax);
+  if (!Number.isFinite(parsedTax) || parsedTax < 0) {
+    throw new ValidationError('Tax must be a non-negative number.');
+  }
+  const parsedQuantity = parseIntegerInput(initialQuantity, 'Opening quantity', { min: 0 }) ?? 0;
+  const parsedReorderLevel = parseIntegerInput(reorderLevel, 'Reorder level', { min: 0 });
+
   const product = await prisma.product.create({
     data: {
       sku, name,
       category: category || null,
       oemName: oemName || null,
       description: description || null,
-      basePrice: parseFloat(basePrice),
-      tax: parseFloat(tax) || 0,
+      basePrice: parsedBasePrice,
+      tax: parsedTax,
       isActive: true,
       ...(attributes && { attributes }),
       inventory: {
         create: {
-          quantity: initialQuantity ? parseInt(initialQuantity) : 0,
-          reorderLevel: reorderLevel ? parseInt(reorderLevel) : null,
+          quantity: parsedQuantity,
+          reorderLevel: parsedReorderLevel,
           warehouseLocation: warehouseLocation || null,
         },
       },

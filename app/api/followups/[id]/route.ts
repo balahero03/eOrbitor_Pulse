@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput, requireDateInput, parseEnumParam } from '@/lib/queryFilters';
+import { FollowUpType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { withAuth } from '@/lib/middleware/auth';
 
@@ -39,9 +41,9 @@ export const PATCH = withAuth(async (req: NextRequest, user, { params }: { param
   const followUp = await prisma.followUp.update({
     where: { id },
     data: {
-      ...(type !== undefined && { type }),
-      ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
-      ...(actualDate !== undefined && { actualDate: actualDate ? new Date(actualDate) : null }),
+      ...(type !== undefined && { type: parseEnumParam(type, FollowUpType, 'follow-up type') }),
+      ...(scheduledDate !== undefined && { scheduledDate: requireDateInput(scheduledDate, 'scheduled date') }),
+      ...(actualDate !== undefined && { actualDate: parseDateInput(actualDate, 'actual date') ?? null }),
       ...(durationMinutes !== undefined && { durationMinutes }),
       ...(notes !== undefined && { notes }),
       ...(outcome !== undefined && { outcome }),

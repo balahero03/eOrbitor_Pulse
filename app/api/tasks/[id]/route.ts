@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeRichText } from '@/lib/sanitizeHtml';
+import { parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError } from '@/lib/errors';
@@ -80,7 +81,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // the caller explicitly passed their own completedAt.
   const derivedCompletedAt =
     completedAt !== undefined
-      ? (completedAt ? new Date(completedAt) : null)
+      ? (parseDateInput(completedAt, 'completion date') ?? null)
       : status === 'COMPLETED'
       ? new Date()
       : status !== undefined
@@ -95,7 +96,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(description !== undefined && { description: sanitizeRichText(description) }),
       ...(status !== undefined && { status }),
       ...(priority !== undefined && { priority }),
-      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+      ...(dueDate !== undefined && { dueDate: parseDateInput(dueDate, 'due date') ?? null }),
       ...(assignedToId !== undefined && { assignedToId }),
       ...(relatedDealId !== undefined && { relatedDealId: relatedDealId || null }),
       ...(tags !== undefined && { tags }),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
@@ -195,9 +196,9 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       updateData.invoiceFile = null;
     }
   }
-  if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
+  if (deliveryDate) updateData.deliveryDate = parseDateInput(deliveryDate, 'delivery date');
   if (poNumber !== undefined) updateData.poNumber = poNumber || null;
-  if (poDate !== undefined) updateData.poDate = poDate ? new Date(poDate) : null;
+  if (poDate !== undefined) updateData.poDate = parseDateInput(poDate, 'PO date') ?? null;
 
   // ── Credit terms and the due date ──────────────────────────────────────────
   //

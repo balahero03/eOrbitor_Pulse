@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch, parseEnumParam, parseDateParam, parseNumberParam } from '@/lib/queryFilters';
+import { sanitizeSearch, parseEnumParam, parseDateParam, parseNumberParam, parseDateInput } from '@/lib/queryFilters';
 import { LeadSource, LeadStatus } from '@prisma/client';
 import { startOfIstDay, endOfIstDay, istDateString } from '@/lib/istDate';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createWithLeadNumber } from '@/lib/leadNumber';
-import { parseMoneyInput } from '@/lib/money';
+import { parseMoneyField } from '@/lib/money';
 import { assertAssignableUsers } from '@/lib/userRefs';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
@@ -168,7 +168,9 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // moment it is created. See lib/userRefs.ts.
   await assertAssignableUsers([assignedToId, broughtById, ...(Array.isArray(presalesIds) ? presalesIds : [])]);
 
-  const parsedQuoteValue = parseMoneyInput(quoteValue);
+  // Rejects a typo instead of silently dropping it — "12o000" used to save
+  // the lead with no quote value at all and report success.
+  const parsedQuoteValue = parseMoneyField(quoteValue, 'Quote value');
 
   // The lead number is issued by the server, never taken from the request:
   // it is an identity, and letting a caller choose it is what allowed
@@ -189,10 +191,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
         assignedToId: assignedToId || user.id,
         ...(quoteNo && { quoteNo }),
         ...(broughtById && { broughtById }),
-        ...(Number.isFinite(parsedQuoteValue) && { quoteValue: parsedQuoteValue }),
-        ...(rfqDate && { rfqDate: new Date(rfqDate) }),
-        ...(followUpDate && { followUpDate: new Date(followUpDate) }),
-        ...(expectedClosureDate && { expectedClosureDate: new Date(expectedClosureDate) }),
+        ...(parsedQuoteValue !== undefined && { quoteValue: parsedQuoteValue }),
+        ...(rfqDate && { rfqDate: parseDateInput(rfqDate, 'RFQ date') }),
+        ...(followUpDate && { followUpDate: parseDateInput(followUpDate, 'follow-up date') }),
+        ...(expectedClosureDate && { expectedClosureDate: parseDateInput(expectedClosureDate, 'expected closure date') }),
         ...(remarks && { remarks }),
         ...(solutionAreas && solutionAreas.length > 0 && { solutionAreas }),
         ...(oemNames && oemNames.length > 0 && { oemNames }),

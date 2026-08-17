@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError } from '@/lib/errors';
@@ -61,7 +62,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(stage && { stage }),
       ...(dealValue !== undefined && { dealValue }),
       ...(winProbability !== undefined && { winProbability }),
-      ...(expectedCloseDate && { expectedCloseDate: new Date(expectedCloseDate) }),
+      ...(expectedCloseDate && { expectedCloseDate: parseDateInput(expectedCloseDate, 'expected close date') }),
       ...(nextAction !== undefined && { nextAction }),
       ...(lostReason !== undefined && { lostReason }),
       ...(stage === 'CLOSURE' || stage === 'ONGOING' ? { closedAt: new Date() } : {}),

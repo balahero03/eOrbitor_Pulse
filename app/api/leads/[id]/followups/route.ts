@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput, requireDateInput, parseEnumParam } from '@/lib/queryFilters';
+import { FollowUpType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { withAuth } from '@/lib/middleware/auth';
 
@@ -85,8 +87,8 @@ export const POST = withAuth(async (
       data: {
         dealId,
         leadId,
-        type,
-        scheduledDate: new Date(scheduledDate),
+        type: parseEnumParam(type, FollowUpType, 'follow-up type')!,
+        scheduledDate: requireDateInput(scheduledDate, 'scheduled date'),
         notes: notes || null,
         outcome: outcome || null,
         createdById: user.id,

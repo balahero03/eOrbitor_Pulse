@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseEnumParam, sanitizeSearch } from '@/lib/queryFilters';
+import { parseEnumParam, sanitizeSearch, parseDateInput } from '@/lib/queryFilters';
 import { TaskPriority, TaskStatus } from '@prisma/client';
 import { sanitizeRichText } from '@/lib/sanitizeHtml';
 import { prisma } from '@/lib/prisma';
@@ -109,7 +109,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       description: sanitizeRichText(description) || null,
       status: status || 'TODO',
       priority: priority || 'MEDIUM',
-      dueDate: dueDate ? new Date(dueDate) : null,
+      dueDate: parseDateInput(dueDate, 'due date') ?? null,
       assignedToId,
       relatedDealId: relatedDealId || null,
       createdById: user.id,

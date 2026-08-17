@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
-import { parseMoneyInput } from '@/lib/money';
+import { parseMoneyField } from '@/lib/money';
 import { assertAssignableUsers } from '@/lib/userRefs';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
@@ -163,8 +164,11 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
 
   // Quote value arrives as free text from the stage forms; parsed once here
-  // and reused for both the lead field and the deal sync below.
-  const parsedQuoteValue = parseMoneyInput(quoteValue);
+  // and reused for both the lead field and the deal sync below. A value that
+  // does not parse is rejected rather than skipped: skipping meant an edit
+  // answered 200 while leaving the old figure in place, so the user believed
+  // they had changed a number that had not moved.
+  const parsedQuoteValue = parseMoneyField(quoteValue, 'Quote value');
 
   const lead = await prisma.lead.update({
     where: { id },
@@ -191,10 +195,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(qualificationNotes !== undefined && { qualificationNotes }),
       ...(remarks !== undefined && { remarks }),
       ...(quoteNo !== undefined && { quoteNo }),
-      ...(Number.isFinite(parsedQuoteValue) && { quoteValue: parsedQuoteValue }),
-      ...(rfqDate !== undefined && { rfqDate: rfqDate ? new Date(rfqDate) : null }),
-      ...(followUpDate !== undefined && { followUpDate: followUpDate ? new Date(followUpDate) : null }),
-      ...(expectedClosureDate !== undefined && { expectedClosureDate: expectedClosureDate ? new Date(expectedClosureDate) : null }),
+      ...(parsedQuoteValue !== undefined && { quoteValue: parsedQuoteValue }),
+      ...(rfqDate !== undefined && { rfqDate: parseDateInput(rfqDate, 'RFQ date') ?? null }),
+      ...(followUpDate !== undefined && { followUpDate: parseDateInput(followUpDate, 'follow-up date') ?? null }),
+      ...(expectedClosureDate !== undefined && { expectedClosureDate: parseDateInput(expectedClosureDate, 'expected closure date') ?? null }),
       ...(solutionAreas !== undefined && { solutionAreas }),
       ...(oemNames !== undefined && { oemNames }),
       ...(presalesIds !== undefined && { presalesIds }),
@@ -211,7 +215,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // leads/[id]/followups) in sync with the quote value. Deal.dealValue is
   // otherwise stuck at its initial 0 forever, which silently breaks the
   // dashboard's Pipeline Value figure.
-  if (Number.isFinite(parsedQuoteValue)) {
+  if (parsedQuoteValue !== undefined) {
     await prisma.deal.updateMany({
       where: { leadId: id },
       data: { dealValue: parsedQuoteValue },

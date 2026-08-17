@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseDateInput } from '@/lib/queryFilters';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
@@ -42,7 +43,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (title !== undefined) updateData.title = title;
   if (content !== undefined) updateData.content = content;
   if (priority !== undefined) updateData.priority = priority;
-  if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+  if (expiresAt !== undefined) updateData.expiresAt = parseDateInput(expiresAt, 'expiry date') ?? null;
 
   // Handle isPublished with publishedAt timestamp
   if (typeof isPublished === 'boolean') {

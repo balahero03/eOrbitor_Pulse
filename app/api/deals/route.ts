@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch, parseEnumParam } from '@/lib/queryFilters';
+import { sanitizeSearch, parseEnumParam, parseDateInput } from '@/lib/queryFilters';
 import { DealStage } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
@@ -72,7 +72,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       dealValue,
       winProbability: winProbability ?? 50,
       stage: stage || 'SUSPECT',
-      expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
+      expectedCloseDate: parseDateInput(expectedCloseDate, 'expected close date') ?? null,
       assignedToId: user.id,
     },
     include: {

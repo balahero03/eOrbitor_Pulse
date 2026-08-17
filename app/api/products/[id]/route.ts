@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parseMoneyInput } from '@/lib/money';
+import { ValidationError } from '@/lib/errors';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 
@@ -30,6 +32,15 @@ export const GET = withAuth(async (_req: NextRequest, _user, { params }: { param
   return NextResponse.json(product);
 });
 
+/** A money field that must be present and non-negative once supplied. */
+function requireMoney(raw: unknown, label: string): number {
+  const n = parseMoneyInput(raw);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new ValidationError(`${label} must be a non-negative number.`);
+  }
+  return n;
+}
+
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser, { params }: { params: Promise<{ id: string }> }) => {
   if (!ADMIN_ROLES.includes(user.role)) {
     throw new ForbiddenError('Only admins can edit products');
@@ -45,8 +56,9 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser, { params 
       ...(category !== undefined && { category }),
       ...(oemName !== undefined && { oemName }),
       ...(description !== undefined && { description }),
-      ...(basePrice !== undefined && { basePrice: parseFloat(basePrice) }),
-      ...(tax !== undefined && { tax: parseFloat(tax) }),
+      // Same NaN-to-500 problem as the create route.
+      ...(basePrice !== undefined && { basePrice: requireMoney(basePrice, 'Base price') }),
+      ...(tax !== undefined && { tax: requireMoney(tax, 'Tax') }),
       ...(isActive !== undefined && { isActive }),
       ...(attributes !== undefined && { attributes }),
     },

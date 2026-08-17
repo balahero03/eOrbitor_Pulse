@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch, parseEnumParam } from '@/lib/queryFilters';
+import { sanitizeSearch, parseEnumParam, parseDateInput } from '@/lib/queryFilters';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createWithOrderNumber } from '@/lib/orderNumber';
+import { parseMoneyInput } from '@/lib/money';
+import { ValidationError } from '@/lib/errors';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -80,8 +82,26 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'customerId and totalAmount are required' }, { status: 400 });
   }
 
-  const paidAmt = parseFloat(amountPaid) || 0;
-  const totalAmt = parseFloat(totalAmount);
+  // parseFloat returned NaN for free text, and `NaN.toString()` is the string
+  // "NaN", which reached the Decimal column and threw. parseMoneyInput also
+  // understands Indian grouping ("1,25,000") rather than truncating at the
+  // first comma the way parseFloat does.
+  const totalAmt = parseMoneyInput(totalAmount);
+  if (!Number.isFinite(totalAmt) || totalAmt < 0) {
+    throw new ValidationError('Order value must be a non-negative number.');
+  }
+  const paidRaw = amountPaid === undefined || amountPaid === null || amountPaid === '' ? 0 : parseMoneyInput(amountPaid);
+  if (!Number.isFinite(paidRaw) || paidRaw < 0) {
+    throw new ValidationError('Amount paid must be a non-negative number.');
+  }
+  const paidAmt = paidRaw;
+  if (totalAmt > 0 && paidAmt > totalAmt + 0.001) {
+    throw new ValidationError('Amount paid cannot exceed the order value.');
+  }
+
+  // Validated once, then reused for both the order and its opening ledger row.
+  const parsedPoDate = parseDateInput(poDate, 'PO date') ?? null;
+
   const paymentStatus = paidAmt >= totalAmt && paidAmt > 0 ? 'COMPLETED' : paidAmt > 0 ? 'PARTIAL' : 'PENDING';
 
   const order = await createWithOrderNumber((orderNumber) =>
@@ -93,7 +113,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
           customerId,
           dealId: dealId || null,
           poNumber: poNumber || null,
-          poDate: poDate ? new Date(poDate) : null,
+          poDate: parsedPoDate,
           status: 'PENDING',
           paymentStatus,
           totalAmount: totalAmt.toString(),
@@ -119,7 +139,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
           data: {
             orderId: created.id,
             amount: paidAmt.toString(),
-            paidAt: poDate ? new Date(poDate) : new Date(),
+            paidAt: parsedPoDate ?? new Date(),
             mode: paymentMode || null,
             remarks: paymentRemarks || 'Recorded when the order was created.',
             recordedById: user.id,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ValidationError } from '@/lib/errors';
 import { istToday } from '@/lib/istDate';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
@@ -23,9 +24,14 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     startDate = dateParam;
     endDate = dateParam;
   } else {
+    // ?date=garbage made both of these NaN, so the range became
+    // "NaN-NaN-01" and every downstream date comparison was nonsense.
     const parts = dateParam.split('-');
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]);
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      throw new ValidationError(`"${dateParam}" is not a valid month. Expected YYYY-MM.`);
+    }
     const monthStr = String(month).padStart(2, '0');
     startDate = `${year}-${monthStr}-01`;
     const lastDay = new Date(year, month, 0).getDate();
