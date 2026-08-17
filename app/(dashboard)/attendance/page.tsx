@@ -436,34 +436,28 @@ function AccessPolicySection() {
                       key={r.value}
                       type="button"
                       onClick={() => toggleRole(r.value)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-left transition-all ${
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-left transition-all ${
                         isSelected
-                          ? isBackend
-                            ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold'
-                            : 'bg-green-50 border-green-300 text-green-900 font-semibold'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          ? 'bg-blue-50/70 border-blue-400 text-blue-950 font-semibold shadow-xs'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        {isBackend ? (
-                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                            isSelected ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'
-                          }`}>
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'
+                        }`}>
+                          {isBackend ? (
                             <ComputerDesktopIcon className="w-3.5 h-3.5" />
-                          </div>
-                        ) : (
-                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                            isSelected ? 'bg-green-600 text-white' : 'bg-green-50 text-green-600'
-                          }`}>
+                          ) : (
                             <BriefcaseIcon className="w-3.5 h-3.5" />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <span className="text-xs sm:text-sm">{r.label}</span>
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                         isSelected
-                          ? isBackend ? 'bg-blue-200/70 text-blue-800' : 'bg-green-200/70 text-green-800'
-                          : 'bg-gray-100 text-gray-400'
+                          ? 'bg-blue-100 text-blue-700 font-semibold'
+                          : 'bg-gray-100 text-gray-500'
                       }`}>
                         {isSelected ? 'Restricted' : 'Allowed'}
                       </span>
@@ -486,10 +480,10 @@ function AccessPolicySection() {
                         key={pr.label}
                         type="button"
                         onClick={() => applyPreset(pr.start, pr.end)}
-                        className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors ${
+                        className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors ${
                           active
-                            ? 'bg-gray-800 border-gray-800 text-white'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                         }`}
                       >
                         {pr.label}
