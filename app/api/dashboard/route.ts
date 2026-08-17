@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
+import { istToday, startOfIstDay, endOfIstDay } from '@/lib/istDate';
+
+/**
+ * "Won this month", measured the way the reports engine measures it.
+ *
+ * Three things were wrong with the previous inline version, and they compounded:
+ * it filtered on `updatedAt`, so simply editing a lead won months ago counted
+ * it again in the current month; it omitted `deletedAt: null`, so deleted leads
+ * still scored; and it built the month boundary from the server's local time,
+ * which on a UTC container starts the month at 05:30 IST on the 1st and drops
+ * anything closed before then. lib/reports/calculator.ts already uses closedAt
+ * throughout, so the dashboard and the reports page disagreed on the same
+ * figure.
+ */
+function wonThisMonthWhere(scope: Record<string, unknown>) {
+  const monthStart = startOfIstDay(`${istToday().slice(0, 7)}-01`);
+  return {
+    ...scope,
+    status: 'WON' as const,
+    deletedAt: null,
+    closedAt: { gte: monthStart },
+  };
+}
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { id: userId, role } = user;
@@ -16,10 +39,11 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   // ── ON FIELD TEAM: personal daily dashboard ────────────────────────────
   if (role === 'ON_FIELD_TEAM') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // IST day boundaries, not the server's. On a UTC container "today" began at
+    // 05:30 IST, so between midnight and 05:30 the rep's own dashboard showed
+    // yesterday's follow-ups as today's and hid the ones actually due.
+    const today = startOfIstDay(istToday());
+    const todayEnd = endOfIstDay(istToday());
 
     const [
       myLeadsTotal,
@@ -76,12 +100,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         where: { assignedToId: userId, deletedAt: null },
         _count: true,
       }),
-      prisma.lead.count({
-        where: {
-          assignedToId: userId, status: 'WON',
-          updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-        },
-      }),
+      prisma.lead.count({ where: wonThisMonthWhere({ assignedToId: userId }) }),
     ]);
 
     const announcements = await prisma.announcement.findMany({
@@ -110,8 +129,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       select: { id: true, firstName: true, lastName: true },
     });
     const teamIds = [userId, ...subs.map((u) => u.id)];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfIstDay(istToday());
 
     const [
       teamLeads, teamDeals, teamWonThisMonth,
@@ -125,12 +143,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         },
       }),
       prisma.deal.count({ where: { assignedToId: { in: teamIds }, stage: { notIn: ['CLOSURE', 'ONGOING'] } } }),
-      prisma.lead.count({
-        where: {
-          assignedToId: { in: teamIds }, status: 'WON',
-          updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-        },
-      }),
+      prisma.lead.count({ where: wonThisMonthWhere({ assignedToId: { in: teamIds } }) }),
       prisma.task.count({ where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' } } }),
       prisma.task.count({ where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' }, dueDate: { lt: today } } }),
       prisma.lead.count({
@@ -160,12 +173,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     const leaderboard = await Promise.all(
       subs.map(async (u) => {
         const [wonCount, leadCount, pipelineAgg] = await Promise.all([
-          prisma.lead.count({
-            where: {
-              assignedToId: u.id, status: 'WON',
-              updatedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-            },
-          }),
+          prisma.lead.count({ where: wonThisMonthWhere({ assignedToId: u.id }) }),
           prisma.lead.count({ where: { assignedToId: u.id, deletedAt: null } }),
           prisma.deal.aggregate({
             where: { assignedToId: u.id, stage: { notIn: ['CLOSURE', 'ONGOING'] } },
