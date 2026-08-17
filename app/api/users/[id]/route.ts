@@ -6,6 +6,7 @@ import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
 import { validatePassword } from '@/lib/passwordPolicy';
 import { revokeChallenges } from '@/lib/passwordReset';
 import { sendMailAfterResponse, buildPasswordChangedEmail } from '@/lib/mail';
+import { assertAssignableUsers } from '@/lib/userRefs';
 
 export const GET = withAuth(async (_req: NextRequest, auth, { params }: { params: Promise<{ id: string }> }) => {
   try {
@@ -51,7 +52,13 @@ export const GET = withAuth(async (_req: NextRequest, auth, { params }: { params
     // as it was before.
     const { managerId: _managerId, ...profile } = user;
     return NextResponse.json(profile);
-  } catch (err) {
+  } catch (err: any) {
+    // A typed error from lib/errors.ts (or a Prisma "record not found") carries
+    // its own status and a message written for the person who triggered it.
+    // This catch used to flatten all of them into a generic 500, so a plain
+    // validation failure was reported to the user as a server fault. Let
+    // withAuth format anything that already knows its own status.
+    if (err?.status && err.status < 500) throw err;
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
 });
@@ -122,6 +129,18 @@ export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { param
         });
       }
     }
+    // Same unvalidated-reference problem as lead assignment: an unknown id is a
+    // foreign-key 500, and an ex-employee's id passes the constraint while
+    // leaving the user reporting to nobody who can actually see their work.
+    // A user managing themselves is rejected outright — it makes them their own
+    // subordinate in every team query.
+    if (managerId) {
+      if (managerId === id) {
+        return NextResponse.json({ error: 'A user cannot be their own manager.' }, { status: 400 });
+      }
+      await assertAssignableUsers([managerId], 'manager');
+    }
+
     if (department !== undefined) updateData.department = department;
     if (assignedTerritory !== undefined) updateData.assignedTerritory = assignedTerritory || null;
     if (isActive !== undefined) updateData.isActive = isActive;
@@ -189,7 +208,13 @@ export const PATCH = withAuth(async (req: NextRequest, auth, { params }: { param
 
     const { personalEmail: _hidden, ...safe } = user;
     return NextResponse.json(safe);
-  } catch (err) {
+  } catch (err: any) {
+    // A typed error from lib/errors.ts (or a Prisma "record not found") carries
+    // its own status and a message written for the person who triggered it.
+    // This catch used to flatten all of them into a generic 500, so a plain
+    // validation failure was reported to the user as a server fault. Let
+    // withAuth format anything that already knows its own status.
+    if (err?.status && err.status < 500) throw err;
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 });
@@ -366,7 +391,13 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
       recordCount: businessCount,
       transferred,
     });
-  } catch (err) {
+  } catch (err: any) {
+    // A typed error from lib/errors.ts (or a Prisma "record not found") carries
+    // its own status and a message written for the person who triggered it.
+    // This catch used to flatten all of them into a generic 500, so a plain
+    // validation failure was reported to the user as a server fault. Let
+    // withAuth format anything that already knows its own status.
+    if (err?.status && err.status < 500) throw err;
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 });
