@@ -8,6 +8,16 @@ import { istToday } from '@/lib/istDate';
 import TimeField from '@/components/TimeField';
 import PageContainer from '@/components/PageContainer';
 import PageHeader from '@/components/PageHeader';
+import {
+  LockClosedIcon,
+  LockOpenIcon,
+  ComputerDesktopIcon,
+  BriefcaseIcon,
+  ShieldCheckIcon,
+  ClockIcon,
+  InformationCircleIcon,
+  CheckIcon,
+} from '@heroicons/react/24/outline';
 import { ActivityIcon, LockIcon, UnlockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2, CheckGlyph, ShieldIcon, UsersMultiIcon } from '@/components/icons';
 import { InlineLoader } from '@/components/BrandedLoader';
 import { buttonClasses } from '@/components/Button';
@@ -268,7 +278,7 @@ function EnterpriseSwitch({
   return (
     <label className={`flex items-start justify-between gap-4 py-2.5 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
       <div className="space-y-0.5 min-w-0 flex-1">
-        <span className="text-sm font-medium text-gray-900">{label}</span>
+        <span className="text-sm font-semibold text-gray-900">{label}</span>
         {description && (
           <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
         )}
@@ -282,13 +292,13 @@ function EnterpriseSwitch({
           e.preventDefault();
           if (!disabled) onChange(!checked);
         }}
-        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
           checked ? 'bg-blue-600' : 'bg-gray-200'
         } ${disabled ? 'cursor-not-allowed' : ''}`}
       >
         <span
-          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-            checked ? 'translate-x-4' : 'translate-x-0'
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            checked ? 'translate-x-5' : 'translate-x-0'
           }`}
         />
       </button>
@@ -387,24 +397,28 @@ function AccessPolicySection() {
         className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 hover:bg-gray-50/75 transition-colors text-left focus:outline-none"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <LockIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+          {/* Lock Logo with Color Badge */}
+          <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 flex-shrink-0 shadow-xs">
+            <LockClosedIcon className="w-4 h-4 text-amber-600" />
+          </div>
+
           <div className="min-w-0 flex items-center gap-2.5">
             <span className="font-semibold text-sm text-gray-900">Access Policy</span>
             {loaded && policy && (
               policy.enabled ? (
                 policy.currentlyRestricting ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                     Restricted
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     Active
                   </span>
                 )
               ) : (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
                   Disabled
                 </span>
               )
@@ -427,24 +441,24 @@ function AccessPolicySection() {
         <div className="border-t border-gray-200 px-4 sm:px-5 py-5 space-y-6 bg-white animate-slide-up">
           
           {/* Current Status Strip */}
-          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border text-xs bg-gray-50 border-gray-200 text-gray-700">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border text-xs bg-slate-50 border-slate-200 text-slate-700">
+            <div className="flex items-center gap-2.5 min-w-0">
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 !policy.enabled
                   ? 'bg-gray-400'
                   : policy.currentlyRestricting
-                  ? 'bg-red-500'
-                  : 'bg-green-500'
+                  ? 'bg-rose-500'
+                  : 'bg-emerald-500'
               }`} />
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-slate-900">
                 {!policy.enabled
-                  ? 'Policy is disabled — 24/7 access is open for all accounts.'
+                  ? 'Policy is disabled — 24/7 unrestricted access is open for all accounts.'
                   : policy.currentlyRestricting
                   ? `Access is currently restricted until ${fmt24(policy.windowEnd)}.`
                   : `Working hours active — next restriction starts at ${fmt24(policy.windowStart)}.`}
               </span>
             </div>
-            <span className="text-gray-400 text-[11px] hidden md:inline">Asia/Kolkata (IST)</span>
+            <span className="text-slate-400 text-[11px] hidden md:inline">Asia/Kolkata (IST)</span>
           </div>
 
           {/* Master Enable / Disable */}
@@ -461,36 +475,65 @@ function AccessPolicySection() {
           <div className={`space-y-6 transition-opacity duration-200 ${policy.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
             
             {/* Restricted Roles */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Restricted Roles</label>
-                <span className="text-[11px] text-gray-400">Super Admin and Admin are always exempt</span>
+                <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                  <ShieldCheckIcon className="w-3.5 h-3.5 text-gray-400" /> Super Admin and Admin are always exempt
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {RESTRICTABLE_ROLES.map(r => {
                   const isSelected = policy.restrictedRoles.includes(r.value);
+                  const isBackend = r.value === 'BACKEND_TEAM';
                   return (
                     <label
                       key={r.value}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer select-none transition-colors ${
+                      className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/20 text-gray-900'
+                          ? isBackend
+                            ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500/20 text-gray-900 shadow-xs'
+                            : 'border-emerald-500 bg-emerald-50/30 ring-1 ring-emerald-500/20 text-gray-900 shadow-xs'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                       }`}
                     >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Role Logo Badge with Color */}
+                        {isBackend ? (
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-blue-50 text-blue-600 border border-blue-200/70'
+                          }`}>
+                            <ComputerDesktopIcon className="w-4 h-4" />
+                          </div>
+                        ) : (
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-emerald-50 text-emerald-600 border border-emerald-200/70'
+                          }`}>
+                            <BriefcaseIcon className="w-4 h-4" />
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold block text-gray-900">{r.label}</span>
+                          <span className="text-xs text-gray-500">
+                            {isBackend ? 'Operations & managerial staff' : 'Field sales executives'}
+                          </span>
+                        </div>
+                      </div>
+
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleRole(r.value)}
-                        className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        className={`ml-3 rounded border-gray-300 w-4 h-4 cursor-pointer focus:ring-2 ${
+                          isBackend ? 'text-blue-600 focus:ring-blue-500' : 'text-emerald-600 focus:ring-emerald-500'
+                        }`}
                       />
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium block">{r.label}</span>
-                        <span className="text-xs text-gray-500">
-                          {r.value === 'BACKEND_TEAM' ? 'Operations & managerial staff' : 'Field sales executives'}
-                        </span>
-                      </div>
                     </label>
                   );
                 })}
@@ -525,7 +568,9 @@ function AccessPolicySection() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <div className="w-full sm:w-auto">
-                  <span className="block text-xs font-medium text-gray-500 mb-1">Starts at (Lock)</span>
+                  <span className="block text-xs font-semibold text-rose-600 mb-1 flex items-center gap-1">
+                    <LockClosedIcon className="w-3.5 h-3.5 text-rose-500" /> Starts at (Lock)
+                  </span>
                   <TimeField
                     value={policy.windowStart}
                     onChange={v => updatePolicy({ windowStart: v })}
@@ -534,7 +579,9 @@ function AccessPolicySection() {
                 </div>
                 <span className="text-gray-300 hidden sm:inline pt-5">→</span>
                 <div className="w-full sm:w-auto">
-                  <span className="block text-xs font-medium text-gray-500 mb-1">Ends at (Unlock)</span>
+                  <span className="block text-xs font-semibold text-emerald-600 mb-1 flex items-center gap-1">
+                    <LockOpenIcon className="w-3.5 h-3.5 text-emerald-600" /> Ends at (Unlock)
+                  </span>
                   <TimeField
                     value={policy.windowEnd}
                     onChange={v => updatePolicy({ windowEnd: v })}
@@ -542,14 +589,18 @@ function AccessPolicySection() {
                   />
                 </div>
                 <div className="pt-0 sm:pt-5">
-                  <span className="inline-flex items-center text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200 font-medium">
+                    <ClockIcon className="w-3.5 h-3.5 text-gray-500" />
                     Duration: {durationHours}h {durationMins > 0 ? `${durationMins}m` : ''} restricted
                   </span>
                 </div>
               </div>
 
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 leading-relaxed">
-                {describeWindow(policy.windowStart, policy.windowEnd)}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-600 flex items-start gap-2.5">
+                <InformationCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  {describeWindow(policy.windowStart, policy.windowEnd)}
+                </span>
               </div>
             </div>
 
@@ -568,9 +619,11 @@ function AccessPolicySection() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-200">
             <Link
               href="/approvals"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
             >
-              <LockIcon className="w-4 h-4 text-gray-400" />
+              <div className="w-5 h-5 rounded-md bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 flex-shrink-0">
+                <LockClosedIcon className="w-3 h-3 text-amber-600" />
+              </div>
               <span>Review after-hours access requests in Approvals →</span>
             </Link>
 
@@ -581,7 +634,7 @@ function AccessPolicySection() {
                     type="button"
                     onClick={() => { setPolicy(savedPolicy); setSaveMessage(null); }}
                     disabled={saving}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-3.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-xs"
                   >
                     Discard
                   </button>
@@ -589,7 +642,7 @@ function AccessPolicySection() {
                     type="button"
                     onClick={savePolicy}
                     disabled={saving}
-                    className="px-4 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
+                    className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
                   >
                     {saving && <InlineLoader size="sm" />}
                     <span>{saving ? 'Saving…' : 'Save Policy'}</span>
