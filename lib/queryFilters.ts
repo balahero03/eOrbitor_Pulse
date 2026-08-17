@@ -78,3 +78,23 @@ export function parseDateParam(
   }
   return d;
 }
+
+/**
+ * Parse a numeric filter (a min/max bound), or `undefined` when absent.
+ *
+ * The gap `parseFloat` left: it returns NaN for free text and Infinity for
+ * "1e999", and both go on to reach Prisma, which rejects them as an invalid
+ * argument — a 500 from a query string. `Number()` rather than `parseFloat`
+ * so "12abc" is rejected outright instead of quietly becoming 12.
+ */
+export function parseNumberParam(
+  raw: string | null | undefined,
+  label: string,
+): number | undefined {
+  if (raw === null || raw === undefined || raw.trim() === '') return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    throw new ValidationError(`"${raw}" is not a valid ${label}.`);
+  }
+  return n;
+}

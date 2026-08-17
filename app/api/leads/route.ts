@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch, parseEnumParam } from '@/lib/queryFilters';
+import { sanitizeSearch, parseEnumParam, parseDateParam, parseNumberParam } from '@/lib/queryFilters';
 import { LeadSource, LeadStatus } from '@prisma/client';
+import { startOfIstDay, endOfIstDay, istDateString } from '@/lib/istDate';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
@@ -14,13 +15,18 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const source = parseEnumParam(searchParams.get('source'), LeadSource, 'lead source');
   const search = sanitizeSearch(searchParams.get('search'));
   const assignedToId = searchParams.get('assignedToId');
-  const rfqFrom = searchParams.get('rfqFrom');
-  const rfqTo = searchParams.get('rfqTo');
-  const followUpFrom = searchParams.get('followUpFrom');
-  const followUpTo = searchParams.get('followUpTo');
+  // Validated rather than handed straight to Prisma. `new Date('xx')` is an
+  // Invalid Date and `parseFloat('abc')` is NaN; both were passed through to
+  // the `where` clause, where Prisma rejected them and the route answered 500.
+  // The same sweep that fixed this across the other list endpoints missed the
+  // date and number filters here.
+  const rfqFrom = parseDateParam(searchParams.get('rfqFrom'), 'RFQ from date');
+  const rfqTo = parseDateParam(searchParams.get('rfqTo'), 'RFQ to date');
+  const followUpFrom = parseDateParam(searchParams.get('followUpFrom'), 'follow-up from date');
+  const followUpTo = parseDateParam(searchParams.get('followUpTo'), 'follow-up to date');
   const hasFollowUp = searchParams.get('hasFollowUp');
-  const quoteValueMin = searchParams.get('quoteValueMin');
-  const quoteValueMax = searchParams.get('quoteValueMax');
+  const quoteValueMin = parseNumberParam(searchParams.get('quoteValueMin'), 'minimum quote value');
+  const quoteValueMax = parseNumberParam(searchParams.get('quoteValueMax'), 'maximum quote value');
 
   // Active leads only — closed leads live in /api/leads/closed.
   //
@@ -59,24 +65,33 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     where.assignedToId = assignedToId;
   }
 
+  // Anchored to IST calendar days, matching /api/followups. `new Date(to +
+  // 'T23:59:59')` was parsed in the *server's* timezone, so on a UTC container
+  // the "to" day actually ran until 05:29 IST the next morning and pulled in
+  // records the user had not asked for.
   if (rfqFrom || rfqTo) {
     where.rfqDate = {
-      ...(rfqFrom && { gte: new Date(rfqFrom) }),
-      ...(rfqTo && { lte: new Date(rfqTo + 'T23:59:59') }),
+      ...(rfqFrom && { gte: startOfIstDay(istDateString(rfqFrom)) }),
+      ...(rfqTo && { lte: endOfIstDay(istDateString(rfqTo)) }),
     };
   }
+  // `hasFollowUp` is applied through AND rather than by assigning to
+  // `where.followUpDate`, which silently discarded any date range set just
+  // above it — "has a follow-up" and "in this window" are not alternatives.
   if (followUpFrom || followUpTo) {
-    where.followUpDate = {
-      ...(followUpFrom && { gte: new Date(followUpFrom) }),
-      ...(followUpTo && { lte: new Date(followUpTo + 'T23:59:59') }),
-    };
+    andConditions.push({
+      followUpDate: {
+        ...(followUpFrom && { gte: startOfIstDay(istDateString(followUpFrom)) }),
+        ...(followUpTo && { lte: endOfIstDay(istDateString(followUpTo)) }),
+      },
+    });
   }
-  if (hasFollowUp === 'yes') where.followUpDate = { not: null };
-  if (hasFollowUp === 'no') where.followUpDate = null;
-  if (quoteValueMin || quoteValueMax) {
+  if (hasFollowUp === 'yes') andConditions.push({ followUpDate: { not: null } });
+  if (hasFollowUp === 'no') andConditions.push({ followUpDate: null });
+  if (quoteValueMin !== undefined || quoteValueMax !== undefined) {
     where.quoteValue = {
-      ...(quoteValueMin && { gte: parseFloat(quoteValueMin) }),
-      ...(quoteValueMax && { lte: parseFloat(quoteValueMax) }),
+      ...(quoteValueMin !== undefined && { gte: quoteValueMin }),
+      ...(quoteValueMax !== undefined && { lte: quoteValueMax }),
     };
   }
   if (search) {
