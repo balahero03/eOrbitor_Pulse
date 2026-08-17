@@ -215,7 +215,14 @@ export default function ClosedLeadsPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-bold text-gray-900 text-sm">{lead.name}</h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {(lead.leadNumber || lead.quoteNo) && (
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-semibold">
+                              {lead.leadNumber || lead.quoteNo}
+                            </span>
+                          )}
+                          <h3 className="font-bold text-gray-900 text-sm">{lead.name}</h3>
+                        </div>
                         <p className="text-xs text-gray-500 mt-0.5">{lead.company}</p>
                       </div>
                       <span className={`inline-flex items-center text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 ${meta.style}`}>
@@ -246,10 +253,11 @@ export default function ClosedLeadsPage() {
 
             {/* Desktop / Tablet Table View (>= 640px) */}
             <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[900px]">
+              <table className="w-full text-sm min-w-[960px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-36">Lead #</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Company</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Outcome</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Value</th>
@@ -263,7 +271,16 @@ export default function ClosedLeadsPage() {
                     const meta = STATUS_META[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-600 border-gray-200' };
                     return (
                       <tr key={lead.id} onClick={() => router.push(`/leads/${lead.id}`)} className="hover:bg-blue-50 transition-colors cursor-pointer">
-                        <td className="px-5 py-3.5 font-medium text-gray-900">{lead.name}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs text-gray-600 font-medium">
+                          {lead.leadNumber || lead.quoteNo ? (
+                            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono text-xs">
+                              {lead.leadNumber || lead.quoteNo}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-gray-900">{lead.name}</td>
                         <td className="px-4 py-3.5 text-gray-600">{lead.company}</td>
                         <td className="px-4 py-3.5">
                           <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full border font-medium ${meta.style}`}>

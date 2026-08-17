@@ -321,37 +321,58 @@ export default function OrdersPage() {
                 the divider between records is now `gray-200`, which is the only
                 horizontal line in the list. */}
             <div className="block sm:hidden divide-y divide-gray-200">
-              {orders.map((order) => (
-                <Link
-                  key={order.id}
-                  href={`/orders/${order.id}`}
-                  className="block px-4 py-3.5 active:bg-blue-50/70 transition-colors cursor-pointer space-y-1.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="font-mono text-xs font-bold text-gray-900 block truncate">{order.orderNumber}</span>
-                      <p className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{order.customer.companyName}</p>
-                    </div>
-                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 whitespace-nowrap ${getStatusBadgeColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </div>
+              {orders.map((order) => {
+                const total = parseFloat(order.totalAmount) || 0;
+                const paid = parseFloat(order.amountPaid) || 0;
+                const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                const isPaidFull = total > 0 && paid >= total;
 
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <div className="min-w-0">
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
-                      {parseFloat(order.amountPaid) > 0 && (
-                        <span className="text-[11px] text-green-700 font-semibold block truncate">
-                          Paid: {formatCurrency(order.amountPaid)}
-                        </span>
-                      )}
+                return (
+                  <Link
+                    key={order.id}
+                    href={`/orders/${order.id}`}
+                    className="block px-4 py-3.5 active:bg-blue-50/70 transition-colors cursor-pointer space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-mono text-xs font-bold text-gray-900 block truncate">{order.orderNumber}</span>
+                        <p className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{order.customer.companyName}</p>
+                      </div>
+                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex-shrink-0 whitespace-nowrap shadow-2xs ${getStatusBadgeColor(order.status)}`}>
+                        {order.status}
+                      </span>
                     </div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium flex-shrink-0 whitespace-nowrap ${getPaymentBadgeColor(order.paymentStatus)}`}>
-                      {order.paymentStatus}
-                    </span>
-                  </div>
-                </Link>
-              ))}
+
+                    <div className="flex items-center justify-between gap-3 text-xs pt-0.5">
+                      <div className="min-w-0">
+                        <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                        {paid > 0 ? (
+                          <span className={`text-[11px] font-semibold block truncate ${isPaidFull ? 'text-green-700' : 'text-amber-700'}`}>
+                            Paid: {formatCurrency(order.amountPaid)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 font-medium block truncate">
+                            Unpaid
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Clean Payment Progress Bar & Indicator */}
+                      <div className="text-right flex flex-col items-end flex-shrink-0">
+                        <span className={`text-[11px] font-medium ${isPaidFull ? 'text-green-700 font-semibold' : paid > 0 ? 'text-amber-700 font-semibold' : 'text-gray-400'}`}>
+                          {isPaidFull ? 'Fully Paid' : paid > 0 ? `${pct}% Paid` : 'Unpaid'}
+                        </span>
+                        <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+                          <div
+                            className={`h-full rounded-full transition-all ${isPaidFull ? 'bg-green-500' : paid > 0 ? 'bg-amber-400' : 'bg-gray-200'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Desktop / Tablet Table View (>= 640px) */}
