@@ -1229,7 +1229,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             {/* Notification Center */}
             <div className="relative" ref={notifRef}>
               <button
-                onClick={() => setNotifOpen(o => !o)}
+                onClick={() => {
+                  setNotifOpen(o => !o);
+                  setUserMenuOpen(false);
+                }}
                 className={`relative p-2 rounded-xl text-slate-600 transition-all duration-200 focus:outline-none ${
                   notifOpen
                     ? 'bg-blue-50/80 text-blue-600 ring-2 ring-blue-500/20 shadow-sm'
@@ -1255,7 +1258,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   />
 
                   {/* Notification Center Floating Panel */}
-                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-12 sm:w-[410px] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[32rem] origin-top-right transition-all ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
+                  <div className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:-right-20 md:-right-24 lg:-right-28 sm:top-12 w-auto sm:w-[380px] md:w-[400px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] z-[100] overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[32rem] origin-top-right transition-all ${notifLeaving ? 'animate-scale-out' : 'animate-scale-in'}`}>
                     
                     {/* Header */}
                     <div className="px-4 pt-3.5 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur-md flex-shrink-0">
@@ -1479,7 +1482,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             {/* User Profile Dropdown Menu */}
             <div className="relative" ref={userMenuRef}>
               <button
-                onClick={() => setUserMenuOpen(o => !o)}
+                onClick={() => {
+                  setUserMenuOpen(o => !o);
+                  setNotifOpen(false);
+                }}
                 className="flex items-center gap-2 p-1 rounded-xl hover:bg-gray-100 transition-colors focus:outline-none"
                 aria-label="User menu"
               >
