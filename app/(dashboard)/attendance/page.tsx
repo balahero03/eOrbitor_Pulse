@@ -22,6 +22,7 @@ import { ActivityIcon, LockIcon, UnlockIcon, WarningIcon, SuccessIcon, ClockIcon
 import { InlineLoader } from '@/components/BrandedLoader';
 import { buttonClasses } from '@/components/Button';
 import SearchableSelect from '@/components/SearchableSelect';
+import { useToast } from '@/components/Toast';
 
 const ACTIVITY_MODES: Record<string, { label: string }> = {
   MEETING: { label: 'Meeting' },
@@ -264,12 +265,12 @@ interface AccessPolicy {
 // Admin-only, collapsed-by-default section. This page is also visible to
 // BACKEND_TEAM (the manager-equivalent role), who should never see this panel.
 function AccessPolicySection() {
+  const toast = useToast();
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [policy, setPolicy] = useState<AccessPolicy | null>(null);
   const [savedPolicy, setSavedPolicy] = useState<AccessPolicy | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const dirty = policy && savedPolicy && JSON.stringify(policy) !== JSON.stringify(savedPolicy);
 
@@ -291,7 +292,6 @@ function AccessPolicySection() {
 
   const toggleRole = (role: string) => {
     if (!policy) return;
-    setSaveMessage(null);
     setPolicy({
       ...policy,
       restrictedRoles: policy.restrictedRoles.includes(role)
@@ -302,7 +302,6 @@ function AccessPolicySection() {
 
   const updatePolicy = (patch: Partial<AccessPolicy>) => {
     if (!policy) return;
-    setSaveMessage(null);
     setPolicy({ ...policy, ...patch });
   };
 
@@ -311,7 +310,6 @@ function AccessPolicySection() {
   const savePolicy = async () => {
     if (!policy) return;
     setSaving(true);
-    setSaveMessage(null);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/access-policy', {
@@ -323,22 +321,16 @@ function AccessPolicySection() {
       if (res.ok) {
         setPolicy(data);
         setSavedPolicy(data);
-        setSaveMessage({ type: 'success', text: 'Policy saved successfully' });
+        toast.success('Access policy saved successfully');
       } else {
-        setSaveMessage({ type: 'error', text: data.message || 'Failed to save policy' });
+        toast.error(data.message || 'Failed to save policy');
       }
     } catch {
-      setSaveMessage({ type: 'error', text: 'Failed to save policy — please check connection' });
+      toast.error('Failed to save policy — please check your connection');
     } finally {
       setSaving(false);
     }
   };
-
-  useEffect(() => {
-    if (!saveMessage || saveMessage.type !== 'success') return;
-    const t = setTimeout(() => setSaveMessage(null), 4000);
-    return () => clearTimeout(t);
-  }, [saveMessage]);
 
   const durationHours = policy ? Math.floor(restrictedMinutes(policy.windowStart, policy.windowEnd) / 60) : 0;
   const durationMins = policy ? restrictedMinutes(policy.windowStart, policy.windowEnd) % 60 : 0;
@@ -543,7 +535,7 @@ function AccessPolicySection() {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setPolicy(savedPolicy); setSaveMessage(null); }}
+                    onClick={() => setPolicy(savedPolicy)}
                     disabled={saving}
                     className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
@@ -566,12 +558,6 @@ function AccessPolicySection() {
               )}
             </div>
           </div>
-
-          {saveMessage && saveMessage.type === 'error' && (
-            <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs font-medium text-red-700">
-              {saveMessage.text}
-            </div>
-          )}
         </div>
       )}
     </div>
