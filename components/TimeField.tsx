@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ClockIcon } from '@heroicons/react/24/outline';
+import { DropdownPortal } from './DropdownPortal';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -42,6 +43,7 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
   const [mText, setMText] = useState(m);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const portalPanelRef = useRef<HTMLDivElement>(null);
   const hourRef = useRef<HTMLInputElement>(null);
   const minuteRef = useRef<HTMLInputElement>(null);
   const hourListRef = useRef<HTMLDivElement>(null);
@@ -57,7 +59,14 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        (!portalPanelRef.current || !portalPanelRef.current.contains(target))
+      ) {
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -173,67 +182,67 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
       </div>
 
       {open && !disabled && (
-        // `right-0 sm:right-auto` keeps the panel inside the viewport when the
-        // field sits in the right-hand column of a two-up form on a phone.
-        <div className="absolute top-full left-0 right-0 sm:right-auto mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl ring-1 ring-black/5 z-30 w-full sm:w-44 overflow-hidden animate-scale-in">
-          <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-gray-100 bg-gray-50">
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Hour</span>
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Min</span>
-          </div>
-          <div className="flex divide-x divide-gray-100">
-            {/* Two independently scrolling columns. Rows are 32px so they stay
-                tappable, and `scroll-smooth` stops the auto-scroll-to-selected
-                on open from looking like a jump cut. */}
-            <div ref={hourListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
-              {HOURS.map(hh => (
-                <button
-                  key={hh}
-                  type="button"
-                  ref={hh === h ? selectedHourRef : undefined}
-                  onClick={() => pick(hh, m || '00')}
-                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${hh === h ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
-                    }`}
-                >
-                  {hh}
-                </button>
-              ))}
+        <DropdownPortal anchorRef={containerRef} open={open} align="left" panelRef={portalPanelRef}>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-2xl ring-1 ring-black/5 w-44 overflow-hidden animate-scale-in z-[100]">
+            <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-gray-100 bg-gray-50">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Hour</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Min</span>
             </div>
-            <div ref={minuteListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
-              {MINUTES.map(mm => (
-                <button
-                  key={mm}
-                  type="button"
-                  ref={mm === m ? selectedMinuteRef : undefined}
-                  onClick={() => { pick(h || '00', mm); setOpen(false); }}
-                  className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${mm === m ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
-                    }`}
-                >
-                  {mm}
-                </button>
-              ))}
+            <div className="flex divide-x divide-gray-100">
+              {/* Two independently scrolling columns. Rows are 32px so they stay
+                  tappable, and `scroll-smooth` stops the auto-scroll-to-selected
+                  on open from looking like a jump cut. */}
+              <div ref={hourListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
+                {HOURS.map(hh => (
+                  <button
+                    key={hh}
+                    type="button"
+                    ref={hh === h ? selectedHourRef : undefined}
+                    onClick={() => pick(hh, m || '00')}
+                    className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${hh === h ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
+                      }`}
+                  >
+                    {hh}
+                  </button>
+                ))}
+              </div>
+              <div ref={minuteListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
+                {MINUTES.map(mm => (
+                  <button
+                    key={mm}
+                    type="button"
+                    ref={mm === m ? selectedMinuteRef : undefined}
+                    onClick={() => { pick(h || '00', mm); setOpen(false); }}
+                    className={`w-full text-center text-sm px-2 py-1.5 min-h-[32px] tabular-nums transition-colors ${mm === m ? 'bg-blue-600 font-semibold text-white' : 'text-gray-700 hover:bg-blue-50'
+                      }`}
+                  >
+                    {mm}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-gray-100 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  pick(String(now.getHours()).padStart(2, '0'), String(now.getMinutes()).padStart(2, '0'));
+                  setOpen(false);
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+              >
+                Now
+              </button>
+              <button
+                type="button"
+                onClick={() => { setHText(''); setMText(''); onChange(''); setOpen(false); }}
+                className="text-xs font-medium text-gray-500 hover:text-red-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+              >
+                Clear
+              </button>
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-gray-100 bg-gray-50">
-            <button
-              type="button"
-              onClick={() => {
-                const now = new Date();
-                pick(String(now.getHours()).padStart(2, '0'), String(now.getMinutes()).padStart(2, '0'));
-                setOpen(false);
-              }}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-            >
-              Now
-            </button>
-            <button
-              type="button"
-              onClick={() => { setHText(''); setMText(''); onChange(''); setOpen(false); }}
-              className="text-xs font-medium text-gray-500 hover:text-red-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
+        </DropdownPortal>
       )}
     </div>
   );
