@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 import { parseMoneyInput } from '@/lib/money';
+import { assertAssignableUsers } from '@/lib/userRefs';
 
 async function getTeamIds(managerId: string): Promise<string[]> {
   const team = await prisma.user.findMany({ where: { managerId }, select: { id: true } });
@@ -102,6 +103,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (isOnField && assignedToId !== undefined && assignedToId !== existingLead.assignedToId) {
     throw new ForbiddenError('On-field team members cannot reassign leads.');
   }
+
+  // Same reasoning as the create route: an unknown id is a 500, and an
+  // ex-employee's id silently orphans the lead out of every scoped list.
+  await assertAssignableUsers([assignedToId, broughtById, ...(Array.isArray(presalesIds) ? presalesIds : [])]);
 
   let resolvedCustomerId = linkedCustomerId;
 

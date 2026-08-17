@@ -7,6 +7,7 @@ import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createWithLeadNumber } from '@/lib/leadNumber';
 import { parseMoneyInput } from '@/lib/money';
+import { assertAssignableUsers } from '@/lib/userRefs';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -161,6 +162,11 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // same guard rather than waiting for its own incident to prove the point.
   const parsedSource = parseEnumParam(source, LeadSource, 'lead source');
   const parsedStatus = parseEnumParam(status, LeadStatus, 'lead status');
+
+  // An unknown id here is a foreign-key violation (a 500), and an ex-employee's
+  // id passes the foreign key but drops the lead out of every scoped list the
+  // moment it is created. See lib/userRefs.ts.
+  await assertAssignableUsers([assignedToId, broughtById, ...(Array.isArray(presalesIds) ? presalesIds : [])]);
 
   const parsedQuoteValue = parseMoneyInput(quoteValue);
 
