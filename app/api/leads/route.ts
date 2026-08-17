@@ -130,6 +130,17 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Opportunity name and company are required' }, { status: 400 });
   }
 
+  // Validated here for the same reason GET already validates its filters:
+  // an invalid value reached `prisma.lead.create()` unchecked and came back
+  // as a raw "Invalid value for argument `source`. Expected LeadSource."
+  // straight from Prisma — confirmed live, from the create form's own
+  // Source dropdown once offering "WhatsApp" and "Campaign", neither of
+  // which was ever a real value. `status` has the same gap and no form
+  // currently exercises it, but a direct API call could, so it gets the
+  // same guard rather than waiting for its own incident to prove the point.
+  const parsedSource = parseEnumParam(source, LeadSource, 'lead source');
+  const parsedStatus = parseEnumParam(status, LeadStatus, 'lead status');
+
   const parsedQuoteValue = parseMoneyInput(quoteValue);
 
   // The lead number is issued by the server, never taken from the request:
@@ -145,8 +156,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
         phone: phone || null,
         company,
         address: address || null,
-        source: source || 'EMAIL',
-        status: status || 'SUSPECT',
+        source: parsedSource || 'EMAIL',
+        status: parsedStatus || 'SUSPECT',
         leadScore: 0,
         assignedToId: assignedToId || user.id,
         ...(quoteNo && { quoteNo }),

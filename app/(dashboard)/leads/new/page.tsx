@@ -190,7 +190,7 @@ export default function NewLeadPage() {
                   <option value="CALL">Phone Call</option>
                   <option value="WEBSITE">Website</option>
                   <option value="WHATSAPP">WhatsApp</option>
-                  <option value="CAMPAIGN">Campaign</option>
+                  <option value="ADVERTISEMENT">Advertisement</option>
                 </select>
               </div>
             </div>

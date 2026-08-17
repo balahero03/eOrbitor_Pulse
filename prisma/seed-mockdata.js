@@ -20,7 +20,7 @@ function getWorkingDays(count) {
 }
 
 // ─── Static Data ───────────────────────────────────────────────────────────
-const SOURCES = ['WEBSITE', 'REFERRAL', 'WALKIN', 'CALL', 'EMAIL', 'ADVERTISEMENT'];
+const SOURCES = ['WEBSITE', 'REFERRAL', 'WALKIN', 'CALL', 'EMAIL', 'ADVERTISEMENT', 'WHATSAPP'];
 const FOLLOWUP_TYPES = ['CALL', 'EMAIL', 'MEETING', 'WHATSAPP', 'SITE_VISIT'];
 const PAYMENT_MODES = ['NEFT', 'CHEQUE', 'CREDIT', 'UPI', 'CASH'];
 

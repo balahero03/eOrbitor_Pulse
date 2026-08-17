@@ -54,6 +54,7 @@ const ALL_SOURCES = [
   { value: 'REFERRAL', label: 'Referral' },
   { value: 'WALKIN', label: 'Walk-in' },
   { value: 'CALL', label: 'Call' },
+  { value: 'WHATSAPP', label: 'WhatsApp' },
   { value: 'ADVERTISEMENT', label: 'Advertisement' },
 ];
 

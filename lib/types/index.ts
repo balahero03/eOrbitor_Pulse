@@ -39,7 +39,7 @@ export type LeadStatus =
   | 'COMMIT' | 'DROPPED' | 'ON_HOLD';
 
 export type LeadSource =
-  | 'WEBSITE' | 'REFERRAL' | 'WALKIN' | 'CALL' | 'EMAIL' | 'ADVERTISEMENT';
+  | 'WEBSITE' | 'REFERRAL' | 'WALKIN' | 'CALL' | 'EMAIL' | 'ADVERTISEMENT' | 'WHATSAPP';
 
 export type LeadListItem = {
   id: string;

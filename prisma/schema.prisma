@@ -649,6 +649,10 @@ enum LeadSource {
   CALL
   EMAIL
   ADVERTISEMENT
+  /// A lead that came in over WhatsApp — a routine inbound channel for this
+  /// business (Follow-up already treats WhatsApp as a real contact method;
+  /// this was the one place a lead's *origin* couldn't be recorded as one).
+  WHATSAPP
 }
 
 enum LeadStatus {
