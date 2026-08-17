@@ -38,7 +38,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     },
   });
 
-  if (!order) throw new NotFoundError('Order');
+  if (!order || order.deletedAt) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
 
   // Back-fill a total that was never set, from the linked quotation.
@@ -125,7 +125,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     where: { id },
     include: { deal: { select: { assignedToId: true } } },
   });
-  if (!existing) throw new NotFoundError('Order');
+  if (!existing || existing.deletedAt) throw new NotFoundError('Order');
   if (!(await inScope(user, existing.deal?.assignedToId))) throw new ForbiddenError();
 
   const body = await req.json();
@@ -262,7 +262,18 @@ export const DELETE = withAuth(async (req: NextRequest, user: AuthUser) => {
   // ORDER_DELETE approval workflow (already wired up in
   // /api/approval-requests/[id]) instead of deleting directly.
   if (ADMIN_ROLES.includes(user.role)) {
-    await prisma.order.delete({ where: { id } });
+    // Soft delete — see the note on Order.deletedAt. A real delete cascaded
+    // through OrderPayment and took the receipt ledger with it.
+    await prisma.order.update({ where: { id }, data: { deletedAt: new Date() } });
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'DELETE',
+        entityType: 'ORDER',
+        entityId: id,
+        changes: { orderNumber: order.orderNumber, softDelete: true },
+      },
+    });
     return NextResponse.json({ message: 'Order deleted successfully' });
   }
 

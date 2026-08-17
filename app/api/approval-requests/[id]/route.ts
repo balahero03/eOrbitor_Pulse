@@ -85,7 +85,13 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
         data: { deletedAt: null, status: 'SUSPECT' },
       });
     } else if (originalRequest.type === 'ORDER_DELETE') {
-      await prisma.order.delete({ where: { id: originalRequest.entityId } });
+      // Soft delete, like every other approved deletion here. This was the one
+      // branch that destroyed the row, cascading through OrderPayment and
+      // taking the order's receipt ledger with it.
+      await prisma.order.update({
+        where: { id: originalRequest.entityId },
+        data: { deletedAt: new Date() },
+      });
     } else if (originalRequest.type === 'CUSTOMER_DELETE') {
       await prisma.customer.update({
         where: { id: originalRequest.entityId },

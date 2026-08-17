@@ -26,9 +26,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return withAuth(async (_req: NextRequest, user: AuthUser) => {
     const order = await prisma.order.findUnique({
       where: { id },
-      select: { invoiceFile: true, deal: { select: { assignedToId: true } } },
+      select: { invoiceFile: true, deletedAt: true, deal: { select: { assignedToId: true } } },
     });
-    if (!order) return NextResponse.json({ message: 'Order not found' }, { status: 404 });
+    if (!order || order.deletedAt) return NextResponse.json({ message: 'Order not found' }, { status: 404 });
     if (!(await inScope(user, order.deal?.assignedToId))) {
       return NextResponse.json({ message: 'Access denied' }, { status: 403 });
     }

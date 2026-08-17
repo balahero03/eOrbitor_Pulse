@@ -65,7 +65,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // One order per quotation — converting twice would double-count the same
   // revenue and leave two orders chasing one payment.
   const existing = await prisma.order.findFirst({
-    where: { quotationId },
+    where: { quotationId, deletedAt: null },
     select: { id: true, orderNumber: true },
   });
   if (existing) {

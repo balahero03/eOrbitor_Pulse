@@ -392,10 +392,22 @@ model Order {
   quotation     Quotation?    @relation(fields: [quotationId], references: [id])
   payments      OrderPayment[]
 
+  /// Soft delete, matching Lead / Customer / Deal / Quotation / User.
+  ///
+  /// Order was the one entity that deleted for real, and it is the one holding
+  /// the money: PO number, invoice number, GST-bearing totals — and
+  /// `OrderPayment` cascades from it, so removing an order also destroyed the
+  /// whole receipt ledger justifying what had been collected. That is both
+  /// unrecoverable and the opposite of what Indian financial-record retention
+  /// expects. The uploaded invoice and receipt files were left orphaned on disk
+  /// as well, since only the descriptor rows went.
+  deletedAt       DateTime?
+
   @@index([status])
   @@index([customerId])
   @@index([paymentStatus])
   @@index([paymentDueDate])
+  @@index([deletedAt])
 }
 
 /// One recorded receipt of money against an order.

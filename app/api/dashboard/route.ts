@@ -224,8 +224,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     prisma.task.count({ where: { status: { not: 'COMPLETED' }, dueDate: { lt: now } } }),
     prisma.approvalRequest.count({ where: { status: 'PENDING' } }),
     prisma.user.count({ where: { isActive: true } }),
-    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: monthStart } }, _sum: { totalAmount: true } }),
-    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', createdAt: { gte: lastMonthStart, lt: monthStart } }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', deletedAt: null, createdAt: { gte: monthStart } }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: 'COMPLETED', deletedAt: null, createdAt: { gte: lastMonthStart, lt: monthStart } }, _sum: { totalAmount: true } }),
     prisma.deal.groupBy({ by: ['stage'], where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } }, _sum: { dealValue: true }, _count: { id: true } }).catch(() => []),
     prisma.activityLog.findMany({
       orderBy: { createdAt: 'desc' },

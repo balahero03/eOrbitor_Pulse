@@ -77,9 +77,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, deal: { select: { assignedToId: true } } },
+    select: { id: true, deletedAt: true, deal: { select: { assignedToId: true } } },
   });
-  if (!order) throw new NotFoundError('Order');
+  if (!order || order.deletedAt) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
 
   const payments = await prisma.orderPayment.findMany({
@@ -102,10 +102,11 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       id: true,
       totalAmount: true,
       amountPaid: true,
+      deletedAt: true,
       deal: { select: { assignedToId: true } },
     },
   });
-  if (!order) throw new NotFoundError('Order');
+  if (!order || order.deletedAt) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
 
   // parseMoneyInput handles Indian grouping ("1,25,000") and rejects free text,

@@ -33,7 +33,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     where: { id },
     include: { deal: { select: { assignedToId: true } } },
   });
-  if (!order) throw new NotFoundError('Order');
+  // A soft-deleted order is gone as far as every workflow is concerned.
+  if (!order || order.deletedAt) throw new NotFoundError('Order');
   if (!(await inScope(user, order.deal?.assignedToId))) throw new ForbiddenError();
 
   const currentAmountPaid = parseFloat(order.amountPaid.toString());

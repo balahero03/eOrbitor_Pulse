@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
     where: {
       paymentStatus: { in: ['PENDING', 'PARTIAL'] },
       paymentDueDate: { not: null },
+      // A deleted order owes nothing — chasing it would email the rep and
+      // digest to admins about a record no screen can open.
+      deletedAt: null,
     },
     select: {
       id: true,

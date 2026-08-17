@@ -13,7 +13,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const paymentStatus = parseEnumParam(searchParams.get('paymentStatus'), PaymentStatus, 'payment status');
   const search = sanitizeSearch(searchParams.get('search'));
 
-  const where: any = {};
+  const where: any = { deletedAt: null };
 
   // Role-based scoping via linked deal's assignedTo
   if (user.role === 'ON_FIELD_TEAM') {
