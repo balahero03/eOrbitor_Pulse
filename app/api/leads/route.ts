@@ -22,8 +22,14 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const quoteValueMin = searchParams.get('quoteValueMin');
   const quoteValueMax = searchParams.get('quoteValueMax');
 
-  // Active leads only — closed leads live in /api/leads/closed
-  const CLOSED_STATUSES = ['WON', 'LOST', 'ORDER'];
+  // Active leads only — closed leads live in /api/leads/closed.
+  //
+  // DROPPED belongs here. It was missing, so a dropped lead stayed in the
+  // active pipeline while also appearing under Closed Leads — counted twice,
+  // and still shown to the rep as something to work. /api/leads/closed,
+  // /api/leads/[id]/close and lib/reports/calculator.ts all already treat
+  // DROPPED as closed; this list was the one place that did not.
+  const CLOSED_STATUSES = ['WON', 'LOST', 'DROPPED', 'ORDER'];
   const where: any = {
     deletedAt: null,
   };
