@@ -79,7 +79,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const existingLead = await prisma.lead.findUnique({
     where: { id },
-    select: { status: true, assignedToId: true, deletedAt: true },
+    select: { status: true, heldFromStatus: true, assignedToId: true, deletedAt: true },
   });
   if (!existingLead || existingLead.deletedAt) throw new NotFoundError('Lead');
   if (!(await inScope(user, existingLead.assignedToId))) throw new ForbiddenError();
@@ -107,8 +107,21 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   // Enforce sequential pipeline progression
   // ON_HOLD and DROPPED can be set from any pipeline stage — skip sequential validation
+  //
+  // Resuming from ON_HOLD is measured from the stage the lead was parked at,
+  // not from ON_HOLD itself. ON_HOLD has no place in the stage ordering, so it
+  // scored -1 and the only move the rule would accept was to SUSPECT: a lead
+  // paused during NEGOTIATION could not be resumed at NEGOTIATION, or anywhere
+  // else it had reached. Comparing against `heldFromStatus` restores the lead
+  // to where it left off without opening a way to skip stages — parking a
+  // SUSPECT lead and resuming it still only offers SUSPECT and PROSPECT.
+  const resumeFrom =
+    existingLead.status === 'ON_HOLD' && existingLead.heldFromStatus
+      ? existingLead.heldFromStatus
+      : existingLead.status;
+
   if (status && status !== 'ON_HOLD' && status !== 'DROPPED') {
-    const current = existingLead.status;
+    const current = resumeFrom;
     const getStageIndex = (s: string) => {
       if (s === 'SUSPECT') return 0;
       if (s === 'PROSPECT') return 1;
@@ -130,8 +143,12 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     const isAllowedReversal = allowedReversals.some(r => r.from === current && r.to === status);
     const isNextStage = newIdx === currentIdx + 1 || (currentIdx === newIdx && (status === 'PROPOSAL' || status === 'APPROACH'));
     const isSkipNegotiation = (current === 'PROPOSAL' || current === 'APPROACH') && (status === 'CLOSURE' || status === 'WON' || status === 'LOST');
+    // Coming off a hold, landing back on the exact stage it was parked at is
+    // not a move at all — it is the resume. Without this the lead could only
+    // go forwards from where it paused, never simply carry on.
+    const isResumeInPlace = existingLead.status === 'ON_HOLD' && status === resumeFrom;
 
-    if (!isAllowedReversal && !isNextStage && !isSkipNegotiation) {
+    if (!isAllowedReversal && !isNextStage && !isSkipNegotiation && !isResumeInPlace) {
       const stageNames = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
       const nextStage = currentIdx >= 0 && currentIdx < stageNames.length - 1
         ? stageNames[currentIdx + 1]
@@ -154,6 +171,14 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(address !== undefined && { address }),
       ...(source !== undefined && { source }),
       ...(status !== undefined && { status: status as any }),
+      // Remember the stage a hold was taken from, and forget it once the lead
+      // is back in the pipeline, so a later hold cannot resume to a stale one.
+      ...(status !== undefined && status !== existingLead.status && {
+        heldFromStatus:
+          status === 'ON_HOLD'
+            ? (existingLead.status as any)
+            : null,
+      }),
       ...(leadScore !== undefined && { leadScore }),
       ...(assignedToId !== undefined && { assignedToId }),
       ...(broughtById !== undefined && { broughtById }),

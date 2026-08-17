@@ -157,6 +157,11 @@ model Lead {
   expectedClosureDate DateTime?
   closureReason      String?
   closureDetails     Json?
+  // The pipeline stage this lead was parked at when it went ON_HOLD, so it can
+  // be resumed where it left off. Without it a hold was a one-way door: the
+  // sequential-progression rule saw ON_HOLD as outside the pipeline and would
+  // only allow the lead back in at SUSPECT, discarding its position.
+  heldFromStatus     LeadStatus?
   solutionAreas      String[]
   oemNames           String[]
   presalesIds        String[]
