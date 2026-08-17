@@ -19,6 +19,17 @@ const LOGIN_MAX_ATTEMPTS = 8;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_BLOCK_MINUTES = 15;
 
+// A real bcrypt hash (of a value nobody can submit) compared against whenever
+// no account matched, so an unknown address costs the same ~100ms as a known
+// one. Without it `!user || await bcrypt.compare(...)` short-circuited: a
+// missing account answered in a few milliseconds and a real one took as long
+// as bcrypt does, which is a reliable oracle for testing whether an address is
+// registered. /api/auth/forgot-password is careful to give nothing away —
+// this route was undoing that.
+// This is the hash of a random 32-byte value that was discarded, so no input
+// can match it — deliberately not the hash of a real word.
+const TIMING_DECOY_HASH = '$2a$10$xL6XctIzZJxQdgz4LSMFVuc53v6r0GF4XsDsSZvE3CmL.B54kj6vC';
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -52,11 +63,18 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user || !await bcrypt.compare(password, user.passwordHash)) {
+    // Always spend the bcrypt cost, even with no account to check against.
+    const passwordOk = await bcrypt.compare(password, user?.passwordHash ?? TIMING_DECOY_HASH);
+    if (!user || !passwordOk) {
       return NextResponse.json({ message: 'Invalid email or password' }, { status: 401 });
     }
 
-    if (!user.isActive) {
+    // `deletedAt` is checked as well as `isActive`. withAuth already refuses a
+    // token belonging to an ex-employee, so a soft-deleted account that had
+    // been reactivated without being restored could sign in, receive a token,
+    // and then be thrown out by the very next request — which reads as the app
+    // being broken rather than as the account being closed.
+    if (!user.isActive || user.deletedAt) {
       return NextResponse.json({ message: 'User account is inactive' }, { status: 403 });
     }
 
