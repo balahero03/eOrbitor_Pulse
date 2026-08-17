@@ -44,6 +44,8 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
   const containerRef = useRef<HTMLDivElement>(null);
   const hourRef = useRef<HTMLInputElement>(null);
   const minuteRef = useRef<HTMLInputElement>(null);
+  const hourListRef = useRef<HTMLDivElement>(null);
+  const minuteListRef = useRef<HTMLDivElement>(null);
   const selectedHourRef = useRef<HTMLButtonElement>(null);
   const selectedMinuteRef = useRef<HTMLButtonElement>(null);
 
@@ -63,8 +65,12 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
 
   useEffect(() => {
     if (open) {
-      selectedHourRef.current?.scrollIntoView({ block: 'nearest' });
-      selectedMinuteRef.current?.scrollIntoView({ block: 'nearest' });
+      if (hourListRef.current && selectedHourRef.current) {
+        hourListRef.current.scrollTop = selectedHourRef.current.offsetTop - hourListRef.current.offsetTop;
+      }
+      if (minuteListRef.current && selectedMinuteRef.current) {
+        minuteListRef.current.scrollTop = selectedMinuteRef.current.offsetTop - minuteListRef.current.offsetTop;
+      }
     }
   }, [open]);
 
@@ -169,7 +175,7 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
       {open && !disabled && (
         // `right-0 sm:right-auto` keeps the panel inside the viewport when the
         // field sits in the right-hand column of a two-up form on a phone.
-        <div className="absolute top-full left-0 right-0 sm:right-auto mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-full sm:w-44 overflow-hidden animate-scale-in">
+        <div className="absolute top-full left-0 right-0 sm:right-auto mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl ring-1 ring-black/5 z-30 w-full sm:w-44 overflow-hidden animate-scale-in">
           <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-gray-100 bg-gray-50">
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Hour</span>
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1 text-center">Min</span>
@@ -178,7 +184,7 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
             {/* Two independently scrolling columns. Rows are 32px so they stay
                 tappable, and `scroll-smooth` stops the auto-scroll-to-selected
                 on open from looking like a jump cut. */}
-            <div className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
+            <div ref={hourListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
               {HOURS.map(hh => (
                 <button
                   key={hh}
@@ -192,7 +198,7 @@ export default function TimeField({ value, onChange, disabled, className = '' }:
                 </button>
               ))}
             </div>
-            <div className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
+            <div ref={minuteListRef} className="flex-1 max-h-44 overflow-y-auto scroll-smooth py-1">
               {MINUTES.map(mm => (
                 <button
                   key={mm}

@@ -94,7 +94,7 @@ export default function Modal({
     const el = panelRef.current;
     if (!el) return;
     const first = el.querySelector<HTMLElement>(
-      'input:not([type="hidden"]), select, textarea, button, [href]'
+      'input:not([type="hidden"]), select, textarea, [data-autofocus], button:not([aria-label="Close"]), [href]'
     );
     // rAF so the element is painted before we focus it.
     const raf = requestAnimationFrame(() => first?.focus({ preventScroll: true }));
@@ -113,7 +113,7 @@ export default function Modal({
       aria-modal="true"
       onMouseDown={handleBackdrop}
       className={clsx(
-        'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50',
+        'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/40 backdrop-blur-sm',
         leaving ? 'animate-fade-out' : 'animate-fade-in'
       )}
     >
@@ -201,7 +201,7 @@ export function ModalHeader({
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg w-8 h-8 flex items-center justify-center transition-colors flex-shrink-0 -mt-1 -mr-1"
+        className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg w-8 h-8 flex items-center justify-center transition-colors flex-shrink-0 -mt-1 -mr-1 focus:outline-none"
       >
         <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M5 5l10 10M15 5L5 15" />
