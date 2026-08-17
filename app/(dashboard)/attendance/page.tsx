@@ -578,77 +578,49 @@ function AccessPolicySection() {
         </div>
       )}
 
-      {/* Professional CRM Success Dialog */}
+      {/* CRM Standard Alert / Confirmation Dialog */}
       {showSuccessModal && savedPolicy && (
-        <Modal open={showSuccessModal} onClose={() => setShowSuccessModal(false)} size="md">
-          <ModalHeader
-            title="Policy Saved Successfully"
-            subtitle="CRM access policy updated across the organization"
-            onClose={() => setShowSuccessModal(false)}
-            accent="success"
-            icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />}
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-[2px] animate-fade-in"
+            onClick={() => setShowSuccessModal(false)}
           />
-          <ModalBody className="space-y-4">
-            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3.5 space-y-2.5 text-xs text-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-500 uppercase">Policy Status</span>
-                {savedPolicy.enabled ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                    Disabled (24/7 Unrestricted)
-                  </span>
-                )}
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-5 animate-scale-in"
+          >
+            <div className="flex items-start gap-3.5">
+              <span className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 text-blue-600">
+                <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+              </span>
+              <div className="min-w-0 pt-1.5">
+                <p className="text-sm font-bold text-gray-900 mb-1">Access Policy Saved</p>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {savedPolicy.enabled
+                    ? `Working hours restriction (${fmt24(savedPolicy.windowStart)} – ${fmt24(savedPolicy.windowEnd)}) is now active for ${
+                        savedPolicy.restrictedRoles.length > 0
+                          ? savedPolicy.restrictedRoles
+                              .map(r => RESTRICTABLE_ROLES.find(x => x.value === r)?.label || r)
+                              .join(', ')
+                          : 'selected roles'
+                      }.`
+                    : 'Access restrictions have been disabled. All employees currently have 24/7 access.'}
+                </p>
               </div>
-
-              {savedPolicy.enabled && (
-                <>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
-                    <span className="font-semibold text-gray-500 uppercase">Restricted Roles</span>
-                    <span className="font-medium text-gray-900">
-                      {savedPolicy.restrictedRoles.length > 0
-                        ? savedPolicy.restrictedRoles
-                            .map(r => RESTRICTABLE_ROLES.find(x => x.value === r)?.label || r)
-                            .join(', ')
-                        : 'None selected'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
-                    <span className="font-semibold text-gray-500 uppercase">Restricted Hours</span>
-                    <span className="font-medium text-gray-900">
-                      {fmt24(savedPolicy.windowStart)} – {fmt24(savedPolicy.windowEnd)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
-                    <span className="font-semibold text-gray-500 uppercase">Session Cutoff</span>
-                    <span className="font-medium text-gray-900">
-                      {savedPolicy.forceCutoff ? 'Immediate Cutoff at Window Start' : 'Allow Active Sessions to Continue'}
-                    </span>
-                  </div>
-                </>
-              )}
             </div>
-
-            <p className="text-xs text-gray-500 leading-relaxed">
-              {savedPolicy.enabled
-                ? 'Changes have taken effect immediately. Non-admin users in restricted roles attempting to log in outside allowed hours will be guided to the After-Hours Access Request portal.'
-                : 'Access restriction has been disabled. All employees currently have unrestricted 24/7 access to the CRM.'}
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <button
-              type="button"
-              onClick={() => setShowSuccessModal(false)}
-              className={buttonClasses({ size: 'md' })}
-            >
-              Done
-            </button>
-          </ModalFooter>
-        </Modal>
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full px-3.5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
