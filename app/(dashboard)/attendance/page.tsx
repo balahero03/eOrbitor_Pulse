@@ -251,7 +251,8 @@ interface AccessPolicy {
 
 // Admin-only, collapsed-by-default section. This page is also visible to
 // BACKEND_TEAM (the manager-equivalent role), who should never see this panel.
-function ToggleSwitch({
+// Clean enterprise toggle
+function EnterpriseSwitch({
   checked,
   onChange,
   disabled,
@@ -265,40 +266,33 @@ function ToggleSwitch({
   description?: string;
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => !disabled && onChange(!checked)}
-      onKeyDown={(e) => {
-        if (e.key === ' ' || e.key === 'Enter') {
-          e.preventDefault();
-          if (!disabled) onChange(!checked);
-        }
-      }}
-      className={`flex items-start justify-between gap-4 p-3.5 sm:p-4 rounded-xl border transition-all select-none ${
-        checked
-          ? 'bg-blue-50/50 border-blue-200/90 shadow-xs'
-          : 'bg-white border-gray-200 hover:border-gray-300'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
-      <div className="space-y-0.5 min-w-0 flex-1 pr-2">
-        <p className="text-sm font-semibold text-gray-900 leading-snug">{label}</p>
+    <label className={`flex items-start justify-between gap-4 py-2.5 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <div className="space-y-0.5 min-w-0 flex-1">
+        <span className="text-sm font-medium text-gray-900">{label}</span>
         {description && (
           <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
         )}
       </div>
-      <div
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={(e) => {
+          e.preventDefault();
+          if (!disabled) onChange(!checked);
+        }}
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
           checked ? 'bg-blue-600' : 'bg-gray-200'
-        }`}
+        } ${disabled ? 'cursor-not-allowed' : ''}`}
       >
         <span
-          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-            checked ? 'translate-x-5' : 'translate-x-0'
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            checked ? 'translate-x-4' : 'translate-x-0'
           }`}
         />
-      </div>
-    </div>
+      </button>
+    </label>
   );
 }
 
@@ -364,12 +358,12 @@ function AccessPolicySection() {
       if (res.ok) {
         setPolicy(data);
         setSavedPolicy(data);
-        setSaveMessage({ type: 'success', text: 'Policy saved' });
+        setSaveMessage({ type: 'success', text: 'Policy saved successfully' });
       } else {
         setSaveMessage({ type: 'error', text: data.message || 'Failed to save policy' });
       }
     } catch {
-      setSaveMessage({ type: 'error', text: 'Failed to save policy — check your connection and try again' });
+      setSaveMessage({ type: 'error', text: 'Failed to save policy — please check connection' });
     } finally {
       setSaving(false);
     }
@@ -383,173 +377,132 @@ function AccessPolicySection() {
 
   const durationHours = policy ? Math.floor(restrictedMinutes(policy.windowStart, policy.windowEnd) / 60) : 0;
   const durationMins = policy ? restrictedMinutes(policy.windowStart, policy.windowEnd) % 60 : 0;
-  const workingHours = 24 - durationHours - (durationMins > 0 ? 1 : 0);
-  const longWindowWarning = (policy ? restrictedMinutes(policy.windowStart, policy.windowEnd) / 60 : 0) > 16;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden transition-all">
-      {/* Header / Accordion Trigger */}
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+      {/* Header */}
       <button
         type="button"
         onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-gray-50/80 transition-colors text-left focus:outline-none"
+        className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 hover:bg-gray-50/75 transition-colors text-left focus:outline-none"
       >
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 flex-shrink-0 shadow-xs">
-            <LockIcon className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-bold text-sm sm:text-base text-gray-900">CRM Access Policy</h3>
-              {loaded && policy && (
-                policy.enabled ? (
-                  policy.currentlyRestricting ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                      Locked Now
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Active · Allowed
-                    </span>
-                  )
+        <div className="flex items-center gap-3 min-w-0">
+          <LockIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+          <div className="min-w-0 flex items-center gap-2.5">
+            <span className="font-semibold text-sm text-gray-900">Access Policy</span>
+            {loaded && policy && (
+              policy.enabled ? (
+                policy.currentlyRestricting ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    Restricted
+                  </span>
                 ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200">
-                    Disabled
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Active
                   </span>
                 )
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5 truncate">
-              {policy?.enabled
-                ? `Working hours active · Restricted daily ${fmt24(policy.windowStart)} – ${fmt24(policy.windowEnd)}`
-                : 'Restrict CRM access outside allowed working hours'}
-            </p>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                  Disabled
+                </span>
+              )
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-          <span className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 font-medium hidden sm:inline">
+            {policy?.enabled ? `${fmt24(policy.windowStart)} – ${fmt24(policy.windowEnd)}` : 'Off'}
           </span>
+          <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </button>
 
-      {/* Expanded Policy Panel */}
+      {/* Body */}
       {expanded && policy && (
-        <div className="border-t border-gray-100 px-4 sm:px-6 py-5 space-y-6 animate-slide-up bg-white">
+        <div className="border-t border-gray-200 px-4 sm:px-5 py-5 space-y-6 bg-white animate-slide-up">
           
-          {/* Live Status Callout Banner */}
-          {!policy.enabled ? (
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-700">
-              <div className="w-8 h-8 rounded-lg bg-slate-200/70 flex items-center justify-center text-slate-500 flex-shrink-0">
-                <LockIcon className="w-4 h-4 text-slate-500" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-900">Access Restriction is Turned Off</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">All employees currently have 24/7 unrestricted access to the CRM.</p>
-              </div>
+          {/* Current Status Strip */}
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border text-xs bg-gray-50 border-gray-200 text-gray-700">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                !policy.enabled
+                  ? 'bg-gray-400'
+                  : policy.currentlyRestricting
+                  ? 'bg-red-500'
+                  : 'bg-green-500'
+              }`} />
+              <span className="font-medium text-gray-900">
+                {!policy.enabled
+                  ? 'Policy is disabled — 24/7 access is open for all accounts.'
+                  : policy.currentlyRestricting
+                  ? `Access is currently restricted until ${fmt24(policy.windowEnd)}.`
+                  : `Working hours active — next restriction starts at ${fmt24(policy.windowStart)}.`}
+              </span>
             </div>
-          ) : policy.currentlyRestricting ? (
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800">
-              <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0 relative">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping absolute" />
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-600 relative" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-rose-900">Restriction Window In Effect Right Now</p>
-                <p className="text-[11px] text-rose-700 mt-0.5">
-                  Restricted roles are locked out of the CRM until {fmt24(policy.windowEnd)}. Any access request must be approved in Approvals.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-emerald-900">CRM Working Hours Active</p>
-                <p className="text-[11px] text-emerald-700 mt-0.5">
-                  Currently outside restricted hours — all roles have full access. Next lockdown begins at {fmt24(policy.windowStart)}.
-                </p>
-              </div>
-            </div>
-          )}
+            <span className="text-gray-400 text-[11px] hidden md:inline">Asia/Kolkata (IST)</span>
+          </div>
 
-          {/* Master Switch */}
-          <div>
-            <ToggleSwitch
+          {/* Master Enable / Disable */}
+          <div className="border-b border-gray-100 pb-3">
+            <EnterpriseSwitch
               checked={policy.enabled}
               onChange={v => updatePolicy({ enabled: v })}
-              label="Restrict CRM access outside allowed working hours"
-              description="When enabled, selected roles will be automatically prevented from signing in outside the configured time window."
+              label="Restrict CRM access outside working hours"
+              description="Automatically prevent non-admin roles from signing in or accessing the system outside configured hours."
             />
           </div>
 
-          {/* Configurable Details (Smoothly inactive when master is OFF) */}
-          <div className={`space-y-6 transition-all duration-200 ${policy.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+          {/* Configuration Settings */}
+          <div className={`space-y-6 transition-opacity duration-200 ${policy.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
             
-            {/* Target Roles */}
-            <div className="space-y-2.5">
+            {/* Restricted Roles */}
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Restricted Roles</p>
-                <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                  <ShieldIcon className="w-3.5 h-3.5 text-emerald-600" /> Super Admin &amp; Admin are always exempt
-                </span>
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Restricted Roles</label>
+                <span className="text-[11px] text-gray-400">Super Admin and Admin are always exempt</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {RESTRICTABLE_ROLES.map(r => {
                   const isSelected = policy.restrictedRoles.includes(r.value);
                   return (
-                    <button
+                    <label
                       key={r.value}
-                      type="button"
-                      onClick={() => toggleRole(r.value)}
-                      className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer select-none transition-colors ${
                         isSelected
-                          ? 'bg-blue-50/60 border-blue-500 text-blue-950 font-semibold shadow-xs ring-1 ring-blue-500/20'
-                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                          ? 'border-blue-600 bg-blue-50/20 text-gray-900'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          <UsersMultiIcon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{r.label}</p>
-                          <p className="text-[11px] text-gray-400 font-normal">
-                            {r.value === 'BACKEND_TEAM' ? 'Managers & desk team' : 'Field sales executives'}
-                          </p>
-                        </div>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleRole(r.value)}
+                        className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium block">{r.label}</span>
+                        <span className="text-xs text-gray-500">
+                          {r.value === 'BACKEND_TEAM' ? 'Operations & managerial staff' : 'Field sales executives'}
+                        </span>
                       </div>
-                      <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${
-                        isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 bg-white'
-                      }`}>
-                        {isSelected && <CheckGlyph className="w-3.5 h-3.5 stroke-[3]" />}
-                      </div>
-                    </button>
+                    </label>
                   );
                 })}
               </div>
             </div>
 
-            {/* Time Window Card */}
-            <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 sm:p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
-                <div>
-                  <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Restricted Time Window</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Specify when the CRM access should be locked.</p>
-                </div>
-                {/* Presets */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-slate-400 mr-0.5">Quick Presets:</span>
+            {/* Restricted Window */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Restricted Time Window</label>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 mr-1">Presets:</span>
                   {WINDOW_PRESETS.map(pr => {
                     const active = policy.windowStart === pr.start && policy.windowEnd === pr.end;
                     return (
@@ -557,10 +510,10 @@ function AccessPolicySection() {
                         key={pr.label}
                         type="button"
                         onClick={() => applyPreset(pr.start, pr.end)}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all ${
+                        className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors ${
                           active
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                            ? 'bg-gray-900 border-gray-900 text-white'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                         }`}
                       >
                         {pr.label}
@@ -570,103 +523,65 @@ function AccessPolicySection() {
                 </div>
               </div>
 
-              {/* Time Pickers */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
-                <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs">
-                  <label className="block text-[11px] font-bold text-rose-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <LockIcon className="w-3.5 h-3.5 text-rose-600" /> Lock Starts At
-                  </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-full sm:w-auto">
+                  <span className="block text-xs font-medium text-gray-500 mb-1">Starts at (Lock)</span>
                   <TimeField
                     value={policy.windowStart}
                     onChange={v => updatePolicy({ windowStart: v })}
-                    className="w-full"
+                    className="w-36"
                   />
                 </div>
-
-                <div className="hidden sm:flex flex-col items-center justify-center px-1 text-slate-400">
-                  <span className="text-[11px] font-bold bg-slate-200/90 text-slate-700 px-2.5 py-0.5 rounded-full mb-1">
-                    {durationHours}h {durationMins > 0 ? `${durationMins}m ` : ''}Blocked
-                  </span>
-                  <span className="text-slate-300 text-base">→</span>
-                </div>
-
-                <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs">
-                  <label className="block text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <UnlockIcon className="w-3.5 h-3.5 text-emerald-600" /> Unlock Ends At
-                  </label>
+                <span className="text-gray-300 hidden sm:inline pt-5">→</span>
+                <div className="w-full sm:w-auto">
+                  <span className="block text-xs font-medium text-gray-500 mb-1">Ends at (Unlock)</span>
                   <TimeField
                     value={policy.windowEnd}
                     onChange={v => updatePolicy({ windowEnd: v })}
-                    className="w-full"
+                    className="w-36"
                   />
+                </div>
+                <div className="pt-0 sm:pt-5">
+                  <span className="inline-flex items-center text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200">
+                    Duration: {durationHours}h {durationMins > 0 ? `${durationMins}m` : ''} restricted
+                  </span>
                 </div>
               </div>
 
-              {/* Visual Schedule Timeline */}
-              {policy.windowStart && policy.windowEnd && (
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                  <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 text-xs font-semibold">
-                    <span className="text-rose-700 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                      Locked: {fmt24(policy.windowStart)} – {fmt24(policy.windowEnd)} ({durationHours}h{durationMins ? ` ${durationMins}m` : ''})
-                    </span>
-                    <span className="text-emerald-700 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                      Allowed: {fmt24(policy.windowEnd)} – {fmt24(policy.windowStart)} ({workingHours}h{durationMins ? ` ${60 - durationMins}m` : ''})
-                    </span>
-                  </div>
-
-                  {/* Dual Color Bar */}
-                  <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-100">
-                    <div
-                      className="bg-rose-500 h-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, Math.max(5, (restrictedMinutes(policy.windowStart, policy.windowEnd) / 1440) * 100))}%` }}
-                      title="Restricted hours"
-                    />
-                    <div
-                      className="bg-emerald-500 h-full transition-all duration-300 flex-1"
-                      title="Working hours"
-                    />
-                  </div>
-
-                  <p className={`text-xs leading-relaxed pt-0.5 ${longWindowWarning ? 'text-amber-800 font-medium' : 'text-slate-600'}`}>
-                    {longWindowWarning && <strong className="inline-flex items-center gap-1 text-amber-700"><WarningIcon className="w-3.5 h-3.5" /> Note: </strong>}
-                    {describeWindow(policy.windowStart, policy.windowEnd)}
-                  </p>
-                </div>
-              )}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 leading-relaxed">
+                {describeWindow(policy.windowStart, policy.windowEnd)}
+              </div>
             </div>
 
-            {/* Session Cutoff Switch */}
-            <div>
-              <ToggleSwitch
+            {/* Session Cutoff */}
+            <div className="border-t border-gray-100 pt-3">
+              <EnterpriseSwitch
                 checked={policy.forceCutoff}
                 onChange={v => updatePolicy({ forceCutoff: v })}
-                label="Terminate Active Sessions Immediately at Cutoff"
-                description="Immediately log out users who are already logged in the moment the restricted window begins, rather than letting them continue active work."
+                label="Terminate active sessions at window start"
+                description="Immediately disconnect users in restricted roles when the restriction begins, rather than allowing active sessions to persist."
               />
             </div>
           </div>
 
-          {/* Footer Action Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
+          {/* Footer Action Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-200">
             <Link
               href="/approvals"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/60 hover:bg-blue-50 px-3 py-2 rounded-xl transition-all border border-blue-100 group w-fit"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
             >
-              <LockIcon className="w-4 h-4 text-blue-600 transition-transform group-hover:scale-110" />
-              <span>Review after-hours access requests in Approvals</span>
-              <span className="text-blue-400 group-hover:translate-x-0.5 transition-transform">→</span>
+              <LockIcon className="w-4 h-4 text-gray-400" />
+              <span>Review after-hours access requests in Approvals →</span>
             </Link>
 
-            <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <div className="flex items-center gap-2 self-end sm:self-auto">
               {dirty || saving ? (
                 <>
                   <button
                     type="button"
                     onClick={() => { setPolicy(savedPolicy); setSaveMessage(null); }}
                     disabled={saving}
-                    className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all shadow-xs"
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Discard
                   </button>
@@ -674,27 +589,22 @@ function AccessPolicySection() {
                     type="button"
                     onClick={savePolicy}
                     disabled={saving}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
                   >
-                    {saving ? (
-                      <>
-                        <InlineLoader size="sm" />
-                        <span>Saving…</span>
-                      </>
-                    ) : (
-                      <span>Save Changes</span>
-                    )}
+                    {saving && <InlineLoader size="sm" />}
+                    <span>{saving ? 'Saving…' : 'Save Policy'}</span>
                   </button>
                 </>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-xl animate-fade-in">
-                  <CheckGlyph className="w-3.5 h-3.5" /> All changes saved
+                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                  <CheckGlyph className="w-3.5 h-3.5 text-green-600" /> All changes saved
                 </span>
               )}
             </div>
           </div>
+
           {saveMessage && saveMessage.type === 'error' && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 animate-fade-in">
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs font-medium text-red-700">
               {saveMessage.text}
             </div>
           )}
