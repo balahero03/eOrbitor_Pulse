@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createNotification } from '@/lib/notify';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { assertCanDecide } from '@/lib/approvalScope';
 
 export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   const id = req.nextUrl.pathname.split('/').pop()!;
@@ -16,7 +17,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   // First, fetch the original request to get its type
   const originalRequest = await prisma.approvalRequest.findUnique({
     where: { id },
-    select: { type: true, entityId: true, leadId: true, requestedBy: true, status: true, targetUserId: true },
+    select: { type: true, entityType: true, entityId: true, leadId: true, requestedBy: true, status: true, targetUserId: true },
   });
 
   if (!originalRequest) throw new NotFoundError('Request');
@@ -54,6 +55,15 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     const subordinates = await prisma.user.findMany({ where: { managerId: user.id }, select: { id: true } });
     const teamIds = [user.id, ...subordinates.map((u) => u.id)];
     if (!teamIds.includes(originalRequest.requestedBy)) throw new ForbiddenError();
+  }
+
+  // …and that the *record* is theirs to decide on, not just the requester.
+  // Checking only the requester meant a manager approving a request from their
+  // own report authorised whatever id that report had put in it, including one
+  // belonging to another team entirely. Order and customer deletions are
+  // admin-only here for the same reason — see lib/approvalScope.ts.
+  if (!isTransferTarget) {
+    await assertCanDecide(user, originalRequest.type, originalRequest.entityType, originalRequest.entityId);
   }
 
   // Update the approval status

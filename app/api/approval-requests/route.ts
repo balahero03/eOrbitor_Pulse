@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseEnumParam } from '@/lib/queryFilters';
-import { ApprovalStatus } from '@prisma/client';
+import { ApprovalStatus, ApprovalType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ForbiddenError } from '@/lib/errors';
 import { notifyAdminsAndManagers } from '@/lib/notify';
+import { assertCanRequest } from '@/lib/approvalScope';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(user.role)) {
@@ -71,14 +72,23 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
   }
 
+  // `type` went into `type as any` unchecked, so an unrecognised value reached
+  // Prisma as an invalid enum and came back as a 500.
+  const parsedType = parseEnumParam(type, ApprovalType, 'approval type');
+
   const entityType =
-    type === 'ORDER_DELETE' ? 'ORDER' : type === 'CUSTOMER_DELETE' ? 'CUSTOMER' : 'LEAD';
+    parsedType === 'ORDER_DELETE' ? 'ORDER' : parsedType === 'CUSTOMER_DELETE' ? 'CUSTOMER' : 'LEAD';
   // Only lead-type requests carry a leadId FK.
   const isLeadType = entityType === 'LEAD';
 
+  // Nothing previously checked that the target existed, let alone that the
+  // requester could see it — see lib/approvalScope.ts for what that allowed
+  // when combined with the decide-side check.
+  await assertCanRequest(user, entityType, entityId);
+
   const request = await prisma.approvalRequest.create({
     data: {
-      type: type as any,
+      type: parsedType as any,
       entityType,
       entityId,
       leadId: isLeadType ? entityId : null,
