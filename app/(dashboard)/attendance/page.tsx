@@ -17,12 +17,13 @@ import {
   ClockIcon,
   InformationCircleIcon,
   CheckIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import Modal, { ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import { ActivityIcon, LockIcon, UnlockIcon, WarningIcon, SuccessIcon, ClockIcon2, UserSingleIcon, QuotationIcon, ClipboardIcon, CalendarIcon, BriefcaseIcon2, CheckGlyph, ShieldIcon, UsersMultiIcon } from '@/components/icons';
 import { InlineLoader } from '@/components/BrandedLoader';
 import { buttonClasses } from '@/components/Button';
 import SearchableSelect from '@/components/SearchableSelect';
-import { useToast } from '@/components/Toast';
 
 const ACTIVITY_MODES: Record<string, { label: string }> = {
   MEETING: { label: 'Meeting' },
@@ -265,12 +266,13 @@ interface AccessPolicy {
 // Admin-only, collapsed-by-default section. This page is also visible to
 // BACKEND_TEAM (the manager-equivalent role), who should never see this panel.
 function AccessPolicySection() {
-  const toast = useToast();
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [policy, setPolicy] = useState<AccessPolicy | null>(null);
   const [savedPolicy, setSavedPolicy] = useState<AccessPolicy | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const dirty = policy && savedPolicy && JSON.stringify(policy) !== JSON.stringify(savedPolicy);
 
@@ -292,6 +294,7 @@ function AccessPolicySection() {
 
   const toggleRole = (role: string) => {
     if (!policy) return;
+    setSaveMessage(null);
     setPolicy({
       ...policy,
       restrictedRoles: policy.restrictedRoles.includes(role)
@@ -302,6 +305,7 @@ function AccessPolicySection() {
 
   const updatePolicy = (patch: Partial<AccessPolicy>) => {
     if (!policy) return;
+    setSaveMessage(null);
     setPolicy({ ...policy, ...patch });
   };
 
@@ -310,6 +314,7 @@ function AccessPolicySection() {
   const savePolicy = async () => {
     if (!policy) return;
     setSaving(true);
+    setSaveMessage(null);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/access-policy', {
@@ -321,16 +326,22 @@ function AccessPolicySection() {
       if (res.ok) {
         setPolicy(data);
         setSavedPolicy(data);
-        toast.success('Access policy saved successfully');
+        setShowSuccessModal(true);
       } else {
-        toast.error(data.message || 'Failed to save policy');
+        setSaveMessage({ type: 'error', text: data.message || 'Failed to save policy' });
       }
     } catch {
-      toast.error('Failed to save policy — please check your connection');
+      setSaveMessage({ type: 'error', text: 'Failed to save policy — please check connection' });
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!saveMessage || saveMessage.type !== 'success') return;
+    const t = setTimeout(() => setSaveMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [saveMessage]);
 
   const durationHours = policy ? Math.floor(restrictedMinutes(policy.windowStart, policy.windowEnd) / 60) : 0;
   const durationMins = policy ? restrictedMinutes(policy.windowStart, policy.windowEnd) % 60 : 0;
@@ -535,7 +546,7 @@ function AccessPolicySection() {
                 <>
                   <button
                     type="button"
-                    onClick={() => setPolicy(savedPolicy)}
+                    onClick={() => { setPolicy(savedPolicy); setSaveMessage(null); }}
                     disabled={saving}
                     className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
@@ -558,7 +569,86 @@ function AccessPolicySection() {
               )}
             </div>
           </div>
+
+          {saveMessage && saveMessage.type === 'error' && (
+            <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs font-medium text-red-700">
+              {saveMessage.text}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Professional CRM Success Dialog */}
+      {showSuccessModal && savedPolicy && (
+        <Modal open={showSuccessModal} onClose={() => setShowSuccessModal(false)} size="md">
+          <ModalHeader
+            title="Policy Saved Successfully"
+            subtitle="CRM access policy updated across the organization"
+            onClose={() => setShowSuccessModal(false)}
+            accent="success"
+            icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />}
+          />
+          <ModalBody className="space-y-4">
+            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3.5 space-y-2.5 text-xs text-gray-700">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-gray-500 uppercase">Policy Status</span>
+                {savedPolicy.enabled ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    Disabled (24/7 Unrestricted)
+                  </span>
+                )}
+              </div>
+
+              {savedPolicy.enabled && (
+                <>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
+                    <span className="font-semibold text-gray-500 uppercase">Restricted Roles</span>
+                    <span className="font-medium text-gray-900">
+                      {savedPolicy.restrictedRoles.length > 0
+                        ? savedPolicy.restrictedRoles
+                            .map(r => RESTRICTABLE_ROLES.find(x => x.value === r)?.label || r)
+                            .join(', ')
+                        : 'None selected'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
+                    <span className="font-semibold text-gray-500 uppercase">Restricted Hours</span>
+                    <span className="font-medium text-gray-900">
+                      {fmt24(savedPolicy.windowStart)} – {fmt24(savedPolicy.windowEnd)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
+                    <span className="font-semibold text-gray-500 uppercase">Session Cutoff</span>
+                    <span className="font-medium text-gray-900">
+                      {savedPolicy.forceCutoff ? 'Immediate Cutoff at Window Start' : 'Allow Active Sessions to Continue'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-500 leading-relaxed">
+              {savedPolicy.enabled
+                ? 'Changes have taken effect immediately. Non-admin users in restricted roles attempting to log in outside allowed hours will be guided to the After-Hours Access Request portal.'
+                : 'Access restriction has been disabled. All employees currently have unrestricted 24/7 access to the CRM.'}
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className={buttonClasses({ size: 'md' })}
+            >
+              Done
+            </button>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   );
