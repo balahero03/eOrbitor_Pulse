@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getJwtSecret } from '@/lib/jwt';
 import { checkAccessGate, isExemptPath } from '@/lib/accessControl';
 import { getRecoveryEmailPolicy, isAllowedWhileRecoveryIncomplete } from '@/lib/recoveryEmailPolicy';
+import { translatePrismaError } from '@/lib/prismaErrors';
 
 export type AuthUser = {
   id: string;
@@ -110,6 +111,21 @@ export function withAuth(handler: Handler) {
     try {
       return await handler(req, user, context);
     } catch (err: any) {
+      // A Prisma failure is an exception, so any input nobody thought to check
+      // turns a bad value into a 500 — which is how invalid enum filters,
+      // unparseable dates, NaN money and dangling foreign keys have each
+      // surfaced here in turn. Routes still validate their inputs to give a
+      // precise message; this is the floor beneath them, so a field that was
+      // missed answers 400 with a sentence instead of 500 with none.
+      //
+      // Deliberately below the typed-error branch's concern but above the
+      // generic 500: Prisma's own text is never returned, only a translation.
+      const prismaError = translatePrismaError(err);
+      if (prismaError) {
+        console.error('[PRISMA]', req.method, req.nextUrl.pathname, err?.code ?? err?.name, err?.message?.split('\n')[0]);
+        return NextResponse.json({ message: prismaError.message }, { status: prismaError.status });
+      }
+
       const status: number = err.status || 500;
       if (status < 500) {
         // A typed error from lib/errors.ts. Its message was written to be read
