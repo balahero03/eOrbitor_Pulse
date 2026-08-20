@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ValidationError, ForbiddenError } from '@/lib/errors';
+import { translatePrismaError } from '@/lib/prismaErrors';
+import { parseMoneyInput } from '@/lib/money';
 
 const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 
@@ -83,7 +85,18 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
     const yearRaw = (r.yearEstablished || '').trim();
     const year = yearRaw ? parseInt(yearRaw, 10) : null;
-    const revenue = (r.annualRevenue || '').trim();
+
+    // `annualRevenue` is a Decimal column and this was the raw cell text, so a
+    // spreadsheet with "N/A" or "12 lakh" in it failed the row inside Prisma
+    // rather than being reported as the bad cell it is. Checked here so the
+    // row result can name the column.
+    const revenueRaw = (r.annualRevenue || '').trim();
+    const revenueNum = revenueRaw ? parseMoneyInput(revenueRaw) : null;
+    if (revenueRaw && !Number.isFinite(revenueNum as number)) {
+      results.push({ row: rowNum, companyName, status: 'error', message: `Annual revenue "${revenueRaw}" is not a number` });
+      continue;
+    }
+    const revenue = revenueNum === null ? null : String(revenueNum);
 
     try {
       await prisma.customer.create({
@@ -116,7 +129,20 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       created++;
       results.push({ row: rowNum, companyName, status: 'created' });
     } catch (err: any) {
-      results.push({ row: rowNum, companyName, status: 'error', message: err?.message || 'Failed to create' });
+      // Never `err.message`. This catch is inside the handler, so a Prisma
+      // failure here never reaches withAuth's translator — and Prisma's text
+      // carries the whole query, an excerpt of the compiled source and the
+      // server's absolute project path, which this route was posting straight
+      // back in the per-row results. Translated to the same safe wording the
+      // rest of the API uses; the detail still goes to the server log.
+      const translated = translatePrismaError(err);
+      if (!translated) console.error('[import]', rowNum, err?.message);
+      results.push({
+        row: rowNum,
+        companyName,
+        status: 'error',
+        message: translated?.message ?? 'Could not create this customer',
+      });
     }
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth } from '@/lib/middleware/auth';
 import { isAdmin, canManageUser, roleRank } from '@/lib/roles';
+import { translatePrismaError } from '@/lib/prismaErrors';
 
 /**
  * POST /api/users/[id]/role-switch
@@ -187,6 +188,18 @@ export const POST = withAuth(async (
     });
   } catch (err: any) {
     console.error('[role-switch]', err);
-    return NextResponse.json({ error: err.message || 'Failed to switch role' }, { status: 500 });
+    // Same reasoning as customers/import: this catch sits inside the handler,
+    // so a Prisma failure never reaches withAuth's translator, and returning
+    // `err.message` verbatim published the query, a source excerpt and the
+    // server's absolute project path. A typed error keeps its own message and
+    // status; everything else gets the generic wording.
+    if (err?.status && err.status < 500) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    const translated = translatePrismaError(err);
+    if (translated) {
+      return NextResponse.json({ error: translated.message }, { status: translated.status });
+    }
+    return NextResponse.json({ error: 'Failed to switch role' }, { status: 500 });
   }
 });
