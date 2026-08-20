@@ -305,10 +305,14 @@ export default function AnnouncementsPage() {
                     </p>
                   )}
                 </div>
+                {/* 26px tall on a phone. They read as buttons because they are
+                    bordered, but Delete sits two taps from Publish at a size
+                    that invites a mis-hit; min-height only applies below `sm`,
+                    so the desktop row is unchanged. */}
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => handlePublish(ann.id, ann.isPublished)}
-                    className={`px-3 py-1 rounded border text-xs ${ann.isPublished
+                    className={`inline-flex items-center justify-center min-h-[38px] sm:min-h-0 px-3 py-1 rounded border text-xs ${ann.isPublished
                         ? 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'
                         : 'border-green-200 text-green-600 hover:bg-green-50'
                       }`}
@@ -317,13 +321,13 @@ export default function AnnouncementsPage() {
                   </button>
                   <button
                     onClick={() => handleEdit(ann)}
-                    className="px-3 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 text-xs"
+                    className="inline-flex items-center justify-center min-h-[38px] sm:min-h-0 px-3 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 text-xs"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(ann.id)}
-                    className="px-3 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 text-xs"
+                    className="inline-flex items-center justify-center min-h-[38px] sm:min-h-0 px-3 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 text-xs"
                   >
                     Delete
                   </button>

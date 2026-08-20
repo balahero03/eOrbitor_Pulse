@@ -412,10 +412,17 @@ export default function FollowUpsPage() {
 
                       <div className="flex items-center justify-between gap-2 pt-0.5">
                         <span className="text-[11px] text-gray-400">by {f.createdBy.firstName}</span>
-                        <div className="flex items-center gap-3">
-                          <Link href={`/followups/${f.id}`} className="text-blue-600 text-xs font-semibold">View Details</Link>
+                        {/* These were bare text links: 16px tall, 12px apart,
+                            with Delete sitting right beside View Details and no
+                            touch feedback on either. At that size on a phone the
+                            destructive one is a plausible mis-tap. Padding gives
+                            each a 40px target without moving the text, and the
+                            negative margin keeps the row's right edge where it
+                            was. Desktop is unchanged from `sm` up. */}
+                        <div className="flex items-center gap-1 sm:gap-3 -mr-2 sm:mr-0">
+                          <Link href={`/followups/${f.id}`} className="text-blue-600 text-xs font-semibold inline-flex items-center min-h-[40px] sm:min-h-0 px-2 sm:px-0 rounded-md active:bg-blue-50">View Details</Link>
                           {canDelete && (
-                            <button onClick={() => handleDelete(f.id)} className="text-red-500 text-xs font-semibold">Delete</button>
+                            <button onClick={() => handleDelete(f.id)} className="text-red-500 text-xs font-semibold inline-flex items-center min-h-[40px] sm:min-h-0 px-2 sm:px-0 rounded-md active:bg-red-50">Delete</button>
                           )}
                         </div>
                       </div>

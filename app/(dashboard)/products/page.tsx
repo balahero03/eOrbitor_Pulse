@@ -574,12 +574,15 @@ export default function ProductsPage() {
                         <span className="font-bold text-gray-900 text-sm">{fmt(withTax)}</span>
                         <span className="text-[10px] text-gray-400 block">incl. {p.tax}% GST</span>
                       </div>
+                      {/* Same 16px-tall Edit/Delete pair as the follow-ups list —
+                          see the note there. Edit was only 22px wide too, so the
+                          two sat within a thumb's width of each other. */}
                       {canManage && (
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => openEdit(p)} className="text-xs text-blue-600 font-semibold">
+                        <div className="flex items-center gap-1 sm:gap-3 -mr-2 sm:mr-0">
+                          <button onClick={() => openEdit(p)} className="text-xs text-blue-600 font-semibold inline-flex items-center min-h-[40px] sm:min-h-0 px-2 sm:px-0 rounded-md active:bg-blue-50">
                             Edit
                           </button>
-                          <button onClick={() => setDeleteId(p.id)} className="text-xs text-red-500 font-semibold">
+                          <button onClick={() => setDeleteId(p.id)} className="text-xs text-red-500 font-semibold inline-flex items-center min-h-[40px] sm:min-h-0 px-2 sm:px-0 rounded-md active:bg-red-50">
                             Delete
                           </button>
                         </div>
