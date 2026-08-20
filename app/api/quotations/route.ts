@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { leadQuoteNumber } from '@/lib/leadNumber';
-import { ForbiddenError } from '@/lib/errors';
+import { ForbiddenError, ValidationError } from '@/lib/errors';
+import { parseMoneyInput } from '@/lib/money';
 
 const MANAGER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'];
 
@@ -108,7 +109,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     discountAmount: discountInput,
   } = await req.json();
 
-  if (!items || items.length === 0) {
+  // `Array.isArray` rather than a truthiness check: a JSON string has a
+  // `.length` too, so `items: "abc"` passed this guard and then iterated
+  // character by character.
+  if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
       { message: 'At least one item is required' },
       { status: 400 }
@@ -200,13 +204,40 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   // Quotations are raised tax-exclusive — GST is not charged on the quote
   // itself (it's applied later at PO/invoice). taxAmount is always 0.
+  //
+  // Every figure below arrived unchecked. `item.quantity * item.unitPrice` on
+  // free text is NaN, and `NaN.toString()` is the string "NaN", which is what
+  // reached the Decimal column — so one mistyped price failed the whole
+  // request as a server error rather than pointing at the line it came from.
   let subtotal = 0;
-  for (const item of items) {
-    subtotal += item.quantity * item.unitPrice;
-  }
+  items.forEach((item: any, i: number) => {
+    const qty = parseMoneyInput(item?.quantity);
+    const price = parseMoneyInput(item?.unitPrice);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      throw new ValidationError(`Line ${i + 1}: quantity must be a number greater than zero.`);
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      throw new ValidationError(`Line ${i + 1}: unit price must be a number that is not negative.`);
+    }
+    subtotal += qty * price;
+  });
   const taxAmount = 0;
 
-  const discount = Number(discountInput || 0);
+  // A discount was subtracted with nothing stopping it exceeding the subtotal,
+  // so a quotation could be saved with a negative total — and
+  // /quotations/[id]/convert-to-order carries that value straight onto the
+  // order, where it becomes negative revenue in the dashboard and reports.
+  const discount = discountInput === undefined || discountInput === null || discountInput === ''
+    ? 0
+    : parseMoneyInput(discountInput);
+  if (!Number.isFinite(discount) || discount < 0) {
+    throw new ValidationError('Discount must be a number that is not negative.');
+  }
+  if (discount > subtotal) {
+    throw new ValidationError(
+      `The discount (₹${discount.toLocaleString('en-IN')}) is more than the quotation subtotal (₹${subtotal.toLocaleString('en-IN')}).`
+    );
+  }
   const totalAmount = subtotal - discount;
 
   // Number generation is read-then-write (count/last-row lookup, then insert),

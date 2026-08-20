@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parseMoneyInput } from '@/lib/money';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 
@@ -130,10 +131,10 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (paymentTerms !== undefined) updateData.paymentTerms = paymentTerms;
 
   // If items updated, recalculate totals
-  if (items && items.length > 0) {
+  if (Array.isArray(items) && items.length > 0) {
     let subtotal = 0;
 
-    for (const item of items) {
+    for (const [i, item] of items.entries()) {
       // Custom/blank line items have no catalog productId — only validate
       // items that actually claim to reference a product.
       if (item.productId) {
@@ -146,11 +147,34 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
         }
       }
 
-      subtotal += item.quantity * item.unitPrice;
+      // Same unchecked arithmetic as the create route: free text here made
+      // subtotal NaN, and "NaN" is what reached the Decimal column.
+      const qty = parseMoneyInput(item?.quantity);
+      const price = parseMoneyInput(item?.unitPrice);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new ValidationError(`Line ${i + 1}: quantity must be a number greater than zero.`);
+      }
+      if (!Number.isFinite(price) || price < 0) {
+        throw new ValidationError(`Line ${i + 1}: unit price must be a number that is not negative.`);
+      }
+      subtotal += qty * price;
     }
 
     // Quotations are tax-exclusive — GST is not charged on the quote total.
-    const discount = discountAmount !== undefined ? Number(discountAmount) : Number(existing.discountAmount);
+    const discount = discountAmount !== undefined
+      ? parseMoneyInput(discountAmount)
+      : Number(existing.discountAmount);
+    if (!Number.isFinite(discount) || discount < 0) {
+      throw new ValidationError('Discount must be a number that is not negative.');
+    }
+    // Nothing stopped a discount exceeding the subtotal, so a revision could
+    // take an existing quotation negative — and that value is what
+    // convert-to-order carries onto the order.
+    if (discount > subtotal) {
+      throw new ValidationError(
+        `The discount (₹${discount.toLocaleString('en-IN')}) is more than the quotation subtotal (₹${subtotal.toLocaleString('en-IN')}).`
+      );
+    }
     const totalAmount = subtotal - discount;
 
     updateData.items = items;
