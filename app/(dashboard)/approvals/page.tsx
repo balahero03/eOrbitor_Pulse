@@ -179,17 +179,37 @@ function ApprovalsContent() {
 
   return (
     <PageContainer>
+      {/* The category switcher sits on its own row rather than in the header's
+          actions slot. PageHeader marks actions `flex-shrink-0` so that buttons
+          keep their natural width and the title truncates instead — right for a
+          couple of short buttons, wrong for a two-segment control whose labels
+          run to ~360px. On a 360px phone it took the entire row and squeezed
+          "Approvals" down to the single letter "A", with the subtitle wrapping
+          one word per line beside it. A full-width row of its own also gives
+          the control room to scroll rather than be clipped. */}
       <PageHeader
         title="Approvals"
         subtitle="Review and manage pending approval requests"
-        actions={canReviewAccess ? (
-          <CategoryBar category={activeCategory} onChange={handleCategoryChange} />
-        ) : undefined}
       />
 
-      <div className="grid">
+      {canReviewAccess && (
+        <CategoryBar category={activeCategory} onChange={handleCategoryChange} />
+      )}
+
+      {/* `grid-cols-1` + `min-w-0` on both layers is load-bearing. The two
+          panels are stacked in one grid cell for the cross-fade, so the grid
+          sizes to the *widest* of them — and the inactive Access panel carries
+          a three-segment filter ("All Access Requests", "After-Hours Access",
+          "Activity Date Unlock") that would not shrink. That set the whole
+          grid to 488px inside a 360px viewport, so the Record panel was
+          stretched to match a control the user could not even see. Everything
+          past the viewport was then clipped by the dashboard's
+          `overflow-x-hidden`, with no scroll to reach it: the Approve and
+          Reject buttons, the right column of every facts grid, and the last
+          status tab were all cut off. */}
+      <div className="grid grid-cols-1">
         <div
-          className={`[grid-area:1/1] transition-opacity duration-200 ${
+          className={`[grid-area:1/1] min-w-0 transition-opacity duration-200 ${
             activeCategory === 'record' ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
@@ -197,7 +217,7 @@ function ApprovalsContent() {
         </div>
         {canReviewAccess && (
           <div
-            className={`[grid-area:1/1] transition-opacity duration-200 ${
+            className={`[grid-area:1/1] min-w-0 transition-opacity duration-200 ${
               activeCategory === 'access' ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
@@ -242,7 +262,16 @@ export default function ApprovalsPage() {
  */
 function Segmented({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl ${className}`}>
+    // `flex` rather than `inline-flex`, and the scroll container is this
+    // element itself. `inline-flex` sizes to its content, so pairing it with
+    // `overflow-x-auto` (as both call sites did) could never scroll: the box
+    // simply grew to fit and overflowed its parent instead. As a block-level
+    // flex row it takes the width available and scrolls what does not fit.
+    // `sm:inline-flex` restores the content-width behaviour on desktop, where
+    // it does fit and a full-width track would look stretched.
+    <div
+      className={`flex sm:inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl max-w-full overflow-x-auto no-scrollbar ${className}`}
+    >
       {children}
     </div>
   );
@@ -268,7 +297,10 @@ function Segment({
     <button
       type="button"
       onClick={onClick}
-      className={`tab-button inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] sm:min-h-0 rounded-lg text-xs sm:text-sm transition-all duration-200 ease-out active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
+      // `flex-shrink-0` so segments keep their label instead of being squeezed
+      // into two lines inside the scroll track. 44px is the Apple HIG minimum
+      // touch target; these were 34px.
+      className={`tab-button inline-flex flex-shrink-0 items-center justify-center gap-1.5 px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-xs sm:text-sm transition-all duration-200 ease-out active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
         active ? `bg-white ${activeColor} shadow-sm font-semibold scale-[1.01]` : 'text-gray-600 font-medium hover:text-gray-900 hover:bg-gray-200/50'
       }`}
     >
@@ -307,13 +339,18 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const items: { key: Category; label: string; icon: any; count: number | null }[] = [
-    { key: 'record', label: 'Record Requests', icon: ClipboardIcon, count: pending.record },
-    { key: 'access', label: 'Access Requests', icon: LockIcon, count: pending.access },
+  // Two labels per option. This is the page's primary navigation — if the
+  // second option is half off-screen a user has no reason to think it exists,
+  // and "scroll sideways to discover a tab" is not a thing anyone does. The
+  // short forms make both fit inside 360px with their count badges; the full
+  // wording returns at `sm`, where there is room for it.
+  const items: { key: Category; short: string; label: string; icon: any; count: number | null }[] = [
+    { key: 'record', short: 'Records', label: 'Record Requests', icon: ClipboardIcon, count: pending.record },
+    { key: 'access', short: 'Access', label: 'Access Requests', icon: LockIcon, count: pending.access },
   ];
 
   return (
-    <Segmented className="max-w-full overflow-x-auto">
+    <Segmented>
       {items.map((it) => {
         const active = category === it.key;
         const Icon = it.icon;
@@ -325,7 +362,8 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
             count={it.count}
             icon={<Icon className="w-4 h-4" />}
           >
-            {it.label}
+            <span className="sm:hidden">{it.short}</span>
+            <span className="hidden sm:inline">{it.label}</span>
           </Segment>
         );
       })}
@@ -346,7 +384,11 @@ function CategoryBar({ category, onChange }: { category: Category; onChange: (c:
  */
 function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) => void; counts: Record<Status, number | null> }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-2 pb-2 px-1 -mx-1">
+    // Scrolls on a phone instead of wrapping. Wrapping put "Rejected" on a
+    // second row at some widths and clipped it at others; a single scrollable
+    // row is predictable at every width. `-mx-1 px-1` keeps the focus ring and
+    // the active pill's ring from being shaved off by the scroll container.
+    <div className="flex sm:flex-wrap items-center gap-1.5 sm:gap-2 pt-2 pb-2 px-1 -mx-1 overflow-x-auto sm:overflow-visible no-scrollbar">
       {STATUS_TABS.map((t) => {
         const active = tab === t.key;
         const count = counts[t.key];
@@ -355,7 +397,7 @@ function StatusTabs({ tab, setTab, counts }: { tab: Status; setTab: (s: Status) 
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`filter-pill flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ease-out active:scale-95 ${
+            className={`filter-pill flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-full text-sm font-semibold border transition-all duration-200 ease-out active:scale-95 ${
               active
                 ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
@@ -858,12 +900,17 @@ function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <StatusTabs tab={tab} setTab={setTab} counts={counts} />
+      {/* Stacks on a phone. `justify-between` on a wrapping row left the
+          sub-type filter marooned against the right edge on the second line;
+          `min-w-0` lets both children shrink so the scroll tracks inside them
+          actually engage instead of forcing the row wider. */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0">
+        <div className="min-w-0"><StatusTabs tab={tab} setTab={setTab} counts={counts} /></div>
         {/* Sub-type filter — same control as the status tabs above it. */}
-        <Segmented className="max-w-full overflow-x-auto">
+        <Segmented>
           <Segment active={typeFilter === 'ALL'} onClick={() => setTypeFilter('ALL')}>
-            All Access Requests
+            <span className="sm:hidden">All</span>
+            <span className="hidden sm:inline">All Access Requests</span>
           </Segment>
           <Segment
             active={typeFilter === 'AFTER_HOURS'}
@@ -871,7 +918,8 @@ function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
             activeColor="text-amber-700"
             icon={<LockIcon className="w-3.5 h-3.5" color="text-amber-600" />}
           >
-            After-Hours Access
+            <span className="sm:hidden">After-Hours</span>
+            <span className="hidden sm:inline">After-Hours Access</span>
           </Segment>
           <Segment
             active={typeFilter === 'ACTIVITY_UNLOCK'}
@@ -879,7 +927,8 @@ function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
             activeColor="text-indigo-700"
             icon={<UnlockIcon className="w-3.5 h-3.5" color="text-indigo-600" />}
           >
-            Activity Date Unlock
+            <span className="sm:hidden">Date Unlock</span>
+            <span className="hidden sm:inline">Activity Date Unlock</span>
           </Segment>
         </Segmented>
       </div>
