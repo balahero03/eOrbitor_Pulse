@@ -756,11 +756,11 @@ function RecordApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
                 {req.status === 'PENDING' && (
                   <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
                     <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                      className={buttonClasses({ variant: 'secondary', size: 'md', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
                       <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
                     </button>
                     <button onClick={() => decide(req.id, 'APPROVED')} disabled={processingId === req.id}
-                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                      className={buttonClasses({ variant: 'success', size: 'md', className: 'flex-1 sm:flex-initial' })}>
                       <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
                     </button>
                   </div>
@@ -998,11 +998,11 @@ function AccessApprovals({ tab, setTab, flash }: { tab: Status; setTab: (s: Stat
                 {req.status === 'PENDING' && (
                   <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
                     <button onClick={() => setShowRejectForm(showRejectForm === req.id ? null : req.id)}
-                      className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
+                      className={buttonClasses({ variant: 'secondary', size: 'md', className: 'flex-1 sm:flex-initial border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400' })}>
                       <CloseIcon className="w-3.5 h-3.5" color="text-red-600" /> Reject
                     </button>
                     <button onClick={() => decide(req.id, 'APPROVE')} disabled={processingId === req.id}
-                      className={buttonClasses({ variant: 'success', size: 'sm', className: 'flex-1 sm:flex-initial' })}>
+                      className={buttonClasses({ variant: 'success', size: 'md', className: 'flex-1 sm:flex-initial' })}>
                       <CheckGlyph className="w-3.5 h-3.5" color="text-white" /> {processingId === req.id ? 'Approving…' : 'Approve'}
                     </button>
                   </div>

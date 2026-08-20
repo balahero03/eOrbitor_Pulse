@@ -99,8 +99,32 @@ input::-webkit-credentials-auto-fill-button {
 }
 
 /* Filter pill & Tab button smooth UX styles */
-.filter-pill {
-  @apply transition-all duration-200 ease-out active:scale-95 transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500;
+/* Inside `@layer components` on purpose. Nothing else in this file is layered,
+   which means it is emitted *after* Tailwind's utilities and — at equal
+   specificity — wins on source order. An unlayered `.filter-pill { min-height }`
+   therefore silently overrode every explicit `min-h-[…]` utility on a pill,
+   including the 44px targets on the approvals status tabs, which measured 38px
+   until this was layered. Components must lose to utilities; that is the whole
+   point of the layer. */
+@layer components {
+  .filter-pill {
+    @apply transition-all duration-200 ease-out active:scale-95 transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500;
+    /* A comfortable touch target on a phone. These render 30-35px tall from
+       `py-1.5` alone — fiddly to hit while scrolling a list one-handed.
+       `inline-flex` is what makes min-height centre the label instead of
+       leaving it pinned to the top. Reverts at `sm`, so desktop rows keep the
+       exact height they had. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+  }
+
+  @media (min-width: 640px) {
+    .filter-pill {
+      min-height: 0;
+    }
+  }
 }
 
 .tab-button {
