@@ -475,8 +475,8 @@ export function maskEmail(email: string): string {
 }
 
 // ─── Email Verification Email ───────────────────────────────────────────────
-export function buildEmailVerificationEmail(params: { firstName: string; verifyUrl: string; expiresInMinutes: number }) {
-  const { firstName, verifyUrl, expiresInMinutes } = params;
+export function buildEmailVerificationEmail(params: { firstName: string; verifyUrl: string; code: string; expiresInMinutes: number }) {
+  const { firstName, verifyUrl, code, expiresInMinutes } = params;
   return emailShell({
     preheader: 'Confirm your recovery email address for eOrbitor Pulse.',
     title: 'Confirm your recovery email address',
@@ -500,10 +500,27 @@ export function buildEmailVerificationEmail(params: { firstName: string; verifyU
       <p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:${BRAND.muted};font-family:Helvetica,Arial,sans-serif">
         If the button does not work, copy this link into your browser:
       </p>
-      <p style="margin:0;font-size:12px;line-height:1.6;color:${BRAND.accent};word-break:break-all;font-family:Helvetica,Arial,sans-serif">${esc(verifyUrl)}</p>
+      <p style="margin:0 0 26px;font-size:12px;line-height:1.6;color:${BRAND.accent};word-break:break-all;font-family:Helvetica,Arial,sans-serif">${esc(verifyUrl)}</p>
+
+      <!-- The typed fallback. Letter-spaced and grouped 3+3 because this is
+           read off one screen and typed into another, usually on a phone;
+           run together at body size a six-digit string is easy to transpose.
+           Kept as plain text in a table cell rather than an image so it
+           survives image-blocking, and so it can be selected and copied. -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 4px">
+        <tr><td align="center" style="border-top:1px solid ${BRAND.rule};padding:22px 0 0">
+          <p style="margin:0 0 10px;font-size:13px;line-height:1.6;color:${BRAND.body};font-family:Helvetica,Arial,sans-serif">
+            Or enter this code on the verification page:
+          </p>
+          <p style="margin:0;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:7px;color:${BRAND.ink}">
+            ${esc(code.slice(0, 3))}&nbsp;${esc(code.slice(3))}
+          </p>
+        </td></tr>
+      </table>
 
       ${noticeBlock('neutral', `
-        This link expires in ${expiresInMinutes} minutes and can be used once.
+        The link and the code both expire in ${expiresInMinutes} minutes, and either one
+        confirms the address — you only need to use one of them.
         If you did not add this address to an eOrbitor Pulse profile, you can disregard this message.
       `)}
     `,

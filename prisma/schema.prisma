@@ -113,11 +113,22 @@ model PasswordResetChallenge {
 // One-time tokens proving ownership of a `User.personalEmail` value before
 // it's trusted for account recovery. `email` is snapshotted at issue time so
 // a stale link can't confirm a since-changed address.
+//
+// Uses dual verification: an emailed link (tokenHash) for easy click-through,
+// and a 6-digit code (codeHash) for fallback when links break (corporate mail
+// scanners, SMS-to-email gateways, app email clients). Code is rate-limited
+// by `attempts` to prevent brute-force (6 digits = 1M possibilities; limiting
+// to 5 attempts makes it safe). Both hashes are SHA-256, so the database read
+// alone cannot be replayed into a takeover.
 model EmailVerificationToken {
   id        String    @id @default(cuid())
   userId    String
   email     String
   tokenHash String    @unique
+  // 6-digit verification code sent in email, SHA-256 hashed here
+  codeHash  String?
+  // Attempt count on code entry; incremented on each wrong code, blocks after 5
+  attempts  Int       @default(0)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
