@@ -63,7 +63,12 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   }
 
   // One order per quotation — converting twice would double-count the same
-  // revenue and leave two orders chasing one payment.
+  // revenue and leave two orders chasing one payment. This early check is
+  // for a fast, friendly error in the common case; it is not what actually
+  // prevents the race below, since Order.quotationId carries no DB-level
+  // uniqueness — two near-simultaneous conversions (a double-click, or two
+  // people both hitting "Convert to Order" on the same quotation) could
+  // otherwise both read "no existing order" before either commits.
   const existing = await prisma.order.findFirst({
     where: { quotationId, deletedAt: null },
     select: { id: true, orderNumber: true },
@@ -87,21 +92,48 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
       })
     : null;
 
-  const order = await createWithOrderNumber((orderNumber) =>
-    prisma.order.create({
-    data: {
-      orderNumber,
-      customerId: quotation.customerId,
-      quotationId: quotation.id,
-      dealId: dealForOrder?.id ?? null,
-      totalAmount: total.toString(),
-      amountPaid: '0',
-      status: 'PENDING',
-      paymentStatus: 'PENDING',
-    },
-    include: { customer: true, quotation: true, deal: true },
-    })
-  );
+  // The real guard: existence-check and insert happen inside one Serializable
+  // transaction, retried fresh (a new transaction each time) alongside the
+  // order-number collision retry. Postgres's serializable isolation is built
+  // exactly for this shape of race — two transactions that both read "no
+  // matching row" and then both insert one — and aborts the loser with a
+  // P2034 rather than letting both through.
+  let order;
+  try {
+    order = await createWithOrderNumber((orderNumber) =>
+      prisma.$transaction(async (tx) => {
+        const dup = await tx.order.findFirst({
+          where: { quotationId, deletedAt: null },
+          select: { id: true, orderNumber: true },
+        });
+        if (dup) {
+          throw new ValidationError(
+            `${quotation.quotationNumber} is already on order ${dup.orderNumber}.`
+          );
+        }
+        return tx.order.create({
+          data: {
+            orderNumber,
+            customerId: quotation.customerId,
+            quotationId: quotation.id,
+            dealId: dealForOrder?.id ?? null,
+            totalAmount: total.toString(),
+            amountPaid: '0',
+            status: 'PENDING',
+            paymentStatus: 'PENDING',
+          },
+          include: { customer: true, quotation: true, deal: true },
+        });
+      }, { isolationLevel: 'Serializable' })
+    );
+  } catch (err: any) {
+    if (err?.code === 'P2034') {
+      throw new ValidationError(
+        `${quotation.quotationNumber} was just converted to an order by someone else. Refresh to see it.`
+      );
+    }
+    throw err;
+  }
 
   await prisma.activityLog.create({
     data: {
