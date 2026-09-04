@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import { useRouter } from 'next/navigation';
 import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
@@ -306,18 +307,18 @@ export default function LeadsPage() {
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Active pipeline — Suspect through Closure</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <a
+          <Link
             href="/closed-leads"
             className={buttonClasses({ variant: 'secondary', className: 'whitespace-nowrap' })}
           >
             ← Closed Leads
-          </a>
-          <a
+          </Link>
+          <Link
             href="/leads/new"
             className={buttonClasses({ className: 'whitespace-nowrap' })}
           >
             + New Lead
-          </a>
+          </Link>
         </div>
       </div>
 

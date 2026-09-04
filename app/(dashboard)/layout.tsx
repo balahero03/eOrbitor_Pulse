@@ -475,7 +475,7 @@ function AccessRestrictedScreen({
           <InlineLoader size="sm" />
         ) : myRequest?.status === 'PENDING' ? (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
-            Your request is pending admin review. This screen will update automatically once it's approved.
+            Your request is pending admin review. This screen will update automatically once it&apos;s approved.
           </div>
         ) : (
           <div className="space-y-2 text-left">

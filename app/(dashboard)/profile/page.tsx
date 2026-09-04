@@ -454,7 +454,7 @@ export default function ProfilePage() {
           </span>
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Change Password</h2>
-            <p className="text-xs text-gray-500 mt-0.5">You'll be signed out on all devices afterwards</p>
+            <p className="text-xs text-gray-500 mt-0.5">You&apos;ll be signed out on all devices afterwards</p>
           </div>
         </div>
 
@@ -522,7 +522,7 @@ export default function ProfilePage() {
             />
           </dl>
           <p className="text-xs text-gray-400 mt-5 pt-4 border-t border-gray-100">
-            Your login email is what you sign in with — it isn't necessarily a real mailbox, which is why the recovery
+            Your login email is what you sign in with — it isn&apos;t necessarily a real mailbox, which is why the recovery
             email above is kept separate. To change anything in this section, contact your administrator.
           </p>
         </div>

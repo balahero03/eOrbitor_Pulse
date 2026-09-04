@@ -460,7 +460,7 @@ function DailyActivityContent() {
               ) : (
                 <span className="text-gray-400">
                   <span className="sm:hidden">From server clock</span>
-                  <span className="hidden sm:inline">Captured from the server clock — can't be typed</span>
+                  <span className="hidden sm:inline">Captured from the server clock — can&apos;t be typed</span>
                 </span>
               )}
             </p>

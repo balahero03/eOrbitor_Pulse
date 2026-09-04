@@ -117,7 +117,7 @@ function RecoveryEmailBanner() {
     >
       <span className="flex items-center gap-2 text-amber-800 min-w-0">
         <EnvelopeIcon className="w-4 h-4 flex-shrink-0" />
-        <span className="truncate">Add and verify a recovery email so you can reset your password if you're ever locked out.</span>
+        <span className="truncate">Add and verify a recovery email so you can reset your password if you&apos;re ever locked out.</span>
       </span>
       <span className="text-xs font-semibold text-amber-900 whitespace-nowrap flex-shrink-0">Go to Profile →</span>
     </Link>

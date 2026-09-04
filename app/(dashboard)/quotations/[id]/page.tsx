@@ -484,7 +484,7 @@ export default function QuotationDetailPage() {
                     )}
                     {isCreator && !canApprove && (
                       <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                        You can't approve your own quotation — a manager or admin needs to accept it.
+                        You can&apos;t approve your own quotation — a manager or admin needs to accept it.
                       </p>
                     )}
                     {canSendOrReject && (

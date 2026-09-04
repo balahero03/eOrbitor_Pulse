@@ -1563,7 +1563,7 @@ export default function UsersPage() {
                       {rs.tasks > 0 && <div className="flex justify-between px-4 py-2.5"><span className="text-gray-600">Tasks ({rs.tasks})</span><span className="font-medium text-gray-800">{rs.tasksAction === 'keep' ? 'Kept with them' : `→ ${transferTargets.find(t => t.id === rs.tasksTargetUserId)?.firstName || '?'}`}</span></div>}
                       {isDemotion && rs.subordinates.length > 0 && rs.subordinates.map(sub => (
                         <div key={sub.id} className="flex justify-between px-4 py-2.5">
-                          <span className="text-gray-600">{sub.firstName}'s manager</span>
+                          <span className="text-gray-600">{sub.firstName}&apos;s manager</span>
                           <span className="font-medium text-gray-800">→ {potentialManagers.find(m => m.id === rs.subordinateManagerMap[sub.id])?.firstName || '—'}</span>
                         </div>
                       ))}

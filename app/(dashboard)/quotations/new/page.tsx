@@ -266,7 +266,7 @@ export default function NewQuotationPage() {
           )}
           {showLeadDropdown && leadSearch.trim() && leadResults.length === 0 && (
             <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border rounded-xl shadow-lg p-4 text-sm text-gray-400 text-center">
-              No won leads found for "{leadSearch}"
+              No won leads found for &quot;{leadSearch}&quot;
             </div>
           )}
         </div>

@@ -137,7 +137,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-gray-400 mt-6">
-            Contact your administrator if you don't have an account.
+            Contact your administrator if you don&apos;t have an account.
           </p>
         </div>
       </div>

@@ -615,7 +615,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                             setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowProductDrop(false);
                           }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
-                            + Add "{productSearch.trim()}" as custom item
+                            + Add &quot;{productSearch.trim()}&quot; as custom item
                           </button>
                         )}
                       </>
@@ -627,7 +627,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                             setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowProductDrop(false);
                           }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            + Add "{productSearch.trim()}" as custom item
+                            + Add &quot;{productSearch.trim()}&quot; as custom item
                           </button>
                         )}
                       </div>
@@ -920,7 +920,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                             )}
                             {isCreator && !canApprove && (
                               <span className="text-[10px] text-gray-400 italic">
-                                Awaiting a manager/admin to accept — you can't approve your own quote
+                                Awaiting a manager/admin to accept — you can&apos;t approve your own quote
                               </span>
                             )}
                           </>
@@ -2047,7 +2047,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                             setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowDrop(false);
                           }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-t text-xs text-blue-600 font-medium">
-                            + Add "{productSearch.trim()}" as custom item
+                            + Add &quot;{productSearch.trim()}&quot; as custom item
                           </button>
                         )}
                       </>
@@ -2059,7 +2059,7 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
                             setItems(prev => [...prev, { productName: productSearch.trim(), description: '', quantity: 1, unitPrice: 0, taxRate: 0 }]);
                             setProductSearch(''); setProductResults([]); setShowDrop(false);
                           }} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            + Add "{productSearch.trim()}" as custom item
+                            + Add &quot;{productSearch.trim()}&quot; as custom item
                           </button>
                         )}
                       </div>
