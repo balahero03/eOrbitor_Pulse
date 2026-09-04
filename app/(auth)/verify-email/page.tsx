@@ -85,8 +85,23 @@ function VerifyEmailContent() {
             <>
               <XCircleIcon className="w-12 h-12 text-red-500 mx-auto mb-3" />
               <h1 className="text-xl font-bold text-gray-900">Verification Failed</h1>
-              <p className="text-sm text-gray-500 mt-2 mb-6">{message}</p>
-              <Link href={continueHref} className="block w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-700 transition-colors">
+              <p className="text-sm text-gray-500 mt-2 mb-4">{message}</p>
+
+              {/* A dead link used to end the flow here, with "request a new
+                  one" as the only way forward — and the replacement is another
+                  link, which can fail in exactly the same way. The same email
+                  already carries a 6-digit code that is immune to whatever
+                  broke the link, so point at that first. */}
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3.5 mb-5 text-left">
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  <span className="font-semibold text-gray-900">The same email has a 6-digit code.</span>{' '}
+                  {continueHref === '/profile'
+                    ? 'Open your Profile and type it in — it works even when the link does not.'
+                    : 'Sign in, open your Profile, and type it in — it works even when the link does not.'}
+                </p>
+              </div>
+
+              <Link href={continueHref} className="block w-full py-2.5 min-h-[44px] bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-700 transition-colors">
                 {continueHref === '/profile' ? 'Go to Profile' : 'Go to Login'}
               </Link>
             </>
