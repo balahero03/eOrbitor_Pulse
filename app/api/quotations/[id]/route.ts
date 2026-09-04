@@ -134,17 +134,25 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (Array.isArray(items) && items.length > 0) {
     let subtotal = 0;
 
+    // One batched lookup for every catalog product referenced, instead of a
+    // findUnique per line item — a quotation with a dozen lines was a dozen
+    // round trips for what's really one existence check.
+    const referencedProductIds = Array.from(
+      new Set(items.map((item: any) => item?.productId).filter(Boolean))
+    );
+    const existingProducts = referencedProductIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: referencedProductIds } },
+          select: { id: true },
+        })
+      : [];
+    const validProductIds = new Set(existingProducts.map((p) => p.id));
+
     for (const [i, item] of items.entries()) {
       // Custom/blank line items have no catalog productId — only validate
       // items that actually claim to reference a product.
-      if (item.productId) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-        });
-
-        if (!product) {
-          throw new ValidationError(`Product ${item.productId} not found`);
-        }
+      if (item.productId && !validProductIds.has(item.productId)) {
+        throw new ValidationError(`Product ${item.productId} not found`);
       }
 
       // Same unchecked arithmetic as the create route: free text here made
