@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { istDateString } from '@/lib/istDate';
 
 interface Task {
   id: string;
@@ -64,7 +65,12 @@ export default function TaskDetailPage() {
         description: data.description || '',
         status: data.status,
         priority: data.priority,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString().split('T')[0] : '',
+        // dueDate is stored as UTC midnight with no time-of-day component
+        // today, so this and toISOString().split('T')[0] happen to agree —
+        // but istDateString is the safe primitive project-wide (see
+        // lib/istDate.ts) and costs nothing here, so it's used for
+        // consistency rather than trusting that invariant holds forever.
+        dueDate: data.dueDate ? istDateString(new Date(data.dueDate)) : '',
         tags: data.tags?.join(', ') || '',
       });
     } catch (err) {

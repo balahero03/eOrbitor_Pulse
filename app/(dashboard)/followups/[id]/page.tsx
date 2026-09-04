@@ -9,6 +9,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
 import NumberField from '@/components/NumberField';
 import { InlineLoader } from '@/components/BrandedLoader';
+import { istDateString } from '@/lib/istDate';
 
 const TYPE_LABEL: Record<string, string> = {
   CALL: 'Call', EMAIL: 'Email', MEETING: 'Meeting',
@@ -83,8 +84,17 @@ export default function FollowUpDetailPage() {
       setFollowUp(data);
       setFormData({
         type: data.type,
-        actualDate: data.actualDate ? new Date(data.actualDate).toISOString().split('T')[0] : '',
-        actualTime: data.actualDate ? new Date(data.actualDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+        // Both read in IST explicitly rather than the UTC/host-local defaults
+        // of toISOString()/toLocaleTimeString() — a follow-up logged between
+        // 00:00 and 05:29 IST stores a UTC instant on the *previous* calendar
+        // day, so slicing it back with toISOString() pre-filled the wrong
+        // date. See lib/istDate.ts for the fuller story; same bug class.
+        actualDate: data.actualDate ? istDateString(new Date(data.actualDate)) : '',
+        actualTime: data.actualDate
+          ? new Date(data.actualDate).toLocaleTimeString('en-GB', {
+              hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata',
+            })
+          : '',
         durationMinutes: data.durationMinutes?.toString() || '',
         notes: data.notes || '',
         outcome: data.outcome || '',
@@ -102,8 +112,13 @@ export default function FollowUpDetailPage() {
 
     setSaving(true);
     try {
+      // Pinned to +05:30 explicitly rather than left offset-less — an
+      // offset-less string parses in the *browser's* local timezone, which
+      // silently does the wrong thing for a laptop left on another zone. The
+      // form's date/time fields are always IST wall-clock values, so the
+      // parse needs to say so.
       const actualDateTime = formData.actualDate && formData.actualTime
-        ? new Date(`${formData.actualDate}T${formData.actualTime}`).toISOString()
+        ? new Date(`${formData.actualDate}T${formData.actualTime}:00.000+05:30`).toISOString()
         : null;
 
       const token = localStorage.getItem('token');
