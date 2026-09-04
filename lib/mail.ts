@@ -448,6 +448,14 @@ export function buildRecoveryEmailChangedEmail(params: { firstName: string; newE
         being sent to your previous address so you are aware of the change.
       </p>
 
+      ${noticeBlock('neutral', `
+        <strong>The change is not finished yet.</strong> A separate message with a
+        confirmation link has been sent to the new address, and it has to be opened
+        before that mailbox can actually be used to reset a password. Until then the
+        account has no working recovery address. Nothing needs to be done from
+        <em>this</em> mailbox.
+      `)}
+
       ${noticeBlock('danger', `
         <strong>If you did not make this change, contact your administrator immediately.</strong>
         Someone with access to your account may be redirecting password recovery to a
