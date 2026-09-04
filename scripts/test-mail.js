@@ -106,6 +106,34 @@ const recipient = process.argv[2];
     process.exit(1);
   }
 
+  // A connection that authenticates is not the same thing as mail that lands.
+  //
+  // Sending through a relay (Brevo, SendGrid, Mailgun) with a From address on
+  // a free provider is the classic reason a message is accepted by the relay,
+  // reported as delivered, and then filed as spam or dropped by the recipient:
+  // the relay's IP is not in gmail.com's SPF record, and its DKIM signature is
+  // its own domain, not gmail.com — so the message fails alignment for the
+  // domain it claims to be from. Institutional filters are especially strict
+  // about this. Worth saying out loud, because every other signal here says
+  // "working".
+  const fromAddr = (SMTP_FROM_EMAIL || SMTP_USER || '').toLowerCase();
+  const fromDomain = fromAddr.split('@')[1] || '';
+  const FREE_PROVIDERS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'aol.com', 'icloud.com'];
+  const usingRelay = /brevo|sendinblue|sendgrid|mailgun|postmark|mailjet|ses\./i.test(SMTP_HOST || '');
+  if (usingRelay && FREE_PROVIDERS.includes(fromDomain)) {
+    console.log('');
+    console.log('  ⚠ Deliverability warning');
+    console.log(`    SMTP_FROM_EMAIL is "${fromAddr}" but mail is relayed through ${SMTP_HOST}.`);
+    console.log(`    ${SMTP_HOST} is not authorised to send for ${fromDomain}, so these`);
+    console.log('    messages fail SPF and DKIM alignment. The relay will accept and');
+    console.log('    report them as sent, then the recipient files them as spam or');
+    console.log('    drops them silently — which looks exactly like "mail is broken".');
+    console.log('');
+    console.log('    Fix: set SMTP_FROM_EMAIL to an address on a domain you have');
+    console.log('    authenticated in the relay (e.g. no-reply@eorbitor.co.in), and');
+    console.log('    add its SPF/DKIM records. Then redeploy.');
+  }
+
   if (!recipient) {
     console.log('\n  ✓ SMTP is configured correctly.');
     console.log('    Pass an address to also send a real test message:');
