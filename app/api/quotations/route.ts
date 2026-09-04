@@ -244,24 +244,35 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // so two near-simultaneous creates can compute the same number. Retry a few
   // times on a unique-constraint collision, re-deriving the number from fresh
   // DB state each attempt, rather than failing the whole request.
+  //
+  // The standalone branch used to derive its number from
+  // findFirst({ orderBy: { createdAt: 'desc' } }) — the single most-recently
+  // -created quotation, of *either* kind. Lead-linked quotations are numbered
+  // from the lead's own sequence (leadQuoteNumber below), not this counter,
+  // but their number is textually indistinguishable to the regex
+  // ("QT-2026-0047-A" parses the same whether it came from lead #47 or is
+  // this route's 47th standalone quote). So if the last row created anywhere
+  // in the system happened to be lead-linked, this generated the next
+  // standalone number from that lead's sequence instead of the real one —
+  // wrong outright, and prone to burning through every retry attempt on a
+  // collision, since a fresh query immediately after a failed insert sees
+  // the same "last row" and derives the same wrong base again. Fixed the
+  // same way lib/orderNumber.ts and lib/leadNumber.ts already fix this exact
+  // class of bug: scan every issued quotationNumber and take the true max
+  // parsed sequence, not whichever row happened to be created last.
   const nextQuotationNumber = async (bump: number): Promise<string> => {
     if (leadId && resolvedLead?.quoteNo) {
       const existingCount = await prisma.quotation.count({ where: { leadId } });
       return leadQuoteNumber(resolvedLead.quoteNo, existingCount + bump);
     }
 
-    const lastQuotation = await prisma.quotation.findFirst({
-      orderBy: { createdAt: 'desc' },
-      select: { quotationNumber: true },
-    });
-
-    let nextNumber = 1;
-    if (lastQuotation?.quotationNumber) {
-      const match = lastQuotation.quotationNumber.match(/EO-QT-\d+-(\d+)/) || lastQuotation.quotationNumber.match(/QT-\d+-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
-      }
+    const allNumbers = await prisma.quotation.findMany({ select: { quotationNumber: true } });
+    let maxSequence = 0;
+    for (const { quotationNumber } of allNumbers) {
+      const match = quotationNumber.match(/EO-QT-\d+-(\d+)/) || quotationNumber.match(/QT-\d+-(\d+)/);
+      if (match) maxSequence = Math.max(maxSequence, parseInt(match[1], 10));
     }
+    const nextNumber = maxSequence + 1;
     return `QT-${new Date().getFullYear()}-${String(nextNumber + bump).padStart(4, '0')}-A`;
   };
 
