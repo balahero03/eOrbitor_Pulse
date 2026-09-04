@@ -241,46 +241,60 @@ export async function POST(
       const deliveryDateValue = toDateOrNull(closureBlock.deliveryDateFinal);
       const paymentTerms = String(closureBlock.paymentTermsFinal || '').trim() || null;
 
-      const createdOrder = await createWithOrderNumber((orderNumber) =>
-        prisma.order.create({
-        data: {
-          orderNumber,
-          customerId,
-          // Linking the quotation and the deal is what lets the order page
-          // show where its figure came from, and lets a correction be checked
-          // against the source instead of guessed at.
-          quotationId: accepted?.id ?? null,
-          dealId: dealForOrder?.id ?? null,
-          poNumber: poNumber || null,
-          poDate: poDateValue,
-          deliveryDate: deliveryDateValue,
-          paymentTerms,
-          // Derived from the terms against the PO date. Unrecognised terms
-          // ("as agreed", a staged 50/50) yield null rather than a guess —
-          // see lib/paymentTerms.ts for why a wrong due date is worse than none.
-          paymentDueDate: derivePaymentDueDate(paymentTerms, poDateValue ?? new Date()),
-          totalAmount: orderTotal.toString(),
-          amountPaid: '0',
-          status: 'PENDING',
-          paymentStatus: 'PENDING',
-        },
+      // Order creation and the lead flip to ORDER used to be two independent
+      // writes — if anything failed or the process died between them (the
+      // order number's own retry loop already means multiple round trips),
+      // the order existed fully committed while the source lead stayed open:
+      // still showing in active-lead lists, still workable by a rep who has
+      // no idea it was already won, and one more "close" away from a second,
+      // duplicate order for the same win. Both writes now happen inside the
+      // same transaction, retried together — a collision on the order number
+      // rolls back the lead update too, so there is no instant where one
+      // exists without the other.
+      const { createdOrder, updated } = await createWithOrderNumber((orderNumber) =>
+        prisma.$transaction(async (tx) => {
+          const createdOrder = await tx.order.create({
+            data: {
+              orderNumber,
+              customerId,
+              // Linking the quotation and the deal is what lets the order page
+              // show where its figure came from, and lets a correction be checked
+              // against the source instead of guessed at.
+              quotationId: accepted?.id ?? null,
+              dealId: dealForOrder?.id ?? null,
+              poNumber: poNumber || null,
+              poDate: poDateValue,
+              deliveryDate: deliveryDateValue,
+              paymentTerms,
+              // Derived from the terms against the PO date. Unrecognised terms
+              // ("as agreed", a staged 50/50) yield null rather than a guess —
+              // see lib/paymentTerms.ts for why a wrong due date is worse than none.
+              paymentDueDate: derivePaymentDueDate(paymentTerms, poDateValue ?? new Date()),
+              totalAmount: orderTotal.toString(),
+              amountPaid: '0',
+              status: 'PENDING',
+              paymentStatus: 'PENDING',
+            },
+          });
+
+          const updated = await tx.lead.update({
+            where: { id },
+            data: {
+              status: 'ORDER',
+              closedAt: new Date(),
+              closureReason: reasonOfWin || null,
+              closureDetails: closureDetails as any,
+              linkedCustomerId: customerId,
+            } as any,
+            include: {
+              assignedTo: { select: { firstName: true, lastName: true } },
+              linkedCustomer: { select: { id: true, companyName: true } },
+            },
+          });
+
+          return { createdOrder, updated };
         })
       );
-
-      const updated = await prisma.lead.update({
-        where: { id },
-        data: {
-          status: 'ORDER',
-          closedAt: new Date(),
-          closureReason: reasonOfWin || null,
-          closureDetails: closureDetails as any,
-          linkedCustomerId: customerId,
-        } as any,
-        include: {
-          assignedTo: { select: { firstName: true, lastName: true } },
-          linkedCustomer: { select: { id: true, companyName: true } },
-        },
-      });
 
       // ORDER_CONFIRMED rather than a lead-shaped type: an order was just
       // raised, and that order is what the recipient has to act on. The
