@@ -59,6 +59,11 @@ export default function ProfilePage() {
   // everyone else since it can name internal infrastructure (SMTP_HOST).
   const [mailDiagnosis, setMailDiagnosis] = useState('');
 
+  // Typed-code fallback for when the emailed link does not survive the trip.
+  const [codeInput, setCodeInput] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [codeError, setCodeError] = useState('');
+
   const [phone, setPhone] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [personalEmail, setPersonalEmail] = useState('');
@@ -168,11 +173,45 @@ export default function ProfilePage() {
     }
   };
 
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifyingCode(true);
+    setCodeError('');
+    try {
+      const res = await fetch('/api/profile/verify-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ code: codeInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // Inline rather than a toast: the remaining-attempts count belongs
+        // beside the box it refers to, and a toast that has already faded
+        // cannot tell you how many guesses are left.
+        setCodeError(data.message || 'That code could not be verified.');
+        return;
+      }
+      setCodeInput('');
+      toast.success('Your recovery email is verified.');
+      // Re-read rather than patching state locally, so the panel flips to its
+      // verified form from the server's own answer.
+      const fresh = await fetch('/api/profile', { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (fresh.ok) applyProfile(await fresh.json());
+    } catch (err) {
+      console.error(err);
+      setCodeError('Could not reach the server. Please try again.');
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
   const handleResend = async () => {
     setResending(true);
     setFallbackUrl('');
     setMailBroken(false);
     setMailDiagnosis('');
+    setCodeInput('');
+    setCodeError('');
     try {
       const res = await fetch('/api/profile/send-verification', {
         method: 'POST',
@@ -265,13 +304,18 @@ export default function ProfilePage() {
       {/* Account recovery status — the one thing that actually needs action */}
       <div className={`rounded-xl border shadow-sm overflow-hidden ${isVerified ? 'bg-white border-gray-200' : 'bg-white border-amber-200'
         }`}>
-        <div className={`px-5 sm:px-6 py-4 border-b flex items-center gap-3 ${isVerified ? 'bg-green-50/60 border-green-100' : 'bg-amber-50/60 border-amber-100'
+        {/* The status pill drops to its own line below `sm`. As one row it was
+            competing with the title and the description for a 390px width, and
+            since the pill cannot shrink ("Awaiting confirmation" is 20
+            characters) the text took the loss — "Account Recovery" wrapped onto
+            two lines and the sentence under it ran one or two words per line. */}
+        <div className={`px-4 sm:px-6 py-4 border-b flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-x-3 gap-y-2.5 ${isVerified ? 'bg-green-50/60 border-green-100' : 'bg-amber-50/60 border-amber-100'
           }`}>
           <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isVerified ? 'bg-green-100' : 'bg-amber-100'
             }`}>
             <ShieldCheckIcon className={`w-5 h-5 ${isVerified ? 'text-green-600' : 'text-amber-600'}`} />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-gray-900">Account Recovery</h2>
             <p className="text-xs text-gray-600 mt-0.5">
               {isVerified
@@ -279,7 +323,7 @@ export default function ProfilePage() {
                 : 'Verify an email so you can reset your own password if you get locked out.'}
             </p>
           </div>
-          <span className={`ml-auto inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${isVerified ? 'bg-green-100 text-green-700'
+          <span className={`w-full sm:w-auto sm:ml-auto inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${isVerified ? 'bg-green-100 text-green-700'
               : profile.personalEmail ? 'bg-amber-100 text-amber-800'
                 : 'bg-red-100 text-red-700'
             }`}>
@@ -307,19 +351,56 @@ export default function ProfilePage() {
                 <ArrowPathIcon className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0 animate-spin" style={{ animationDuration: '2.5s' }} />
                 <p className="text-sm text-gray-700">
                   Waiting for you to confirm <span className="font-semibold break-all">{profile.personalEmail}</span>.
-                  This page updates by itself the moment you click the link — no need to refresh.
+                  Click the link in that email, or enter the 6-digit code from it below.
                 </p>
               </div>
+
+              {/* The typed path to the same proof. The emailed link has to
+                  survive a mail scanner that may pre-fetch and spend it, a
+                  webmail redirect wrapper, and a mobile client's in-app
+                  browser; when one of those mangles it the user is left on
+                  "Verification Failed" with nothing to try. The code is
+                  independent of all of that. */}
+              <form onSubmit={handleVerifyCode} className="flex flex-col sm:flex-row sm:items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <input
+                    value={codeInput}
+                    onChange={(e) => {
+                      // Digits only, capped at 6, so the grouped "481 920"
+                      // printed in the email can be pasted back as-is.
+                      setCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                      setCodeError('');
+                    }}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    aria-label="6-digit verification code"
+                    className="w-full sm:w-40 px-3 min-h-[44px] rounded-lg border border-gray-300 font-mono text-lg tracking-[0.3em] text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                  {codeError && <p className="text-xs text-red-600 mt-1.5">{codeError}</p>}
+                </div>
+                <button
+                  type="submit"
+                  disabled={codeInput.length !== 6 || verifyingCode}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {verifyingCode
+                    ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <CheckCircleIcon className="w-4 h-4" />}
+                  {verifyingCode ? 'Checking…' : 'Verify'}
+                </button>
+              </form>
+
               <button
                 type="button"
                 onClick={handleResend}
                 disabled={resending}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50"
               >
                 {resending
                   ? <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
                   : <EnvelopeIcon className="w-3.5 h-3.5" />}
-                {resending ? 'Sending…' : 'Resend verification link'}
+                {resending ? 'Sending…' : 'Send a new link and code'}
               </button>
             </div>
           ) : (
