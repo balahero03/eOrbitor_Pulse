@@ -69,7 +69,12 @@ To confirm health after a deploy:
 ```bash
 docker compose ps                        # both containers should show "Up", db "healthy"
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/login   # expect 200
+curl -s http://localhost:3000/api/health                               # expect {"status":"ok","db":"up",...}
 ```
+
+`/api/health` actually pings Postgres (`SELECT 1`), not just confirms the Next.js
+process answers HTTP — it returns 503 if the app is up but the DB isn't
+reachable. Unauthenticated by design, since an uptime monitor has no JWT.
 
 ### First-ever deploy on a fresh box
 
@@ -184,9 +189,6 @@ someone sets a due date on it by hand in Edit Order.
 
 ## 7. Known gaps / things to watch
 
-- `app/api/health` has no `route.ts` — hitting it 404s. Harmless (nothing
-  currently depends on it), but worth adding if an uptime monitor ever needs
-  a real liveness endpoint.
 - No migration history — every schema change is a live `db push` against
   production data on next deploy. Any future enum value removal or new
   table with a dependent-type column should be checked against the pattern
