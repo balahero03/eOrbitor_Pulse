@@ -276,6 +276,22 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     return `QT-${new Date().getFullYear()}-${String(nextNumber + bump).padStart(4, '0')}-A`;
   };
 
+  // The lead's backing Deal, if it has one. `Quotation.dealId` is a foreign
+  // key to Deal.id, and this route was setting `dealId: leadId` — a Lead id in
+  // a column that must hold a Deal id. Lead and Deal ids are independent
+  // cuid()s, so it never matched an existing row and Postgres rejected every
+  // insert with `Quotation_dealId_fkey`. That turned into a P2003, which the
+  // error translator reports as "This refers to a record that no longer
+  // exists" — accurate, and completely baffling from the quotation form.
+  //
+  // Every lead-linked quotation had been failing since the line was introduced
+  // (4ba7c2a, 2026-08-14); the newest quotation in the database predates it by
+  // a day. `leadId` is stored in its own column, so the lead link was never
+  // riding on this one — it only ever needed the real Deal, or nothing.
+  const linkedDeal = leadId
+    ? await prisma.deal.findFirst({ where: { leadId }, select: { id: true }, orderBy: { createdAt: 'desc' } })
+    : null;
+
   const MAX_ATTEMPTS = 5;
   let quotation;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -285,7 +301,8 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
         data: {
           quotationNumber,
           customerId: resolvedCustomerId!,
-          ...(leadId && { leadId, dealId: leadId }),
+          ...(leadId && { leadId }),
+          ...(linkedDeal && { dealId: linkedDeal.id }),
           status: 'DRAFT',
           items,
           subtotal: subtotal.toString(),
