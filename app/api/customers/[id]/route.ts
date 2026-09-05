@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { NotFoundError, ValidationError } from '@/lib/errors';
+import { parseMoneyField } from '@/lib/money';
 
 const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 
@@ -70,7 +71,12 @@ export function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }
     if (gstNumber !== undefined) data.gstNumber = gstNumber.trim();
     if (industry !== undefined) data.industry = industry?.trim() || null;
     if (website !== undefined) data.website = website?.trim() || null;
-    if (annualRevenue !== undefined) data.annualRevenue = annualRevenue ? annualRevenue.toString() : null;
+    // Same reasoning as the create route. `undefined` means the caller left
+    // the field alone; an explicit blank clears it.
+    if (annualRevenue !== undefined) {
+      const parsed = parseMoneyField(annualRevenue, 'Annual revenue');
+      data.annualRevenue = parsed === undefined ? null : parsed;
+    }
     if (yearEstablished !== undefined) data.yearEstablished = year && !Number.isNaN(year) ? year : null;
     if (customerCategory !== undefined) data.customerCategory = customerCategory;
     if (billingAddress !== undefined) {

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { ValidationError } from '@/lib/errors';
+import { parseMoneyField } from '@/lib/money';
 
 const CATEGORIES = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'LOST'];
 
@@ -88,13 +89,20 @@ export const POST = withAuth(async (req: NextRequest, _user: AuthUser) => {
 
   const year = yearEstablished ? parseInt(yearEstablished, 10) : null;
 
+  // `annualRevenue` is a Decimal column and this was the raw body value, so
+  // anything non-numeric failed inside Prisma and surfaced as the generic
+  // "Some values in this request were not valid" — naming neither the field
+  // nor the reason. parseMoneyField also accepts the Indian grouping every
+  // other money field in the app already understands ("1,25,000").
+  const parsedRevenue = parseMoneyField(annualRevenue, 'Annual revenue');
+
   const customer = await prisma.customer.create({
     data: {
       companyName: companyName.trim(),
       gstNumber: gstNumber.trim(),
       industry: industry?.trim() || null,
       website: website?.trim() || null,
-      annualRevenue: annualRevenue ? annualRevenue.toString() : null,
+      annualRevenue: parsedRevenue === undefined ? null : parsedRevenue,
       yearEstablished: year && !Number.isNaN(year) ? year : null,
       customerCategory,
       billingAddress: billingAddress?.trim() ? { street: billingAddress.trim() } : undefined,
