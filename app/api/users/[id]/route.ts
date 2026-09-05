@@ -354,8 +354,30 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
       },
     });
 
+    // Removing a user permanently. ActivityLog is the one relation pointing at
+    // User that has no `onDelete: Cascade` — TimeLog, DailyActivity,
+    // Notification, the two access-request models, PasswordResetChallenge and
+    // EmailVerificationToken all do. So `user.delete()` was rejected by
+    // `ActivityLog_userId_fkey` for anyone who had ever performed a logged
+    // action, which the caller saw as "This refers to a record that no longer
+    // exists" — the translated P2003, on a request that named a user who very
+    // much did exist.
+    //
+    // Cleared explicitly rather than by adding a cascade to the schema:
+    // a cascade would silently apply to every future delete path, including
+    // scripts, whereas this is the one place that is allowed to erase a user.
+    // The audit rows are only discardable because hard delete already requires
+    // the user to own no business records at all; if that precondition is ever
+    // relaxed, this needs revisiting rather than widening.
+    const hardDelete = async () => {
+      await prisma.$transaction([
+        prisma.activityLog.deleteMany({ where: { userId: id } }),
+        prisma.user.delete({ where: { id } }),
+      ]);
+    };
+
     // Hard-delete (permanent): Super Admin only, and only once all business
-    // records have been reassigned. Personal logs cascade away with the user.
+    // records have been reassigned.
     if (hard) {
       if (auth.role !== 'SUPER_ADMIN') {
         return NextResponse.json({ error: 'Only the Super Admin can permanently remove a user' }, { status: 403 });
@@ -367,14 +389,14 @@ export const DELETE = withAuth(async (req: NextRequest, auth, { params }: { para
         );
       }
       await logDelete('hard');
-      await prisma.user.delete({ where: { id } });
+      await hardDelete();
       return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard', transferred });
     }
 
     // Default delete: hard-delete if no business records remain, otherwise mark as ex-employee.
     if (businessCount === 0) {
       await logDelete('hard');
-      await prisma.user.delete({ where: { id } });
+      await hardDelete();
       return NextResponse.json({ message: 'User permanently deleted', deleted: 'hard', transferred });
     }
 
