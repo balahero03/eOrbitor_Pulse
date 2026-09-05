@@ -7,6 +7,7 @@ import { parsePagination, paginationMeta } from '@/lib/pagination';
 import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createNotification } from '@/lib/notify';
 import { ForbiddenError } from '@/lib/errors';
+import { assertRefsExist } from '@/lib/entityRefs';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 
@@ -101,6 +102,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (!(await canAssign(user, assignedToId))) {
     throw new ForbiddenError('You can only assign tasks to yourself or your direct reports.');
   }
+
+  await assertRefsExist([
+    { id: relatedDealId, model: 'deal', label: 'deal' },
+  ]);
 
   const task = await prisma.task.create({
     data: {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanitizeSearch, parseEnumParam, parseDateInput } from '@/lib/queryFilters';
+import { sanitizeSearch, parseEnumParam, parseDateInput, parseIntegerInput } from '@/lib/queryFilters';
+import { parseMoneyField } from '@/lib/money';
+import { assertRefsExist } from '@/lib/entityRefs';
+import { ValidationError } from '@/lib/errors';
 import { DealStage } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { parsePagination, paginationMeta } from '@/lib/pagination';
@@ -65,12 +68,26 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
     );
   }
 
+  await assertRefsExist([{ id: customerId, model: 'customer', label: 'customer' }]);
+
+  // `dealValue` went into a Decimal column unparsed, so free text failed
+  // inside Prisma and came back as "Some values in this request were not
+  // valid" — naming neither the field nor the reason. parseMoneyField also
+  // accepts the Indian grouping the rest of the app already handles.
+  const parsedDealValue = parseMoneyField(dealValue, 'Deal value');
+  if (parsedDealValue === undefined) {
+    throw new ValidationError('Deal value is required.');
+  }
+
+  // winProbability is an Int column and had the same gap.
+  const parsedWinProbability = parseIntegerInput(winProbability, 'Win probability', { min: 0, max: 100 });
+
   const deal = await prisma.deal.create({
     data: {
       dealName,
       customerId,
-      dealValue,
-      winProbability: winProbability ?? 50,
+      dealValue: parsedDealValue,
+      winProbability: parsedWinProbability ?? 50,
       stage: stage || 'SUSPECT',
       expectedCloseDate: parseDateInput(expectedCloseDate, 'expected close date') ?? null,
       assignedToId: user.id,

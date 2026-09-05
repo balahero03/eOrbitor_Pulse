@@ -7,6 +7,7 @@ import { withAuth, AuthUser } from '@/lib/middleware/auth';
 import { createWithOrderNumber } from '@/lib/orderNumber';
 import { parseMoneyInput } from '@/lib/money';
 import { ValidationError } from '@/lib/errors';
+import { assertRefsExist } from '@/lib/entityRefs';
 
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { searchParams } = new URL(req.url);
@@ -103,6 +104,15 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   const parsedPoDate = parseDateInput(poDate, 'PO date') ?? null;
 
   const paymentStatus = paidAmt >= totalAmt && paidAmt > 0 ? 'COMPLETED' : paidAmt > 0 ? 'PARTIAL' : 'PENDING';
+
+  // A stale customer, quotation or deal id here failed inside Postgres and
+  // came back as the generic "refers to a record that no longer exists",
+  // which on a form carrying all three named none of them.
+  await assertRefsExist([
+    { id: customerId, model: 'customer', label: 'customer' },
+    { id: quotationId, model: 'quotation', label: 'quotation' },
+    { id: dealId, model: 'deal', label: 'deal' },
+  ]);
 
   const order = await createWithOrderNumber((orderNumber) =>
     prisma.$transaction(async (tx) => {
