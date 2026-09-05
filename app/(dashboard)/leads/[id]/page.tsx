@@ -8,6 +8,7 @@ function clampMoney(raw: string): number {
   return Math.round(n * 100) / 100;
 }
 
+import { toLineQuantity, toLinePrice } from '@/lib/money';
 import { useState, useEffect, useRef } from 'react';
 import { downloadAuthedFile } from '@/lib/downloadFile';
 import { useRouter, useParams } from 'next/navigation';
@@ -325,8 +326,8 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
         (data.items || []).map((i: any) => ({
           productName: i.productName || '',
           description: i.description || '',
-          quantity: i.quantity || 1,
-          unitPrice: i.unitPrice || 0,
+          quantity: toLineQuantity(i.quantity),
+          unitPrice: toLinePrice(i.unitPrice),
           taxRate: 0,
         }))
       );
@@ -398,7 +399,7 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
     setQError('');
     setItems((q.items || []).map((i: any) => ({
       productId: i.productId, productName: i.productName || '', description: i.description || '',
-      quantity: i.quantity || 1, unitPrice: i.unitPrice || 0, taxRate: i.taxRate || 0,
+      quantity: toLineQuantity(i.quantity), unitPrice: toLinePrice(i.unitPrice), taxRate: i.taxRate || 0,
     })));
     setTerms({
       priceValidity: q.priceValidity || '', taxDetails: q.taxDetails || '', warranty: q.warranty || '',
@@ -1883,8 +1884,8 @@ function NegotiationModal({ lead, onClose, onSubmit, onSkip, submitting, initial
         (data.items || []).map((i: any) => ({
           productName: i.productName || '',
           description: i.description || '',
-          quantity: i.quantity || 1,
-          unitPrice: i.unitPrice || 0,
+          quantity: toLineQuantity(i.quantity),
+          unitPrice: toLinePrice(i.unitPrice),
           taxRate: 0,
         }))
       );

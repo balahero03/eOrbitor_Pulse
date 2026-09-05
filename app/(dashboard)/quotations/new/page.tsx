@@ -8,6 +8,7 @@ function clampMoney(raw: string): number {
   return Math.round(n * 100) / 100;
 }
 
+import { toLineQuantity, toLinePrice } from '@/lib/money';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -185,8 +186,8 @@ export default function NewQuotationPage() {
             productId: i.productId,
             productName: i.productName,
             description: i.description,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
+            quantity: toLineQuantity(i.quantity),
+            unitPrice: toLinePrice(i.unitPrice),
             taxRate: i.taxRate,
           })),
           ...terms,

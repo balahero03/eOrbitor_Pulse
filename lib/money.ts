@@ -71,3 +71,31 @@ export function toFiniteNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
   return Number.isFinite(n) ? n : 0;
 }
+
+/**
+ * Coerce a line-item quantity or unit price arriving from outside the form —
+ * a PDF import, or a saved quotation's `items` JSON — into a real number.
+ *
+ * Both are rendered into `<input type="number">`, which silently shows an
+ * EMPTY box for any value that is not a canonical number string. A quantity
+ * of `" 200"` — whitespace-padded, which is what text pulled out of a PDF
+ * table looks like — multiplies to the correct line amount, so the row total
+ * and the grand total are right, while the quantity field itself appears
+ * blank. The user sees a filled-in quotation with a missing quantity and no
+ * indication of why, and re-typing it is the only way forward.
+ *
+ * Verified in a browser: " 200", "200 ", "+200" and "200\n" all render as ""
+ * in a number input while still evaluating to 200 in arithmetic.
+ */
+export function toLineQuantity(value: unknown, fallback = 1): number {
+  const n = parseMoneyInput(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  // Quantities are whole units; a PDF that yields "2.0" should show 2.
+  return Math.max(1, Math.round(n));
+}
+
+export function toLinePrice(value: unknown, fallback = 0): number {
+  const n = parseMoneyInput(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return n;
+}
