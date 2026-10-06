@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toFiniteNumber } from '@/lib/money';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { buttonClasses } from '@/components/Button';
@@ -32,8 +32,9 @@ interface Product {
   vendorProducts?: VendorProduct[];
 }
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage() {
   const router = useRouter();
+  const { id } = useParams() as { id: string };
   const confirm = useConfirm();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,13 +49,16 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   });
 
   useEffect(() => {
-    fetchProduct();
-  }, [params.id]);
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
 
   const fetchProduct = async () => {
+    if (!id) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/products/${params.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -77,10 +81,11 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   const handleSave = async () => {
+    if (!id) return;
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/products/${params.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -108,11 +113,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   const handleDeleteProduct = async () => {
+    if (!id) return;
     if (!(await confirm('This product will be marked inactive and hidden from the catalog.', { title: 'Deactivate this product?' }))) return;
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/products/${params.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -134,7 +140,22 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   if (loading) return <InlineLoader message="Loading product…" />;
-  if (!product) return <div className="p-6 text-center">Product not found</div>;
+  if (!product) {
+    return (
+      <div className="p-8 text-center max-w-md mx-auto my-12">
+        <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Product Not Found</h2>
+        <p className="text-sm text-gray-500 mb-4">The product you are looking for does not exist or has been removed.</p>
+        <Link href="/products" className={buttonClasses({ variant: 'primary' })}>
+          Back to Products
+        </Link>
+      </div>
+    );
+  }
 
   const stockStatus = product.inventory
     ? product.inventory.quantity === 0

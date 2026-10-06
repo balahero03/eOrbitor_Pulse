@@ -13,8 +13,13 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 
 export const GET = withAuth(async (_req: NextRequest, _user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const product = await prisma.product.findUnique({
-    where: { id },
+  const product = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { id },
+        { sku: id },
+      ],
+    },
     include: {
       inventory: true,
       vendorProducts: {
@@ -49,8 +54,22 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser, { params 
   const body = await req.json();
   const { name, category, oemName, description, basePrice, tax, isActive, attributes } = body;
 
+  const existing = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { id },
+        { sku: id },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  }
+
   const product = await prisma.product.update({
-    where: { id },
+    where: { id: existing.id },
     data: {
       ...(name !== undefined && { name }),
       ...(category !== undefined && { category }),
@@ -80,8 +99,22 @@ export const DELETE = withAuth(async (_req: NextRequest, user: AuthUser, { param
     throw new ForbiddenError('Only admins can deactivate products');
   }
   const { id } = await params;
+  const existing = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { id },
+        { sku: id },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  }
+
   await prisma.product.update({
-    where: { id },
+    where: { id: existing.id },
     data: { isActive: false },
   });
 
