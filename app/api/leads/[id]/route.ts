@@ -81,9 +81,9 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
 
   const existingLead = await prisma.lead.findUnique({
     where: { id },
-    select: { status: true, heldFromStatus: true, assignedToId: true, deletedAt: true },
+    select: { status: true, heldFromStatus: true, assignedToId: true, deletedAt: true, closedAt: true },
   });
-  if (!existingLead || existingLead.deletedAt) throw new NotFoundError('Lead');
+  if (!existingLead || (existingLead.deletedAt && !['SUPER_ADMIN', 'ADMIN'].includes(user.role))) throw new NotFoundError('Lead');
   if (!(await inScope(user, existingLead.assignedToId))) throw new ForbiddenError();
 
   const body = await req.json();
@@ -92,6 +92,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     assignedToId, broughtById, linkedCustomerId, qualificationNotes,
     remarks, quoteNo, quoteValue, rfqDate, followUpDate, expectedClosureDate,
     solutionAreas, oemNames, presalesIds, prospectDetails, closureDetails,
+    deletedAt, closedAt,
   } = body;
 
   // ON_FIELD_TEAM cannot change core identity fields
@@ -126,6 +127,12 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ? existingLead.heldFromStatus
       : existingLead.status;
 
+  const isReopen =
+    (existingLead.deletedAt !== null ||
+      existingLead.closedAt !== null ||
+      ['WON', 'LOST', 'DROPPED', 'ORDER'].includes(existingLead.status)) &&
+    (status === 'CLOSURE' || status === 'SUSPECT');
+
   if (status && status !== 'ON_HOLD' && status !== 'DROPPED') {
     const current = resumeFrom;
     const getStageIndex = (s: string) => {
@@ -154,7 +161,7 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     // go forwards from where it paused, never simply carry on.
     const isResumeInPlace = existingLead.status === 'ON_HOLD' && status === resumeFrom;
 
-    if (!isAllowedReversal && !isNextStage && !isSkipNegotiation && !isResumeInPlace) {
+    if (!isAllowedReversal && !isNextStage && !isSkipNegotiation && !isResumeInPlace && !isReopen) {
       const stageNames = ['SUSPECT', 'PROSPECT', 'PROPOSAL', 'NEGOTIATION', 'CLOSURE'];
       const nextStage = currentIdx >= 0 && currentIdx < stageNames.length - 1
         ? stageNames[currentIdx + 1]
@@ -204,6 +211,9 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
       ...(presalesIds !== undefined && { presalesIds }),
       ...(prospectDetails !== undefined && { closureDetails: prospectDetails }),
       ...(closureDetails !== undefined && prospectDetails === undefined && { closureDetails }),
+      ...(deletedAt !== undefined && { deletedAt }),
+      ...(closedAt !== undefined && { closedAt }),
+      ...((status === 'CLOSURE' || isReopen) && closedAt === undefined && { closedAt: null }),
     },
     include: {
       assignedTo: { select: { firstName: true, lastName: true } },
@@ -212,13 +222,14 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
   });
 
   // Keep the lead's backing Deal (auto-created for pipeline reporting — see
-  // leads/[id]/followups) in sync with the quote value. Deal.dealValue is
-  // otherwise stuck at its initial 0 forever, which silently breaks the
-  // dashboard's Pipeline Value figure.
-  if (parsedQuoteValue !== undefined) {
+  // leads/[id]/followups) in sync with the quote value and stage.
+  if (parsedQuoteValue !== undefined || status === 'CLOSURE' || isReopen) {
     await prisma.deal.updateMany({
       where: { leadId: id },
-      data: { dealValue: parsedQuoteValue },
+      data: {
+        ...(parsedQuoteValue !== undefined && { dealValue: parsedQuoteValue }),
+        ...((status === 'CLOSURE' || isReopen) && { stage: 'CLOSURE' }),
+      },
     });
   }
 

@@ -2850,7 +2850,7 @@ export default function LeadDetailPage() {
         const res = await fetch(`/api/leads/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: 'SUSPECT', deletedAt: null }),
+          body: JSON.stringify({ status: 'CLOSURE', deletedAt: null, closedAt: null }),
         });
         if (res.ok) {
           toast.success('Lead re-opened successfully.');
@@ -3074,7 +3074,7 @@ export default function LeadDetailPage() {
           onRequestReopen={async () => {
             if (isAdminUser) {
               // Admins get a quick confirm instead of a modal
-              if (await confirm('It will return to the Suspect stage.', { title: 'Re-open this lead?' })) {
+              if (await confirm('It will return to the Closure stage.', { title: 'Re-open this lead?' })) {
                 handleReopenRequest();
               }
             } else {

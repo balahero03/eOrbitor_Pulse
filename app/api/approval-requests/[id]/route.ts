@@ -92,7 +92,11 @@ export const PATCH = withAuth(async (req: NextRequest, user: AuthUser) => {
     } else if (originalRequest.type === 'LEAD_REOPEN' && originalRequest.leadId) {
       await prisma.lead.update({
         where: { id: originalRequest.leadId },
-        data: { deletedAt: null, status: 'SUSPECT' },
+        data: { deletedAt: null, status: 'CLOSURE', closedAt: null },
+      });
+      await prisma.deal.updateMany({
+        where: { leadId: originalRequest.leadId },
+        data: { stage: 'CLOSURE' },
       });
     } else if (originalRequest.type === 'ORDER_DELETE') {
       // Soft delete, like every other approved deletion here. This was the one
