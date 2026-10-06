@@ -126,7 +126,7 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   if (leadId) {
     resolvedLead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { id: true, company: true, address: true, linkedCustomerId: true, quoteNo: true, assignedToId: true },
+      select: { id: true, company: true, address: true, linkedCustomerId: true, leadNumber: true, quoteNo: true, assignedToId: true },
     });
     if (!resolvedLead) {
       return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
@@ -261,9 +261,10 @@ export const POST = withAuth(async (req: NextRequest, user: AuthUser) => {
   // class of bug: scan every issued quotationNumber and take the true max
   // parsed sequence, not whichever row happened to be created last.
   const nextQuotationNumber = async (bump: number): Promise<string> => {
-    if (leadId && resolvedLead?.quoteNo) {
+    const leadNum = resolvedLead?.leadNumber || resolvedLead?.quoteNo;
+    if (leadId && leadNum) {
       const existingCount = await prisma.quotation.count({ where: { leadId } });
-      return leadQuoteNumber(resolvedLead.quoteNo, existingCount + bump);
+      return leadQuoteNumber(leadNum, existingCount + bump);
     }
 
     const allNumbers = await prisma.quotation.findMany({ select: { quotationNumber: true } });

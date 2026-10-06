@@ -81,16 +81,24 @@ export async function createWithLeadNumber<T>(
 export function leadQuoteNumber(leadNumber: string, existingCount: number): string {
   // replace prefix EO-LD, EO-QT, LD or MOCK with QT
   let base = leadNumber
-    .replace('EO-LD', 'QT')
-    .replace('EO-QT', 'QT')
-    .replace('LD', 'QT')
-    .replace('MOCK', 'QT');
+    .replace(/^EO-LD-?/, 'QT-')
+    .replace(/^EO-QT-?/, 'QT-')
+    .replace(/^LD-?/, 'QT-')
+    .replace(/^MOCK-?/, 'QT-');
 
   // ensure no duplicate 'QT-QT' occurs
-  base = base.replace('QT-QT', 'QT');
+  base = base.replace(/^QT-QT-?/, 'QT-');
+
+  // Strip any existing trailing quotation suffix like -A, -B
+  base = base.replace(/-[A-Za-z]+$/, '');
+
+  // If base does not start with QT-, ensure standard prefix
+  if (!base.startsWith('QT-')) {
+    base = `QT-${base.replace(/^[A-Za-z]+-/, '')}`;
+  }
 
   // 0 → A, 1 → B, … 25 → Z, 26 → AA, 27 → AB, …
-  let n = existingCount;
+  let n = Math.max(0, existingCount);
   let suffix = '';
   do {
     suffix = String.fromCharCode(65 + (n % 26)) + suffix;
@@ -98,3 +106,4 @@ export function leadQuoteNumber(leadNumber: string, existingCount: number): stri
   } while (n >= 0);
   return `${base}-${suffix}`;
 }
+

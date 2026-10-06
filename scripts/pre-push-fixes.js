@@ -163,6 +163,14 @@ async function main() {
     console.log('[pre-push-fixes] leadNumber backfill skipped:', err.message);
   }
 
+  // 4. Quotation numbering aligned with lead.leadNumber.
+  try {
+    const { migrateQuotationNumbers } = require('./migrate-quotation-numbers');
+    await migrateQuotationNumbers(prisma);
+  } catch (err) {
+    console.log('[pre-push-fixes] Quotation numbers migration skipped:', err.message);
+  }
+
   await prisma.$disconnect();
 }
 
