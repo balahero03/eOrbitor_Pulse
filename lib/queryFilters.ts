@@ -66,13 +66,25 @@ export function parseEnumParam<T extends Record<string, string>>(
   return raw as T[keyof T];
 }
 
+function normalizeDateString(raw: string): string {
+  const trimmed = raw.trim();
+  // Convert DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD
+  const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(.*)$/);
+  if (dmyMatch) {
+    const [, day, month, year, rest] = dmyMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}${rest || ''}`;
+  }
+  return trimmed;
+}
+
 /** Parse a date filter, or `undefined` when absent. Rejects an unparseable one. */
 export function parseDateParam(
   raw: string | null | undefined,
   label: string,
 ): Date | undefined {
   if (!raw) return undefined;
-  const d = new Date(raw);
+  const normalized = normalizeDateString(raw);
+  const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
     throw new ValidationError(`"${raw}" is not a valid ${label}.`);
   }
@@ -98,7 +110,8 @@ export function parseDateInput(
 ): Date | null | undefined {
   if (raw === undefined) return undefined;
   if (raw === null || raw === '') return null;
-  const d = new Date(raw as any);
+  const normalized = typeof raw === 'string' ? normalizeDateString(raw) : raw;
+  const d = new Date(normalized as any);
   if (Number.isNaN(d.getTime())) {
     throw new ValidationError(`"${String(raw)}" is not a valid ${label}.`);
   }

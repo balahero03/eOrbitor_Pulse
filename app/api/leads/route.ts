@@ -25,6 +25,14 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const rfqTo = parseDateParam(searchParams.get('rfqTo'), 'RFQ to date');
   const followUpFrom = parseDateParam(searchParams.get('followUpFrom'), 'follow-up from date');
   const followUpTo = parseDateParam(searchParams.get('followUpTo'), 'follow-up to date');
+  const createdFrom = parseDateParam(
+    searchParams.get('createdFrom') || searchParams.get('dateFrom') || searchParams.get('from'),
+    'created from date'
+  );
+  const createdTo = parseDateParam(
+    searchParams.get('createdTo') || searchParams.get('dateTo') || searchParams.get('to'),
+    'created to date'
+  );
   const hasFollowUp = searchParams.get('hasFollowUp');
   const quoteValueMin = parseNumberParam(searchParams.get('quoteValueMin'), 'minimum quote value');
   const quoteValueMax = parseNumberParam(searchParams.get('quoteValueMax'), 'maximum quote value');
@@ -70,6 +78,12 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   // 'T23:59:59')` was parsed in the *server's* timezone, so on a UTC container
   // the "to" day actually ran until 05:29 IST the next morning and pulled in
   // records the user had not asked for.
+  if (createdFrom || createdTo) {
+    where.createdAt = {
+      ...(createdFrom && { gte: startOfIstDay(istDateString(createdFrom)) }),
+      ...(createdTo && { lte: endOfIstDay(istDateString(createdTo)) }),
+    };
+  }
   if (rfqFrom || rfqTo) {
     where.rfqDate = {
       ...(rfqFrom && { gte: startOfIstDay(istDateString(rfqFrom)) }),

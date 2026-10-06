@@ -147,6 +147,8 @@ const EMPTY_FILTERS = {
   status: '',
   source: '',
   assignedToId: '',
+  createdFrom: '',
+  createdTo: '',
   rfqFrom: '',
   rfqTo: '',
   followUpFrom: '',
@@ -430,6 +432,28 @@ export default function LeadsPage() {
                 </select>
               </div>
 
+              {/* Created Date range */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Created Date From</label>
+                <input
+                  type="date"
+                  value={filters.createdFrom}
+                  onChange={(e) => setF('createdFrom', e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Created Date To</label>
+                <input
+                  type="date"
+                  value={filters.createdTo}
+                  onChange={(e) => setF('createdTo', e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
               {/* RFQ Date range */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">RFQ Date From</label>
@@ -560,6 +584,12 @@ export default function LeadsPage() {
             <FilterTag
               label={applied.hasFollowUp === 'yes' ? 'Has Follow-up' : 'No Follow-up'}
               onRemove={() => { setFilters(f => ({ ...f, hasFollowUp: '' })); setApplied(f => ({ ...f, hasFollowUp: '' })); }}
+            />
+          )}
+          {(applied.createdFrom || applied.createdTo) && (
+            <FilterTag
+              label={`Created: ${applied.createdFrom || '…'} → ${applied.createdTo || '…'}`}
+              onRemove={() => { setFilters(f => ({ ...f, createdFrom: '', createdTo: '' })); setApplied(f => ({ ...f, createdFrom: '', createdTo: '' })); }}
             />
           )}
           {(applied.rfqFrom || applied.rfqTo) && (
