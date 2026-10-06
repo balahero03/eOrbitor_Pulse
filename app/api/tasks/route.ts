@@ -68,6 +68,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
       { description: { contains: search, mode: 'insensitive' } },
+      { assignedTo: { firstName: { contains: search, mode: 'insensitive' } } },
+      { assignedTo: { lastName: { contains: search, mode: 'insensitive' } } },
+      { assignedTo: { email: { contains: search, mode: 'insensitive' } } },
+      { relatedDeal: { dealName: { contains: search, mode: 'insensitive' } } },
     ];
   }
 

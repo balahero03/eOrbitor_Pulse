@@ -13,6 +13,7 @@ import { buttonClasses } from '@/components/Button';
 import FilterPanel from '@/components/FilterPanel';
 import NumberField from '@/components/NumberField';
 import { InlineLoader } from '@/components/BrandedLoader';
+import { useToast } from '@/components/Toast';
 
 interface Product {
   id: string;
@@ -57,7 +58,7 @@ function ProductModal({
   initial, onSave, onClose, saving, error, leaving,
 }: {
   initial: ProductForm;
-  onSave: (form: ProductForm) => void;
+  onSave: (form: ProductForm, asNew?: boolean) => void;
   onClose: () => void;
   saving: boolean;
   error: string;
@@ -70,6 +71,9 @@ function ProductModal({
   const [form, setForm] = useState<ProductForm>(initial);
   const set = (k: keyof ProductForm, v: any) => setForm(f => ({ ...f, [k]: v }));
   const isEdit = !!initial.sku;
+  const [skuEditable, setSkuEditable] = useState(false);
+  const [showSaveAsNewPrompt, setShowSaveAsNewPrompt] = useState(false);
+  const [newSku, setNewSku] = useState(initial.sku ? `${initial.sku}-COPY` : '');
 
   const addAttr = () => setForm(f => ({ ...f, attributes: [...f.attributes, { key: '', value: '' }] }));
   const updateAttr = (i: number, field: 'key' | 'value', v: string) =>
@@ -92,15 +96,67 @@ function ProductModal({
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
           )}
 
+          {/* Save as New Product Inline Prompt */}
+          {showSaveAsNewPrompt && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  Save as New Product (Copy)
+                </p>
+                <button type="button" onClick={() => setShowSaveAsNewPrompt(false)} className="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+              </div>
+              <p className="text-xs text-emerald-800">
+                Specify a unique SKU for this new product copy. The original product <strong>{initial.sku}</strong> will remain unchanged.
+              </p>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={newSku}
+                  onChange={e => setNewSku(e.target.value.toUpperCase())}
+                  placeholder="e.g. PRD-002"
+                  className="flex-1 border border-emerald-300 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newSku.trim()) return;
+                    onSave({ ...form, sku: newSku.trim() }, true);
+                  }}
+                  disabled={saving || !newSku.trim()}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {saving ? 'Creating…' : 'Confirm & Save Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Basic Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                SKU <span className="text-red-500">*</span>
-              </label>
-              <input type="text" value={form.sku} onChange={e => set('sku', e.target.value)}
-                placeholder="e.g. PRD-001" disabled={isEdit}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-gray-500 uppercase">
+                  SKU <span className="text-red-500">*</span>
+                </label>
+                {isEdit && !skuEditable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSkuEditable(true);
+                      if (form.sku === initial.sku) set('sku', `${initial.sku}-COPY`);
+                    }}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 font-medium underline"
+                  >
+                    Edit SKU (save as copy)
+                  </button>
+                )}
+              </div>
+              <input type="text" value={form.sku} onChange={e => set('sku', e.target.value.toUpperCase())}
+                placeholder="e.g. PRD-001" disabled={isEdit && !skuEditable}
+                className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400" />
+              {isEdit && skuEditable && form.sku !== initial.sku && (
+                <p className="text-[11px] text-emerald-600 mt-1">✓ Modified SKU will be saved as a new product copy</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category</label>
@@ -237,13 +293,37 @@ function ProductModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-100 px-6 py-4 flex gap-3 flex-shrink-0">
-          <button onClick={onClose} disabled={saving}
-            className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+        <div className="border-t border-gray-100 px-6 py-4 flex flex-wrap gap-2.5 sm:gap-3 flex-shrink-0 items-center">
+          <button type="button" onClick={onClose} disabled={saving}
+            className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
             Cancel
           </button>
-          <button onClick={() => onSave(form)} disabled={saving || !form.name.trim() || !form.sku.trim() || !form.basePrice}
-            className={buttonClasses({ size: 'lg', className: 'flex-1' })}>
+          {isEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                if (form.sku !== initial.sku && form.sku.trim()) {
+                  onSave(form, true);
+                } else {
+                  setShowSaveAsNewPrompt(true);
+                }
+              }}
+              disabled={saving || !form.name.trim() || !form.basePrice}
+              title="Duplicate and save this edited product under a new SKU"
+              className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm inline-flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              <span>Save as New Product</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onSave(form, false)}
+            disabled={saving || !form.name.trim() || !form.sku.trim() || !form.basePrice}
+            className={buttonClasses({ size: 'lg', className: 'flex-1 min-w-[140px]' })}
+          >
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Product'}
           </button>
         </div>
@@ -255,6 +335,7 @@ function ProductModal({
 // ─── Main Products Page ───────────────────────────────────────────────────────
 export default function ProductsPage() {
   const router = useRouter();
+  const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -270,6 +351,7 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [userRole, setUserRole] = useState('');
 
@@ -354,7 +436,7 @@ export default function ProductsPage() {
   const openAdd = () => { setEditProduct(null); setModalError(''); setShowModal(true); };
   const openEdit = (p: Product) => { setEditProduct(p); setModalError(''); setShowModal(true); };
 
-  const handleSave = async (form: ProductForm) => {
+  const handleSave = async (form: ProductForm, asNew?: boolean) => {
     setSaving(true);
     setModalError('');
     try {
@@ -362,7 +444,7 @@ export default function ProductsPage() {
       const attrs = form.attributes.filter(a => a.key.trim())
         .reduce((acc, a) => ({ ...acc, [a.key.trim()]: a.value }), {});
 
-      if (editProduct) {
+      if (editProduct && !asNew) {
         const res = await fetch(`/api/products/${editProduct.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -376,6 +458,7 @@ export default function ProductsPage() {
         if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed to update'); }
         const updated = await res.json();
         setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+        toast.success(`Product updated: ${form.name}`);
       } else {
         const res = await fetch('/api/products', {
           method: 'POST',
@@ -385,15 +468,17 @@ export default function ProductsPage() {
             category: form.category || null, oemName: form.oemName || null,
             description: form.description || null,
             basePrice: form.basePrice, tax: form.tax,
-            initialQuantity: form.initialQuantity,
+            initialQuantity: form.initialQuantity || '0',
             reorderLevel: form.reorderLevel || undefined,
             warehouseLocation: form.warehouseLocation || undefined,
             ...(Object.keys(attrs).length && { attributes: attrs }),
           }),
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed to create'); }
+        const created = await res.json();
         await fetchProducts();
         await fetchCategories();
+        toast.success(asNew ? `Saved as new product: ${created.name} (${created.sku})` : `Product created: ${created.name}`);
       }
       setShowModal(false);
     } catch (err: any) {
@@ -475,50 +560,79 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Filters */}
-      <FilterPanel
-        label="Search & Filters"
-        activeCount={[search, categoryFilter].filter(Boolean).length}
-        onClear={() => { setSearch(''); setCategoryFilter(''); setPage(1); }}
-      >
-        <div className="flex flex-wrap gap-3 items-end max-w-full">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <LiveSearchDropdown<Product>
-              value={search}
-              onChange={setSearch}
-              onSearch={() => { setPage(1); fetchProducts(); }}
-              fetchSuggestions={fetchProductSuggestions}
-              getKey={(p) => p.id}
-              getHref={(p) => `/products/${p.id}`}
-              renderItem={renderProductSuggestion}
-              placeholder="Product name or SKU…"
-              ariaLabel="Search products"
-              cacheKeyPrefix="products"
-            />
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<Product>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => { setPage(1); fetchProducts(); }}
+            fetchSuggestions={fetchProductSuggestions}
+            getKey={(p) => p.id}
+            getHref={(p) => `/products/${p.id}`}
+            renderItem={renderProductSuggestion}
+            placeholder="Search by product name, SKU, OEM partner, category..."
+            ariaLabel="Search products"
+            cacheKeyPrefix="products"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            {categories.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowFilters(f => !f)}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || categoryFilter
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+                </svg>
+                Filters
+                {categoryFilter && (
+                  <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                    1
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setPage(1); fetchProducts(); }}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(search || categoryFilter) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setCategoryFilter(''); setPage(1); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
           </div>
-          {categories.length > 0 && (
+        </div>
+
+        {/* Expanded filter panel */}
+        {showFilters && categories.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-3 items-center">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-              <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
-                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category / Solution Area</label>
+              <select
+                value={categoryFilter}
+                onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                 <option value="">All Categories</option>
-                {categories.map(c => <option key={c}>{c}</option>)}
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-          )}
-          <button onClick={() => { setPage(1); fetchProducts(); }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-            Search
-          </button>
-          {(search || categoryFilter) && (
-            <button onClick={() => { setSearch(''); setCategoryFilter(''); }}
-              className="px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
-              Clear
-            </button>
-          )}
-        </div>
-      </FilterPanel>
+          </div>
+        )}
+      </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">

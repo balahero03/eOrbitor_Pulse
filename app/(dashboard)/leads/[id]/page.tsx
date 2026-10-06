@@ -192,6 +192,21 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
   const isManagerOrAdmin = !!(currentUser && ['SUPER_ADMIN', 'ADMIN', 'BACKEND_TEAM'].includes(currentUser.role));
   const isAdminUser = !!(currentUser && ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role));
   const [quotations, setQuotations] = useState<QuotationRecord[]>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadDocx = async (e: React.MouseEvent, q: QuotationRecord) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDownloadingId(q.id);
+    try {
+      await downloadAuthedFile(`/api/quotations/${q.id}/docx`, `${q.quotationNumber}.docx`);
+      toast.success(`Downloaded ${q.quotationNumber}.docx`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download proposal');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // Admin can globally disable quotation-creation restrictions — when active,
   // anyone can create a quotation for any lead, not just canEdit owners.
@@ -801,6 +816,22 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                   </div>
                   <span className="sm:ml-auto text-sm font-bold text-green-700 whitespace-nowrap">{fmt(parseFloat(q.totalAmount))}</span>
                   <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(q.issueDate).toLocaleDateString('en-IN')}</span>
+                  <button
+                    type="button"
+                    onClick={e => handleDownloadDocx(e, q)}
+                    disabled={downloadingId === q.id}
+                    title="Download Proposal Word (.docx)"
+                    className="px-2 py-0.5 text-[11px] font-semibold text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1 shadow-2xs disabled:opacity-50 flex-shrink-0"
+                  >
+                    {downloadingId === q.id ? (
+                      <span className="w-2.5 h-2.5 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    <span>Word</span>
+                  </button>
                   <span className="hidden sm:inline text-gray-400 text-xs flex-shrink-0">{expandedId === q.id ? '▲' : '▼'}</span>
                 </div>
 
@@ -887,59 +918,73 @@ function QuotationsSection({ leadId, lead, canEdit, currentUser }: { leadId: str
                     )}
 
                     {/* Actions */}
-                    {(canSendOrReject || canApprove || canDeleteQ) && (
-                      <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
-                        {q.status === 'DRAFT' && canSendOrReject && (
-                          <>
-                            <button onClick={() => startEdit(q)}
-                              disabled={actionId === q.id}
-                              className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50">
-                              Edit
-                            </button>
-                            <button onClick={() => handleAction(q.id, 'send')}
-                              disabled={actionId === q.id}
-                              className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                              {actionId === q.id ? '…' : (isAdminUser ? 'Send' : 'Request Approval')}
-                            </button>
-                          </>
+                    <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
+                      <button
+                        type="button"
+                        onClick={e => handleDownloadDocx(e, q)}
+                        disabled={downloadingId === q.id}
+                        className="text-xs px-3 py-1.5 border border-blue-200 text-blue-700 bg-blue-50/60 hover:bg-blue-100 rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50 font-medium transition-colors"
+                      >
+                        {downloadingId === q.id ? (
+                          <span className="w-3 h-3 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
                         )}
-                        {q.status === 'SENT' && (
-                          <>
-                            {canApprove && (
-                              <button onClick={() => handleAction(q.id, 'approve')}
-                                disabled={actionId === q.id}
-                                className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                                {actionId === q.id ? '…' : 'Accept'}
-                              </button>
-                            )}
-                            {canSendOrReject && (
-                              <button onClick={() => openRejectModal(q.id)}
-                                disabled={actionId === q.id}
-                                className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
-                                Reject
-                              </button>
-                            )}
-                            {isCreator && !canApprove && (
-                              <span className="text-[10px] text-gray-400 italic">
-                                Awaiting a manager/admin to accept — you can&apos;t approve your own quote
-                              </span>
-                            )}
-                          </>
-                        )}
-                        {canDeleteQ && (
-                          <button onClick={() => handleAction(q.id, 'delete')}
+                        <span>{downloadingId === q.id ? 'Downloading…' : 'Download Word'}</span>
+                      </button>
+
+                      {q.status === 'DRAFT' && canSendOrReject && (
+                        <>
+                          <button onClick={() => startEdit(q)}
                             disabled={actionId === q.id}
-                            className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
-                            {actionId === q.id ? '…' : 'Delete'}
+                            className="text-xs px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                            Edit
                           </button>
-                        )}
-                        <span className="ml-auto text-[10px] text-gray-400 self-center">
-                          By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
-                          {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
-                          {q.approvedAt && ` · Accepted ${new Date(q.approvedAt).toLocaleDateString('en-IN')}`}
-                        </span>
-                      </div>
-                    )}
+                          <button onClick={() => handleAction(q.id, 'send')}
+                            disabled={actionId === q.id}
+                            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                            {actionId === q.id ? '…' : (isAdminUser ? 'Send' : 'Request Approval')}
+                          </button>
+                        </>
+                      )}
+                      {q.status === 'SENT' && (
+                        <>
+                          {canApprove && (
+                            <button onClick={() => handleAction(q.id, 'approve')}
+                              disabled={actionId === q.id}
+                              className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                              {actionId === q.id ? '…' : 'Accept'}
+                            </button>
+                          )}
+                          {canSendOrReject && (
+                            <button onClick={() => openRejectModal(q.id)}
+                              disabled={actionId === q.id}
+                              className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                              Reject
+                            </button>
+                          )}
+                          {isCreator && !canApprove && (
+                            <span className="text-[10px] text-gray-400 italic">
+                              Awaiting a manager/admin to accept — you can&apos;t approve your own quote
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {canDeleteQ && (
+                        <button onClick={() => handleAction(q.id, 'delete')}
+                          disabled={actionId === q.id}
+                          className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                          {actionId === q.id ? '…' : 'Delete'}
+                        </button>
+                      )}
+                      <span className="ml-auto text-[10px] text-gray-400 self-center">
+                        By {q.createdBy.firstName} {q.createdBy.lastName} · {new Date(q.createdAt).toLocaleDateString('en-IN')}
+                        {q.sentAt && ` · Sent ${new Date(q.sentAt).toLocaleDateString('en-IN')}`}
+                        {q.approvedAt && ` · Accepted ${new Date(q.approvedAt).toLocaleDateString('en-IN')}`}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1444,18 +1489,18 @@ function ClosureModal({
   // indication of *what* was missing, so a half-filled form just looked broken.
   const missing: string[] = form.outcome === 'WON'
     ? [
-        !form.quoteRef.trim() && 'final quote',
-        !form.poNumber.trim() && 'PO number',
-        !form.reasonOfWin.trim() && 'reason of win',
-        !form.whatWentWell.trim() && 'what went well',
-        !form.finalDealValue && 'final deal value',
-        !form.contractSignedDate && 'contract signed date',
-      ].filter(Boolean) as string[]
+      !form.quoteRef.trim() && 'final quote',
+      !form.poNumber.trim() && 'PO number',
+      !form.reasonOfWin.trim() && 'reason of win',
+      !form.whatWentWell.trim() && 'what went well',
+      !form.finalDealValue && 'final deal value',
+      !form.contractSignedDate && 'contract signed date',
+    ].filter(Boolean) as string[]
     : [
-        !form.reason.trim() && 'reason',
-        !form.whatToImprove.trim() && 'what to improve',
-        form.outcome === 'LOST' && !form.competitor.trim() && 'competitor',
-      ].filter(Boolean) as string[];
+      !form.reason.trim() && 'reason',
+      !form.whatToImprove.trim() && 'what to improve',
+      form.outcome === 'LOST' && !form.competitor.trim() && 'competitor',
+    ].filter(Boolean) as string[];
 
   return (
     <Modal open onClose={onClose} size="lg">
@@ -1468,216 +1513,216 @@ function ClosureModal({
       />
       <ModalBody className="space-y-5">
 
-          {/* Outcome selector */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Outcome</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {(['WON', 'LOST', 'DROPPED'] as const).map(o => {
-                const c = outcomeConfig[o];
-                return (
-                  <button key={o} onClick={() => set('outcome', o)}
-                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-medium text-sm transition-all
+        {/* Outcome selector */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Outcome</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {(['WON', 'LOST', 'DROPPED'] as const).map(o => {
+              const c = outcomeConfig[o];
+              return (
+                <button key={o} onClick={() => set('outcome', o)}
+                  className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-medium text-sm transition-all
                       ${form.outcome === o ? c.border + ' shadow-sm ring-2 ring-offset-1 ring-gray-200' : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:bg-gray-50'}`}>
-                    <StatusIcon status={o} className="w-6 h-6" />
-                    <span>{c.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                  <StatusIcon status={o} className="w-6 h-6" />
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {/* ── WON FIELDS ── */}
-          {form.outcome === 'WON' && (
-            <div className="space-y-4">
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
-                Lead moves to <strong>Orders</strong> at this value · Manager &amp; Admin notified in the app
+        {/* ── WON FIELDS ── */}
+        {form.outcome === 'WON' && (
+          <div className="space-y-4">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+              Lead moves to <strong>Orders</strong> at this value · Manager &amp; Admin notified in the app
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={F_LABEL}>
+                  Final Quote <span className="text-red-400">*</span>
+                </label>
+                {quotesLoading ? (
+                  <div className="w-full border rounded-lg px-3 py-2 text-sm text-gray-400">Loading quotations…</div>
+                ) : quotes.length > 0 ? (
+                  <>
+                    <select value={form.quotationId} onChange={e => pickQuote(e.target.value)}
+                      className={F_FIELD}>
+                      <option value="">— Not from a quotation —</option>
+                      {quotes.map(q => (
+                        <option key={q.id} value={q.id}>
+                          {q.quotationNumber} · {q.status} · {fmt(Number(q.totalAmount))}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {form.quotationId
+                        ? 'The order will be created at this value and linked to this quote.'
+                        : 'Pick the quote the customer accepted — its value becomes the order.'}
+                    </p>
+                  </>
+                ) : (
+                  // No quotations on this lead at all — fall back to the
+                  // original free-text reference rather than blocking the close.
+                  <>
+                    <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
+                      placeholder="e.g. QT-2026-00123"
+                      className={F_FIELD} />
+                    <p className="text-xs text-amber-600 mt-1">No quotations on this lead — enter the reference manually.</p>
+                  </>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={F_LABEL}>
-                    Final Quote <span className="text-red-400">*</span>
-                  </label>
-                  {quotesLoading ? (
-                    <div className="w-full border rounded-lg px-3 py-2 text-sm text-gray-400">Loading quotations…</div>
-                  ) : quotes.length > 0 ? (
-                    <>
-                      <select value={form.quotationId} onChange={e => pickQuote(e.target.value)}
-                        className={F_FIELD}>
-                        <option value="">— Not from a quotation —</option>
-                        {quotes.map(q => (
-                          <option key={q.id} value={q.id}>
-                            {q.quotationNumber} · {q.status} · {fmt(Number(q.totalAmount))}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {form.quotationId
-                          ? 'The order will be created at this value and linked to this quote.'
-                          : 'Pick the quote the customer accepted — its value becomes the order.'}
+              <div>
+                <label className={F_LABEL}>PO Number <span className="text-red-400">*</span></label>
+                <input type="text" value={form.poNumber} onChange={e => set('poNumber', e.target.value)}
+                  placeholder="Customer PO #"
+                  className={F_FIELD} />
+              </div>
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
+                <TargetIcon className="w-4 h-4" /> Reason of Win <span className="text-red-400">*</span>
+              </label>
+              <textarea value={form.reasonOfWin} onChange={e => set('reasonOfWin', e.target.value)}
+                rows={3} placeholder="Why did we win? e.g. Best price, quick delivery, strong relationship…"
+                className={F_FIELD} />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><ThumbUpIcon className="w-4 h-4" /> What Went Well <span className="text-red-400">*</span></label>
+              <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
+                rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
+                className={F_FIELD} />
+            </div>
+
+            {/* ── CLOSURE STAGE DETAILS ── */}
+            <div className="border-t pt-4">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3"><LockIcon className="w-4 h-4" /> Closure Stage Details</p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={F_LABEL}>Final Deal Value <span className="text-red-400">*</span></label>
+                    <NumberField prefix="₹" value={form.finalDealValue} onChange={v => set('finalDealValue', v)}
+                      placeholder="Final agreed value" min="0" step="0.01" />
+                    {form.quotationId && (
+                      <p className="text-xs text-green-700 mt-1 inline-flex items-center gap-1">
+                        <CheckGlyph className="w-3.5 h-3.5" />
+                        Filled from {form.quoteRef} — override only if the final figure differs.
                       </p>
-                    </>
-                  ) : (
-                    // No quotations on this lead at all — fall back to the
-                    // original free-text reference rather than blocking the close.
-                    <>
-                      <input type="text" value={form.quoteRef} onChange={e => set('quoteRef', e.target.value)}
-                        placeholder="e.g. QT-2026-00123"
-                        className={F_FIELD} />
-                      <p className="text-xs text-amber-600 mt-1">No quotations on this lead — enter the reference manually.</p>
-                    </>
-                  )}
-                </div>
-                <div>
-                  <label className={F_LABEL}>PO Number <span className="text-red-400">*</span></label>
-                  <input type="text" value={form.poNumber} onChange={e => set('poNumber', e.target.value)}
-                    placeholder="Customer PO #"
-                    className={F_FIELD} />
-                </div>
-              </div>
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
-                  <TargetIcon className="w-4 h-4" /> Reason of Win <span className="text-red-400">*</span>
-                </label>
-                <textarea value={form.reasonOfWin} onChange={e => set('reasonOfWin', e.target.value)}
-                  rows={3} placeholder="Why did we win? e.g. Best price, quick delivery, strong relationship…"
-                  className={F_FIELD} />
-              </div>
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><ThumbUpIcon className="w-4 h-4" /> What Went Well <span className="text-red-400">*</span></label>
-                <textarea value={form.whatWentWell} onChange={e => set('whatWentWell', e.target.value)}
-                  rows={2} placeholder="Key actions, strategies, or team efforts that made the difference…"
-                  className={F_FIELD} />
-              </div>
-
-              {/* ── CLOSURE STAGE DETAILS ── */}
-              <div className="border-t pt-4">
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3"><LockIcon className="w-4 h-4" /> Closure Stage Details</p>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={F_LABEL}>Final Deal Value <span className="text-red-400">*</span></label>
-                      <NumberField prefix="₹" value={form.finalDealValue} onChange={v => set('finalDealValue', v)}
-                        placeholder="Final agreed value" min="0" step="0.01" />
-                      {form.quotationId && (
-                        <p className="text-xs text-green-700 mt-1 inline-flex items-center gap-1">
-                          <CheckGlyph className="w-3.5 h-3.5" />
-                          Filled from {form.quoteRef} — override only if the final figure differs.
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className={F_LABEL}>Contract Signed Date <span className="text-red-400">*</span></label>
-                      <input type="date" value={form.contractSignedDate} onChange={e => set('contractSignedDate', e.target.value)}
-                        className={F_FIELD} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={F_LABEL}>PO / Contract Details</label>
-                    <input type="text" value={form.contractDetails} onChange={e => set('contractDetails', e.target.value)}
-                      placeholder="PO number, contract reference…"
-                      className={F_FIELD} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={F_LABEL}>Payment Terms (Final)</label>
-                      <input type="text" value={form.paymentTermsFinal} onChange={e => set('paymentTermsFinal', e.target.value)}
-                        placeholder="e.g. 50% advance, 50% on delivery"
-                        className={F_FIELD} />
-                    </div>
-                    <div>
-                      <label className={F_LABEL}>Delivery Date (Final)</label>
-                      <input type="date" value={form.deliveryDateFinal} onChange={e => set('deliveryDateFinal', e.target.value)}
-                        className={F_FIELD} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={F_LABEL}>Final Terms Agreed</label>
-                    <textarea value={form.finalTerms} onChange={e => set('finalTerms', e.target.value)}
-                      rows={2} placeholder="Summary of final agreed terms…"
-                      className={F_FIELD} />
-                  </div>
-                  <div>
-                    <label className={F_LABEL}>Special Conditions / Clauses</label>
-                    <textarea value={form.specialConditions} onChange={e => set('specialConditions', e.target.value)}
-                      rows={2} placeholder="Any special conditions, warranty clauses, SLA terms…"
-                      className={F_FIELD} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── LOST / DROPPED FIELDS ── */}
-          {(form.outcome === 'LOST' || form.outcome === 'DROPPED') && (
-            <div className="space-y-4">
-              <div className={`p-3 rounded-lg border text-xs ${form.outcome === 'LOST' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
-                Lead archived in Closed Leads · Manager &amp; Admin notified by email with attachments
-              </div>
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
-                  {form.outcome === 'LOST' ? <><ErrorIcon className="w-4 h-4" /> Reason of Loss</> : <><BlockedIcon className="w-4 h-4" /> Reason for Drop</>} <span className="text-red-400">*</span>
-                </label>
-                <textarea value={form.reason} onChange={e => set('reason', e.target.value)}
-                  rows={3} placeholder={
-                    form.outcome === 'LOST'
-                      ? 'e.g. Competitor offered 15% lower price, customer chose domestic vendor…'
-                      : 'e.g. Customer paused procurement for 6 months due to budget freeze…'
-                  }
-                  className={F_FIELD} />
-              </div>
-              {form.outcome === 'LOST' && (
-                <div>
-                  <label className={F_LABEL}>Competitor <span className="text-red-400">*</span></label>
-                  <input type="text" value={form.competitor} onChange={e => set('competitor', e.target.value)}
-                    placeholder="e.g. HP India, local vendor…"
-                    className={F_FIELD} />
-                </div>
-              )}
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><IdeaIcon className="w-4 h-4" /> What to Improve <span className="text-red-400">*</span></label>
-                <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
-                  rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
-                  className={F_FIELD} />
-              </div>
-            </div>
-          )}
-
-          {/* ── ATTACHMENTS ── */}
-          <div>
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase mb-2">
-              <AttachmentIcon className="w-4 h-4" /> Attachments
-              <span className="ml-1 text-gray-300 font-normal normal-case">Quote / Proposal / PO — up to 3 files</span>
-            </p>
-            <div className="space-y-2">
-              {[0, 1, 2].map(idx => (
-                <div key={idx} className="flex items-center gap-2">
-                  <label className="text-xs text-gray-400 w-5 text-center font-medium">{idx + 1}</label>
-                  <div
-                    className="flex-1 flex items-center gap-2 border border-dashed rounded-lg px-3 py-2 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
-                    onClick={() => fileInputRefs[idx].current?.click()}
-                  >
-                    {form.files[idx] ? (
-                      <>
-                        <span className="text-blue-600 text-xs font-medium truncate flex-1">{form.files[idx]!.name}</span>
-                        <span className="text-xs text-gray-400">{(form.files[idx]!.size / 1024).toFixed(0)} KB</span>
-                        <button type="button" onClick={e => { e.stopPropagation(); setFile(idx, null); }}
-                          className="text-gray-300 hover:text-red-400 text-lg leading-none flex-shrink-0">×</button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">Click to attach file (PDF, DOC, XLS, IMG)</span>
                     )}
                   </div>
-                  <input
-                    ref={fileInputRefs[idx]}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                    className="hidden"
-                    onChange={e => setFile(idx, e.target.files?.[0] || null)}
-                  />
+                  <div>
+                    <label className={F_LABEL}>Contract Signed Date <span className="text-red-400">*</span></label>
+                    <input type="date" value={form.contractSignedDate} onChange={e => set('contractSignedDate', e.target.value)}
+                      className={F_FIELD} />
+                  </div>
                 </div>
-              ))}
+                <div>
+                  <label className={F_LABEL}>PO / Contract Details</label>
+                  <input type="text" value={form.contractDetails} onChange={e => set('contractDetails', e.target.value)}
+                    placeholder="PO number, contract reference…"
+                    className={F_FIELD} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={F_LABEL}>Payment Terms (Final)</label>
+                    <input type="text" value={form.paymentTermsFinal} onChange={e => set('paymentTermsFinal', e.target.value)}
+                      placeholder="e.g. 50% advance, 50% on delivery"
+                      className={F_FIELD} />
+                  </div>
+                  <div>
+                    <label className={F_LABEL}>Delivery Date (Final)</label>
+                    <input type="date" value={form.deliveryDateFinal} onChange={e => set('deliveryDateFinal', e.target.value)}
+                      className={F_FIELD} />
+                  </div>
+                </div>
+                <div>
+                  <label className={F_LABEL}>Final Terms Agreed</label>
+                  <textarea value={form.finalTerms} onChange={e => set('finalTerms', e.target.value)}
+                    rows={2} placeholder="Summary of final agreed terms…"
+                    className={F_FIELD} />
+                </div>
+                <div>
+                  <label className={F_LABEL}>Special Conditions / Clauses</label>
+                  <textarea value={form.specialConditions} onChange={e => set('specialConditions', e.target.value)}
+                    rows={2} placeholder="Any special conditions, warranty clauses, SLA terms…"
+                    className={F_FIELD} />
+                </div>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* ── LOST / DROPPED FIELDS ── */}
+        {(form.outcome === 'LOST' || form.outcome === 'DROPPED') && (
+          <div className="space-y-4">
+            <div className={`p-3 rounded-lg border text-xs ${form.outcome === 'LOST' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+              Lead archived in Closed Leads · Manager &amp; Admin notified by email with attachments
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1">
+                {form.outcome === 'LOST' ? <><ErrorIcon className="w-4 h-4" /> Reason of Loss</> : <><BlockedIcon className="w-4 h-4" /> Reason for Drop</>} <span className="text-red-400">*</span>
+              </label>
+              <textarea value={form.reason} onChange={e => set('reason', e.target.value)}
+                rows={3} placeholder={
+                  form.outcome === 'LOST'
+                    ? 'e.g. Competitor offered 15% lower price, customer chose domestic vendor…'
+                    : 'e.g. Customer paused procurement for 6 months due to budget freeze…'
+                }
+                className={F_FIELD} />
+            </div>
+            {form.outcome === 'LOST' && (
+              <div>
+                <label className={F_LABEL}>Competitor <span className="text-red-400">*</span></label>
+                <input type="text" value={form.competitor} onChange={e => set('competitor', e.target.value)}
+                  placeholder="e.g. HP India, local vendor…"
+                  className={F_FIELD} />
+              </div>
+            )}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-1"><IdeaIcon className="w-4 h-4" /> What to Improve <span className="text-red-400">*</span></label>
+              <textarea value={form.whatToImprove} onChange={e => set('whatToImprove', e.target.value)}
+                rows={2} placeholder="What could we do better next time? Pricing, approach, speed…"
+                className={F_FIELD} />
+            </div>
+          </div>
+        )}
+
+        {/* ── ATTACHMENTS ── */}
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase mb-2">
+            <AttachmentIcon className="w-4 h-4" /> Attachments
+            <span className="ml-1 text-gray-300 font-normal normal-case">Quote / Proposal / PO — up to 3 files</span>
+          </p>
+          <div className="space-y-2">
+            {[0, 1, 2].map(idx => (
+              <div key={idx} className="flex items-center gap-2">
+                <label className="text-xs text-gray-400 w-5 text-center font-medium">{idx + 1}</label>
+                <div
+                  className="flex-1 flex items-center gap-2 border border-dashed rounded-lg px-3 py-2 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                  onClick={() => fileInputRefs[idx].current?.click()}
+                >
+                  {form.files[idx] ? (
+                    <>
+                      <span className="text-blue-600 text-xs font-medium truncate flex-1">{form.files[idx]!.name}</span>
+                      <span className="text-xs text-gray-400">{(form.files[idx]!.size / 1024).toFixed(0)} KB</span>
+                      <button type="button" onClick={e => { e.stopPropagation(); setFile(idx, null); }}
+                        className="text-gray-300 hover:text-red-400 text-lg leading-none flex-shrink-0">×</button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">Click to attach file (PDF, DOC, XLS, IMG)</span>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRefs[idx]}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={e => setFile(idx, e.target.files?.[0] || null)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
       </ModalBody>
 

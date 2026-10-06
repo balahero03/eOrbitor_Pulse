@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { InboxIcon } from '@heroicons/react/24/outline';
+import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropdown';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import { InlineLoader } from '@/components/BrandedLoader';
@@ -45,10 +46,39 @@ export default function ClosedLeadsPage() {
   // reads as a one-frame flicker rather than a fade.
   const showRefreshing = useDelayedFlag(refreshing);
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
+
+  const fetchClosedLeadSuggestions = useCallback(async (query: string): Promise<any[]> => {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams({ search: query, page: '1', limit: '8' });
+    const res = await fetch(`/api/leads/closed?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return (data.leads || []);
+  }, []);
+
+  const renderClosedLeadSuggestion = (lead: any, query: string) => {
+    const ownerName = lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName || ''}`.trim() : '';
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 justify-between">
+          <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(lead.name, query)}</span>
+          <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${STATUS_META[lead.status]?.style || 'bg-gray-100 text-gray-700'}`}>
+            {STATUS_META[lead.status]?.label || lead.status}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate">
+          {highlightMatch(lead.company, query)}
+          {(lead.leadNumber || lead.quoteNo) ? ` · ${lead.leadNumber || lead.quoteNo}` : ''}
+          {ownerName ? <> · Owner: {highlightMatch(ownerName, query)}</> : ''}
+        </p>
+      </div>
+    );
+  };
 
   useEffect(() => { setPage(1); }, [tab, search, from, to]);
 
@@ -130,6 +160,85 @@ export default function ClosedLeadsPage() {
         </div>
       </div>
 
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<any>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => setPage(1)}
+            fetchSuggestions={fetchClosedLeadSuggestions}
+            getKey={(l) => l.id}
+            getHref={(l) => `/leads/${l.id}`}
+            renderItem={renderClosedLeadSuggestion}
+            placeholder="Search by name, company, quote number, assigned user..."
+            ariaLabel="Search closed leads"
+            cacheKeyPrefix="closed-leads"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || Boolean(from || to)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {[from, to].filter(Boolean).length > 0 && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  {[from, to].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(search || from || to) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setFrom(''); setTo(''); setPage(1); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Closed From</label>
+              <input
+                type="date"
+                value={from}
+                onChange={e => { setFrom(e.target.value); setPage(1); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Closed To</label>
+              <input
+                type="date"
+                value={to}
+                onChange={e => { setTo(e.target.value); setPage(1); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Table card */}
       <div className="bg-white rounded-xl border shadow-sm">
 
@@ -147,49 +256,6 @@ export default function ClosedLeadsPage() {
               {t.label}
             </button>
           ))}
-        </div>
-
-        {/* Filters */}
-        {/* A grid rather than a wrapping flex row: the two date inputs keep
-            their intrinsic width in flex, which on a narrow phone pushed them
-            past the card edge and through the tablet range left them ragged. */}
-        <div className="p-4 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
-          <div className="col-span-2 sm:col-span-2 min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Name, company…"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          </div>
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Closed from</label>
-            <input
-              type="date"
-              value={from}
-              onChange={e => setFrom(e.target.value)}
-              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          </div>
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Closed to</label>
-            <input
-              type="date"
-              value={to}
-              onChange={e => setTo(e.target.value)}
-              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          </div>
-          {(search || from || to) && (
-            <button
-              onClick={() => { setSearch(''); setFrom(''); setTo(''); }}
-              className="col-span-2 sm:col-span-4 sm:justify-self-start px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50"
-            >
-              Clear
-            </button>
-          )}
         </div>
 
         {/* Table */}

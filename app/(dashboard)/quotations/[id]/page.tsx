@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { InlineLoader } from '@/components/BrandedLoader';
 import { buttonClasses } from '@/components/Button';
+import { downloadAuthedFile } from '@/lib/downloadFile';
 
 interface Quotation {
   id: string;
@@ -50,6 +51,7 @@ export default function QuotationDetailPage() {
   const [converting, setConverting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [downloadingDocx, setDownloadingDocx] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   // Vanished instantly on close before this — same jump-cut every raw modal
   // had prior to components/Modal.tsx. Kept as a light hook here rather than
@@ -57,6 +59,19 @@ export default function QuotationDetailPage() {
   // from it.
   const { mounted: rejectModalMounted, leaving: rejectModalLeaving } = useMountTransition(showRejectModal);
   const [rejectReason, setRejectReason] = useState('');
+
+  const handleDownloadDocx = async () => {
+    if (!quotation) return;
+    setDownloadingDocx(true);
+    try {
+      await downloadAuthedFile(`/api/quotations/${quotation.id}/docx`, `${quotation.quotationNumber}.docx`);
+      toast.success(`Downloaded ${quotation.quotationNumber}.docx`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download proposal');
+    } finally {
+      setDownloadingDocx(false);
+    }
+  };
 
   useEffect(() => {
     fetchQuotation();
@@ -198,12 +213,12 @@ export default function QuotationDetailPage() {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'DRAFT':    return 'bg-gray-100 text-gray-700 border-gray-300';
-      case 'SENT':     return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'DRAFT': return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'SENT': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'ACCEPTED': return 'bg-green-100 text-green-800 border-green-300';
       case 'REJECTED': return 'bg-red-100 text-red-800 border-red-300';
-      case 'EXPIRED':  return 'bg-orange-100 text-orange-800 border-orange-300';
-      default:         return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'EXPIRED': return 'bg-orange-100 text-orange-800 border-orange-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
@@ -238,17 +253,17 @@ export default function QuotationDetailPage() {
   const originBadge = !currentUser
     ? null
     : isCreator
-    ? { label: 'Your Quote', className: 'bg-indigo-100 text-indigo-700' }
-    : { label: 'Team Quote', className: 'bg-slate-100 text-slate-600' };
+      ? { label: 'Your Quote', className: 'bg-indigo-100 text-indigo-700' }
+      : { label: 'Team Quote', className: 'bg-slate-100 text-slate-600' };
 
   // Collect any non-empty extended fields for display
   const extendedFields = [
-    { label: 'Price Validity',     value: quotation.priceValidity },
-    { label: 'Tax Details',        value: quotation.taxDetails },
-    { label: 'Warranty',           value: quotation.warranty },
-    { label: 'AMC Period',         value: quotation.amcPeriod },
-    { label: 'Delivery Estimate',  value: quotation.deliveryEstimate },
-    { label: 'Payment Terms',      value: quotation.paymentTerms },
+    { label: 'Price Validity', value: quotation.priceValidity },
+    { label: 'Tax Details', value: quotation.taxDetails },
+    { label: 'Warranty', value: quotation.warranty },
+    { label: 'AMC Period', value: quotation.amcPeriod },
+    { label: 'Delivery Estimate', value: quotation.deliveryEstimate },
+    { label: 'Payment Terms', value: quotation.paymentTerms },
   ].filter(f => f.value);
 
   return (
@@ -285,6 +300,21 @@ export default function QuotationDetailPage() {
               <span className="text-xs">↗</span>
             </Link>
           )}
+          <button
+            type="button"
+            onClick={handleDownloadDocx}
+            disabled={downloadingDocx}
+            className="px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-xs font-semibold shadow-sm transition-colors inline-flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+          >
+            {downloadingDocx ? (
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            )}
+            <span>{downloadingDocx ? 'Downloading…' : 'Download Word (.docx)'}</span>
+          </button>
           {quotation.status === 'ACCEPTED' && (
             existingOrder ? (
               <Link href={`/orders/${existingOrder.id}`}
@@ -448,6 +478,22 @@ export default function QuotationDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Document Download Card */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">Export Proposal</h3>
+            <p className="text-xs text-gray-500 mb-3">Download official proposal document formatted for printing and sharing.</p>
+            <a
+              href={`/api/quotations/${quotation.id}/docx`}
+              download
+              className="w-full text-center px-4 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-2 shadow-2xs"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download Word (.docx)</span>
+            </a>
+          </div>
+
           {/* Actions */}
           {(canSendOrReject || canApprove || canDelete) && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-6">

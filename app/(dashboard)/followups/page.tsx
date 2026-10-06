@@ -10,7 +10,6 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import PageHeader from '@/components/PageHeader';
-import FilterPanel from '@/components/FilterPanel';
 import { InlineLoader } from '@/components/BrandedLoader';
 
 interface FollowUp {
@@ -80,6 +79,7 @@ export default function FollowUpsPage() {
   const [quickFilter, setQuickFilter] = useState('');
 
   // Calendar
+  const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
@@ -121,14 +121,17 @@ export default function FollowUpsPage() {
     const who = f.deal?.customer?.companyName || f.lead?.name || f.lead?.company || '—';
     return (
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <FollowUpIcon type={f.type} className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(who, query)}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <FollowUpIcon type={f.type} className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(who, query)}</span>
+          </div>
           <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
             {f.type.replace('_', ' ')}
           </span>
         </div>
         <p className="text-xs text-gray-500 mt-0.5 truncate">
+          {f.deal?.dealName ? <>{highlightMatch(f.deal.dealName, query)} · </> : null}
           {fmtDate(f.scheduledDate)}
           {f.notes ? <> · {highlightMatch(f.notes, query)}</> : null}
         </p>
@@ -270,79 +273,101 @@ export default function FollowUpsPage() {
           width, so through the tablet range the four short filters wrapped
           into ragged, unaligned rows. Stepping the column count keeps every
           label on a shared baseline. */}
-      <FilterPanel
-        label="Search & Filters"
-        activeCount={[search, type, status, fromDate, toDate].filter(Boolean).length}
-        onClear={clearFilters}
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 items-end">
-          {/* Search */}
-          <div className="col-span-2 sm:col-span-4 xl:col-span-2 min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <LiveSearchDropdown<FollowUp>
-              value={search}
-              onChange={(v) => { setSearch(v); resetPage(); }}
-              onSearch={resetPage}
-              fetchSuggestions={fetchFollowUpSuggestions}
-              getKey={(f) => f.id}
-              getHref={(f) => `/followups/${f.id}`}
-              renderItem={renderFollowUpSuggestion}
-              placeholder="Customer, lead, notes..."
-              ariaLabel="Search follow-ups"
-              cacheKeyPrefix="followups"
-            />
-          </div>
-
-          {/* Type */}
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-            <select value={type} onChange={e => { setType(e.target.value); resetPage(); }}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-              <option value="">All Types</option>
-              <option value="CALL">Call</option>
-              <option value="EMAIL">Email</option>
-              <option value="MEETING">Meeting</option>
-              <option value="WHATSAPP">WhatsApp</option>
-              <option value="SITE_VISIT">Site Visit</option>
-            </select>
-          </div>
-
-          {/* Status */}
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-            <select value={status} onChange={e => { setStatus(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-
-          {/* Date range */}
-          {/* w-full min-w-0 matters on iOS: a bare date input keeps its intrinsic
-              width and would otherwise overflow the grid cell rather than shrink. */}
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">From Date</label>
-            <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
-          </div>
-          <div className="min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">To Date</label>
-            <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setQuickFilter(''); resetPage(); }}
-              className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
-          </div>
-
-          {/* Clear */}
-          {hasFilters && (
-            <button onClick={clearFilters}
-              className="col-span-2 sm:col-span-1 px-3 py-2 text-sm text-gray-500 border rounded-lg hover:bg-gray-50">
-              Clear
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<FollowUp>
+            value={search}
+            onChange={(v) => { setSearch(v); resetPage(); }}
+            onSearch={resetPage}
+            fetchSuggestions={fetchFollowUpSuggestions}
+            getKey={(f) => f.id}
+            getHref={(f) => `/followups/${f.id}`}
+            renderItem={renderFollowUpSuggestion}
+            placeholder="Search by customer, lead, deal, notes, user..."
+            ariaLabel="Search follow-ups"
+            cacheKeyPrefix="followups"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || Boolean(type || status || fromDate || toDate)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {[type, status, fromDate, toDate].filter(Boolean).length > 0 && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  {[type, status, fromDate, toDate].filter(Boolean).length}
+                </span>
+              )}
             </button>
-          )}
-
+            <button
+              type="button"
+              onClick={resetPage}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
-      </FilterPanel>
+
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Type</label>
+              <select value={type} onChange={e => { setType(e.target.value); resetPage(); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <option value="">All Types</option>
+                <option value="CALL">Call</option>
+                <option value="EMAIL">Email</option>
+                <option value="MEETING">Meeting</option>
+                <option value="WHATSAPP">WhatsApp</option>
+                <option value="SITE_VISIT">Site Visit</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+              <select value={status} onChange={e => { setStatus(e.target.value); setQuickFilter(''); resetPage(); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">From Date</label>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setQuickFilter(''); resetPage(); }}
+                className="w-full min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">To Date</label>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setQuickFilter(''); resetPage(); }}
+                className="w-full min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* View toggle — deliberately outside the filter panel. It chooses what
           you are looking at rather than narrowing it, so hiding it behind a

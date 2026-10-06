@@ -72,6 +72,11 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
     where.OR = [
       { quotationNumber: { contains: search, mode: 'insensitive' } },
       { customer: { companyName: { contains: search, mode: 'insensitive' } } },
+      { deal: { dealName: { contains: search, mode: 'insensitive' } } },
+      { createdBy: { firstName: { contains: search, mode: 'insensitive' } } },
+      { createdBy: { lastName: { contains: search, mode: 'insensitive' } } },
+      { createdBy: { email: { contains: search, mode: 'insensitive' } } },
+      { notes: { contains: search, mode: 'insensitive' } },
     ];
   }
 

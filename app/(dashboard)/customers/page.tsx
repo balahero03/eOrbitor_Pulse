@@ -187,20 +187,41 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 max-w-full overflow-hidden">
-        <LiveSearchDropdown<Customer>
-          value={search}
-          onChange={setSearch}
-          onSearch={() => setPage(1)}
-          fetchSuggestions={fetchCustomerSuggestions}
-          getKey={(c) => c.id}
-          getHref={(c) => `/customers/${c.id}`}
-          renderItem={renderCustomerSuggestion}
-          placeholder="Search by customer name, company, or email..."
-          ariaLabel="Search customers"
-          cacheKeyPrefix="customers"
-        />
+      {/* Search bar (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<Customer>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => setPage(1)}
+            fetchSuggestions={fetchCustomerSuggestions}
+            getKey={(c) => c.id}
+            getHref={(c) => `/customers/${c.id}`}
+            renderItem={renderCustomerSuggestion}
+            placeholder="Search by customer name, company, email, phone, GST..."
+            ariaLabel="Search customers"
+            cacheKeyPrefix="customers"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(search || categoryFilter) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setCategoryFilter(''); setPage(1); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Quick Filter Pills */}

@@ -13,7 +13,6 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
 import PageHeader from '@/components/PageHeader';
-import FilterPanel from '@/components/FilterPanel';
 
 interface Task {
   id: string;
@@ -89,6 +88,7 @@ export default function TasksPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
@@ -150,15 +150,16 @@ export default function TasksPage() {
 
   const renderTaskSuggestion = (task: Task, query: string) => (
     <div className="min-w-0">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(task.title, query)}</span>
         <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[task.status] || 'bg-gray-100 text-gray-600'}`}>
           {task.status.replace('_', ' ')}
         </span>
       </div>
       <p className="text-xs text-gray-500 mt-0.5 truncate">
+        {task.relatedDeal?.dealName ? <>{highlightMatch(task.relatedDeal.dealName, query)} · </> : null}
         {task.dueDate ? `Due ${new Date(task.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : 'No due date'}
-        {task.assignedTo ? ` · ${task.assignedTo.firstName} ${task.assignedTo.lastName}` : ''}
+        {task.assignedTo ? <> · {highlightMatch(`${task.assignedTo.firstName} ${task.assignedTo.lastName}`, query)}</> : ''}
       </p>
     </div>
   );
@@ -236,37 +237,92 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <FilterPanel
-        label="Search & Filters"
-        activeCount={[applied.status, applied.priority, applied.search].filter(Boolean).length}
-        onClear={resetFilters}
-      >
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search</label>
-            <LiveSearchDropdown<Task>
-              value={filters.search}
-              onChange={(v) => setFilters(f => ({ ...f, search: v }))}
-              onSearch={applyFilters}
-              fetchSuggestions={fetchTaskSuggestions}
-              getKey={(t) => t.id}
-              getHref={(t) => `/tasks#task-${t.id}`}
-              renderItem={renderTaskSuggestion}
-              placeholder="Search by title, description..."
-              ariaLabel="Search tasks"
-              cacheKeyPrefix="tasks"
-              className="w-full"
-            />
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<Task>
+            value={filters.search}
+            onChange={(v) => setFilters(f => ({ ...f, search: v }))}
+            onSearch={applyFilters}
+            fetchSuggestions={fetchTaskSuggestions}
+            getKey={(t) => t.id}
+            getHref={(t) => `/tasks#task-${t.id}`}
+            renderItem={renderTaskSuggestion}
+            placeholder="Search by title, description, assigned user, deal..."
+            ariaLabel="Search tasks"
+            cacheKeyPrefix="tasks"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || Boolean(applied.status || applied.priority)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {[applied.status, applied.priority].filter(Boolean).length > 0 && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  {[applied.status, applied.priority].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={applyFilters}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(applied.status || applied.priority || applied.search || filters.search) && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap flex-shrink-0">
-            <div className="flex-1 sm:w-44">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Priority</label>
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => {
+                  setFilters(f => ({ ...f, status: e.target.value }));
+                  setApplied(f => ({ ...f, status: e.target.value }));
+                  setPage(1);
+                }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Priority</label>
               <select
                 value={filters.priority}
-                onChange={(e) => setFilters(f => ({ ...f, priority: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => {
+                  setFilters(f => ({ ...f, priority: e.target.value }));
+                  setApplied(f => ({ ...f, priority: e.target.value }));
+                  setPage(1);
+                }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="">All Priorities</option>
                 <option value="URGENT">Urgent</option>
@@ -275,24 +331,9 @@ export default function TasksPage() {
                 <option value="LOW">Low</option>
               </select>
             </div>
-
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm self-end"
-            >
-              Filter
-            </button>
-            {(applied.status || applied.priority || applied.search) && (
-              <button
-                onClick={resetFilters}
-                className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors self-end"
-              >
-                Reset
-              </button>
-            )}
           </div>
-        </div>
-      </FilterPanel>
+        )}
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (

@@ -12,6 +12,7 @@ import { useToast } from '@/components/Toast';
 import PageContainer from '@/components/PageContainer';
 import FilterPanel from '@/components/FilterPanel';
 import { InlineLoader } from '@/components/BrandedLoader';
+import { downloadAuthedFile } from '@/lib/downloadFile';
 
 interface Quotation {
   id: string;
@@ -51,6 +52,7 @@ export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   // `loading` gates only the first paint; `refreshing` covers every later
   // fetch so a status filter change dims the current rows instead of
   // replacing them with a spinner.
@@ -131,11 +133,27 @@ export default function QuotationsPage() {
     }
   };
 
+  const handleDownloadDocx = async (e: React.MouseEvent, q: Quotation) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDownloadingId(q.id);
+    try {
+      await downloadAuthedFile(`/api/quotations/${q.id}/docx`, `${q.quotationNumber}.docx`);
+      toast.success(`Downloaded ${q.quotationNumber}.docx`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download proposal');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     fetchQuotations();
   };
+
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchQuotationSuggestions = useCallback(async (query: string): Promise<Quotation[]> => {
     const token = localStorage.getItem('token');
@@ -146,19 +164,25 @@ export default function QuotationsPage() {
     return (data.quotations || []) as Quotation[];
   }, []);
 
-  const renderQuotationSuggestion = (q: Quotation, query: string) => (
-    <div className="min-w-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(q.quotationNumber, query)}</span>
-        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${STATUS_META[q.status]?.style || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-          {STATUS_META[q.status]?.label || q.status}
-        </span>
+  const renderQuotationSuggestion = (q: Quotation, query: string) => {
+    const creator = q.createdBy ? `${q.createdBy.firstName} ${q.createdBy.lastName || ''}`.trim() : '';
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-gray-900 truncate">{highlightMatch(q.quotationNumber, query)}</span>
+          <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${STATUS_META[q.status]?.style || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+            {STATUS_META[q.status]?.label || q.status}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate">
+          {highlightMatch(q.customer?.companyName || '—', query)}
+          {q.deal?.dealName ? <> · {highlightMatch(q.deal.dealName, query)}</> : null}
+          {' · '}{fmt(q.totalAmount)}
+          {creator ? <> · By: {highlightMatch(creator, query)}</> : null}
+        </p>
       </div>
-      <p className="text-xs text-gray-500 mt-0.5 truncate">
-        {highlightMatch(q.customer?.companyName || '—', query)} · {fmt(q.totalAmount)}
-      </p>
-    </div>
-  );
+    );
+  };
 
   return (
     <PageContainer>
@@ -177,8 +201,8 @@ export default function QuotationsPage() {
                 ? 'Currently OFF — any user can create a quotation for any lead. Click to restore normal permissions.'
                 : 'Currently ON — only admins, managers, or a lead\'s assigned owner can create its quotation. Click to allow every user to create quotations for any lead.'}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors disabled:opacity-50 ${restrictionsDisabled
-                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
             >
               <span className={`w-2 h-2 rounded-full ${restrictionsDisabled ? 'bg-amber-500' : 'bg-green-500'}`} />
@@ -214,8 +238,8 @@ export default function QuotationsPage() {
               setPage(1);
             }}
             className={`filter-pill px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ease-out ${status === s.value
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02] ring-2 ring-blue-400/40'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 hover:text-gray-900'
               }`}
           >
             {s.label}
@@ -223,52 +247,81 @@ export default function QuotationsPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <FilterPanel
-        label="Search & Filters"
-        activeCount={[search, status].filter(Boolean).length}
-        onClear={() => { setSearch(''); setStatus(''); setPage(1); }}
-      >
-        <form onSubmit={handleSearch} className="max-w-full">
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-            <div className="flex-1 min-w-0">
-              <LiveSearchDropdown<Quotation>
-                value={search}
-                onChange={setSearch}
-                onSearch={() => { setPage(1); fetchQuotations(); }}
-                fetchSuggestions={fetchQuotationSuggestions}
-                getKey={(q) => q.id}
-                getHref={(q) => `/quotations/${q.id}`}
-                renderItem={renderQuotationSuggestion}
-                placeholder="Quotation number or company…"
-                ariaLabel="Search quotations"
-                cacheKeyPrefix="quotations"
-                className="w-full"
-              />
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex-1 sm:w-40">
-                <select
-                  value={status}
-                  onChange={e => { setStatus(e.target.value); setPage(1); }}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="">All Status</option>
-                  <option value="DRAFT">Draft</option>
-                  <option value="SENT">Sent</option>
-                  <option value="ACCEPTED">Accepted</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="EXPIRED">Expired</option>
-                </select>
-              </div>
-              <button type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors flex-shrink-0">
-                Search
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<Quotation>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => { setPage(1); fetchQuotations(); }}
+            fetchSuggestions={fetchQuotationSuggestions}
+            getKey={(q) => q.id}
+            getHref={(q) => `/quotations/${q.id}`}
+            renderItem={renderQuotationSuggestion}
+            placeholder="Search by quotation number, customer, lead, created by..."
+            ariaLabel="Search quotations"
+            cacheKeyPrefix="quotations"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || status
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {status && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  1
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPage(1); fetchQuotations(); }}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(search || status) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setStatus(''); setPage(1); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-3 items-center">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+              <select
+                value={status}
+                onChange={e => { setStatus(e.target.value); setPage(1); }}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Status</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SENT">Sent</option>
+                <option value="ACCEPTED">Accepted</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
             </div>
           </div>
-        </form>
-      </FilterPanel>
+        )}
+      </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -309,7 +362,22 @@ export default function QuotationsPage() {
 
                     <div className="flex items-center justify-between gap-2 text-xs pt-0.5">
                       <span className="text-sm font-bold text-gray-900">{fmt(q.totalAmount)}</span>
-                      <span className="text-gray-400 text-[11px]">{fmtDate(q.issueDate)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 text-[11px]">{fmtDate(q.issueDate)}</span>
+                        <button
+                          type="button"
+                          onClick={e => handleDownloadDocx(e, q)}
+                          disabled={downloadingId === q.id}
+                          title="Download Proposal (.docx)"
+                          className="px-2 py-0.5 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {downloadingId === q.id ? (
+                            <span className="w-2.5 h-2.5 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            'Word'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </Link>
                 );
@@ -327,6 +395,7 @@ export default function QuotationsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Issued</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created By</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Document</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -352,6 +421,24 @@ export default function QuotationsPage() {
                         <td className="px-4 py-3.5 text-gray-500">{fmtDate(q.issueDate)}</td>
                         <td className="px-4 py-3.5 text-gray-500">
                           {q.createdBy.firstName} {q.createdBy.lastName}
+                        </td>
+                        <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={e => handleDownloadDocx(e, q)}
+                            disabled={downloadingId === q.id}
+                            title="Download Proposal Word (.docx)"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-2xs disabled:opacity-50"
+                          >
+                            {downloadingId === q.id ? (
+                              <span className="w-3.5 h-3.5 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            )}
+                            <span>{downloadingId === q.id ? 'Downloading…' : 'Word'}</span>
+                          </button>
                         </td>
                       </tr>
                     );

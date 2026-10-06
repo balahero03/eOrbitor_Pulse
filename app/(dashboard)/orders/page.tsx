@@ -10,7 +10,6 @@ import LiveSearchDropdown, { highlightMatch } from '@/components/LiveSearchDropd
 import { useConfirm } from '@/components/ConfirmDialog';
 import PageContainer from '@/components/PageContainer';
 import { buttonClasses } from '@/components/Button';
-import FilterPanel from '@/components/FilterPanel';
 import { InlineLoader } from '@/components/BrandedLoader';
 
 interface Order {
@@ -56,6 +55,7 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   // Deep-linked from the overdue digest notification (/orders?overdue=true).
   const [overdueOnly, setOverdueOnly] = useState(
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('overdue') === 'true'
@@ -243,67 +243,116 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Filters */}
-      <FilterPanel
-        label="Search & Filters"
-        activeCount={[search, status, paymentStatus, overdueOnly].filter(Boolean).length}
-        onClear={() => { setSearch(''); setStatus(''); setPaymentStatus(''); setOverdueOnly(false); setPage(1); }}
-      >
-        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
-          <div className="w-full">
-            <LiveSearchDropdown<Order>
-              value={search}
-              onChange={setSearch}
-              onSearch={() => { setPage(1); fetchOrders(); }}
-              fetchSuggestions={fetchOrderSuggestions}
-              getKey={(o) => o.id}
-              getHref={(o) => `/orders/${o.id}`}
-              renderItem={renderOrderSuggestion}
-              placeholder="Search by order number..."
-              ariaLabel="Search orders"
-              cacheKeyPrefix="orders"
-              className="w-full"
-            />
+      {/* Search bar + filter toggle (Leads-style) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+          <LiveSearchDropdown<Order>
+            value={search}
+            onChange={setSearch}
+            onSearch={() => { setPage(1); fetchOrders(); }}
+            fetchSuggestions={fetchOrderSuggestions}
+            getKey={(o) => o.id}
+            getHref={(o) => `/orders/${o.id}`}
+            renderItem={renderOrderSuggestion}
+            placeholder="Search by order number, PO number, customer, deal..."
+            ariaLabel="Search orders"
+            cacheKeyPrefix="orders"
+            className="w-full sm:flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${showFilters || Boolean(status || paymentStatus || overdueOnly)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {[status, paymentStatus, overdueOnly].filter(Boolean).length > 0 && (
+                <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold ml-0.5">
+                  {[status, paymentStatus, overdueOnly].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPage(1); fetchOrders(); }}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm text-center"
+            >
+              Search
+            </button>
+            {(search || status || paymentStatus || overdueOnly) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setStatus(''); setPaymentStatus(''); setOverdueOnly(false); setPage(1); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline px-1"
+              >
+                Clear all
+              </button>
+            )}
           </div>
+        </div>
 
-          <select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="FULFILLED">Fulfilled</option>
-            <option value="INVOICED">Invoiced</option>
-            <option value="COMPLETED">Completed</option>
-          </select>
+        {/* Expanded filter panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+              <select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="FULFILLED">Fulfilled</option>
+                <option value="INVOICED">Invoiced</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
 
-          <select
-            value={paymentStatus}
-            onChange={(e) => {
-              setPaymentStatus(e.target.value);
-              setPage(1);
-            }}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">All Payments</option>
-            <option value="PENDING">Unpaid</option>
-            <option value="PARTIAL">Partial</option>
-            <option value="COMPLETED">Paid</option>
-          </select>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Payment Status</label>
+              <select
+                value={paymentStatus}
+                onChange={(e) => {
+                  setPaymentStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Payments</option>
+                <option value="PENDING">Unpaid</option>
+                <option value="PARTIAL">Partial</option>
+                <option value="COMPLETED">Paid</option>
+              </select>
+            </div>
 
-          <button
-            type="submit"
-            className={buttonClasses({ className: 'w-full sm:w-auto' })}
-          >
-            Search
-          </button>
-        </form>
-      </FilterPanel>
+            <div className="flex items-end pb-1">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={overdueOnly}
+                  onChange={(e) => {
+                    setOverdueOnly(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500 h-4 w-4"
+                />
+                <span className="text-sm font-medium text-gray-700">Overdue payments only</span>
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Orders Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

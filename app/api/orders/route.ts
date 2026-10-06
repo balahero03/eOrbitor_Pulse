@@ -50,6 +50,8 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       { orderNumber: { contains: search, mode: 'insensitive' } },
       { poNumber: { contains: search, mode: 'insensitive' } },
       { customer: { companyName: { contains: search, mode: 'insensitive' } } },
+      { deal: { dealName: { contains: search, mode: 'insensitive' } } },
+      { quotation: { quotationNumber: { contains: search, mode: 'insensitive' } } },
     ];
   }
 
