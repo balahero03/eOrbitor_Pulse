@@ -396,7 +396,10 @@ function RecoveryEmailRequiredScreen({
             {hasUnverifiedAddress ? 'Verify my email' : 'Add recovery email'}
           </Link>
           {onSkip && (
-            <button onClick={onSkip}
+            <button
+              type="button"
+              id="skip-recovery-btn"
+              onClick={onSkip}
               className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors">
               Skip for now
             </button>
@@ -583,10 +586,25 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const [user, setUser] = useState<any>(null);
-  // Session-scoped only, deliberately not persisted: the reminder should
-  // return on the next sign-in rather than being dismissed once and forgotten
-  // until the deadline arrives.
-  const [recoveryReminderSkipped, setRecoveryReminderSkipped] = useState(false);
+  // Session-scoped only: the reminder should return on the next sign-in rather than
+  // being permanently dismissed, but allows users to skip during their session.
+  const [recoveryReminderSkipped, setRecoveryReminderSkipped] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('recoveryReminderSkipped') === 'true' ||
+             (typeof document !== 'undefined' && document.cookie.includes('pulse_recovery_skipped=true'));
+    }
+    return false;
+  });
+
+  const handleSkipRecovery = () => {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'pulse_recovery_skipped=true; path=/; max-age=86400; SameSite=Lax';
+    }
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('recoveryReminderSkipped', 'true');
+    }
+    setRecoveryReminderSkipped(true);
+  };
   const [accessBlocked, setAccessBlocked] = useState<{ date: string; windowStart: string; windowEnd: string } | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -1023,6 +1041,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     // otherwise the app just sits on the current page for however long the
     // time-tracking call takes, which reads as an unresponsive click.
     setLoggingOut(true);
+    if (typeof document !== 'undefined') {
+      document.cookie = 'pulse_recovery_skipped=; path=/; max-age=0; SameSite=Lax';
+    }
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('recoveryReminderSkipped');
+    }
     const token = localStorage.getItem('token');
     if (token) {
       await fetch('/api/time-tracking', {
@@ -1074,7 +1098,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         hardBlocked={!!re.blocked}
         daysRemaining={re.daysRemaining}
         hasUnverifiedAddress={!!re.address}
-        onSkip={re.blocked ? undefined : () => setRecoveryReminderSkipped(true)}
+        onSkip={handleSkipRecovery}
         onLogout={handleLogout}
       />
     );

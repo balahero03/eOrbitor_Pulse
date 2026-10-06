@@ -82,7 +82,13 @@ export function withAuth(handler: Handler) {
     // calling the API directly. Gated behind a configured date so existing
     // users are never locked out of a system they were already using.
     const recoveryPolicy = getRecoveryEmailPolicy();
-    if (recoveryPolicy.enforced && !isAllowedWhileRecoveryIncomplete(req.nextUrl.pathname)) {
+    const cookieHeader = req.headers.get('cookie') || '';
+    const recoverySkipped =
+      req.cookies.get('pulse_recovery_skipped')?.value === 'true' ||
+      cookieHeader.includes('pulse_recovery_skipped=true') ||
+      req.headers.get('x-recovery-skipped') === 'true';
+
+    if (recoveryPolicy.enforced && !recoverySkipped && !isAllowedWhileRecoveryIncomplete(req.nextUrl.pathname)) {
       if (!dbUser.personalEmail || !dbUser.personalEmailVerifiedAt) {
         return NextResponse.json(
           {

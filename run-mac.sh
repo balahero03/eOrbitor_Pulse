@@ -24,6 +24,13 @@ echo "  eOrbitor Pulse CRM - macOS Startup"
 echo "======================================"
 echo -e "${NC}"
 
+SKIP_DB=false
+for arg in "$@"; do
+    case "$arg" in
+        --skip-db|--skip|-s) SKIP_DB=true ;;
+    esac
+done
+
 cd "$PROJECT_DIR"
 
 # Prerequisites
@@ -32,35 +39,45 @@ command -v node &>/dev/null || fail "Node.js not installed. Please install it: b
 ok "Node.js $(node -v)"
 
 step "Checking PostgreSQL..."
-command -v psql &>/dev/null || fail "PostgreSQL not installed. Please install it: brew install postgresql@14"
-ok "PostgreSQL installed"
-
-# Start PostgreSQL service via Homebrew
-step "Starting PostgreSQL service via Homebrew..."
-if command -v brew &>/dev/null; then
-    if ! brew services list | grep -qE "postgresql(@[0-9]+)?\s+started"; then
-        step "Starting PostgreSQL via Homebrew..."
-        brew services start postgresql@14 || brew services start postgresql || true
-    fi
+if [ "$SKIP_DB" = true ]; then
+    warn "Skipping PostgreSQL service check (--skip-db passed)"
 else
-    warn "Homebrew not found. Please ensure PostgreSQL is running."
-fi
-ok "PostgreSQL running"
+    command -v psql &>/dev/null || fail "PostgreSQL not installed. Please install it: brew install postgresql@14"
+    ok "PostgreSQL installed"
 
-# Database setup
-step "Checking database connection..."
-if ! PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -c "SELECT 1;" &>/dev/null; then
-    warn "Database or user not found. Setting up database..."
-    if psql postgres -c "SELECT 1;" &>/dev/null; then
-        psql postgres -c "CREATE USER eorbitor WITH PASSWORD 'YourStrongDatabasePassword123!';" 2>/dev/null || true
-        psql postgres -c "CREATE DATABASE eorbitor_pulse OWNER eorbitor;" 2>/dev/null || true
-        psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE eorbitor_pulse TO eorbitor;" 2>/dev/null || true
+    # Start PostgreSQL service via Homebrew
+    step "Starting PostgreSQL service via Homebrew..."
+    if command -v brew &>/dev/null; then
+        if ! brew services list | grep -qE "postgresql(@[0-9]+)?\s+started"; then
+            step "Starting PostgreSQL via Homebrew..."
+            brew services start postgresql@14 || brew services start postgresql || true
+        fi
     else
-        fail "Could not connect to PostgreSQL superuser to set up the DB. Please check connection manually."
+        warn "Homebrew not found. Please ensure PostgreSQL is running."
     fi
-    PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -c "SELECT 1;" &>/dev/null || fail "Database setup failed"
+    ok "PostgreSQL running"
+
+    # Database setup
+    step "Checking database connection..."
+    if ! PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -c "SELECT 1;" &>/dev/null; then
+        warn "Database or user not found. Setting up database..."
+        if psql postgres -c "SELECT 1;" &>/dev/null; then
+            psql postgres -c "CREATE USER eorbitor WITH PASSWORD 'YourStrongDatabasePassword123!';" 2>/dev/null || true
+            psql postgres -c "CREATE DATABASE eorbitor_pulse OWNER eorbitor;" 2>/dev/null || true
+            psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE eorbitor_pulse TO eorbitor;" 2>/dev/null || true
+        elif psql -U "$(whoami)" postgres -c "SELECT 1;" &>/dev/null; then
+            psql -U "$(whoami)" postgres -c "CREATE USER eorbitor WITH PASSWORD 'YourStrongDatabasePassword123!';" 2>/dev/null || true
+            psql -U "$(whoami)" postgres -c "CREATE DATABASE eorbitor_pulse OWNER eorbitor;" 2>/dev/null || true
+            psql -U "$(whoami)" postgres -c "GRANT ALL PRIVILEGES ON DATABASE eorbitor_pulse TO eorbitor;" 2>/dev/null || true
+        else
+            warn "Could not connect to PostgreSQL superuser to set up the DB."
+            warn "You can skip DB setup by running: ./run-mac.sh --skip-db"
+            fail "Please check connection manually or run with: ./run-mac.sh --skip-db"
+        fi
+        PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -c "SELECT 1;" &>/dev/null || fail "Database setup failed. You can skip with: ./run-mac.sh --skip-db"
+    fi
+    ok "Database connection OK"
 fi
-ok "Database connection OK"
 
 # .env.local
 step "Checking environment config..."
@@ -81,19 +98,23 @@ step "Generating Prisma client..."
 DATABASE_URL="$DB_URL" npm run prisma:generate --silent
 ok "Prisma client generated"
 
-step "Syncing database schema..."
-DATABASE_URL="$DB_URL" npm run db:push --silent
-ok "Schema synced"
+if [ "$SKIP_DB" = false ]; then
+    step "Syncing database schema..."
+    DATABASE_URL="$DB_URL" npm run db:push --silent
+    ok "Schema synced"
 
-# Seed if empty
-USER_COUNT=$(PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -tAc 'SELECT COUNT(*) FROM "User";' 2>/dev/null || echo "0")
-if [ "$USER_COUNT" = "0" ]; then
-    step "Seeding database..."
-    DATABASE_URL="$DB_URL" npm run db:seed
-    DATABASE_URL="$DB_URL" node prisma/seed-users.js
-    ok "Database seeded"
+    # Seed if empty
+    USER_COUNT=$(PGPASSWORD='YourStrongDatabasePassword123!' psql -U eorbitor -h localhost -d eorbitor_pulse -tAc 'SELECT COUNT(*) FROM "User";' 2>/dev/null || echo "0")
+    if [ "$USER_COUNT" = "0" ]; then
+        step "Seeding database..."
+        DATABASE_URL="$DB_URL" npm run db:seed
+        DATABASE_URL="$DB_URL" node prisma/seed-users.js
+        ok "Database seeded"
+    else
+        ok "Database has data ($USER_COUNT users)"
+    fi
 else
-    ok "Database has data ($USER_COUNT users)"
+    warn "Skipping schema sync and seeding (--skip-db active)"
 fi
 
 # Free port 3000
