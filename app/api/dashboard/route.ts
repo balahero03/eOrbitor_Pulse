@@ -25,6 +25,44 @@ function wonThisMonthWhere(scope: Record<string, unknown>) {
   };
 }
 
+function formatPendingActivities(followUps: any[], tasks: any[]) {
+  const list = [
+    ...followUps.map((f) => ({
+      id: f.id,
+      kind: 'FOLLOW_UP',
+      type: f.type,
+      title: f.lead
+        ? `${f.lead.name || 'Lead'}${f.lead.company ? ` (${f.lead.company})` : ''}`
+        : (f.deal?.customer?.companyName || 'Scheduled Follow-up'),
+      subtitle: f.notes || `${f.type} follow-up`,
+      scheduledDate: f.scheduledDate ? f.scheduledDate.toISOString() : null,
+      userName: f.createdBy ? `${f.createdBy.firstName} ${f.createdBy.lastName}`.trim() : null,
+      leadId: f.leadId,
+      dealId: f.dealId,
+      href: f.leadId ? `/leads/${f.leadId}` : '/followups',
+    })),
+    ...tasks.map((t) => ({
+      id: t.id,
+      kind: 'TASK',
+      type: 'TASK',
+      title: t.title,
+      subtitle: `Priority: ${t.priority} · Status: ${t.status}`,
+      scheduledDate: t.dueDate ? t.dueDate.toISOString() : null,
+      userName: t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}`.trim() : null,
+      priority: t.priority,
+      href: `/tasks`,
+    })),
+  ];
+
+  list.sort((a, b) => {
+    if (!a.scheduledDate) return 1;
+    if (!b.scheduledDate) return -1;
+    return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
+  });
+
+  return list;
+}
+
 export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const { id: userId, role } = user;
 
@@ -109,6 +147,30 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       select: { id: true, title: true, content: true, priority: true, publishedAt: true, expiresAt: true },
     });
 
+    const [pendingFollowUps, pendingTasks] = await Promise.all([
+      prisma.followUp.findMany({
+        where: { createdById: userId, actualDate: null },
+        take: 8,
+        orderBy: { scheduledDate: 'asc' },
+        select: {
+          id: true, type: true, scheduledDate: true, notes: true, leadId: true, dealId: true,
+          lead: { select: { id: true, name: true, company: true, leadNumber: true } },
+          deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },
+          createdBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.task.findMany({
+        where: { assignedToId: userId, status: { not: 'COMPLETED' } },
+        take: 8,
+        orderBy: [{ dueDate: 'asc' }, { priority: 'asc' }],
+        select: {
+          id: true, title: true, priority: true, status: true, dueDate: true,
+          assignedTo: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+    ]);
+    const pendingActivities = formatPendingActivities(pendingFollowUps, pendingTasks);
+
     return NextResponse.json({
       role: 'ON_FIELD_TEAM',
       needsRecoveryEmail,
@@ -116,8 +178,10 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       stats: {
         myLeadsTotal, openTasks: myOpenTasks, overdueTasks: myOverdueTasks,
         followUpsToday: followUpsToday.length, overdueFollowUps: overdueFollowUps.length, wonThisMonth,
+        pendingActivities: pendingActivities.length,
       },
       followUpsToday, overdueFollowUps, tasksToday, recentLeads, upcomingFollowUps, leadsByStatus,
+      pendingActivities,
       announcements,
     });
   }
@@ -194,17 +258,49 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       select: { id: true, title: true, content: true, priority: true, publishedAt: true, expiresAt: true },
     });
 
+    const [
+      pendingFollowUps, pendingTasks, totalTeamPendingFollowUps, totalTeamPendingTasks,
+    ] = await Promise.all([
+      prisma.followUp.findMany({
+        where: { createdById: { in: teamIds }, actualDate: null },
+        take: 10,
+        orderBy: { scheduledDate: 'asc' },
+        select: {
+          id: true, type: true, scheduledDate: true, notes: true, leadId: true, dealId: true,
+          lead: { select: { id: true, name: true, company: true, leadNumber: true } },
+          deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },
+          createdBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.task.findMany({
+        where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' } },
+        take: 10,
+        orderBy: [{ dueDate: 'asc' }, { priority: 'asc' }],
+        select: {
+          id: true, title: true, priority: true, status: true, dueDate: true,
+          assignedTo: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.followUp.count({ where: { createdById: { in: teamIds }, actualDate: null } }),
+      prisma.task.count({ where: { assignedToId: { in: teamIds }, status: { not: 'COMPLETED' } } }),
+    ]);
+    const pendingActivities = formatPendingActivities(pendingFollowUps, pendingTasks);
+
     return NextResponse.json({
       role: 'BACKEND_TEAM',
       needsRecoveryEmail,
       teamName: `${subs.length + 1} member team`,
-      stats: { teamLeads, teamDeals, teamWonThisMonth, teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue },
+      stats: {
+        teamLeads, teamDeals, teamWonThisMonth, teamOpenTasks, teamOverdueTasks, teamFollowUpsOverdue,
+        teamPendingActivities: totalTeamPendingFollowUps + totalTeamPendingTasks,
+      },
       teamMembers: subs.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })),
       leaderboard,
       pipeline: (pipelineByStage as any[]).map((s) => ({
         stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
       })),
       recentLeads,
+      pendingActivities,
       announcements,
     });
   }
@@ -217,6 +313,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
   const [
     totalLeads, totalCustomers, activeDeals, overdueTasks,
     pendingApprovals, totalUsers, monthRevenue, lastMonthRevenue, pipelineByStage, recentActivity,
+    pendingFollowUps, pendingTasks, totalPendingFollowUps, totalPendingTasks,
   ] = await Promise.all([
     prisma.lead.count({ where: { deletedAt: null } }),
     prisma.customer.count({ where: { deletedAt: null } }),
@@ -244,7 +341,40 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
         user: { select: { firstName: true, lastName: true, role: true } },
       },
     }),
+    prisma.followUp.findMany({
+      where: { actualDate: null },
+      take: 12,
+      orderBy: { scheduledDate: 'asc' },
+      select: {
+        id: true,
+        type: true,
+        scheduledDate: true,
+        notes: true,
+        leadId: true,
+        dealId: true,
+        lead: { select: { id: true, name: true, company: true, leadNumber: true } },
+        deal: { select: { id: true, dealName: true, customer: { select: { companyName: true } } } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    }),
+    prisma.task.findMany({
+      where: { status: { not: 'COMPLETED' } },
+      take: 12,
+      orderBy: [{ dueDate: 'asc' }, { priority: 'asc' }],
+      select: {
+        id: true,
+        title: true,
+        priority: true,
+        status: true,
+        dueDate: true,
+        assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      },
+    }),
+    prisma.followUp.count({ where: { actualDate: null } }),
+    prisma.task.count({ where: { status: { not: 'COMPLETED' } } }),
   ]);
+
+  const pendingActivities = formatPendingActivities(pendingFollowUps, pendingTasks);
 
   const dealsPipelineValue = await prisma.deal.aggregate({
     where: { stage: { notIn: ['CLOSURE', 'ONGOING'] } },
@@ -268,6 +398,9 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       monthRevenue: Number(monthRevenue._sum.totalAmount || 0),
       lastMonthRevenue: Number(lastMonthRevenue._sum.totalAmount || 0),
       totalUsers, pendingApprovals,
+      pendingActivitiesCount: totalPendingFollowUps + totalPendingTasks,
+      pendingFollowUpsCount: totalPendingFollowUps,
+      pendingTasksCount: totalPendingTasks,
     },
     pipeline: (pipelineByStage as any[]).map((s) => ({
       stage: s.stage, value: Number(s._sum?.dealValue || 0), count: s._count?.id || 0,
@@ -285,6 +418,7 @@ export const GET = withAuth(async (req: NextRequest, user: AuthUser) => {
       changes: a.changes,
       createdAt: a.createdAt.toISOString(),
     })),
+    pendingActivities,
     announcements,
   });
 });

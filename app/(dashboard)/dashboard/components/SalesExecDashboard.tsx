@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AnnouncementIcon } from '@/components/icons';
+import PendingActivitiesPanel from '@/components/PendingActivitiesPanel';
 import {
   FunnelIcon, TrophyIcon, CalendarDaysIcon, BellAlertIcon, ClipboardDocumentListIcon, PlusIcon, PencilSquareIcon, EnvelopeIcon,
 } from '@heroicons/react/24/outline';
@@ -243,6 +244,12 @@ export default function SalesExecDashboard({ data }: { data: any }) {
           )}
         </div>
       </div>
+
+      {/* Pending Activities Panel */}
+      <PendingActivitiesPanel
+        activities={data.pendingActivities}
+        totalCount={stats.pendingActivities}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Tasks Due Today */}

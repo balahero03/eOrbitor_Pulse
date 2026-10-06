@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { AnnouncementIcon, CalendarIcon, ShieldIcon, PlusGlyph } from '@/components/icons';
+import PendingActivitiesPanel from '@/components/PendingActivitiesPanel';
 import {
   FunnelIcon, BriefcaseIcon, TrophyIcon, ClipboardDocumentListIcon,
-  ClockIcon, BellAlertIcon, EnvelopeIcon,
+  ClockIcon, BellAlertIcon, EnvelopeIcon, CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 const fmt = (v: number | string) =>
@@ -154,11 +155,18 @@ export default function ManagerDashboard({ data }: { data: any }) {
       </div>
 
       {/* Team workload */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard label="Pending Activities" value={stats.teamPendingActivities || 0} icon={CalendarDaysIcon} tint="bg-amber-50" color="text-amber-600" href="/followups" />
         <StatCard label="Open Tasks" value={stats.teamOpenTasks} icon={ClipboardDocumentListIcon} tint="bg-gray-100" color="text-gray-600" href="/tasks" />
         <StatCard label="Overdue Tasks" value={stats.teamOverdueTasks} icon={ClockIcon} tint="bg-red-50" color="text-red-600" href="/tasks" />
         <StatCard label="Overdue Follow-ups" value={stats.teamFollowUpsOverdue} icon={BellAlertIcon} tint="bg-orange-50" color="text-orange-600" href="/leads" />
       </div>
+
+      {/* Pending Activities Panel */}
+      <PendingActivitiesPanel
+        activities={data.pendingActivities}
+        totalCount={stats.teamPendingActivities}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Team Leaderboard */}

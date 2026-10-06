@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { AnnouncementIcon, CalendarIcon, ReportIcon } from '@/components/icons';
 import { requestHighlight } from '@/lib/notificationHighlight';
+import PendingActivitiesPanel from '@/components/PendingActivitiesPanel';
 import {
   FunnelIcon, BriefcaseIcon, ChartBarIcon, CurrencyRupeeIcon, ClockIcon,
-  ShieldCheckIcon, UsersIcon, BuildingOfficeIcon,
+  ShieldCheckIcon, UsersIcon, BuildingOfficeIcon, CalendarDaysIcon,
   ArrowTrendingUpIcon, ArrowTrendingDownIcon,
   PlusCircleIcon, PencilSquareIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, EnvelopeIcon, TagIcon,
   DocumentTextIcon, ShoppingBagIcon, CheckCircleIcon, MegaphoneIcon, ArrowRightIcon,
@@ -374,12 +375,12 @@ export default function AdminDashboard({ data }: { data: any }) {
       {/* Secondary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
-          label="Total Customers" value={fmtNum(kpis?.totalCustomers || 0)}
-          icon={BuildingOfficeIcon} tint="bg-teal-50" color="text-teal-600" href="/customers"
+          label="Pending Activities" value={kpis?.pendingActivitiesCount || 0}
+          icon={CalendarDaysIcon} tint="bg-amber-50" color="text-amber-600" href="/followups"
         />
         <StatCard
-          label="Overdue Tasks" value={kpis?.overdueTasks || 0}
-          icon={ClockIcon} tint="bg-orange-50" color="text-orange-600" href="/tasks"
+          label="Total Customers" value={fmtNum(kpis?.totalCustomers || 0)}
+          icon={BuildingOfficeIcon} tint="bg-teal-50" color="text-teal-600" href="/customers"
         />
         <StatCard
           label="Pending Approvals" value={kpis?.pendingApprovals || 0}
@@ -391,8 +392,15 @@ export default function AdminDashboard({ data }: { data: any }) {
         />
       </div>
 
-      {/* Recent Activity Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6">
+      {/* Pending Activities & Recent Activity Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-start">
+        <PendingActivitiesPanel
+          activities={data.pendingActivities}
+          totalCount={kpis?.pendingActivitiesCount}
+        />
+
+        {/* Recent Activity Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Recent Activity</h2>
@@ -463,6 +471,7 @@ export default function AdminDashboard({ data }: { data: any }) {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Quick Actions */}
